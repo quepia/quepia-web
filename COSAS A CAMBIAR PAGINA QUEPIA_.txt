@@ -1,0 +1,42 @@
+﻿COSAS A CAMBIAR PAGINA QUEPIA:
+METADATA:
+1. CAMBIAR EL FAVICON POR EL LOGO DE QUEPIA. SACAR LO DE VERCEL. 
+2. Ponerle de nombre: Quepia - Consultora Creativa
+3. Hacer ajustes de CEO agregando descripciones y optimizando para el objetivo de Quepia.
+HOME:
+1. Arreglar que al hacer hover sobre “nuestros servicios” en el hero se pone en negro
+2. Sacar el botón “ver proyectos” y reemplazarlo por “Contactanos”
+3. En la parte “Creamos desde cero” los espacios deben tener información con un desplegable sobre (en el orden indicado):
+   1. Diseño gráfico
+   2. Diseño de productos y procesos
+   3. Gestión de redes sociales
+   4. Branding
+   5. Cartelería
+   6. Marketing
+   7. Producción de video
+   8. Fotografía
+   9. Cartelería
+   10. Diseño de Packaging
+4. Añadir un nuevo hero que diga “Hacemos crecer tu identidad visual, con innovación (RE)inventá tu marca con Quepia.” Debe ser llamativo, utilizar los colores corporativos.
+5. Añadir un carrousel con ejemplos de trabajos de Quepia. Al momento de hacer click en alguno de ellos llevar a la pestaña “servicios”
+6. Arreglar el footer que no anda en el home por alguna razon
+
+
+SERVICIOS:
+1. Cambiar el fondo por alguna animación similar a la del home pero con alguna otra forma. Pueden ser particulares finitas. No deben ser muchas, pero deben reflectar y queda profesional.
+2. Hacer dinámica la lista de servicios y debe estar vinculada con la parte de “creamos desde cero” del home. Incluir carrousel para cada uno de los servicios para añadir ejemplos de trabajos realizados. Verificar que esten todos los servicios ya mencionados en el home.
+
+
+SOBRE NOSOTROS:
+1. Añadir dos espacios para dos personas que digan:
+   1. Lautaro López Labrin
+   2. Camila De Angelis
+2. Añadir un texto explicando qué es Quepia, cómo nació, que somos de Villa Carlos Paz, Córdoba, Argentina y que somos personas socialmente involucradas
+3. Añadir de fondo similar a lo anteriormente señalado. En 3d y profesional.
+
+
+CONTACTO:
+1. Hacer funcional para la posterior configuración el sistema de envío de MAILS
+2. El Email de quepia es: hola@quepia.com
+3. En la ubicación del estudio poner Villa Carlos Paz, Córdoba, Argentina.
+4. Sacar el teléfono.

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Quepia - Consultora Creativa</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/assets/logo.png" />
+    <link rel="apple-touch-icon" href="/assets/logo.png" />
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Quepia es una consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Especialistas en diseño gráfico, branding, marketing, gestión de redes sociales, producción de video y fotografía. Hacemos crecer tu identidad visual." />
+    <meta name="keywords" content="consultora creativa, diseño gráfico, branding, marketing, redes sociales, Villa Carlos Paz, Córdoba, Argentina, identidad visual, packaging, cartelería, fotografía, video" />
+    <meta name="author" content="Quepia" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Quepia - Consultora Creativa" />
+    <meta property="og:description" content="Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico, branding, marketing y más." />
+    <meta property="og:image" content="/assets/logo.png" />
+    <meta property="og:locale" content="es_AR" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Quepia - Consultora Creativa" />
+    <meta name="twitter:description" content="Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico, branding, marketing y más." />
+    <meta name="twitter:image" content="/assets/logo.png" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS (configured for runtime) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              quepia: {
+                dark: '#1a1a1a',
+                purple: '#881078',
+                cyan: '#2AE7E4',
+                gray: '#2a2a2a',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Inter', 'sans-serif'],
+            },
+            backgroundImage: {
+              'quepia-gradient': 'linear-gradient(to right, #881078, #2AE7E4)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      html, body, #root {
+        background-color: transparent;
+        color: white;
+        overflow-x: hidden;
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1a1a1a; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #444; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #881078; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
