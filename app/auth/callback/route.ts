@@ -15,11 +15,16 @@ export async function GET(request: Request) {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                const { data: authorizedUser } = await supabase
+                console.log('[Auth Callback] User Logged In:', user.email);
+
+                const { data: authorizedUser, error: authError } = await supabase
                     .from('authorized_users')
                     .select('email')
                     .ilike('email', user.email || '')
                     .maybeSingle();
+
+                console.log('[Auth Callback] DB Query Result:', authorizedUser);
+                console.log('[Auth Callback] DB Query Error:', authError);
 
                 if (authorizedUser) {
                     return NextResponse.redirect(`${origin}${redirectTo}`);
