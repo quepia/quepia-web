@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://quepia-web.vercel.app'), // Reemplaza con tu dominio real si tienes uno propio
+  metadataBase: new URL('https://quepia.com'),
   title: {
     default: 'Quepia - Consultora Creativa',
     template: '%s | Quepia'
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'es_AR',
-    url: 'https://quepia-web.vercel.app',
+    url: 'https://quepia.com',
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
     description: 'Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico, branding, marketing y más.',
     siteName: 'Quepia Creative Agency',
