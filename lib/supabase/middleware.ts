@@ -48,8 +48,8 @@ export async function updateSession(request: NextRequest) {
         const { data: authorizedUser } = await supabase
             .from('authorized_users')
             .select('email')
-            .eq('email', user.email)
-            .single();
+            .ilike('email', user.email || '')
+            .maybeSingle();
 
         if (!authorizedUser) {
             // Not authorized, redirect to home with error
