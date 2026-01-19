@@ -163,8 +163,9 @@ body {
 }
 
 /* Modal backdrop */
-background: rgba(0, 0, 0, 0.8);
-backdrop-filter: blur(8px);
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
 }
 
 /* Animations */
