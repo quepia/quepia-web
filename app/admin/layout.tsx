@@ -14,11 +14,13 @@ import {
     LogOut,
     Menu,
     X,
-    Home
+    Home,
+    ShieldCheck
 } from 'lucide-react';
 
 const sidebarItems = [
     { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    { name: 'Usuarios', path: '/admin/usuarios', icon: ShieldCheck },
     { name: 'Proyectos', path: '/admin/proyectos', icon: FolderOpen },
     { name: 'Servicios', path: '/admin/servicios', icon: Briefcase },
     { name: 'Equipo', path: '/admin/equipo', icon: Users },

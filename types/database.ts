@@ -66,6 +66,14 @@ export interface AuthorizedUser {
   created_at: string;
 }
 
+export interface AuthorizedUserInsert {
+  email: string;
+}
+
+export interface AuthorizedUserUpdate {
+  email?: string;
+}
+
 export interface Configuracion {
   id: string;
   clave: string;

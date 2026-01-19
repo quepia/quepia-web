@@ -99,65 +99,50 @@ function DesktopBackground({ paused }: { paused: boolean }) {
 function MobileBackground({ opacity }: { opacity: number }) {
     return (
         <div
-            className="absolute inset-0 overflow-hidden transition-opacity duration-300"
+            className="absolute inset-0 overflow-hidden transition-opacity duration-300 pointer-events-none"
             style={{ opacity, willChange: 'opacity' }}
         >
             {/* Magenta orb - top left */}
             <div
-                className="absolute rounded-full"
+                className="absolute rounded-full mix-blend-screen animate-blob"
                 style={{
-                    width: '120vw',
-                    height: '120vw',
+                    width: '150vw',
+                    height: '150vw',
                     top: '-40%',
                     left: '-40%',
-                    background: `radial-gradient(circle, ${COLORS.purpleNeon} 0%, ${COLORS.purple} 30%, transparent 60%)`,
-                    filter: 'blur(30px)',
-                    opacity: 0.85,
+                    background: `radial-gradient(circle, ${COLORS.purpleNeon} 0%, ${COLORS.purple} 40%, transparent 70%)`,
+                    filter: 'blur(80px)',
+                    opacity: 0.9,
                     willChange: 'transform',
                 }}
             />
 
             {/* Cyan orb - center right */}
             <div
-                className="absolute rounded-full"
+                className="absolute rounded-full mix-blend-screen animate-blob animation-delay-2000"
                 style={{
-                    width: '100vw',
-                    height: '100vw',
+                    width: '140vw',
+                    height: '140vw',
                     top: '20%',
-                    right: '-30%',
-                    background: `radial-gradient(circle, ${COLORS.cyanNeon} 0%, ${COLORS.cyan} 35%, transparent 60%)`,
-                    filter: 'blur(25px)',
-                    opacity: 0.8,
+                    right: '-40%',
+                    background: `radial-gradient(circle, ${COLORS.cyanNeon} 0%, ${COLORS.cyan} 40%, transparent 70%)`,
+                    filter: 'blur(80px)',
+                    opacity: 0.85,
                     willChange: 'transform',
                 }}
             />
 
-            {/* Magenta orb - bottom left */}
+            {/* Magenta orb - bottom left - darker */}
             <div
-                className="absolute rounded-full"
+                className="absolute rounded-full mix-blend-screen animate-blob animation-delay-4000"
                 style={{
-                    width: '90vw',
-                    height: '90vw',
-                    bottom: '-20%',
-                    left: '-20%',
-                    background: `radial-gradient(circle, ${COLORS.purpleNeon} 0%, ${COLORS.purple} 40%, transparent 65%)`,
-                    filter: 'blur(28px)',
-                    opacity: 0.75,
-                    willChange: 'transform',
-                }}
-            />
-
-            {/* Cyan orb - top right */}
-            <div
-                className="absolute rounded-full"
-                style={{
-                    width: '80vw',
-                    height: '80vw',
-                    top: '-15%',
-                    right: '-25%',
-                    background: `radial-gradient(circle, ${COLORS.cyanNeon} 0%, ${COLORS.cyan} 35%, transparent 60%)`,
-                    filter: 'blur(22px)',
-                    opacity: 0.7,
+                    width: '130vw',
+                    height: '130vw',
+                    bottom: '-30%',
+                    left: '-30%',
+                    background: `radial-gradient(circle, ${COLORS.purple} 0%, transparent 70%)`,
+                    filter: 'blur(90px)',
+                    opacity: 0.9,
                     willChange: 'transform',
                 }}
             />
