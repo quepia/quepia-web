@@ -18,8 +18,8 @@ export async function GET(request: Request) {
                 const { data: authorizedUser } = await supabase
                     .from('authorized_users')
                     .select('email')
-                    .eq('email', user.email)
-                    .single();
+                    .ilike('email', user.email || '')
+                    .maybeSingle();
 
                 if (authorizedUser) {
                     return NextResponse.redirect(`${origin}${redirectTo}`);
