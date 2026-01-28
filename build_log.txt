@@ -1,0 +1,111 @@
+
+> nextjs-app@0.1.0 build
+> next build
+
+▲ Next.js 16.1.3 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 10.0s
+  Running TypeScript ...
+
+<--- Last few GCs --->
+
+[21887:0x8a3800000]    45944 ms: Scavenge (interleaved) 2041.5 (2089.3) -> 2039.0 (2089.3) MB, pooled: 4 MB, 5.33 / 0.00 ms  (average mu = 0.282, current mu = 0.076) allocation failure; 
+[21887:0x8a3800000]    46309 ms: Scavenge (interleaved) 2041.7 (2089.6) -> 2039.8 (2099.1) MB, pooled: 0 MB, 354.62 / 0.00 ms  (average mu = 0.282, current mu = 0.076) allocation failure; 
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 0x1001919b4 node::OOMErrorHandler(char const*, v8::OOMDetails const&) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 2: 0x10036005c v8::internal::V8::FatalProcessOutOfMemory(v8::internal::Isolate*, char const*, v8::OOMDetails const&) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 3: 0x10056f784 v8::internal::Heap::stack() [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 4: 0x10056db24 v8::internal::Heap::CollectGarbage(v8::internal::AllocationSpace, v8::internal::GarbageCollectionReason, v8::GCCallbackFlags) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 5: 0x10056210c v8::internal::HeapAllocator::AllocateRawWithLightRetrySlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 6: 0x100562944 v8::internal::HeapAllocator::AllocateRawWithRetryOrFailSlowPath(int, v8::internal::AllocationType, v8::internal::AllocationOrigin, v8::internal::AllocationAlignment) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 7: 0x100545c64 v8::internal::Factory::NewFillerObject(int, v8::internal::AllocationAlignment, v8::internal::AllocationType, v8::internal::AllocationOrigin) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 8: 0x100961714 v8::internal::Runtime_AllocateInYoungGeneration(int, unsigned long*, v8::internal::Isolate*) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+ 9: 0x100e21af4 Builtins_CEntry_Return1_ArgvOnStack_NoBuiltinExit [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+10: 0x10c2d20d0 
+11: 0x10cb2e1e0 
+12: 0x10c89a264 
+13: 0x10ca0c0d4 
+14: 0x10c2fa818 
+15: 0x10cb2d938 
+16: 0x10c89a264 
+17: 0x10c2cd1a8 
+18: 0x10bbd960c 
+19: 0x10b937d3c 
+20: 0x10bd31160 
+21: 0x10ca69bec 
+22: 0x10ca18314 
+23: 0x10cb2db08 
+24: 0x10c89a264 
+25: 0x10c2cd1a8 
+26: 0x10ca0c118 
+27: 0x10c2fa818 
+28: 0x10cb2d938 
+29: 0x10c89a264 
+30: 0x10c2cd1a8 
+31: 0x10cb1eff0 
+32: 0x10c4605fc 
+33: 0x10c9e2328 
+34: 0x10c76fa90 
+35: 0x10c74d2a4 
+36: 0x10cadb4b8 
+37: 0x10c811b78 
+38: 0x10c9a73e8 
+39: 0x10c9a42e0 
+40: 0x10c771c30 
+41: 0x10bbb8b34 
+42: 0x10c92f9f4 
+43: 0x10c8707a0 
+44: 0x10c7f1af0 
+45: 0x10c2e14f0 
+46: 0x10c92b568 
+47: 0x10c2e11e0 
+48: 0x10c431a6c 
+49: 0x10c2e117c 
+50: 0x10c70939c 
+51: 0x100e06248 Builtins_SetPrototypeForEach [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+52: 0x10bdba7d0 
+53: 0x10b951b00 
+54: 0x10bc0960c 
+55: 0x10bc09898 
+56: 0x10c9ba658 
+57: 0x10bc099dc 
+58: 0x10b891d3c 
+59: 0x10bc279c0 
+60: 0x10b8b8068 
+61: 0x10b8b8334 
+62: 0x10c7d5304 
+63: 0x10b890c6c 
+64: 0x100d8cef0 Builtins_InterpreterEntryTrampoline [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+65: 0x100d8cef0 Builtins_InterpreterEntryTrampoline [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+66: 0x100dc9290 Builtins_AsyncFunctionAwaitResolveClosure [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+67: 0x100e944d8 Builtins_PromiseFulfillReactionJob [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+68: 0x100db9594 Builtins_RunMicrotasks [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+69: 0x100d8aaf4 Builtins_JSRunMicrotasksEntry [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+70: 0x1004c7640 v8::internal::(anonymous namespace)::Invoke(v8::internal::Isolate*, v8::internal::(anonymous namespace)::InvokeParams const&) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+71: 0x1004c7ee8 v8::internal::(anonymous namespace)::InvokeWithTryCatch(v8::internal::Isolate*, v8::internal::(anonymous namespace)::InvokeParams const&) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+72: 0x1004c8020 v8::internal::Execution::TryRunMicrotasks(v8::internal::Isolate*, v8::internal::MicrotaskQueue*) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+73: 0x1004f5244 v8::internal::MicrotaskQueue::RunMicrotasks(v8::internal::Isolate*) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+74: 0x1004f59c8 v8::internal::MicrotaskQueue::PerformCheckpoint(v8::Isolate*) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+75: 0x1000919a8 node::InternalCallbackScope::Close() [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+76: 0x100091474 node::InternalCallbackScope::~InternalCallbackScope() [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+77: 0x10019595c node::fs::FileHandle::CloseReq::Resolve() [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+78: 0x1001afdf4 node::fs::FileHandle::ClosePromise()::$_0::__invoke(uv_fs_s*) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+79: 0x1001898b0 node::MakeLibuvRequestCallback<uv_fs_s, void (*)(uv_fs_s*)>::Wrapper(uv_fs_s*) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+80: 0x100d67300 uv__work_done [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+81: 0x100d6adb0 uv__async_io [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+82: 0x100d7e5c4 uv__io_poll [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+83: 0x100d6b318 uv_run [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+84: 0x1000924f4 node::SpinEventLoopInternal(node::Environment*) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+85: 0x1001daa7c node::NodeMainInstance::Run() [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+86: 0x10014ca80 node::Start(int, char**) [/Users/lautylopez/.nvm/versions/node/v22.16.0/bin/node]
+87: 0x18d4a5d54 start [/usr/lib/dyld]
+Next.js build worker exited with code: null and signal: SIGABRT

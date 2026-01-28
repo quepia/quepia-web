@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# extra
+node_modules 2/
+ sistema de gestion de proyectos/

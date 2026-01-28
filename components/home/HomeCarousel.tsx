@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Proyecto, CATEGORIES } from '@/types/database';
-import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Proyecto } from '@/types/database';
+import { motion, useInView } from 'framer-motion';
+import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -11,142 +11,190 @@ interface HomeCarouselProps {
     proyectos: Proyecto[];
 }
 
-const GRADIENT_COLORS = [
-    'from-quepia-purple to-quepia-cyan',
-    'from-quepia-cyan to-emerald-500',
-    'from-quepia-purple to-pink-500',
-    'from-amber-500 to-quepia-purple',
-    'from-quepia-cyan to-blue-600',
-];
+// Featured Project Card - Full width, cinematic
+function FeaturedProject({ proyecto, index }: { proyecto: Proyecto; index: number }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, delay: index * 0.1 }}
+        >
+            <Link href={`/trabajos?category=${proyecto.categoria}`}>
+                <div className="group relative aspect-[16/9] md:aspect-[21/9] rounded-lg overflow-hidden cursor-pointer">
+                    {/* Background Image */}
+                    {proyecto.imagen_url ? (
+                        <Image
+                            src={proyecto.imagen_url}
+                            alt={proyecto.titulo}
+                            fill
+                            className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-quepia-purple/30 to-quepia-cyan/30" />
+                    )}
+
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {/* Content */}
+                    <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-10 lg:p-14">
+                        {/* Category tag */}
+                        <span className="text-white/50 text-xs uppercase tracking-wider mb-3">
+                            {proyecto.categoria.replace('-', ' ')}
+                        </span>
+
+                        {/* Title */}
+                        <h3 className="font-display text-2xl md:text-4xl lg:text-5xl font-medium text-white mb-3 max-w-2xl">
+                            {proyecto.titulo}
+                        </h3>
+
+                        {/* Description */}
+                        {proyecto.descripcion && (
+                            <p className="text-white/60 text-sm md:text-base max-w-xl mb-6 line-clamp-2">
+                                {proyecto.descripcion}
+                            </p>
+                        )}
+
+                        {/* CTA */}
+                        <div className="inline-flex items-center gap-2 text-white/70 text-sm uppercase tracking-wider group-hover:text-white group-hover:gap-3 transition-all duration-300">
+                            Ver proyecto
+                            <ArrowUpRight size={14} className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                        </div>
+                    </div>
+                </div>
+            </Link>
+        </motion.div>
+    );
+}
+
+// Secondary Project Card - Smaller, grid layout
+function SecondaryProject({ proyecto, index }: { proyecto: Proyecto; index: number }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
+        >
+            <Link href={`/trabajos?category=${proyecto.categoria}`}>
+                <div className="group relative aspect-[4/5] rounded-lg overflow-hidden cursor-pointer">
+                    {/* Background Image */}
+                    {proyecto.imagen_url ? (
+                        <Image
+                            src={proyecto.imagen_url}
+                            alt={proyecto.titulo}
+                            fill
+                            className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-quepia-purple/30 to-quepia-cyan/30" />
+                    )}
+
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
+
+                    {/* Content */}
+                    <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-6">
+                        <span className="text-white/40 text-xs uppercase tracking-wider mb-2">
+                            {proyecto.categoria.replace('-', ' ')}
+                        </span>
+                        <h3 className="font-display text-lg md:text-xl font-medium text-white mb-2">
+                            {proyecto.titulo}
+                        </h3>
+                        <div className="inline-flex items-center gap-1.5 text-white/50 text-xs uppercase tracking-wider group-hover:text-white/80 group-hover:gap-2 transition-all duration-300">
+                            Ver
+                            <ArrowUpRight size={12} />
+                        </div>
+                    </div>
+                </div>
+            </Link>
+        </motion.div>
+    );
+}
 
 export default function HomeCarousel({ proyectos }: HomeCarouselProps) {
-    const [currentSlide, setCurrentSlide] = useState(0);
-    const [isMobile, setIsMobile] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const isInView = useInView(containerRef, { once: true, margin: "-50px" });
 
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
+    if (!proyectos || proyectos.length === 0) {
+        return null;
+    }
 
-    const itemsPerSlide = isMobile ? 1 : 3;
-    const totalSlides = Math.ceil(proyectos.length / itemsPerSlide);
-
-    const nextSlide = () => {
-        setCurrentSlide((prev) => (prev + 1) % totalSlides);
-    };
-
-    const prevSlide = () => {
-        setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
-    };
-
-    useEffect(() => {
-        setCurrentSlide(0);
-    }, [isMobile]);
+    // Split projects: first one featured, rest in grid
+    const featuredProject = proyectos[0];
+    const secondaryProjects = proyectos.slice(1, 5); // Max 4 secondary projects
+    const remainingProjects = proyectos.slice(5, 6); // One more featured if available
 
     return (
-        <div className="relative max-w-[1600px] mx-auto">
-            {/* Navigation Buttons */}
-            <button
-                onClick={prevSlide}
-                className="absolute -left-2 md:-left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-16 md:h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-quepia-cyan/30 transition-all duration-300 shadow-xl"
-            >
-                <ChevronLeft size={24} />
-            </button>
-            <button
-                onClick={nextSlide}
-                className="absolute -right-2 md:-right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-16 md:h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-quepia-cyan/30 transition-all duration-300 shadow-xl"
-            >
-                <ChevronRight size={24} />
-            </button>
-
-            {/* Carousel */}
-            <div className="overflow-hidden py-4 md:py-6 px-6 md:px-12">
+        <section ref={containerRef} className="py-24 md:py-32">
+            {/* Section header */}
+            <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20 mb-16">
                 <motion.div
-                    animate={{ x: `-${currentSlide * 100}%` }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    className="flex"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={isInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.6 }}
                 >
-                    {isMobile ? (
-                        proyectos.map((proyecto, index) => (
-                            <div key={proyecto.id} className="flex-shrink-0 w-full px-2">
-                                <Link href={`/trabajos?category=${proyecto.categoria}`}>
-                                    <motion.div whileTap={{ scale: 0.98 }} className="cursor-pointer group relative">
-                                        <div className={`aspect-[3/4] rounded-2xl bg-gradient-to-br ${GRADIENT_COLORS[index % GRADIENT_COLORS.length]} flex items-end justify-center relative overflow-hidden shadow-2xl`}>
-                                            {proyecto.imagen_url && (
-                                                <Image
-                                                    src={proyecto.imagen_url}
-                                                    alt={proyecto.titulo}
-                                                    fill
-                                                    className="object-cover opacity-30"
-                                                />
-                                            )}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                                            <div className="relative z-10 text-center p-6 pb-8">
-                                                <h3 className="text-white font-bold text-xl mb-2">{proyecto.titulo}</h3>
-                                                <p className="text-white/80 text-sm mb-3 line-clamp-2">{proyecto.descripcion}</p>
-                                                <div className="inline-flex items-center gap-2 text-quepia-cyan font-medium">
-                                                    <span>Ver trabajos</span>
-                                                    <ArrowRight size={16} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </Link>
-                            </div>
-                        ))
-                    ) : (
-                        Array.from({ length: totalSlides }).map((_, slideGroup) => (
-                            <div key={slideGroup} className="flex-shrink-0 w-full grid grid-cols-3 gap-6 lg:gap-8 pr-4">
-                                {proyectos.slice(slideGroup * 3, slideGroup * 3 + 3).map((proyecto, index) => (
-                                    <Link key={proyecto.id} href={`/trabajos?category=${proyecto.categoria}`}>
-                                        <motion.div
-                                            whileHover={{ scale: 1.03, y: -8 }}
-                                            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                                            className="cursor-pointer group relative hover:z-10"
-                                        >
-                                            <div className={`aspect-[4/5] rounded-3xl bg-gradient-to-br ${GRADIENT_COLORS[(slideGroup * 3 + index) % GRADIENT_COLORS.length]} flex items-end justify-center relative overflow-hidden shadow-2xl`}>
-                                                {proyecto.imagen_url && (
-                                                    <Image
-                                                        src={proyecto.imagen_url}
-                                                        alt={proyecto.titulo}
-                                                        fill
-                                                        className="object-cover opacity-30 group-hover:opacity-40 transition-opacity duration-500"
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent group-hover:from-black/60 transition-all duration-500" />
-                                                <div className="relative z-10 text-center p-8 pb-10">
-                                                    <h3 className="text-white font-bold text-2xl lg:text-3xl mb-3">{proyecto.titulo}</h3>
-                                                    <p className="text-white/80 text-base mb-4 line-clamp-2">{proyecto.descripcion}</p>
-                                                    <div className="inline-flex items-center gap-2 text-quepia-cyan font-medium group-hover:gap-4 transition-all duration-300">
-                                                        <span>Ver trabajos</span>
-                                                        <ArrowRight size={18} />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    </Link>
-                                ))}
-                            </div>
-                        ))
-                    )}
+                    <span className="text-label text-white/40 block mb-4">Proyectos</span>
+                    <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-white max-w-xl">
+                        Trabajos destacados
+                    </h2>
                 </motion.div>
             </div>
 
-            {/* Indicators */}
-            <div className="flex justify-center gap-2 md:gap-3 mt-6 md:mt-10">
-                {Array.from({ length: totalSlides }).map((_, idx) => (
-                    <button
-                        key={idx}
-                        onClick={() => setCurrentSlide(idx)}
-                        className={`h-2 md:h-3 rounded-full transition-all duration-300 ${currentSlide === idx ? 'bg-quepia-cyan w-8 md:w-12' : 'bg-white/30 hover:bg-white/50 w-2 md:w-3'
-                            }`}
-                    />
-                ))}
+            <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20 space-y-6 md:space-y-8">
+                {/* Featured Project - Full width */}
+                <FeaturedProject proyecto={featuredProject} index={0} />
+
+                {/* Secondary Projects - 2-column grid */}
+                {secondaryProjects.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                        {secondaryProjects.map((proyecto, index) => (
+                            <SecondaryProject
+                                key={proyecto.id}
+                                proyecto={proyecto}
+                                index={index}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {/* Another Featured if available */}
+                {remainingProjects.length > 0 && (
+                    <FeaturedProject proyecto={remainingProjects[0]} index={1} />
+                )}
             </div>
-        </div>
+
+            {/* View all projects link */}
+            <motion.div
+                className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20 mt-12"
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+            >
+                <Link
+                    href="/trabajos"
+                    className="group cta-link text-white/60 hover:text-white"
+                >
+                    Ver todos los proyectos
+                    <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        className="cta-arrow"
+                    >
+                        <path
+                            d="M1 7H13M13 7L7 1M13 7L7 13"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                </Link>
+            </motion.div>
+        </section>
     );
 }

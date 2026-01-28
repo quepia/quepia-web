@@ -29,33 +29,41 @@ export async function updateSession(request: NextRequest) {
         }
     );
 
+    // Redirect /admin to /sistema
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/sistema';
+        
+        // Map admin paths to sistema views
+        if (request.nextUrl.pathname.includes('/proyectos')) {
+            url.searchParams.set('view', 'admin-projects');
+        } else if (request.nextUrl.pathname.includes('/servicios')) {
+            url.searchParams.set('view', 'admin-services');
+        } else if (request.nextUrl.pathname.includes('/configuracion')) {
+            url.searchParams.set('view', 'admin-config');
+        } else if (request.nextUrl.pathname.includes('/equipo')) {
+            url.searchParams.set('view', 'admin-team');
+        } else if (request.nextUrl.pathname.includes('/usuarios')) {
+            url.searchParams.set('view', 'admin-users');
+        } else {
+             // Default admin dashboard -> sistema dashboard (or admin-users if preferred, but dashboard is safer)
+        }
+        
+        return NextResponse.redirect(url);
+    }
+
     // Refresh session
     const {
         data: { user },
     } = await supabase.auth.getUser();
 
-    // Protect /admin routes
-    if (request.nextUrl.pathname.startsWith('/admin')) {
+    // Protect /admin and /sistema routes
+    if (request.nextUrl.pathname.startsWith('/admin') || request.nextUrl.pathname.startsWith('/sistema')) {
         if (!user) {
             // Not logged in, redirect to login
             const url = request.nextUrl.clone();
             url.pathname = '/auth/login';
             url.searchParams.set('redirectTo', request.nextUrl.pathname);
-            return NextResponse.redirect(url);
-        }
-
-        // Check if user is in whitelist
-        const { data: authorizedUser } = await supabase
-            .from('authorized_users')
-            .select('email')
-            .ilike('email', user.email || '')
-            .maybeSingle();
-
-        if (!authorizedUser) {
-            // Not authorized, redirect to home with error
-            const url = request.nextUrl.clone();
-            url.pathname = '/';
-            url.searchParams.set('error', 'unauthorized');
             return NextResponse.redirect(url);
         }
     }

@@ -1,18 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ArrowRight, Settings } from 'lucide-react';
-import Button from '../ui/Button';
+import { Menu, X, Settings } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 const navLinks = [
     { name: 'Servicios', path: '/servicios' },
     { name: 'Trabajos', path: '/trabajos' },
-    { name: 'Sobre Nosotros', path: '/sobre-nosotros' },
+    { name: 'Nosotros', path: '/sobre-nosotros' },
     { name: 'Contacto', path: '/contacto' },
 ];
 
@@ -21,12 +20,10 @@ const Header: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const pathname = usePathname();
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
-    // Check if we're on the home page
     const isHomePage = pathname === '/';
 
-    // Check auth state
     useEffect(() => {
         const checkAuth = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -39,7 +36,7 @@ const Header: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, [supabase.auth]);
+    }, [supabase]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -50,12 +47,10 @@ const Header: React.FC = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // Close mobile menu on route change
     useEffect(() => {
         setIsMobileMenuOpen(false);
     }, [pathname]);
 
-    // Block body scroll when mobile menu is open
     useEffect(() => {
         if (isMobileMenuOpen) {
             document.body.style.overflow = 'hidden';
@@ -67,115 +62,147 @@ const Header: React.FC = () => {
         };
     }, [isMobileMenuOpen]);
 
-    // Header is transparent ONLY on Home page at top (scrollY=0)
     const shouldBeTransparent = isHomePage && !isScrolled;
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${shouldBeTransparent ? 'bg-transparent py-6' : 'bg-quepia-dark/90 backdrop-blur-sm py-4 shadow-lg'
+            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${shouldBeTransparent
+                ? 'py-6'
+                : 'py-4 border-b border-white/5'
                 }`}
+            style={{
+                background: shouldBeTransparent
+                    ? 'transparent'
+                    : 'rgba(10, 10, 10, 0.85)',
+                backdropFilter: shouldBeTransparent ? 'none' : 'blur(20px)',
+                WebkitBackdropFilter: shouldBeTransparent ? 'none' : 'blur(20px)',
+            }}
         >
             <div className="container mx-auto px-6 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="relative z-[9999]">
                     <Image
                         src="/Logo_Quepia.svg"
-                        alt="Quepia Logo"
-                        width={120}
-                        height={36}
-                        className="h-8 md:h-9 w-auto object-contain"
+                        alt="Quepia"
+                        width={110}
+                        height={32}
+                        className="h-7 md:h-8 w-auto object-contain"
                         priority
                     />
                 </Link>
 
-                {/* Desktop Navigation */}
-                <nav className="hidden md:flex items-center gap-8">
+                {/* Desktop Navigation — Minimal BASIC style */}
+                <nav className="hidden md:flex items-center gap-10 lg:gap-12">
                     {navLinks.map((link) => (
                         <Link
                             key={link.name}
                             href={link.path}
-                            className={`text-sm font-medium transition-colors hover:text-quepia-cyan ${pathname === link.path ? 'text-quepia-cyan' : 'text-gray-300'
+                            className={`text-nav transition-colors duration-300 ${pathname === link.path
+                                ? 'text-white'
+                                : 'text-white/60 hover:text-white'
                                 }`}
                         >
                             {link.name}
                         </Link>
                     ))}
 
-                    {/* Admin link - only visible when logged in */}
+                    {/* Admin/Sistema link - only visible when logged in */}
                     {isLoggedIn && (
-                        <Link
-                            href="/admin"
-                            className={`text-sm font-medium transition-colors hover:text-quepia-cyan flex items-center gap-1.5 ${pathname?.startsWith('/admin') ? 'text-quepia-cyan' : 'text-gray-300'
-                                }`}
-                        >
-                            <Settings size={16} />
-                            Admin
-                        </Link>
-                    )}
+                        <div className="flex items-center gap-4">
+                            <Link
+                                href="/sistema"
+                                className={`text-nav transition-colors duration-300 flex items-center gap-1.5 ${pathname?.startsWith('/sistema')
+                                    ? 'text-quepia-cyan'
+                                    : 'text-white/60 hover:text-quepia-cyan'
+                                    }`}
+                            >
+                                <Settings size={14} />
+                                Sistema
+                            </Link>
 
-                    <Link href="/contacto">
-                        <Button className="ml-4 text-xs px-6 py-2">Hablemos</Button>
-                    </Link>
+                        </div>
+                    )}
                 </nav>
 
-                {/* Mobile Toggle */}
+                {/* Mobile Toggle — Circular indicator style */}
                 <button
-                    className="md:hidden relative z-[9999] text-white p-2"
+                    className="md:hidden relative z-[9999] flex items-center gap-2 text-white/80 hover:text-white transition-colors"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
                 >
-                    {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+                    <span className="text-nav">
+                        {isMobileMenuOpen ? 'Cerrar' : 'Menú'}
+                    </span>
+                    <span className={`w-2 h-2 rounded-full transition-colors ${isMobileMenuOpen ? 'bg-quepia-cyan' : 'bg-white'
+                        }`} />
                 </button>
             </div>
 
-            {/* Mobile Menu Overlay */}
+            {/* Mobile Menu — Fullscreen Overlay */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
-                        initial={{ opacity: 0, x: '100%' }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: '100%' }}
-                        transition={{ type: 'tween', duration: 0.3 }}
-                        className="md:hidden"
-                        style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            width: '100%',
-                            height: '100dvh',
-                            zIndex: 9998,
-                            backgroundColor: '#050505',
-                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="md:hidden fixed inset-0 z-[9998]"
+                        style={{ backgroundColor: '#0a0a0a' }}
                     >
-                        <nav className="h-full flex flex-col items-center justify-center gap-8 text-center">
-                            {navLinks.map((link) => (
-                                <Link
+                        <nav className="h-full flex flex-col items-start justify-center px-8 gap-6">
+                            {navLinks.map((link, index) => (
+                                <motion.div
                                     key={link.name}
-                                    href={link.path}
-                                    className="text-2xl font-bold text-white hover:text-quepia-cyan transition-colors"
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.1 }}
                                 >
-                                    {link.name}
-                                </Link>
+                                    <Link
+                                        href={link.path}
+                                        className={`font-display text-4xl font-light tracking-tight transition-colors ${pathname === link.path
+                                            ? 'text-white'
+                                            : 'text-white/40 hover:text-white'
+                                            }`}
+                                    >
+                                        {link.name}
+                                    </Link>
+                                </motion.div>
                             ))}
 
-                            {/* Admin link in mobile menu - only visible when logged in */}
                             {isLoggedIn && (
-                                <Link
-                                    href="/admin"
-                                    className="text-2xl font-bold text-quepia-cyan hover:text-white transition-colors flex items-center gap-2"
-                                >
-                                    <Settings size={24} />
-                                    Panel Admin
-                                </Link>
+                                <div className="flex flex-col gap-4">
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: navLinks.length * 0.1 }}
+                                    >
+                                        <Link
+                                            href="/sistema"
+                                            className="font-display text-4xl font-light tracking-tight text-quepia-cyan/70 hover:text-quepia-cyan transition-colors flex items-center gap-3"
+                                        >
+                                            <Settings size={28} strokeWidth={1.5} />
+                                            Sistema
+                                        </Link>
+                                    </motion.div>
+
+                                </div>
                             )}
 
-                            <Link href="/contacto" className="mt-4">
-                                <Button className="w-full text-lg px-10">
-                                    Hablemos <ArrowRight size={18} className="ml-2" />
-                                </Button>
-                            </Link>
+                            {/* Contact info at bottom */}
+                            <motion.div
+                                className="absolute bottom-12 left-8 right-8"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                            >
+                                <p className="text-white/40 text-sm mb-2">Contacto</p>
+                                <a
+                                    href="mailto:hola@quepia.com"
+                                    className="text-white/60 hover:text-white transition-colors"
+                                >
+                                    hola@quepia.com
+                                </a>
+                            </motion.div>
                         </nav>
                     </motion.div>
                 )}

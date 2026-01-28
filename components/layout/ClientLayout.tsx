@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import GlassBackground from '@/components/ui/GlassBackground';
+import PageTransition from '@/components/layout/PageTransition';
 import { ModalProvider } from '@/context/ModalContext';
 
 // Config Context
@@ -24,7 +25,8 @@ export default function ClientLayout({
     // Don't show Header/Footer/Background on admin and auth routes
     const isAdminRoute = pathname?.startsWith('/admin');
     const isAuthRoute = pathname?.startsWith('/auth');
-    const hideLayout = isAdminRoute || isAuthRoute;
+    const isSistemaRoute = pathname?.startsWith('/sistema');
+    const hideLayout = isAdminRoute || isAuthRoute || isSistemaRoute;
 
     const contextValue = config || {};
 
@@ -49,7 +51,9 @@ export default function ClientLayout({
                 <div className="relative z-10 flex flex-col min-h-screen">
                     <Header />
                     <main className="flex-grow">
-                        {children}
+                        <PageTransition>
+                            {children}
+                        </PageTransition>
                     </main>
                     <Footer />
                 </div>

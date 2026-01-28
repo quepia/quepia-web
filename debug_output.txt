@@ -1,0 +1,26 @@
+Attempting to render GeneralNotificationEmail...
+/Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/@react-email/tailwind/dist/index.js:21729
+	if (hasNonInlineStylesToApply && !appliedNonInlineStyles) throw new Error(`You are trying to use the following Tailwind classes that cannot be inlined: ${Array.from(nonInlinableRules.keys()).join(" ")}.
+	                                                                ^
+
+Error: You are trying to use the following Tailwind classes that cannot be inlined: hover:text-white/60.
+For the media queries to work properly on rendering, they need to be added into a <style> tag inside of a <head> tag,
+the Tailwind component tried finding a <head> element but just wasn't able to find it.
+
+Make sure that you have a <head> element at some point inside of the <Tailwind> component at any depth. 
+This can also be our <Head> component.
+
+If you do already have a <head> element at some depth, 
+please file a bug https://github.com/resend/react-email/issues/new?assignees=&labels=Type%3A+Bug&projects=&template=1.bug_report.yml.
+    at Tailwind (/Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/@react-email/tailwind/dist/index.js:21729:66)
+    at Object.react_stack_bottom_frame (/Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/react-dom/cjs/react-dom-server.node.development.js:10288:18)
+    at renderWithHooks (/Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/react-dom/cjs/react-dom-server.node.development.js:5298:19)
+    at renderElement (/Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/react-dom/cjs/react-dom-server.node.development.js:5733:23)
+    at retryNode (/Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/react-dom/cjs/react-dom-server.node.development.js:6664:31)
+    at performWork (/Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/react-dom/cjs/react-dom-server.node.development.js:7692:17)
+    at /Users/lautylopez/Desktop/QUEPIA/PAGINA WEB V2/quepia-creative-agency/node_modules/react-dom/cjs/react-dom-server.node.development.js:4739:22
+    at node:internal/process/task_queues:151:7
+    at AsyncResource.runInAsyncScope (node:async_hooks:214:14)
+    at AsyncResource.runMicrotask (node:internal/process/task_queues:148:8)
+
+Node.js v22.16.0

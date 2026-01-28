@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import ClientLayout from '@/components/layout/ClientLayout';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
@@ -8,6 +8,13 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+  weight: ['300', '400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -76,7 +83,7 @@ export default async function RootLayout({
 
   return (
     <html lang="es">
-      <body className={`${inter.variable} font-sans antialiased min-h-screen`}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased min-h-screen`}>
         <ClientLayout config={config}>
           {children}
         </ClientLayout>

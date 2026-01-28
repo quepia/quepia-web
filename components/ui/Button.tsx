@@ -5,7 +5,7 @@ import { motion, HTMLMotionProps } from 'framer-motion';
 
 interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
     variant?: 'primary' | 'outline' | 'ghost';
-    size?: 'sm' | 'md' | 'lg';
+    size?: 'sm' | 'md' | 'lg' | 'icon';
     children: React.ReactNode;
     className?: string;
 }
@@ -29,6 +29,7 @@ const Button: React.FC<ButtonProps> = ({
         sm: 'px-4 py-2 text-sm',
         md: 'px-6 py-3 text-base',
         lg: 'px-8 py-4 text-lg',
+        icon: 'h-10 w-10 p-0',
     };
 
     return (

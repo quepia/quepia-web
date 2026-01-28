@@ -1,13 +1,68 @@
 @import "tailwindcss";
 
-/* Quepia Custom Theme */
+/* ═══════════════════════════════════════════════════════════
+   QUEPIA DESIGN SYSTEM — Glass & Bold
+   Fusion of BASIC Agency minimalism × Premium Glassmorphism
+   ═══════════════════════════════════════════════════════════ */
+
 :root {
+  /* ─── Backgrounds ─── */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-elevated: #1a1a1a;
   --background: #0a0a0a;
   --foreground: #ffffff;
+
+  /* ─── Legacy color mappings ─── */
   --quepia-purple: #881078;
   --quepia-cyan: #2AE7E4;
   --quepia-dark: #1a1a1a;
   --quepia-gray: #2a2a2a;
+  --quepia-magenta: #c026d3;
+  /* Imported from system */
+
+  /* ─── Text Colors ─── */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.4);
+
+  /* ─── Accent Colors ─── */
+  --accent-cyan: #2AE7E4;
+  --accent-magenta: #881078;
+  --accent-gradient: linear-gradient(135deg, #2AE7E4 0%, #881078 100%);
+
+  /* ─── Glass Effects ─── */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg-hover: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.15);
+
+  /* ─── Typography Scale (Major Third 1.25) ─── */
+  --text-xs: 0.75rem;
+  /* 12px - labels, tags */
+  --text-sm: 0.875rem;
+  /* 14px - nav, small text */
+  --text-base: 1rem;
+  /* 16px - body */
+  --text-lg: 1.25rem;
+  /* 20px - lead text */
+  --text-xl: 1.5rem;
+  /* 24px - h4 */
+  --text-2xl: 2rem;
+  /* 32px - h3 */
+  --text-3xl: 2.5rem;
+  /* 40px - h2 */
+  --text-4xl: 3.5rem;
+  /* 56px - h1 */
+  --text-5xl: 5rem;
+  /* 80px - display */
+  --text-6xl: 7rem;
+  /* 112px - hero */
+
+  /* ─── Animation Curves ─── */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @theme inline {
@@ -17,8 +72,42 @@
   --color-quepia-cyan: var(--quepia-cyan);
   --color-quepia-dark: var(--quepia-dark);
   --color-quepia-gray: var(--quepia-gray);
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Inter', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: var(--font-display), 'Space Grotesk', sans-serif;
+  --color-quepia-magenta: var(--quepia-magenta);
+}
+
+/* ─── Display Font Utility ─── */
+.font-display {
+  font-family: var(--font-display), 'Space Grotesk', sans-serif;
+}
+
+/* ─── Typography Utilities ─── */
+.text-hero {
+  font-size: clamp(2.5rem, 7vw, 6rem);
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.text-statement {
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  font-weight: 300;
+  line-height: 1.4;
+}
+
+.text-nav {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+.text-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  opacity: 0.6;
 }
 
 html,
@@ -50,23 +139,58 @@ body {
   background: #881078;
 }
 
-/* Glass effect utilities */
+/* ═══════════════════════════════════════════════════════════
+   GLASS EFFECTS — Premium Glass Morphism
+   ═══════════════════════════════════════════════════════════ */
+
 .glass {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-nav {
+  background: rgba(10, 10, 10, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition: all 0.4s var(--ease-out-smooth);
+}
+
+.glass-nav.scrolled {
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  transition: all 0.4s var(--ease-out-smooth);
 }
 
 .glass-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(42, 231, 228, 0.3);
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-4px);
+}
+
+/* Service card specific glass */
+.service-glass {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.4s var(--ease-out-smooth);
+}
+
+.service-glass:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Gradient text */
@@ -168,7 +292,11 @@ body {
   backdrop-filter: blur(8px);
 }
 
-/* Animations */
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS — Purposeful Motion
+   ═══════════════════════════════════════════════════════════ */
+
+/* Blob animation */
 @keyframes blob {
   0% {
     transform: translate(0px, 0px) scale(1);
@@ -197,4 +325,417 @@ body {
 
 .animation-delay-4000 {
   animation-delay: 4s;
+}
+
+/* Fade up animation */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.8s var(--ease-out-expo) forwards;
+}
+
+/* Stagger delays */
+.delay-100 {
+  animation-delay: 0.1s;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-300 {
+  animation-delay: 0.3s;
+}
+
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+.delay-500 {
+  animation-delay: 0.5s;
+}
+
+.delay-600 {
+  animation-delay: 0.6s;
+}
+
+/* Scroll indicator bounce */
+@keyframes scrollBounce {
+
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+
+  40% {
+    transform: translateY(8px);
+  }
+
+  60% {
+    transform: translateY(4px);
+  }
+}
+
+.animate-scroll-bounce {
+  animation: scrollBounce 2s infinite;
+}
+
+/* CTA arrow slide */
+.cta-arrow {
+  transition: transform 0.3s var(--ease-out-smooth);
+}
+
+.group:hover .cta-arrow {
+  transform: translateX(8px);
+}
+
+/* Text reveal animation */
+@keyframes reveal {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.text-reveal {
+  position: relative;
+  overflow: hidden;
+}
+
+.text-reveal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary);
+  transform-origin: right;
+  animation: reveal 0.8s var(--ease-out-expo) forwards;
+}
+
+/* Gradient mesh animation */
+@keyframes gradientShift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Liquid Glass Effect Utilities */
+
+/* Rotating gradient border animation */
+@keyframes rotate-gradient {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-rotate-gradient {
+  animation: rotate-gradient 8s linear infinite;
+}
+
+/* Shimmer effect */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+
+  100% {
+    transform: translateX(200%) skewX(-12deg);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2.5s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+/* Premium liquid glass card */
+.liquid-glass {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 1.5rem;
+  overflow: hidden;
+}
+
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.1),
+      rgba(255, 255, 255, 0.05),
+      transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Top highlight for glass cards */
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent);
+  pointer-events: none;
+}
+
+/* Glow effect utility */
+.glow-purple {
+  box-shadow: 0 0 30px rgba(136, 16, 120, 0.3);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 30px rgba(42, 231, 228, 0.3);
+}
+
+.glow-gradient {
+  box-shadow:
+    0 0 30px rgba(136, 16, 120, 0.2),
+    0 0 60px rgba(42, 231, 228, 0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROJECT CARDS — Cinematic Layout
+   ═══════════════════════════════════════════════════════════ */
+
+.project-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.project-card img {
+  transition: transform 0.6s var(--ease-out-smooth);
+}
+
+.project-card:hover img {
+  transform: scale(1.05);
+}
+
+.project-overlay {
+  background: linear-gradient(to top,
+      rgba(0, 0, 0, 0.8) 0%,
+      transparent 50%);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CTA STYLES — Minimal & Impactful
+   ═══════════════════════════════════════════════════════════ */
+
+.cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 0.25rem;
+  transition: gap 0.3s var(--ease-out-smooth);
+}
+
+.cta-link:hover {
+  gap: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITY OVERRIDES
+   ═══════════════════════════════════════════════════════════ */
+
+/* Only apply smooth transitions to interactive elements */
+a,
+button,
+input,
+textarea,
+select,
+[role="button"],
+.transition-all {
+  transition-timing-function: var(--ease-out-smooth);
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(42, 231, 228, 0.3);
+  color: white;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SYSTEM UTILITIES (Imported)
+   ═══════════════════════════════════════════════════════════ */
+
+.quepia-gradient-text {
+  background: linear-gradient(90deg, var(--quepia-magenta), var(--quepia-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.quepia-gradient-bg {
+  background: linear-gradient(135deg, var(--quepia-magenta), var(--quepia-cyan));
+}
+
+.quepia-gradient-border {
+  border: 1px solid transparent;
+  background: linear-gradient(var(--background), var(--background)) padding-box,
+    linear-gradient(135deg, var(--quepia-magenta), var(--quepia-cyan)) border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3D CANVAS STYLES
+   ═══════════════════════════════════════════════════════════ */
+
+.canvas-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-container canvas {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SMOOTH SCROLL & PERFORMANCE
+   ═══════════════════════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THREE JS SPECIFIC FIXES
+   ═══════════════════════════════════════════════════════════ */
+
+canvas {
+  display: block;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .glass-card:hover {
+    transform: none;
+  }
+  
+  .project-card:hover img {
+    transform: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LOADING SKELETON ANIMATION
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes skeleton {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton 1.5s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HERO BACKGROUND ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes float1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.1); }
+}
+
+@keyframes float2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, 30px) scale(0.95); }
+}
+
+.animate-float1 {
+  animation: float1 15s ease-in-out infinite;
+}
+
+.animate-float2 {
+  animation: float2 18s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3D SPHERE FALLBACK ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes spherePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.95; }
+}
+
+@keyframes sphereFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+.animate-sphere-pulse {
+  animation: spherePulse 4s ease-in-out infinite;
+}
+
+.animate-sphere-float {
+  animation: sphereFloat 6s ease-in-out infinite;
 }
