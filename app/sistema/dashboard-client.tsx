@@ -29,10 +29,14 @@ import { AdminTeamView } from "@/components/sistema/quepia/admin-team-view"
 import type { Task, ProjectWithChildren } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { Loader2 } from "lucide-react"
-
+import { cn } from "@/lib/sistema/utils"
 
 
 function findProject(projects: ProjectWithChildren[], id: string): ProjectWithChildren | null {
+    // ...
+    // Inside DashboardPage function:
+    const [creatingProject, setCreatingProject] = useState(false)
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
     for (const p of projects) {
         if (p.id === id) return p
         if (p.children && p.children.length > 0) {
@@ -102,6 +106,7 @@ export default function DashboardPage() {
     const [newProjectType, setNewProjectType] = useState<"folder" | "hash">("hash")
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
     const [creatingProject, setCreatingProject] = useState(false)
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
     const activeProject = activeProjectId ? findProject(projects, activeProjectId) : null
 
@@ -865,29 +870,54 @@ export default function DashboardPage() {
                 </div>
             )}
 
+            {/* Mobile Sidebar Overlay */}
+            {isMobileSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <AppSidebar
+                className={cn(
+                    "md:flex", // Always show on desktop
+                    isMobileSidebarOpen
+                        ? "fixed inset-y-0 left-0 z-50 flex shadow-2xl"
+                        : "hidden" // Hidden on mobile by default
+                )}
                 userId={user?.id}
                 userName={sistemaUser?.nombre}
                 userEmail={user?.email}
                 userAvatar={sistemaUser?.avatar_url}
                 userRole={sistemaUser?.role}
                 activeView={activeView}
-                onViewChange={handleViewChange}
+                onViewChange={(view) => {
+                    handleViewChange(view)
+                    setIsMobileSidebarOpen(false)
+                }}
                 activeProject={activeProjectId || undefined}
                 onProjectChange={(id) => {
                     const project = findProject(projects, id)
                     if (project?.icon === "hash") {
                         setActiveProjectId(id)
                         setActiveView("project")
+                        setIsMobileSidebarOpen(false)
                     }
                 }}
-                onAddProject={() => setShowNewProjectModal(true)}
+                onAddProject={() => {
+                    setShowNewProjectModal(true)
+                    setIsMobileSidebarOpen(false)
+                }}
                 onDeleteProject={handleDeleteProject}
                 onSignOut={signOut}
-                onOpenSettings={() => setShowSettingsModal(true)}
+                onOpenSettings={() => {
+                    setShowSettingsModal(true)
+                    setIsMobileSidebarOpen(false)
+                }}
                 projects={projects}
                 projectsLoading={projectsLoading}
+                onClose={() => setIsMobileSidebarOpen(false)}
             />
 
             {/* Main Content */}
@@ -897,6 +927,7 @@ export default function DashboardPage() {
                     breadcrumb={getBreadcrumb()}
                     onOpenClientProfile={isProjectView ? () => setShowClientProfile(true) : undefined}
                     onOpenBriefing={isProjectView ? () => setShowBriefingForm(true) : undefined}
+                    onMenuClick={() => setIsMobileSidebarOpen(true)}
                 />
 
                 {/* Content Area */}

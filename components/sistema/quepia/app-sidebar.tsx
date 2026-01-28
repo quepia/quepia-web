@@ -47,6 +47,8 @@ interface AppSidebarProps {
     onOpenSettings?: () => void
     projects: ProjectWithChildren[]
     projectsLoading: boolean
+    className?: string
+    onClose?: () => void
 }
 
 export function AppSidebar({
@@ -66,6 +68,8 @@ export function AppSidebar({
     onOpenSettings,
     projects,
     projectsLoading,
+    className,
+    onClose
 }: AppSidebarProps) {
     const { favorites, loading: favoritesLoading, isFavorite, addFavorite, removeFavorite } = useFavorites(userId)
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
@@ -127,7 +131,10 @@ export function AppSidebar({
                     )}
 
                     <button
-                        onClick={() => onProjectChange?.(project.id)}
+                        onClick={() => {
+                            onProjectChange?.(project.id)
+                            onClose?.()
+                        }}
                         className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
                     >
                         {project.icon === 'hash' ? (
@@ -190,7 +197,7 @@ export function AppSidebar({
     }
 
     return (
-        <aside className="w-[260px] h-screen bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col">
+        <aside className={cn("w-[260px] h-screen bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col", className)}>
             {/* Header */}
             <div className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">

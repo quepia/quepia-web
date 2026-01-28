@@ -67,12 +67,12 @@ const Header: React.FC = () => {
     return (
         <header
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${shouldBeTransparent
-                ? 'py-6'
+                ? 'py-4 md:py-6'
                 : 'py-4 border-b border-white/5'
                 }`}
             style={{
                 background: shouldBeTransparent
-                    ? 'transparent'
+                    ? 'transparent' // We will handle mobile bg via CSS class if needed, or rely on the fact that 'transparent' is only true if isHomePage && !isScrolled
                     : 'rgba(10, 10, 10, 0.85)',
                 backdropFilter: shouldBeTransparent ? 'none' : 'blur(20px)',
                 WebkitBackdropFilter: shouldBeTransparent ? 'none' : 'blur(20px)',

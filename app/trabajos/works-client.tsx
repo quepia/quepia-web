@@ -35,12 +35,12 @@ const AnimatedWords = ({ text, className = "" }: { text: string; className?: str
 };
 
 // Featured Project Card - Full width cinematic
-function FeaturedProject({ 
-    proyecto, 
+function FeaturedProject({
+    proyecto,
     index,
     onClick
-}: { 
-    proyecto: Proyecto; 
+}: {
+    proyecto: Proyecto;
     index: number;
     onClick: () => void;
 }) {
@@ -75,9 +75,9 @@ function FeaturedProject({
 
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                
+
                 {/* Subtle border glow on hover */}
-                <motion.div 
+                <motion.div
                     className="absolute inset-0 rounded-xl border border-white/0 transition-colors duration-500"
                     animate={{ borderColor: isHovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0)' }}
                 />
@@ -85,7 +85,7 @@ function FeaturedProject({
                 {/* Content */}
                 <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-10 lg:p-14">
                     {/* Category tag */}
-                    <motion.span 
+                    <motion.span
                         className="text-white/50 text-xs uppercase tracking-[0.2em] mb-3"
                         animate={{ y: isHovered ? -4 : 0 }}
                         transition={{ duration: 0.3 }}
@@ -94,8 +94,8 @@ function FeaturedProject({
                     </motion.span>
 
                     {/* Title */}
-                    <motion.h3 
-                        className="font-display text-3xl md:text-5xl lg:text-6xl font-light text-white mb-4 max-w-3xl"
+                    <motion.h3
+                        className="font-display text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-light text-white mb-4 max-w-3xl"
                         animate={{ y: isHovered ? -4 : 0 }}
                         transition={{ duration: 0.3, delay: 0.05 }}
                     >
@@ -104,7 +104,7 @@ function FeaturedProject({
 
                     {/* Description */}
                     {proyecto.descripcion && (
-                        <motion.p 
+                        <motion.p
                             className="text-white/60 text-sm md:text-base max-w-xl mb-6 line-clamp-2"
                             animate={{ y: isHovered ? -4 : 0, opacity: isHovered ? 1 : 0.8 }}
                             transition={{ duration: 0.3, delay: 0.1 }}
@@ -114,7 +114,7 @@ function FeaturedProject({
                     )}
 
                     {/* CTA */}
-                    <motion.div 
+                    <motion.div
                         className="inline-flex items-center gap-2 text-white/70 text-sm uppercase tracking-wider"
                         animate={{ y: isHovered ? -4 : 0 }}
                         transition={{ duration: 0.3, delay: 0.15 }}
@@ -139,12 +139,12 @@ function FeaturedProject({
 }
 
 // Secondary Project Card - Grid layout
-function SecondaryProject({ 
-    proyecto, 
+function SecondaryProject({
+    proyecto,
     index,
     onClick
-}: { 
-    proyecto: Proyecto; 
+}: {
+    proyecto: Proyecto;
     index: number;
     onClick: () => void;
 }) {
@@ -182,21 +182,21 @@ function SecondaryProject({
 
                 {/* Content */}
                 <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-6">
-                    <motion.span 
+                    <motion.span
                         className="text-white/40 text-xs uppercase tracking-wider mb-2"
                         animate={{ y: isHovered ? -4 : 0 }}
                         transition={{ duration: 0.3 }}
                     >
                         {proyecto.categoria.replace('-', ' ')}
                     </motion.span>
-                    <motion.h3 
-                        className="font-display text-lg md:text-xl font-medium text-white mb-2"
+                    <motion.h3
+                        className="font-display text-base sm:text-lg md:text-xl font-medium text-white mb-2"
                         animate={{ y: isHovered ? -4 : 0 }}
                         transition={{ duration: 0.3, delay: 0.05 }}
                     >
                         {proyecto.titulo}
                     </motion.h3>
-                    <motion.div 
+                    <motion.div
                         className="inline-flex items-center gap-1.5 text-white/50 text-xs uppercase tracking-wider"
                         animate={{ y: isHovered ? -4 : 0 }}
                         transition={{ duration: 0.3, delay: 0.1 }}
@@ -211,11 +211,11 @@ function SecondaryProject({
 }
 
 // Lightbox Modal
-function Lightbox({ 
-    proyecto, 
-    onClose 
-}: { 
-    proyecto: Proyecto; 
+function Lightbox({
+    proyecto,
+    onClose
+}: {
+    proyecto: Proyecto;
     onClose: () => void;
 }) {
     return (
@@ -309,15 +309,15 @@ export default function WorksPage() {
                 {/* Background gradient */}
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-0 bg-gradient-to-b from-quepia-cyan/5 via-transparent to-transparent" />
-                    <motion.div 
+                    <motion.div
                         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] opacity-15"
-                        animate={{ 
+                        animate={{
                             scale: [1, 1.2, 1],
                             rotate: [0, -5, 0]
                         }}
                         transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
                     >
-                        <div 
+                        <div
                             className="absolute inset-0 rounded-full blur-3xl"
                             style={{
                                 background: 'radial-gradient(circle, rgba(42,231,228,0.2) 0%, rgba(136,16,120,0.15) 50%, transparent 70%)'
@@ -338,7 +338,7 @@ export default function WorksPage() {
                     </motion.span>
 
                     {/* Main heading */}
-                    <h1 className="font-display text-hero text-white mb-8">
+                    <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-light text-white mb-8 tracking-tight">
                         <AnimatedWords text="Nuestros trabajos" />
                     </h1>
 
@@ -373,11 +373,10 @@ export default function WorksPage() {
                             >
                                 <Link
                                     href={`/trabajos?category=${category.id}`}
-                                    className={`flex-shrink-0 px-5 md:px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
-                                        activeCategory === category.id
-                                            ? 'bg-white text-black'
-                                            : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                                    }`}
+                                    className={`flex-shrink-0 px-5 md:px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${activeCategory === category.id
+                                        ? 'bg-white text-black'
+                                        : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                                        }`}
                                 >
                                     {category.label}
                                 </Link>
@@ -435,9 +434,9 @@ export default function WorksPage() {
                         <div className="space-y-6 md:space-y-8">
                             {/* Featured Project - Full width */}
                             {featuredProject && (
-                                <FeaturedProject 
-                                    proyecto={featuredProject} 
-                                    index={0} 
+                                <FeaturedProject
+                                    proyecto={featuredProject}
+                                    index={0}
                                     onClick={() => setSelectedProject(featuredProject)}
                                 />
                             )}
@@ -458,8 +457,8 @@ export default function WorksPage() {
 
                             {/* Another Featured if available */}
                             {remainingProjects.length > 0 && (
-                                <FeaturedProject 
-                                    proyecto={remainingProjects[0]} 
+                                <FeaturedProject
+                                    proyecto={remainingProjects[0]}
                                     index={1}
                                     onClick={() => setSelectedProject(remainingProjects[0])}
                                 />
@@ -560,9 +559,9 @@ export default function WorksPage() {
             {/* Lightbox */}
             <AnimatePresence>
                 {selectedProject && (
-                    <Lightbox 
-                        proyecto={selectedProject} 
-                        onClose={() => setSelectedProject(null)} 
+                    <Lightbox
+                        proyecto={selectedProject}
+                        onClose={() => setSelectedProject(null)}
                     />
                 )}
             </AnimatePresence>

@@ -1,19 +1,28 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, Users, BarChart3, MessageSquare, MoreHorizontal, Search, UserCircle, FileText } from "lucide-react"
+import { ChevronLeft, ChevronRight, Users, BarChart3, MessageSquare, MoreHorizontal, Search, UserCircle, FileText, Menu } from "lucide-react"
 
 interface TopHeaderProps {
     breadcrumb: string[]
     onOpenClientProfile?: () => void
     onOpenBriefing?: () => void
+    onMenuClick?: () => void
 }
 
-export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing }: TopHeaderProps) {
+export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onMenuClick }: TopHeaderProps) {
     return (
         <header className="h-12 border-b border-white/[0.06] bg-[#0a0a0a] flex items-center justify-between px-4">
             {/* Left: Navigation */}
             <div className="flex items-center gap-2">
-                <button className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors">
+                {/* Mobile Menu Button */}
+                <button
+                    onClick={onMenuClick}
+                    className="md:hidden p-1.5 hover:bg-white/[0.06] rounded-md transition-colors mr-1"
+                >
+                    <Menu className="h-4 w-4 text-white/60" />
+                </button>
+
+                <button className="hidden md:block p-1.5 hover:bg-white/[0.06] rounded-md transition-colors">
                     <ChevronLeft className="h-4 w-4 text-white/40" />
                 </button>
                 <button className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors">

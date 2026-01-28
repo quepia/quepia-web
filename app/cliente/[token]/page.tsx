@@ -159,7 +159,7 @@ export default function ClientViewPage() {
             </div>
 
             {/* Content */}
-            <main className="max-w-6xl mx-auto px-6 py-8">
+            <main className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
                 {activeTab === "calendar" && client?.can_view_calendar && (
                     <ClientCalendarView
                         events={calendar_events || []}
@@ -277,68 +277,72 @@ function ClientCalendarView({
 
             {/* Calendar Grid */}
             <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                {/* Day Headers */}
-                <div className="grid grid-cols-7 border-b border-white/10">
-                    {dayNames.map((day) => (
-                        <div key={day} className="p-3 text-center text-sm font-medium text-white/60">
-                            {day}
+                <div className="overflow-x-auto">
+                    <div className="min-w-[700px]">
+                        {/* Day Headers */}
+                        <div className="grid grid-cols-7 border-b border-white/10">
+                            {dayNames.map((day) => (
+                                <div key={day} className="p-3 text-center text-sm font-medium text-white/60">
+                                    {day}
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
 
-                {/* Days Grid */}
-                <div className="grid grid-cols-7">
-                    {days.map((day, index) => {
-                        const dayEvents = day ? getEventsForDay(day) : []
-                        const isToday =
-                            day &&
-                            today.getDate() === day &&
-                            today.getMonth() === currentMonth.getMonth() &&
-                            today.getFullYear() === currentMonth.getFullYear()
+                        {/* Days Grid */}
+                        <div className="grid grid-cols-7">
+                            {days.map((day, index) => {
+                                const dayEvents = day ? getEventsForDay(day) : []
+                                const isToday =
+                                    day &&
+                                    today.getDate() === day &&
+                                    today.getMonth() === currentMonth.getMonth() &&
+                                    today.getFullYear() === currentMonth.getFullYear()
 
-                        return (
-                            <div
-                                key={index}
-                                className={`min-h-[100px] border-b border-r border-white/5 p-2 ${day ? "bg-white/[0.02]" : "bg-transparent"
-                                    }`}
-                            >
-                                {day && (
-                                    <>
-                                        <div className="flex justify-center mb-1">
-                                            <span
-                                                className={`inline-flex items-center justify-center w-7 h-7 text-sm rounded-full ${isToday
-                                                    ? "bg-quepia-cyan text-black font-bold"
-                                                    : "text-white/80"
-                                                    }`}
-                                            >
-                                                {day}
-                                            </span>
-                                        </div>
-                                        <div className="space-y-1">
-                                            {dayEvents.slice(0, 3).map((event) => (
-                                                <button
-                                                    key={event.id}
-                                                    onClick={() => setSelectedEvent(event)}
-                                                    className="w-full text-left text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-opacity"
-                                                    style={{
-                                                        backgroundColor: `${EVENT_TYPE_COLORS[event.tipo]}20`,
-                                                        color: EVENT_TYPE_COLORS[event.tipo],
-                                                    }}
-                                                >
-                                                    {event.titulo}
-                                                </button>
-                                            ))}
-                                            {dayEvents.length > 3 && (
-                                                <div className="text-xs text-white/40 px-2 text-center">
-                                                    +{dayEvents.length - 3} más
+                                return (
+                                    <div
+                                        key={index}
+                                        className={`min-h-[100px] border-b border-r border-white/5 p-2 ${day ? "bg-white/[0.02]" : "bg-transparent"
+                                            }`}
+                                    >
+                                        {day && (
+                                            <>
+                                                <div className="flex justify-center mb-1">
+                                                    <span
+                                                        className={`inline-flex items-center justify-center w-7 h-7 text-sm rounded-full ${isToday
+                                                            ? "bg-quepia-cyan text-black font-bold"
+                                                            : "text-white/80"
+                                                            }`}
+                                                    >
+                                                        {day}
+                                                    </span>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )
-                    })}
+                                                <div className="space-y-1">
+                                                    {dayEvents.slice(0, 3).map((event) => (
+                                                        <button
+                                                            key={event.id}
+                                                            onClick={() => setSelectedEvent(event)}
+                                                            className="w-full text-left text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-opacity"
+                                                            style={{
+                                                                backgroundColor: `${EVENT_TYPE_COLORS[event.tipo]}20`,
+                                                                color: EVENT_TYPE_COLORS[event.tipo],
+                                                            }}
+                                                        >
+                                                            {event.titulo}
+                                                        </button>
+                                                    ))}
+                                                    {dayEvents.length > 3 && (
+                                                        <div className="text-xs text-white/40 px-2 text-center">
+                                                            +{dayEvents.length - 3} más
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
 
