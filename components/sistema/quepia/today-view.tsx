@@ -60,10 +60,10 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
   }
 
   const renderTask = (task: TaskWithProject, showDate = false) => (
-    <button
+    <div
       key={task.id}
       onClick={() => onTaskClick(task)}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0"
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0 cursor-pointer"
     >
       <button
         onClick={(e) => toggleComplete(e, task)}
@@ -87,7 +87,7 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
       {showDate && task.due_date && (
         <span className="text-[10px] text-red-400 shrink-0">{formatDate(task.due_date)}</span>
       )}
-    </button>
+    </div>
   )
 
   const totalCount = overdue.length + dueToday.length

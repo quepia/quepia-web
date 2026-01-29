@@ -93,10 +93,10 @@ export function CompletedView({ tasks, loading, onTaskClick, onRefresh }: Comple
                 </h3>
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
                   {group.tasks.map(task => (
-                    <button
+                    <div
                       key={task.id}
                       onClick={() => onTaskClick(task)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0 group"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0 group cursor-pointer"
                     >
                       <CheckCircle2 className="h-4.5 w-4.5 text-green-400 shrink-0" />
                       <span className="text-sm text-white/40 line-through truncate flex-1">{task.titulo}</span>
@@ -112,7 +112,7 @@ export function CompletedView({ tasks, loading, onTaskClick, onRefresh }: Comple
                       >
                         <RotateCcw className="h-3 w-3 text-white/30" />
                       </button>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>

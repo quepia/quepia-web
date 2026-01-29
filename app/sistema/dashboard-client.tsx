@@ -33,10 +33,6 @@ import { cn } from "@/lib/sistema/utils"
 
 
 function findProject(projects: ProjectWithChildren[], id: string): ProjectWithChildren | null {
-    // ...
-    // Inside DashboardPage function:
-    const [creatingProject, setCreatingProject] = useState(false)
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
     for (const p of projects) {
         if (p.id === id) return p
         if (p.children && p.children.length > 0) {
