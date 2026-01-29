@@ -63,6 +63,8 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [titleValue, setTitleValue] = useState("")
     const [editingDesc, setEditingDesc] = useState(false)
     const [descValue, setDescValue] = useState("")
+    const [editingSocialCopy, setEditingSocialCopy] = useState(false)
+    const [socialCopyValue, setSocialCopyValue] = useState("")
     const [showPriorityMenu, setShowPriorityMenu] = useState(false)
     const [showAssigneeMenu, setShowAssigneeMenu] = useState(false)
     const [editingDueDate, setEditingDueDate] = useState(false)
@@ -81,6 +83,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         if (task) {
             setTitleValue(task.titulo)
             setDescValue(task.descripcion || "")
+            setSocialCopyValue(task.social_copy || "")
         }
     }, [task])
 
@@ -210,6 +213,14 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         setEditingDesc(false)
     }
 
+    const handleSaveSocialCopy = async () => {
+        const val = socialCopyValue.trim() || null
+        if (val !== (task?.social_copy || null)) {
+            await updateTaskField("social_copy", val)
+        }
+        setEditingSocialCopy(false)
+    }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -307,6 +318,37 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                         >
                                             {task.descripcion || (
                                                 <span className="text-white/25 italic">Agregar descripción...</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Social Media Copy */}
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-medium text-white mb-2 flex items-center gap-2">
+                                        <span className="bg-gradient-to-r from-quepia-cyan to-quepia-magenta bg-clip-text text-transparent">
+                                            Copy / SEO
+                                        </span>
+                                    </h3>
+                                    {editingSocialCopy ? (
+                                        <textarea
+                                            value={socialCopyValue}
+                                            onChange={(e) => setSocialCopyValue(e.target.value)}
+                                            onBlur={handleSaveSocialCopy}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Escape") { setSocialCopyValue(task.social_copy || ""); setEditingSocialCopy(false) }
+                                            }}
+                                            placeholder="Escribir copy para redes..."
+                                            rows={4}
+                                            className="w-full text-sm text-white/80 bg-white/[0.03] border border-white/10 rounded-lg p-3 outline-none focus:border-quepia-cyan resize-none placeholder:text-white/30 font-mono"
+                                        />
+                                    ) : (
+                                        <div
+                                            onClick={() => setEditingSocialCopy(true)}
+                                            className="text-sm text-white/50 cursor-text hover:bg-white/[0.03] rounded-lg p-3 -m-3 transition-colors min-h-[40px] whitespace-pre-wrap font-mono"
+                                        >
+                                            {task.social_copy || (
+                                                <span className="text-white/20 italic">Agregar copy para redes...</span>
                                             )}
                                         </div>
                                     )}

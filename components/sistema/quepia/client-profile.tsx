@@ -105,6 +105,11 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
     access: false,
   })
 
+  // Add Access Form State
+  const [isAddingAccess, setIsAddingAccess] = useState(false)
+  const [newAccessName, setNewAccessName] = useState("")
+  const [newAccessEmail, setNewAccessEmail] = useState("")
+
   const { clients: accessClients, createClientAccess, deleteClientAccess, getShareableLink, refresh: refreshAccess } = useClientAccess(projectId)
 
   useEffect(() => {
@@ -506,54 +511,100 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
               </button>
               {expandedSections.access && (
                 <div className="px-4 pb-4 space-y-3">
-                  {accessClients.length === 0 ? (
-                    <div className="text-center py-4 bg-white/5 rounded-lg border border-white/10 border-dashed">
-                      <p className="text-xs text-white/40 mb-3">No hay accesos generados</p>
+                  {!isAddingAccess ? (
+                    <div className="flex justify-end">
                       <button
-                        onClick={async () => {
-                          if (!projectId) return
-                          await createClientAccess({
-                            project_id: projectId,
-                            nombre: clientInfo.name || "Cliente",
-                            email: clientInfo.email,
-                            can_view_calendar: true,
-                            can_view_tasks: true,
-                            can_comment: true
-                          })
+                        onClick={() => {
+                          setNewAccessName(clientInfo.name || "Cliente")
+                          setNewAccessEmail(clientInfo.email || "")
+                          setIsAddingAccess(true)
                         }}
-                        className="px-3 py-1.5 bg-quepia-cyan/10 text-quepia-cyan text-xs rounded-md border border-quepia-cyan/20 hover:bg-quepia-cyan/20 transition-colors flex items-center gap-2 mx-auto"
+                        className="text-[10px] text-quepia-cyan hover:underline flex items-center gap-1"
                       >
-                        <Plus className="w-3 h-3" />
-                        Generar Enlace
+                        <Plus className="w-3 h-3" /> Nuevo Acceso
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <div className="flex justify-end">
+                    <div className="bg-[#1a1a1a] border border-white/10 rounded-lg p-3 space-y-3 mb-4 animate-in fade-in slide-in-from-top-2">
+                      <p className="text-xs font-medium text-white">Generar Nuevo Acceso</p>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[10px] text-white/40 block mb-1">Nombre</label>
+                          <input
+                            type="text"
+                            value={newAccessName}
+                            onChange={(e) => setNewAccessName(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-quepia-cyan outline-none"
+                            placeholder="Nombre del contacto"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-white/40 block mb-1">Email (para Magic Links)</label>
+                          <input
+                            type="email"
+                            value={newAccessEmail}
+                            onChange={(e) => setNewAccessEmail(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:border-quepia-cyan outline-none"
+                            placeholder="cliente@empresa.com"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          onClick={() => setIsAddingAccess(false)}
+                          className="px-2 py-1 text-xs text-white/50 hover:text-white"
+                        >
+                          Cancelar
+                        </button>
                         <button
                           onClick={async () => {
-                            if (!projectId) return
+                            if (!projectId || !newAccessName) return
                             await createClientAccess({
                               project_id: projectId,
-                              nombre: "Nuevo Acceso",
-                              email: "",
+                              nombre: newAccessName,
+                              email: newAccessEmail, // Can be empty if they want legacy link, but UI suggests it's for magic links
                               can_view_calendar: true,
                               can_view_tasks: true,
                               can_comment: true
                             })
+                            setIsAddingAccess(false)
                           }}
-                          className="text-[10px] text-quepia-cyan hover:underline flex items-center gap-1"
+                          disabled={!newAccessName}
+                          className="px-2 py-1 text-xs bg-quepia-cyan text-black rounded font-medium hover:bg-quepia-cyan/90 disabled:opacity-50"
                         >
-                          <Plus className="w-3 h-3" /> Nuevo
+                          Generar
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {accessClients.length === 0 && !isAddingAccess ? (
+                    <div className="text-center py-4 bg-white/5 rounded-lg border border-white/10 border-dashed">
+                      <p className="text-xs text-white/40 mb-3">No hay accesos generados</p>
+                      <button
+                        onClick={() => {
+                          setNewAccessName(clientInfo.name || "Cliente")
+                          setNewAccessEmail(clientInfo.email || "")
+                          setIsAddingAccess(true)
+                        }}
+                        className="px-3 py-1.5 bg-quepia-cyan/10 text-quepia-cyan text-xs rounded-md border border-quepia-cyan/20 hover:bg-quepia-cyan/20 transition-colors flex items-center gap-2 mx-auto"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Crear Primer Acceso
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
                       {accessClients.map(client => {
                         const link = getShareableLink(client.access_token)
                         const isActive = !client.expires_at || new Date(client.expires_at) > new Date()
                         return (
                           <div key={client.id} className="bg-[#1a1a1a] border border-white/10 rounded-lg p-3 space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-medium text-white">{client.nombre}</span>
+                              <div>
+                                <span className="text-xs font-medium text-white block">{client.nombre}</span>
+                                {client.email && <span className="text-[10px] text-white/40 block">{client.email}</span>}
+                              </div>
                               <div className="flex items-center gap-2">
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}>
                                   {isActive ? "Activo" : "Expirado"}
@@ -574,12 +625,28 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-black/30 border border-white/5 rounded px-2 py-1.5 truncate text-[10px] text-white/40 font-mono">
-                                {link}
-                              </div>
+                              {client.email ? (
+                                <div className="flex-1 bg-black/30 border border-white/5 rounded px-2 py-1.5 flex items-center justify-between">
+                                  <span className="text-[10px] text-white/40 font-mono truncate">
+                                    {typeof window !== 'undefined' ? `${window.location.origin}/cliente/login` : '/cliente/login'}
+                                  </span>
+                                  <span className="text-[10px] text-quepia-cyan bg-quepia-cyan/10 px-1 rounded ml-2 whitespace-nowrap">
+                                    Magic Link
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex-1 bg-black/30 border border-white/5 rounded px-2 py-1.5 truncate text-[10px] text-white/40 font-mono">
+                                  {link}
+                                </div>
+                              )}
+
                               <button
                                 onClick={() => {
-                                  navigator.clipboard.writeText(link)
+                                  const url = client.email
+                                    ? (typeof window !== 'undefined' ? `${window.location.origin}/cliente/login` : '')
+                                    : link
+
+                                  navigator.clipboard.writeText(url)
                                   alert("Enlace copiado")
                                 }}
                                 className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
@@ -587,23 +654,12 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
                               >
                                 <Copy className="w-3.5 h-3.5" />
                               </button>
-                              <a
-                                href={link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
-                                title="Abrir"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
                             </div>
 
                             <div className="flex items-center gap-2 text-[10px] text-white/40">
                               <span className={client.can_view_calendar ? "text-quepia-cyan" : ""}>Calendar</span>
                               •
                               <span className={client.can_view_tasks ? "text-quepia-cyan" : ""}>Tareas</span>
-                              •
-                              <span className={client.can_comment ? "text-quepia-cyan" : ""}>Comentar</span>
                             </div>
                           </div>
                         )

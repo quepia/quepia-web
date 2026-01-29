@@ -13,7 +13,7 @@ export type TaskType = 'diseno' | 'copy' | 'video' | 'strategy' | 'revision' | '
 export type OrgRole = 'superadmin' | 'admin_org' | 'team_member' | 'client_guest';
 
 // Project icon types
-export type ProjectIcon = 'folder' | 'hash';
+export type ProjectIcon = 'folder' | 'hash' | 'briefcase' | 'building-2' | 'store' | 'globe' | 'laptop' | 'megaphone' | 'camera' | 'pen-tool' | 'music' | 'video' | 'code' | 'type';
 
 // ============ USERS ============
 export interface SistemaUser {
@@ -41,6 +41,7 @@ export interface Project {
   parent_id: string | null;
   owner_id: string;
   orden: number;
+  logo_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,6 +54,7 @@ export interface ProjectInsert {
   parent_id?: string | null;
   owner_id: string;
   orden?: number;
+  logo_url?: string | null;
 }
 
 export interface ProjectUpdate {
@@ -62,6 +64,7 @@ export interface ProjectUpdate {
   icon?: ProjectIcon;
   parent_id?: string | null;
   orden?: number;
+  logo_url?: string | null;
 }
 
 // Project with nested children for sidebar
@@ -111,6 +114,7 @@ export interface Task {
   link: string | null;
   assignee_id: string | null;
   priority: Priority;
+  social_copy?: string | null;
   due_date: string | null;
   deadline: string | null;
   labels: string[];
@@ -602,6 +606,29 @@ export const TASK_TYPE_COLORS: Record<TaskType, string> = {
   revision: '#eab308',
   otro: '#6b7280',
 };
+
+// ============ AI PROMPT TEMPLATES ============
+export interface PromptTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  prompt_text: string | null;
+  industry: string | null;
+  pillars: string | null;
+  frequency: string | null;
+  platforms: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromptTemplateInsert {
+  name: string;
+  prompt_text?: string | null;
+  industry?: string | null;
+  pillars?: string | null;
+  frequency?: string | null;
+  platforms?: string[] | null;
+}
 
 export const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
   publicacion: 'Publicación',

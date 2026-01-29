@@ -23,6 +23,7 @@ interface TaskContextMenuProps {
     onDelete: (taskId: string) => void
     onUpdate: (taskId: string, updates: Partial<Task>) => void
     onEdit: (task: Task) => void
+    onQuickEdit?: (task: Task) => void
     onSendForReview?: (task: Task) => void
 }
 
@@ -33,6 +34,7 @@ export function TaskContextMenu({
     onDelete,
     onUpdate,
     onEdit,
+    onQuickEdit,
     onSendForReview
 }: TaskContextMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
@@ -91,6 +93,16 @@ export function TaskContextMenu({
                             Editar tarea
                             <span className="ml-auto text-xs text-white/30">⌘E</span>
                         </button>
+
+                        {onQuickEdit && (
+                            <button
+                                onClick={() => { onQuickEdit(task); setIsOpen(false) }}
+                                className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-white/10 text-left"
+                            >
+                                <Edit3 className="h-4 w-4 text-quepia-cyan/50" />
+                                Edición Rápida
+                            </button>
+                        )}
 
                         <div className="my-1 h-px bg-white/10" />
 

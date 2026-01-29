@@ -313,3 +313,27 @@ export async function addPublicAnnotation(token: string, assetVersionId: string,
     return { success: false, error: err instanceof Error ? err.message : 'Error desconocido' };
   }
 }
+
+
+export async function getPublicClientDataV2(sessionToken: string) {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc('get_client_project_data_v2', { p_session_token: sessionToken });
+
+    if (error) {
+      console.error('Supabase RPC Error (V2) for token:', sessionToken);
+      console.error('Full Error Details:', JSON.stringify(error, null, 2));
+      throw error;
+    }
+
+    if (data && typeof data === 'object' && 'error' in data) {
+      console.error('RPC V2 Logic Error:', data.error);
+      return { error: data.error };
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error fetching V2 client data:', err);
+    return { error: 'Error fetching data or session expired' };
+  }
+}

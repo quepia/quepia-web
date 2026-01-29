@@ -30,6 +30,7 @@ import type { Task, ProjectWithChildren } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { LogoPicker } from "@/components/sistema/quepia/logo-picker"
 
 
 function findProject(projects: ProjectWithChildren[], id: string): ProjectWithChildren | null {
@@ -70,7 +71,7 @@ export default function DashboardPage() {
         console.log("DashboardPage - role:", sistemaUser?.role)
     }, [sistemaUser])
 
-    const { projects, deleteProject, createProject, loading: projectsLoading } = useProjects(user?.id)
+    const { projects, deleteProject, createProject, updateProject, loading: projectsLoading } = useProjects(user?.id)
     const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id)
     const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id)
     const { users: sistemaUsers, refresh: refreshUsers } = useSistemaUsers()
@@ -97,12 +98,15 @@ export default function DashboardPage() {
     // New project modal state
     const [showNewProjectModal, setShowNewProjectModal] = useState(false)
     const [newProjectName, setNewProjectName] = useState("")
+    const [newProjectLogo, setNewProjectLogo] = useState("")
     const [newProjectColor, setNewProjectColor] = useState("#dc4a3e")
     const [newProjectParentId, setNewProjectParentId] = useState<string | null>(null)
     const [newProjectType, setNewProjectType] = useState<"folder" | "hash">("hash")
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
     const [creatingProject, setCreatingProject] = useState(false)
+    const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+    const [newProjectIcon, setNewProjectIcon] = useState<string | null>(null)
 
     const activeProject = activeProjectId ? findProject(projects, activeProjectId) : null
 
@@ -152,12 +156,42 @@ export default function DashboardPage() {
         }
     }
 
+    const handleEditProject = (projectId: string) => {
+        const project = findProject(projects, projectId)
+        if (!project) return
+
+        setEditingProjectId(projectId)
+        setNewProjectName(project.nombre)
+        setNewProjectColor(project.color)
+        setNewProjectLogo(project.logo_url || "")
+        // Handle icon if needed, though project.icon is used for "folder" vs "hash"
+        // We might want to store the lucide icon name in a separate field or reuse logic
+        setNewProjectType(project.icon === "folder" ? "folder" : "hash")
+        setNewProjectParentId(project.parent_id || null)
+        setShowNewProjectModal(true)
+    }
+
     const handleCreateProject = async () => {
         if (!newProjectName.trim() || !user?.id) return
 
         setCreatingProject(true)
         try {
-            if (selectedTemplateId) {
+            if (editingProjectId) {
+                await updateProject(editingProjectId, {
+                    nombre: newProjectName.trim(),
+                    color: newProjectColor,
+                    // If project icon is set (from LogoPicker), use it. Otherwise use folder/hash type
+                    icon: (newProjectIcon || newProjectType) as any,
+                    parent_id: newProjectParentId,
+                    logo_url: newProjectLogo.trim() || null,
+                })
+                setShowNewProjectModal(false)
+                setNewProjectName("")
+                setNewProjectParentId(null)
+                setSelectedTemplateId(null)
+                setEditingProjectId(null)
+                setNewProjectLogo("")
+            } else if (selectedTemplateId) {
                 const projectId = await createProjectFromTemplate(
                     selectedTemplateId,
                     newProjectName.trim(),
@@ -170,14 +204,16 @@ export default function DashboardPage() {
                     setNewProjectName("")
                     setNewProjectParentId(null)
                     setSelectedTemplateId(null)
+                    setNewProjectLogo("")
                 }
             } else {
                 const newProject = await createProject({
                     nombre: newProjectName.trim(),
                     color: newProjectColor,
-                    icon: newProjectType,
+                    icon: (newProjectIcon || newProjectType) as any,
                     parent_id: newProjectParentId,
                     owner_id: user.id,
+                    logo_url: newProjectLogo.trim() || null,
                 })
 
                 if (newProject) {
@@ -185,10 +221,11 @@ export default function DashboardPage() {
                     setNewProjectName("")
                     setNewProjectParentId(null)
                     setSelectedTemplateId(null)
+                    setNewProjectLogo("")
                 }
             }
         } catch (err) {
-            console.error("Error creating project:", err)
+            console.error("Error creating/updating project:", err)
         }
         setCreatingProject(false)
     }
@@ -717,23 +754,52 @@ export default function DashboardPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={() => setShowNewProjectModal(false)}
+                        onClick={() => {
+                            setShowNewProjectModal(false)
+                            setEditingProjectId(null)
+                            setNewProjectName("")
+                            setNewProjectLogo("")
+                            setNewProjectParentId(null)
+                        }}
                     />
                     <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-md p-6 border border-white/10">
-                        <h2 className="text-xl font-bold text-white mb-6">Nuevo Proyecto</h2>
+                        <h2 className="text-xl font-bold text-white mb-6">
+                            {editingProjectId ? "Editar Proyecto" : "Nuevo Cliente"}
+                        </h2>
 
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-white/80 mb-2">
-                                    Nombre del proyecto
+                                    Nombre del cliente
                                 </label>
                                 <input
                                     type="text"
                                     value={newProjectName}
                                     onChange={(e) => setNewProjectName(e.target.value)}
-                                    placeholder="Ej: Mi Proyecto"
+                                    placeholder="Ej: Cocacola"
                                     autoFocus
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 outline-none focus:border-quepia-cyan transition-colors"
+                                />
+                            </div>
+
+                            {/* Logo Picker (New) */}
+                            <div>
+                                <label className="block text-sm font-medium text-white/80 mb-2">
+                                    Logo o Icono
+                                </label>
+                                <LogoPicker
+                                    currentLogo={newProjectLogo}
+                                    currentIcon={newProjectIcon}
+                                    onLogoChange={(url) => {
+                                        setNewProjectLogo(url || "")
+                                        if (url) setNewProjectIcon(null)
+                                    }}
+                                    onIconChange={(icon) => {
+                                        setNewProjectIcon(icon)
+                                        // For now we don't save icon to DB in a separate field, 
+                                        // keeping it simple or reusing fields if needed.
+                                        // But if user picks icon, we clear logo URL
+                                    }}
                                 />
                             </div>
 
@@ -789,7 +855,10 @@ export default function DashboardPage() {
                                             : "border-white/10 text-white/60 hover:border-white/20"
                                             }`}
                                     >
-                                        # Proyecto (con tareas)
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 inline-block mr-1 -mt-0.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                        </svg>
+                                        Cliente
                                     </button>
                                     <button
                                         onClick={() => setNewProjectType("folder")}
@@ -798,81 +867,92 @@ export default function DashboardPage() {
                                             : "border-white/10 text-white/60 hover:border-white/20"
                                             }`}
                                     >
-                                        📁 Carpeta
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 inline-block mr-1 -mt-0.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                                        </svg>
+                                        Carpeta
                                     </button>
                                 </div>
                             </div>
+                        </div>
 
+                        <div>
+                            <label className="block text-sm font-medium text-white/80 mb-2">
+                                Color
+                            </label>
+                            <div className="flex gap-2 flex-wrap">
+                                {["#dc4a3e", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"].map(
+                                    (color) => (
+                                        <button
+                                            key={color}
+                                            onClick={() => setNewProjectColor(color)}
+                                            className={`w-8 h-8 rounded-full transition-transform ${newProjectColor === color ? "scale-110 ring-2 ring-white" : ""
+                                                }`}
+                                            style={{ backgroundColor: color }}
+                                        />
+                                    )
+                                )}
+                            </div>
+                        </div>
+
+                        {projects.length > 0 && (
                             <div>
                                 <label className="block text-sm font-medium text-white/80 mb-2">
-                                    Color
+                                    Proyecto padre (opcional)
                                 </label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {["#dc4a3e", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"].map(
-                                        (color) => (
-                                            <button
-                                                key={color}
-                                                onClick={() => setNewProjectColor(color)}
-                                                className={`w-8 h-8 rounded-full transition-transform ${newProjectColor === color ? "scale-110 ring-2 ring-white" : ""
-                                                    }`}
-                                                style={{ backgroundColor: color }}
-                                            />
-                                        )
-                                    )}
-                                </div>
-                            </div>
-
-                            {projects.length > 0 && (
-                                <div>
-                                    <label className="block text-sm font-medium text-white/80 mb-2">
-                                        Proyecto padre (opcional)
-                                    </label>
-                                    <select
-                                        value={newProjectParentId || ""}
-                                        onChange={(e) => setNewProjectParentId(e.target.value || null)}
-                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-quepia-cyan transition-colors"
-                                    >
-                                        <option value="">Sin padre (raíz)</option>
-                                        {projects.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.nombre}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-
-                            <div className="flex gap-3 pt-2">
-                                <button
-                                    onClick={() => setShowNewProjectModal(false)}
-                                    className="flex-1 px-4 py-3 bg-white/5 text-white/80 font-medium rounded-lg hover:bg-white/10 transition-colors"
+                                <select
+                                    value={newProjectParentId || ""}
+                                    onChange={(e) => setNewProjectParentId(e.target.value || null)}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-quepia-cyan transition-colors"
                                 >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleCreateProject}
-                                    disabled={!newProjectName.trim() || creatingProject}
-                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-quepia-cyan to-quepia-magenta text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                                >
-                                    {creatingProject ? (
-                                        <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                                    ) : (
-                                        "Crear"
-                                    )}
-                                </button>
+                                    <option value="">Sin padre (raíz)</option>
+                                    {projects.map((p) => (
+                                        <option key={p.id} value={p.id}>
+                                            {p.nombre}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
+                        )}
+
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                onClick={() => {
+                                    setShowNewProjectModal(false)
+                                    setEditingProjectId(null)
+                                    setNewProjectName("")
+                                    setNewProjectLogo("")
+                                    setNewProjectParentId(null)
+                                }}
+                                className="flex-1 px-4 py-3 bg-white/5 text-white/80 font-medium rounded-lg hover:bg-white/10 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleCreateProject}
+                                disabled={!newProjectName.trim() || creatingProject}
+                                className="flex-1 px-4 py-3 bg-gradient-to-r from-quepia-cyan to-quepia-magenta text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                            >
+                                {creatingProject ? (
+                                    <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                                ) : (
+                                    editingProjectId ? "Guardar" : "Crear"
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
             {/* Mobile Sidebar Overlay */}
-            {isMobileSidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
-                    onClick={() => setIsMobileSidebarOpen(false)}
-                />
-            )}
+            {
+                isMobileSidebarOpen && (
+                    <div
+                        className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+                        onClick={() => setIsMobileSidebarOpen(false)}
+                    />
+                )
+            }
 
             {/* Sidebar */}
             <AppSidebar
@@ -900,9 +980,14 @@ export default function DashboardPage() {
                     setIsMobileSidebarOpen(false)
                 }}
                 onAddProject={() => {
+                    setEditingProjectId(null)
+                    setNewProjectName("")
+                    setNewProjectLogo("")
+                    setNewProjectParentId(null)
                     setShowNewProjectModal(true)
                     setIsMobileSidebarOpen(false)
                 }}
+                onEditProject={handleEditProject}
                 onDeleteProject={handleDeleteProject}
                 onSignOut={signOut}
                 onOpenSettings={() => {
@@ -938,26 +1023,30 @@ export default function DashboardPage() {
             />
 
             {/* Client Profile Panel */}
-            {activeProjectId && (
-                <ClientProfile
-                    projectId={activeProjectId}
-                    isOpen={showClientProfile}
-                    onClose={() => setShowClientProfile(false)}
-                />
-            )}
+            {
+                activeProjectId && (
+                    <ClientProfile
+                        projectId={activeProjectId}
+                        isOpen={showClientProfile}
+                        onClose={() => setShowClientProfile(false)}
+                    />
+                )
+            }
 
             {/* Briefing Form Modal */}
-            {activeProjectId && (
-                <BriefingForm
-                    projectId={activeProjectId}
-                    isOpen={showBriefingForm}
-                    onClose={() => setShowBriefingForm(false)}
-                    onSave={(data) => {
-                        console.log("Briefing saved:", data)
-                        setShowBriefingForm(false)
-                    }}
-                />
-            )}
-        </div>
+            {
+                activeProjectId && (
+                    <BriefingForm
+                        projectId={activeProjectId}
+                        isOpen={showBriefingForm}
+                        onClose={() => setShowBriefingForm(false)}
+                        onSave={(data) => {
+                            console.log("Briefing saved:", data)
+                            setShowBriefingForm(false)
+                        }}
+                    />
+                )
+            }
+        </div >
     )
 }

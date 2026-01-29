@@ -30,6 +30,23 @@ export async function GET(request: Request) {
 
     // Helper to get all project IDs accessible by user (owned + member)
     const getUserProjectIds = async (userId: string) => {
+      // 1. Get user role
+      const { data: user } = await supabase
+        .from("sistema_users")
+        .select("role")
+        .eq("id", userId)
+        .single()
+
+      // 2. If Admin, get ALL project IDs
+      if (user?.role === 'admin') {
+        const { data: allProjects } = await supabase
+          .from("sistema_projects")
+          .select("id")
+
+        return allProjects?.map((p: any) => p.id) || []
+      }
+
+      // 3. If Member/Standard, use existing logic (Owned + Member)
       const { data: owned } = await supabase
         .from("sistema_projects")
         .select("id")
@@ -86,7 +103,7 @@ export async function GET(request: Request) {
         .from("sistema_tasks")
         .select(`
           *,
-          project:sistema_projects(id, nombre, color),
+          project:sistema_projects(id, nombre, color, logo_url),
           assignee:sistema_users(id, nombre, avatar_url),
           column:sistema_columns(id, nombre)
         `)
@@ -136,7 +153,7 @@ export async function GET(request: Request) {
         .from("sistema_calendar_events")
         .select(`
           *,
-          project:sistema_projects(id, nombre, color),
+          project:sistema_projects(id, nombre, color, logo_url),
           comments:sistema_calendar_comments(*)
         `)
         .in("project_id", projectIds)

@@ -122,7 +122,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
     { label: "Tareas activas", value: stats.active, icon: TrendingUp, color: "text-quepia-cyan" },
     { label: "Completadas", value: stats.completed, icon: CheckCircle2, color: "text-green-400" },
     { label: "Vencidas", value: stats.overdue, icon: AlertTriangle, color: stats.overdue > 0 ? "text-red-400" : "text-white/30" },
-    { label: "Proyectos", value: stats.projectCount, icon: FolderOpen, color: "text-purple-400" },
+    { label: "Clientes", value: stats.projectCount, icon: FolderOpen, color: "text-purple-400" },
   ]
 
   const formatDate = (dateStr: string) => {
@@ -366,7 +366,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
               </div>
               <span className="text-sm text-white/80 font-medium">Equipo</span>
             </button>
-            
+
             <button
               onClick={() => onViewChange("admin-config")}
               className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-lg hover:bg-white/[0.06] transition-all flex flex-col items-center gap-2 group"

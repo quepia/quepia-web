@@ -25,6 +25,18 @@ import {
     LogOut,
     Settings,
     Book,
+    Briefcase,
+    Building2,
+    Store,
+    Globe,
+    Laptop,
+    Megaphone,
+    Camera,
+    PenTool,
+    Music,
+    Video,
+    Code,
+    Type,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useProjects, useFavorites } from "@/lib/sistema/hooks"
@@ -138,10 +150,33 @@ export function AppSidebar({
                         }}
                         className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
                     >
-                        {project.icon === 'hash' ? (
-                            <Hash className="h-3.5 w-3.5 text-white/40 shrink-0" style={{ color: project.color }} />
+                        {project.logo_url ? (
+                            <img
+                                src={project.logo_url}
+                                alt=""
+                                className="h-4 w-4 rounded-full object-cover shrink-0"
+                            />
                         ) : (
-                            <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
+                            // Render specific icon if match found, otherwise fallback to hash
+                            (() => {
+                                const iconMap: Record<string, any> = {
+                                    "briefcase": Briefcase,
+                                    "building-2": Building2,
+                                    "store": Store,
+                                    "globe": Globe,
+                                    "laptop": Laptop,
+                                    "megaphone": Megaphone,
+                                    "camera": Camera,
+                                    "pen-tool": PenTool,
+                                    "music": Music,
+                                    "video": Video,
+                                    "code": Code,
+                                    "type": Type,
+                                    "folder": Folder
+                                }
+                                const IconComponent = iconMap[project.icon] || Hash
+                                return <IconComponent className="h-3.5 w-3.5 text-white/40 shrink-0" style={{ color: project.color }} />
+                            })()
                         )}
                         <span className="truncate">{project.nombre}</span>
                     </button>

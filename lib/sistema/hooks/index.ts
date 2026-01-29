@@ -14,6 +14,7 @@ export {
   getPublicClientData,
   updatePublicAssetStatus,
   addPublicAnnotation,
+  getPublicClientDataV2,
 } from './useCalendar';
 export {
   useAllTasks,

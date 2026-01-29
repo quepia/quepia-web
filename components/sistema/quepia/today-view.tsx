@@ -80,9 +80,16 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
         {task.titulo}
       </span>
       {task.project && (
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ backgroundColor: task.project.color + "20", color: task.project.color }}>
-          {task.project.nombre}
-        </span>
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full shrink-0 bg-white/5 border border-white/5">
+          {task.project.logo_url ? (
+            <img src={task.project.logo_url} alt="" className="w-3 h-3 rounded-full object-cover" />
+          ) : (
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: task.project.color }} />
+          )}
+          <span className="text-[10px] text-white/60">
+            {task.project.nombre}
+          </span>
+        </div>
       )}
       {showDate && task.due_date && (
         <span className="text-[10px] text-red-400 shrink-0">{formatDate(task.due_date)}</span>

@@ -1,14 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
-import { Calendar, CheckCircle2, Circle, Clock, AlertCircle, Loader2, MessageSquare, Send, X, AlignLeft, Tag, FileIcon, Eye } from "lucide-react"
-import { getPublicClientData } from "@/lib/sistema/hooks"
+import { Calendar, CheckCircle2, Circle, Clock, AlertCircle, Loader2, MessageSquare, Send, X, AlignLeft, Tag, FileIcon, Eye, LayoutGrid } from "lucide-react"
+import { getPublicClientData, getPublicClientDataV2 } from "@/lib/sistema/hooks"
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS, PRIORITY_COLORS, PRIORITY_LABELS, APPROVAL_STATUS_COLORS, APPROVAL_STATUS_LABELS } from "@/types/sistema"
 import type { CalendarEventType, Priority } from "@/types/sistema"
 import { createClient } from "@/lib/sistema/supabase/client"
 import { ClientAssetViewer, type ClientAsset } from "@/components/sistema/quepia/client-asset-viewer"
+import { ClientAssetsView } from "@/components/sistema/quepia/client-assets-view"
+import { ClientOnboardingOverlay } from "@/components/sistema/quepia/client-onboarding-overlay"
 
 interface ClientData {
     project?: {
@@ -19,6 +21,7 @@ interface ClientData {
     client?: {
         id: string
         nombre: string
+        email?: string
         can_view_calendar: boolean
         can_view_tasks: boolean
         can_comment: boolean
@@ -44,6 +47,7 @@ interface ClientData {
         id: string
         titulo: string
         descripcion: string | null
+        social_copy?: string | null
         column: string
         priority: Priority
         due_date: string | null
@@ -56,16 +60,50 @@ interface ClientData {
 export default function ClientViewPage() {
     const params = useParams()
     const token = params?.token as string
+    const router = useRouter()
 
     const [data, setData] = useState<ClientData | null>(null)
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<"calendar" | "tasks">("calendar")
+    const [activeTab, setActiveTab] = useState<"calendar" | "tasks" | "assets">("calendar")
+    const [showOnboarding, setShowOnboarding] = useState(false)
 
     const fetchData = async (silent = false) => {
         if (!silent) setLoading(true)
-        const result = await getPublicClientData(token)
+
+        // Detect V2 Token (Session UUID) vs V1 Token (64 char hex)
+        // UUIDs are 36 chars.
+        let result: any = null
+
+        if (token.length === 36) {
+            // V2 Session
+            result = await getPublicClientDataV2(token)
+        } else {
+            // V1 Legacy
+            result = await getPublicClientData(token)
+        }
+
+        if (result?.error === "Session invalid or expired") {
+            // Redirect to login if V2 session expired
+            router.push(`/cliente/login?expired=true`)
+            return
+        }
+
         setData(result)
         setLoading(false)
+
+        // Check Onboarding status (only for successful load)
+        if (result && !result.error && token.length === 36) {
+            const hasSeen = localStorage.getItem(`quepia_onboarding_seen_${result.client.id}`)
+            if (!hasSeen) {
+                setShowOnboarding(true)
+            }
+        }
+    }
+
+    const handleOnboardingComplete = () => {
+        if (data?.client?.id) {
+            localStorage.setItem(`quepia_onboarding_seen_${data.client.id}`, "true")
+        }
     }
 
     useEffect(() => {
@@ -89,6 +127,12 @@ export default function ClientViewPage() {
                     <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
                     <h1 className="text-xl font-bold text-white mb-2">Enlace no válido</h1>
                     <p className="text-white/60">Este enlace ha expirado o no es válido.</p>
+                    <button
+                        onClick={() => router.push("/cliente/login")}
+                        className="mt-6 text-quepia-cyan hover:underline"
+                    >
+                        Ir al Acceso de Clientes
+                    </button>
                 </div>
             </div>
         )
@@ -98,6 +142,13 @@ export default function ClientViewPage() {
 
     return (
         <div className="min-h-screen bg-[#0a0a0a]">
+            {showOnboarding && client && (
+                <ClientOnboardingOverlay
+                    clientName={client.nombre}
+                    onComplete={handleOnboardingComplete}
+                />
+            )}
+
             {/* Header */}
             <header className="border-b border-white/10 sticky top-0 bg-[#0a0a0a]/95 backdrop-blur z-20">
                 <div className="max-w-6xl mx-auto px-6 py-4">
@@ -143,16 +194,28 @@ export default function ClientViewPage() {
                             </button>
                         )}
                         {client?.can_view_tasks && (
-                            <button
-                                onClick={() => setActiveTab("tasks")}
-                                className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === "tasks"
-                                    ? "border-quepia-cyan text-quepia-cyan"
-                                    : "border-transparent text-white/60 hover:text-white"
-                                    }`}
-                            >
-                                <CheckCircle2 className="h-4 w-4 inline-block mr-2" />
-                                Tareas
-                            </button>
+                            <>
+                                <button
+                                    onClick={() => setActiveTab("tasks")}
+                                    className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === "tasks"
+                                        ? "border-quepia-cyan text-quepia-cyan"
+                                        : "border-transparent text-white/60 hover:text-white"
+                                        }`}
+                                >
+                                    <CheckCircle2 className="h-4 w-4 inline-block mr-2" />
+                                    Tareas
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("assets")}
+                                    className={`py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === "assets"
+                                        ? "border-quepia-cyan text-quepia-cyan"
+                                        : "border-transparent text-white/60 hover:text-white"
+                                        }`}
+                                >
+                                    <LayoutGrid className="h-4 w-4 inline-block mr-2" />
+                                    Recursos
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -171,6 +234,14 @@ export default function ClientViewPage() {
                 )}
                 {activeTab === "tasks" && client?.can_view_tasks && (
                     <TasksView
+                        tasks={tasks || []}
+                        token={token}
+                        clientName={client?.nombre || "Cliente"}
+                        onUpdate={() => fetchData(true)}
+                    />
+                )}
+                {activeTab === "assets" && client?.can_view_tasks && (
+                    <ClientAssetsView
                         tasks={tasks || []}
                         token={token}
                         clientName={client?.nombre || "Cliente"}

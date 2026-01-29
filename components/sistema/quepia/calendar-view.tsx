@@ -17,9 +17,16 @@ interface ProjectOption {
   color: string
 }
 
+interface ProjectWithLogo {
+  id: string
+  nombre: string
+  color: string
+  logo_url?: string | null
+}
+
 interface CalendarViewProps {
   tasks: TaskWithProject[]
-  events: (CalendarEvent & { project?: { id: string; nombre: string; color: string } })[]
+  events: (CalendarEvent & { project?: ProjectWithLogo })[]
   loading: boolean
   onTaskClick: (task: TaskWithProject) => void
   userId?: string
@@ -35,7 +42,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   const [importing, setImporting] = useState(false)
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [pendingImport, setPendingImport] = useState<ImportedEvent[] | null>(null)
-  const [selectedEvent, setSelectedEvent] = useState<(CalendarEvent & { project?: { id: string; nombre: string; color: string } }) | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<(CalendarEvent & { project?: ProjectWithLogo }) | null>(null)
 
   // Sync selectedEvent with events prop when it changes (e.g. after adding a comment or refresh)
   useEffect(() => {
@@ -64,7 +71,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
 
   // Build map of date -> items
   const dateItems = useMemo(() => {
-    const map = new Map<string, { tasks: TaskWithProject[]; events: (CalendarEvent & { project?: { id: string; nombre: string; color: string } })[] }>()
+    const map = new Map<string, { tasks: TaskWithProject[]; events: (CalendarEvent & { project?: ProjectWithLogo })[] }>()
 
     for (const task of tasks) {
       if (!task.completed && task.due_date) {
@@ -168,28 +175,62 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                 key={cell.dateStr}
                 onClick={() => setSelectedDate(isSelected ? null : cell.dateStr)}
                 className={cn(
-                  "aspect-square rounded-lg flex flex-col items-center justify-start p-1 transition-colors relative",
+                  "aspect-square rounded-lg flex flex-col items-start justify-start p-1.5 transition-all relative group/cell overflow-hidden",
                   isSelected
-                    ? "bg-quepia-cyan/15 border border-quepia-cyan/30"
+                    ? "bg-quepia-cyan/10 border border-quepia-cyan/30"
                     : isToday
                       ? "bg-white/[0.06] border border-white/[0.1]"
                       : "hover:bg-white/[0.04] border border-transparent"
                 )}
               >
                 <span className={cn(
-                  "text-xs font-medium",
+                  "text-xs font-medium mb-1",
                   isToday ? "text-quepia-cyan" : isSelected ? "text-white" : "text-white/60"
                 )}>
                   {cell.day}
                 </span>
+
                 {hasItems && (
-                  <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center">
-                    {items.tasks.slice(0, 3).map((t, j) => (
-                      <div key={j} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: PRIORITY_COLORS[t.priority] }} />
+                  <div className="w-full flex-1 flex flex-col gap-1 overflow-hidden">
+                    {/* Combine tasks and events, prioritize items with project */}
+                    {[
+                      ...items.tasks.map(t => ({
+                        id: t.id,
+                        color: PRIORITY_COLORS[t.priority],
+                        label: t.project?.nombre || t.titulo,
+                        title: t.titulo,
+                        projectC: t.project?.color,
+                        logo: t.project?.logo_url,
+                        isTask: true
+                      })),
+                      ...items.events.map(e => ({
+                        id: e.id,
+                        color: e.color,
+                        label: e.project?.nombre || e.titulo,
+                        title: e.titulo,
+                        projectC: e.project?.color,
+                        logo: e.project?.logo_url,
+                        isTask: false
+                      }))
+                    ].slice(0, 3).map((item, j) => (
+                      <div key={item.id} className="flex items-center gap-1.5 w-full bg-white/[0.03] border border-white/5 px-1.5 py-1 rounded hover:bg-white/10 transition-colors">
+                        {item.logo ? (
+                          <img src={item.logo} alt="" className="w-3.5 h-3.5 rounded-full object-cover shrink-0 bg-white/5" />
+                        ) : (
+                          <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.projectC || item.color }} />
+                        )}
+                        <span className="text-[9px] text-white/80 truncate font-medium leading-none">
+                          {item.title}
+                        </span>
+                      </div>
                     ))}
-                    {items.events.slice(0, 3).map((e, j) => (
-                      <div key={`e-${j}`} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.color }} />
-                    ))}
+                    {(items.tasks.length + items.events.length) > 3 && (
+                      <div className="px-1 pt-0.5">
+                        <span className="text-[9px] text-white/40 font-medium">
+                          +{(items.tasks.length + items.events.length) - 3} más
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </button>
@@ -260,9 +301,16 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                         <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
                         <span className="text-xs text-white/70 truncate flex-1">{task.titulo}</span>
                         {task.project && (
-                          <span className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: task.project.color + "20", color: task.project.color }}>
-                            {task.project.nombre}
-                          </span>
+                          <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded shrink-0 bg-white/5 border border-white/5">
+                            {task.project.logo_url ? (
+                              <img src={task.project.logo_url} alt="" className="w-3 h-3 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: task.project.color }} />
+                            )}
+                            <span className="text-[9px] text-white/60">
+                              {task.project.nombre}
+                            </span>
+                          </div>
                         )}
                       </button>
                     ))}
@@ -290,9 +338,16 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                           </span>
                         </div>
                         {event.project && (
-                          <span className="text-[9px] px-1 py-0.5 rounded shrink-0" style={{ backgroundColor: event.project.color + "20", color: event.project.color }}>
-                            {event.project.nombre}
-                          </span>
+                          <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded shrink-0 bg-white/5 border border-white/5">
+                            {event.project.logo_url ? (
+                              <img src={event.project.logo_url} alt="" className="w-3 h-3 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: event.project.color }} />
+                            )}
+                            <span className="text-[9px] text-white/60">
+                              {event.project.nombre}
+                            </span>
+                          </div>
                         )}
                       </button>
                     ))}
@@ -329,11 +384,11 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
             setPendingImport(imported)
             setShowProjectPicker(true)
           } else {
-            alert("No hay proyectos disponibles para importar eventos.")
+            alert("No hay clientes disponibles para importar eventos.")
           }
         }}
       />
-      
+
       {/* Manual Event Modal */}
       <ManualEventModal
         isOpen={showManualModal}
@@ -351,8 +406,8 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setShowProjectPicker(false); setPendingImport(null) }} />
           <div className="relative z-50 w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl p-6">
-            <h3 className="text-white font-semibold mb-1">Seleccionar proyecto</h3>
-            <p className="text-xs text-white/40 mb-4">Elegí en qué proyecto importar los {pendingImport.length} eventos.</p>
+            <h3 className="text-white font-semibold mb-1">Seleccionar cliente</h3>
+            <p className="text-xs text-white/40 mb-4">Elegí en qué cliente importar los {pendingImport.length} eventos.</p>
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {projects.map(p => (
                 <button

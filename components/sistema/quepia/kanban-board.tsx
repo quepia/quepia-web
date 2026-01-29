@@ -44,6 +44,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoard
     const [editingColumnName, setEditingColumnName] = useState("")
     const [isAddingColumn, setIsAddingColumn] = useState(false)
     const [newColumnName, setNewColumnName] = useState("")
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
 
     // Review Modal State
     const [reviewTask, setReviewTask] = useState<Task | null>(null)
@@ -291,6 +292,8 @@ export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoard
                                 await updateColumnWipLimit(colId, wip)
                                 await refreshTasks()
                             }}
+                            editingTaskId={editingTaskId}
+                            onSetEditingTaskId={setEditingTaskId}
                         />
                     ))}
 
@@ -381,6 +384,8 @@ interface KanbanColumnProps {
     onUpdateTask: (taskId: string, updates: Partial<Task>) => void
     onSendForReview: (task: Task) => void
     onUpdateColumnWip?: (columnId: string, wipLimit: number | null) => void
+    editingTaskId: string | null
+    onSetEditingTaskId: (taskId: string | null) => void
 }
 
 function KanbanColumn({
@@ -411,7 +416,9 @@ function KanbanColumn({
     onUpdateTask,
     onSendForReview,
     draggedTaskId,
-    onUpdateColumnWip
+    onUpdateColumnWip,
+    editingTaskId,
+    onSetEditingTaskId
 }: KanbanColumnProps) {
     const [showMenu, setShowMenu] = useState(false)
     const [editingWip, setEditingWip] = useState(false)
@@ -468,7 +475,7 @@ function KanbanColumn({
                             <span className={cn(
                                 "text-sm",
                                 isAtWipLimit ? "text-red-400 font-semibold" :
-                                isNearWipLimit ? "text-amber-400" : "text-white/40"
+                                    isNearWipLimit ? "text-amber-400" : "text-white/40"
                             )}>
                                 {column.tasks.length}
                                 {column.wip_limit != null && (
@@ -576,6 +583,7 @@ function KanbanColumn({
                         onDelete={onDeleteTask}
                         onUpdate={(id, updates) => onUpdateTask(id, updates)}
                         onEdit={(t) => onTaskClick?.(t)}
+                        onQuickEdit={(t) => onSetEditingTaskId(t.id)}
                         onSendForReview={onSendForReview}
                     >
                         <TaskCard
@@ -585,6 +593,12 @@ function KanbanColumn({
                             onDragEnd={onDragEnd}
                             isDragging={draggedTaskId === task.id}
                             onToggleComplete={onToggleComplete}
+                            isEditing={editingTaskId === task.id}
+                            onSaveEdit={async (updates) => {
+                                await onUpdateTask(task.id, updates)
+                                onSetEditingTaskId(null)
+                            }}
+                            onCancelEdit={() => onSetEditingTaskId(null)}
                         />
                     </TaskContextMenu>
                 ))}
@@ -641,9 +655,107 @@ interface TaskCardProps {
     onDragEnd: () => void
     isDragging: boolean
     onToggleComplete?: (taskId: string) => void
+    isEditing?: boolean
+    onSaveEdit?: (updates: Partial<Task>) => void
+    onCancelEdit?: () => void
 }
 
-function TaskCard({ task, onClick, onDragStart, onDragEnd, isDragging, onToggleComplete }: TaskCardProps) {
+function TaskCard({
+    task,
+    onClick,
+    onDragStart,
+    onDragEnd,
+    isDragging,
+    onToggleComplete,
+    isEditing,
+    onSaveEdit,
+    onCancelEdit
+}: TaskCardProps) {
+    const [editTitle, setEditTitle] = useState(task.titulo)
+    const [editPriority, setEditPriority] = useState<Priority>(task.priority || "P4")
+    const [editDueDate, setEditDueDate] = useState(task.due_date || "")
+
+    // Reset state when entering edit mode
+    if (isEditing && editTitle === task.titulo && editTitle === "") {
+        // This is just a safeguard, usually we rely on init
+    }
+
+    const handleSave = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        onSaveEdit?.({
+            titulo: editTitle,
+            priority: editPriority,
+            due_date: editDueDate || null
+        })
+    }
+
+    const handleCancel = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        onCancelEdit?.()
+        // Reset fields
+        setEditTitle(task.titulo)
+        setEditPriority(task.priority || "P4")
+        setEditDueDate(task.due_date || "")
+    }
+
+    if (isEditing) {
+        return (
+            <div
+                className="w-full text-left bg-white/[0.08] border border-white/[0.12] rounded-lg p-3 cursor-default"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                        e.stopPropagation()
+                        onCancelEdit?.()
+                    }
+                }}
+            >
+                <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full bg-black/20 text-sm text-white border border-white/10 rounded px-2 py-1 mb-2 focus:border-quepia-cyan outline-none"
+                    autoFocus
+                />
+
+                <div className="flex gap-2 mb-2">
+                    <select
+                        value={editPriority}
+                        onChange={(e) => setEditPriority(e.target.value as Priority)}
+                        className="bg-black/20 text-xs text-white border border-white/10 rounded px-2 py-1 outline-none"
+                    >
+                        {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
+                            <option key={key} value={key} className="bg-[#1a1a1a]">
+                                {label}
+                            </option>
+                        ))}
+                    </select>
+
+                    <input
+                        type="date"
+                        value={editDueDate}
+                        onChange={(e) => setEditDueDate(e.target.value)}
+                        className="bg-black/20 text-xs text-white border border-white/10 rounded px-2 py-1 outline-none"
+                    />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={handleCancel}
+                        className="px-2 py-1 text-xs text-white/50 hover:text-white rounded hover:bg-white/5"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        className="px-2 py-1 text-xs bg-quepia-cyan text-black font-medium rounded hover:bg-quepia-cyan/90"
+                    >
+                        Guardar
+                    </button>
+                </div>
+            </div>
+        )
+    }
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.completed
     const isDueSoon = task.due_date && !isOverdue && !task.completed &&
         new Date(task.due_date).getTime() - Date.now() < 2 * 24 * 60 * 60 * 1000
