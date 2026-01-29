@@ -637,3 +637,60 @@ export const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
   entrega: 'Entrega',
   otro: 'Otro',
 };
+
+// ============ CLIENT BRIEFS ============
+export interface ClientBrief {
+  id: string;
+  project_id: string;
+  project_type: string;
+  objectives: string | null;
+  target_audience: string | null;
+  tone_of_voice: string | null;
+  references_text: string | null;
+  budget: string | null;
+  timeline: string | null;
+  includes_ads: boolean;
+  ad_budget: string | null;
+  platforms: string[] | null;
+  keep_existing_brand: boolean;
+  existing_elements: string | null;
+  content_frequency: string | null;
+  key_messages: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientBriefInsert {
+  project_id: string;
+  project_type: string;
+  objectives?: string | null;
+  target_audience?: string | null;
+  tone_of_voice?: string | null;
+  references_text?: string | null;
+  budget?: string | null;
+  timeline?: string | null;
+  includes_ads?: boolean;
+  ad_budget?: string | null;
+  platforms?: string[] | null;
+  keep_existing_brand?: boolean;
+  existing_elements?: string | null;
+  content_frequency?: string | null;
+  key_messages?: string | null;
+}
+
+export interface ClientBriefUpdate {
+  project_type?: string;
+  objectives?: string | null;
+  target_audience?: string | null;
+  tone_of_voice?: string | null;
+  references_text?: string | null;
+  budget?: string | null;
+  timeline?: string | null;
+  includes_ads?: boolean;
+  ad_budget?: string | null;
+  platforms?: string[] | null;
+  keep_existing_brand?: boolean;
+  existing_elements?: string | null;
+  content_frequency?: string | null;
+  key_messages?: string | null;
+}

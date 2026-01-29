@@ -17,7 +17,7 @@ import { CalendarView } from "@/components/sistema/quepia/calendar-view"
 import { InboxView } from "@/components/sistema/quepia/inbox-view"
 import { WorkloadView } from "@/components/sistema/quepia/workload-view"
 import { DocsView } from "@/components/sistema/quepia/docs-view"
-import { useAuth, useProjects, useAllTasks, useAllCalendarEvents, useSistemaUsers, useProjectTemplates } from "@/lib/sistema/hooks"
+import { useAuth, useProjects, useAllTasks, useAllCalendarEvents, useSistemaUsers, useProjectTemplates, useClientBrief } from "@/lib/sistema/hooks"
 import { PortfolioView } from "@/components/sistema/quepia/portfolio-view"
 import { ClientProfile } from "@/components/sistema/quepia/client-profile"
 import { BriefingForm } from "@/components/sistema/quepia/briefing-form"
@@ -48,7 +48,7 @@ function flattenHashProjects(projects: ProjectWithChildren[]): { id: string; nom
     const result: { id: string; nombre: string; color: string }[] = []
     const walk = (list: ProjectWithChildren[]) => {
         for (const p of list) {
-            if (p.icon === "hash") {
+            if (p.icon !== "folder") {
                 result.push({ id: p.id, nombre: p.nombre, color: p.color })
             }
             if (p.children && p.children.length > 0) {
@@ -82,6 +82,8 @@ export default function DashboardPage() {
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [kanbanKey, setKanbanKey] = useState(0)
+
+    const { brief, saveBrief } = useClientBrief(activeProjectId);
 
     const [showSetupModal, setShowSetupModal] = useState(false)
     const [setupName, setSetupName] = useState("")
@@ -1040,9 +1042,43 @@ export default function DashboardPage() {
                         projectId={activeProjectId}
                         isOpen={showBriefingForm}
                         onClose={() => setShowBriefingForm(false)}
-                        onSave={(data) => {
-                            console.log("Briefing saved:", data)
-                            setShowBriefingForm(false)
+                        initialData={brief ? {
+                            project_type: brief.project_type,
+                            objectives: brief.objectives || "",
+                            target_audience: brief.target_audience || "",
+                            tone_of_voice: brief.tone_of_voice || "",
+                            references: brief.references_text || "",
+                            budget: brief.budget || "",
+                            timeline: brief.timeline || "",
+                            includes_ads: brief.includes_ads,
+                            ad_budget: brief.ad_budget || "",
+                            platforms: brief.platforms || [],
+                            keep_existing_brand: brief.keep_existing_brand,
+                            existing_elements: brief.existing_elements || "",
+                            content_frequency: brief.content_frequency || "",
+                            key_messages: brief.key_messages || "",
+                        } : null}
+                        onSave={async (data) => {
+                            console.log("Briefing saving:", data)
+                            const success = await saveBrief({
+                                project_type: data.project_type,
+                                objectives: data.objectives,
+                                target_audience: data.target_audience,
+                                tone_of_voice: data.tone_of_voice,
+                                references_text: data.references,
+                                budget: data.budget,
+                                timeline: data.timeline,
+                                includes_ads: data.includes_ads,
+                                ad_budget: data.ad_budget,
+                                platforms: data.platforms,
+                                keep_existing_brand: data.keep_existing_brand,
+                                existing_elements: data.existing_elements,
+                                content_frequency: data.content_frequency,
+                                key_messages: data.key_messages,
+                            })
+                            if (success) {
+                                setShowBriefingForm(false)
+                            }
                         }}
                     />
                 )

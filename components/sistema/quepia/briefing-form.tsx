@@ -41,6 +41,7 @@ interface BriefingData {
 interface BriefingFormProps {
   projectId: string
   projectType?: string
+  initialData?: BriefingData | null
   isOpen: boolean
   onClose: () => void
   onSave: (data: BriefingData) => void
@@ -89,7 +90,7 @@ const EMPTY_FORM: BriefingData = {
   key_messages: "",
 }
 
-export function BriefingForm({ projectId, projectType, isOpen, onClose, onSave }: BriefingFormProps) {
+export function BriefingForm({ projectId, projectType, initialData, isOpen, onClose, onSave }: BriefingFormProps) {
   const [form, setForm] = useState<BriefingData>({ ...EMPTY_FORM })
   const [saving, setSaving] = useState(false)
   const [draftSaved, setDraftSaved] = useState(false)
@@ -98,7 +99,7 @@ export function BriefingForm({ projectId, projectType, isOpen, onClose, onSave }
 
   const storageKey = `briefing_draft_${projectId}`
 
-  // Restore draft on mount
+  // Restore draft or initial data on mount
   useEffect(() => {
     if (!isOpen) return
     try {
@@ -106,13 +107,19 @@ export function BriefingForm({ projectId, projectType, isOpen, onClose, onSave }
       if (saved) {
         const parsed = JSON.parse(saved) as BriefingData
         setForm(parsed)
+      } else if (initialData) {
+        setForm(initialData)
       } else {
         setForm({ ...EMPTY_FORM, project_type: projectType || "" })
       }
     } catch {
-      setForm({ ...EMPTY_FORM, project_type: projectType || "" })
+      if (initialData) {
+        setForm(initialData)
+      } else {
+        setForm({ ...EMPTY_FORM, project_type: projectType || "" })
+      }
     }
-  }, [isOpen, projectId, projectType, storageKey])
+  }, [isOpen, projectId, projectType, storageKey, initialData])
 
   // Auto-save every 10 seconds
   useEffect(() => {

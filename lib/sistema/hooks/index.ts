@@ -16,10 +16,8 @@ export {
   addPublicAnnotation,
   getPublicClientDataV2,
 } from './useCalendar';
-export {
-  useAllTasks,
-  useAllCalendarEvents,
-} from './useAllTasks';
+export * from './useClientBrief';
+export * from './useAllTasks';
 export type { TaskWithProject } from './useAllTasks';
 export { useProjectTemplates } from './useTemplates';
 export { useAssets, useAnnotations, useApprovalLog } from './useAssets';
