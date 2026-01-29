@@ -131,6 +131,7 @@ export function AppSidebar({
                     )}
 
                     <button
+                        type="button"
                         onClick={() => {
                             onProjectChange?.(project.id)
                             onClose?.()
@@ -290,6 +291,7 @@ export function AppSidebar({
                         {favorites.map((fav) => (
                             <button
                                 key={fav.id}
+                                type="button"
                                 onClick={() => onProjectChange?.(fav.id)}
                                 className={cn(
                                     "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-white/[0.04] transition-colors",

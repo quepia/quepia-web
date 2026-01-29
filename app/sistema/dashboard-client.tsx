@@ -898,12 +898,10 @@ export default function DashboardPage() {
                 }}
                 activeProject={activeProjectId || undefined}
                 onProjectChange={(id) => {
-                    const project = findProject(projects, id)
-                    if (project?.icon === "hash") {
-                        setActiveProjectId(id)
-                        setActiveView("project")
-                        setIsMobileSidebarOpen(false)
-                    }
+                    // Always switch to project view when clicked from sidebar
+                    setActiveProjectId(id)
+                    setActiveView("project")
+                    setIsMobileSidebarOpen(false)
                 }}
                 onAddProject={() => {
                     setShowNewProjectModal(true)

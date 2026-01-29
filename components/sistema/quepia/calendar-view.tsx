@@ -9,6 +9,8 @@ import { PRIORITY_COLORS, EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from "@/types/s
 import AICalendarModal, { type ImportedEvent } from "./ai-calendar-modal"
 import { EventDetailModal } from "./event-detail-modal"
 
+import { ManualEventModal } from "./manual-event-modal"
+
 interface ProjectOption {
   id: string
   nombre: string
@@ -29,6 +31,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showAIModal, setShowAIModal] = useState(false)
+  const [showManualModal, setShowManualModal] = useState(false)
   const [importing, setImporting] = useState(false)
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [pendingImport, setPendingImport] = useState<ImportedEvent[] | null>(null)
@@ -113,6 +116,13 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
             <h2 className="text-lg font-semibold text-white capitalize">{monthName}</h2>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowManualModal(true)}
+              className="text-xs px-3 py-1.5 rounded-lg bg-quepia-cyan text-black hover:bg-quepia-cyan/90 transition-colors flex items-center gap-1.5 font-medium"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Crear
+            </button>
             <button
               onClick={() => setShowAIModal(true)}
               className="text-xs px-3 py-1.5 rounded-lg bg-quepia-cyan/10 text-quepia-cyan hover:bg-quepia-cyan/20 transition-colors flex items-center gap-1.5"
@@ -223,7 +233,16 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
           </div>
 
           {!selectedItems || (selectedItems.tasks.length === 0 && selectedItems.events.length === 0) ? (
-            <p className="text-sm text-white/30 text-center py-8">Sin actividad para este día</p>
+            <div className="flex flex-col items-center justify-center py-8">
+              <p className="text-sm text-white/30 mb-3">Sin actividad para este día</p>
+              <button
+                onClick={() => setShowManualModal(true)}
+                className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Crear Evento
+              </button>
+            </div>
           ) : (
             <div className="space-y-4">
               {selectedItems.tasks.length > 0 && (
@@ -313,6 +332,18 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
             alert("No hay proyectos disponibles para importar eventos.")
           }
         }}
+      />
+      
+      {/* Manual Event Modal */}
+      <ManualEventModal
+        isOpen={showManualModal}
+        onClose={() => setShowManualModal(false)}
+        onSuccess={() => {
+          onRefresh?.()
+        }}
+        projects={projects}
+        userId={userId || ""}
+        preselectedDate={selectedDate || undefined}
       />
 
       {/* Project picker for import */}
