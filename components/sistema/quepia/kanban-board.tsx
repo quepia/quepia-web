@@ -698,10 +698,13 @@ function TaskCard({
         setEditDueDate(task.due_date || "")
     }
 
+    const priorityColor = PRIORITY_COLORS[task.priority as Priority] || PRIORITY_COLORS["P4"]
+    const isHighPriority = task.priority === "P1"
+
     if (isEditing) {
         return (
             <div
-                className="w-full text-left bg-white/[0.08] border border-white/[0.12] rounded-lg p-3 cursor-default"
+                className="w-full text-left bg-[#1a1a1a] border border-white/10 rounded-lg p-3 cursor-default shadow-lg"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
                     if (e.key === "Escape") {
@@ -714,15 +717,16 @@ function TaskCard({
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full bg-black/20 text-sm text-white border border-white/10 rounded px-2 py-1 mb-2 focus:border-quepia-cyan outline-none"
+                    className="w-full bg-transparent text-[15px] font-medium text-white placeholder:text-white/30 border-none outline-none mb-3 p-0"
+                    placeholder="Nombre de la tarea"
                     autoFocus
                 />
 
-                <div className="flex gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-3">
                     <select
                         value={editPriority}
                         onChange={(e) => setEditPriority(e.target.value as Priority)}
-                        className="bg-black/20 text-xs text-white border border-white/10 rounded px-2 py-1 outline-none"
+                        className="bg-white/[0.05] text-[11px] text-white/80 border border-white/10 rounded px-2 py-1 outline-none appearance-none hover:bg-white/10 transition-colors cursor-pointer"
                     >
                         {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
                             <option key={key} value={key} className="bg-[#1a1a1a]">
@@ -735,20 +739,20 @@ function TaskCard({
                         type="date"
                         value={editDueDate}
                         onChange={(e) => setEditDueDate(e.target.value)}
-                        className="bg-black/20 text-xs text-white border border-white/10 rounded px-2 py-1 outline-none"
+                        className="bg-white/[0.05] text-[11px] text-white/80 border border-white/10 rounded px-2 py-1 outline-none hover:bg-white/10 transition-colors cursor-pointer [color-scheme:dark]"
                     />
                 </div>
 
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 border-t border-white/5 pt-2">
                     <button
                         onClick={handleCancel}
-                        className="px-2 py-1 text-xs text-white/50 hover:text-white rounded hover:bg-white/5"
+                        className="px-3 py-1.5 text-xs text-white/60 hover:text-white rounded hover:bg-white/5 transition-colors"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleSave}
-                        className="px-2 py-1 text-xs bg-quepia-cyan text-black font-medium rounded hover:bg-quepia-cyan/90"
+                        className="px-3 py-1.5 text-xs bg-quepia-cyan text-black font-medium rounded hover:opacity-90 transition-opacity"
                     >
                         Guardar
                     </button>
@@ -756,6 +760,7 @@ function TaskCard({
             </div>
         )
     }
+
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.completed
     const isDueSoon = task.due_date && !isOverdue && !task.completed &&
         new Date(task.due_date).getTime() - Date.now() < 2 * 24 * 60 * 60 * 1000
@@ -778,40 +783,43 @@ function TaskCard({
             onDragEnd={onDragEnd}
             onClick={onClick}
             className={cn(
-                "w-full text-left bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 hover:bg-white/[0.07] hover:border-white/[0.12] transition-all cursor-pointer group",
-                isDragging && "opacity-50 scale-95",
-                task.completed && "opacity-50"
+                "w-full text-left bg-[#161616] hover:bg-[#1a1a1a] border border-white/[0.04] hover:border-white/[0.08] rounded-lg p-3 transition-all cursor-pointer group relative overflow-hidden",
+                isDragging && "opacity-50 scale-95 shadow-xl ring-1 ring-quepia-cyan/50",
+                task.completed && "opacity-60"
             )}
         >
-            {/* Priority indicator strip */}
-            {task.priority && task.priority !== "P4" && (
-                <div
-                    className="h-0.5 rounded-full mb-2 -mx-3 -mt-3 mx-0 rounded-t-lg rounded-b-none"
-                    style={{ backgroundColor: PRIORITY_COLORS[task.priority as Priority], opacity: 0.7 }}
-                />
-            )}
-
-            <div className="flex items-start gap-2">
-                {/* Completion toggle */}
+            <div className="flex items-start gap-3">
+                {/* Circular Checkbox (Todoist Style) */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation()
                         onToggleComplete?.(task.id)
                     }}
-                    className="mt-0.5 shrink-0"
+                    className="mt-0.5 shrink-0 group/check relative"
                 >
                     {task.completed ? (
-                        <CheckCircle2 className="h-[18px] w-[18px] text-green-500" />
+                        <div className="h-[18px] w-[18px] rounded-full bg-white/20 flex items-center justify-center transition-colors">
+                            <Check className="h-3 w-3 text-white" />
+                        </div>
                     ) : (
-                        <Circle className="h-[18px] w-[18px] text-white/30 hover:text-quepia-cyan transition-colors" />
+                        <div 
+                            className="h-[18px] w-[18px] rounded-full border-2 transition-all flex items-center justify-center group-hover/check:bg-opacity-10"
+                            style={{ 
+                                borderColor: priorityColor,
+                                backgroundColor: 'transparent'
+                            }}
+                        >
+                            <div className="h-full w-full rounded-full opacity-0 group-hover/check:opacity-20" style={{ backgroundColor: priorityColor }} />
+                            <Check className="h-2.5 w-2.5 opacity-0 group-hover/check:opacity-100 transition-opacity" style={{ color: priorityColor }} />
+                        </div>
                     )}
                 </button>
 
                 <div className="flex-1 min-w-0">
                     {/* Title */}
                     <p className={cn(
-                        "text-sm leading-snug",
-                        task.completed ? "text-white/40 line-through" : "text-white/90"
+                        "text-[15px] font-medium leading-snug mb-0.5",
+                        task.completed ? "text-white/40 line-through decoration-white/20" : "text-white/90"
                     )}>
                         {task.titulo.split(/(\*[^*]+\*)/).map((part, i) => {
                             if (part.startsWith("*") && part.endsWith("*")) {
@@ -827,77 +835,79 @@ function TaskCard({
 
                     {/* Description */}
                     {task.descripcion && (
-                        <p className="text-xs text-white/35 mt-1 line-clamp-2">
+                        <p className="text-xs text-[#808080] line-clamp-2 mb-2.5 font-normal leading-relaxed">
                             {task.descripcion}
                         </p>
                     )}
 
-                    {/* Meta row: due date, priority, labels */}
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        {/* Due date */}
+                    {/* Meta Chips Row */}
+                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        {/* Due Date Chip */}
                         {task.due_date && (
                             <span className={cn(
-                                "inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded",
-                                isOverdue ? "bg-red-500/15 text-red-400" :
-                                    isDueSoon ? "bg-amber-500/15 text-amber-400" :
-                                        "bg-white/5 text-white/45"
+                                "inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-medium transition-colors",
+                                isOverdue ? "text-red-400 bg-red-500/10" :
+                                isDueSoon ? "text-amber-400 bg-amber-500/10" :
+                                "text-white/50 bg-white/[0.04]"
                             )}>
                                 <Calendar className="h-3 w-3" />
                                 {formatDueDate(task.due_date)}
                             </span>
                         )}
 
-                        {/* Task type badge */}
+                        {/* Priority Chip (Only if not P4/Gray) */}
+                        {task.priority && task.priority !== "P4" && (
+                            <span
+                                className={cn(
+                                    "inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-medium",
+                                    isHighPriority ? "bg-red-500/20 text-red-400" : "bg-white/[0.04]"
+                                )}
+                                style={!isHighPriority ? { color: priorityColor } : undefined}
+                            >
+                                <Flag className="h-3 w-3" fill={isHighPriority ? "currentColor" : "none"} />
+                                {PRIORITY_LABELS[task.priority as Priority]}
+                            </span>
+                        )}
+
+                        {/* Task Type Chip */}
                         {task.task_type && (
                             <span
-                                className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded font-medium"
-                                style={{
-                                    backgroundColor: TASK_TYPE_COLORS[task.task_type as TaskType] + "1a",
-                                    color: TASK_TYPE_COLORS[task.task_type as TaskType]
-                                }}
+                                className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded-md font-medium bg-white/[0.04]"
+                                style={{ color: TASK_TYPE_COLORS[task.task_type as TaskType] }}
                             >
                                 {TASK_TYPE_LABELS[task.task_type as TaskType]}
                             </span>
                         )}
 
-                        {/* Estimated hours */}
+                        {/* Labels Chips */}
+                        {task.labels && task.labels.length > 0 && task.labels.slice(0, 2).map((label, i) => (
+                            <span key={i} className="text-[11px] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-white/40">
+                                {label}
+                            </span>
+                        ))}
+                        {task.labels && task.labels.length > 2 && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-white/30">
+                                +{task.labels.length - 2}
+                            </span>
+                        )}
+
+                        {/* Estimated Hours */}
                         {task.estimated_hours && (
-                            <span className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded bg-white/[0.06] text-white/45">
+                            <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-white/30 font-mono">
                                 {task.estimated_hours}h
                             </span>
                         )}
 
-                        {/* Priority badge */}
-                        {task.priority && task.priority !== "P4" && (
-                            <span
-                                className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded"
-                                style={{
-                                    backgroundColor: PRIORITY_COLORS[task.priority as Priority] + "1a",
-                                    color: PRIORITY_COLORS[task.priority as Priority]
-                                }}
-                            >
-                                <Flag className="h-3 w-3" />
-                                {PRIORITY_LABELS[task.priority as Priority]}
-                            </span>
-                        )}
-
-                        {/* Labels */}
-                        {task.labels && task.labels.length > 0 && task.labels.map((label, i) => (
-                            <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-white/[0.06] text-white/50">
-                                {label}
-                            </span>
-                        ))}
-
-                        {/* Link indicator */}
+                        {/* Link Indicator */}
                         {task.link && (
-                            <Link2 className="h-3 w-3 text-quepia-cyan/60" />
+                            <Link2 className="h-3 w-3 text-quepia-cyan/60 ml-0.5" />
                         )}
                     </div>
                 </div>
 
-                {/* Assignee */}
+                {/* Assignee Avatar */}
                 {task.assignee && (
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80 flex items-center justify-center text-[10px] text-white font-medium shrink-0 mt-0.5" title={task.assignee.nombre}>
+                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80 flex items-center justify-center text-[9px] text-white font-medium shrink-0 shadow-sm mt-0.5 border border-black/20" title={task.assignee.nombre}>
                         {task.assignee.nombre.split(" ").map(n => n[0]).join("").toUpperCase()}
                     </div>
                 )}
