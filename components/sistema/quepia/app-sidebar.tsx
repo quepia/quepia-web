@@ -55,6 +55,7 @@ interface AppSidebarProps {
     onAddProject?: () => void
     onEditProject?: (projectId: string) => void
     onDeleteProject?: (projectId: string) => void
+    onManageMembers?: (projectId: string) => void
     onSignOut?: () => void
     onOpenSettings?: () => void
     projects: ProjectWithChildren[]
@@ -76,6 +77,7 @@ export function AppSidebar({
     onAddProject,
     onEditProject,
     onDeleteProject,
+    onManageMembers,
     onSignOut,
     onOpenSettings,
     projects,
@@ -389,6 +391,13 @@ export function AppSidebar({
                     >
                         <Pencil className="h-3.5 w-3.5" />
                         Editar proyecto
+                    </button>
+                    <button
+                        onClick={() => { onManageMembers?.(contextMenu.projectId); setContextMenu(null) }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                    >
+                        <Users className="h-3.5 w-3.5" />
+                        Miembros
                     </button>
                     <button
                         onClick={(e) => {

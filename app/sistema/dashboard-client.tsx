@@ -26,6 +26,7 @@ import { AdminProjectsView } from "@/components/sistema/quepia/admin-projects-vi
 import { AdminServicesView } from "@/components/sistema/quepia/admin-services-view"
 import { AdminConfigView } from "@/components/sistema/quepia/admin-config-view"
 import { AdminTeamView } from "@/components/sistema/quepia/admin-team-view"
+import { ProjectMembersModal } from "@/components/sistema/quepia/project-members-modal"
 import type { Task, ProjectWithChildren } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { Loader2 } from "lucide-react"
@@ -96,6 +97,9 @@ export default function DashboardPage() {
     // Client profile & briefing state
     const [showClientProfile, setShowClientProfile] = useState(false)
     const [showBriefingForm, setShowBriefingForm] = useState(false)
+
+    // Project members modal state
+    const [membersProjectId, setMembersProjectId] = useState<string | null>(null)
 
     // New project modal state
     const [showNewProjectModal, setShowNewProjectModal] = useState(false)
@@ -991,6 +995,7 @@ export default function DashboardPage() {
                 }}
                 onEditProject={handleEditProject}
                 onDeleteProject={handleDeleteProject}
+                onManageMembers={(projectId) => setMembersProjectId(projectId)}
                 onSignOut={signOut}
                 onOpenSettings={() => {
                     setShowSettingsModal(true)
@@ -1083,6 +1088,17 @@ export default function DashboardPage() {
                     />
                 )
             }
+            {/* Project Members Modal */}
+            {membersProjectId && user?.id && (
+                <ProjectMembersModal
+                    isOpen={!!membersProjectId}
+                    onClose={() => setMembersProjectId(null)}
+                    projectId={membersProjectId}
+                    projectName={findProject(projects, membersProjectId)?.nombre || "Proyecto"}
+                    currentUserId={user.id}
+                    ownerId={findProject(projects, membersProjectId)?.owner_id || ""}
+                />
+            )}
         </div >
     )
 }

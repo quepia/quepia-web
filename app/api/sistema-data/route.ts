@@ -142,6 +142,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ data: data || [] })
     }
 
+    if (type === "project-members") {
+      const projectId = searchParams.get("projectId")
+      if (!projectId) {
+        return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
+      }
+
+      const { data, error } = await supabase
+        .from("sistema_project_members")
+        .select(`
+          *,
+          user:sistema_users(id, nombre, email, avatar_url, role)
+        `)
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true })
+
+      if (error) {
+        console.error("Error fetching project members:", error)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ data: data || [] })
+    }
+
     if (type === "events") {
       const projectIds = await getUserProjectIds(userId!)
 
@@ -320,6 +343,134 @@ export async function POST(request: Request) {
 
       if (authError) {
         return NextResponse.json({ error: authError.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === "add-project-member") {
+      const { projectId, targetUserId, memberRole } = body
+      const supabase = getAdminClient()
+
+      // Verify requester is admin or project owner
+      const { data: requester } = await supabase
+        .from("sistema_users")
+        .select("role")
+        .eq("id", userId)
+        .single()
+
+      const { data: project } = await supabase
+        .from("sistema_projects")
+        .select("owner_id")
+        .eq("id", projectId)
+        .single()
+
+      if (!requester || (requester.role !== "admin" && project?.owner_id !== userId)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+      }
+
+      const { error } = await supabase
+        .from("sistema_project_members")
+        .insert({
+          project_id: projectId,
+          user_id: targetUserId,
+          role: memberRole || "member",
+        })
+
+      if (error) {
+        if (error.code === "23505") {
+          return NextResponse.json({ error: "El usuario ya es miembro del proyecto" }, { status: 409 })
+        }
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === "update-project-member-role") {
+      const { memberId, memberRole } = body
+      const supabase = getAdminClient()
+
+      const { data: requester } = await supabase
+        .from("sistema_users")
+        .select("role")
+        .eq("id", userId)
+        .single()
+
+      if (!requester || requester.role !== "admin") {
+        // Also allow project owner
+        const { data: member } = await supabase
+          .from("sistema_project_members")
+          .select("project_id")
+          .eq("id", memberId)
+          .single()
+
+        if (member) {
+          const { data: project } = await supabase
+            .from("sistema_projects")
+            .select("owner_id")
+            .eq("id", member.project_id)
+            .single()
+
+          if (!project || project.owner_id !== userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+          }
+        } else {
+          return NextResponse.json({ error: "Member not found" }, { status: 404 })
+        }
+      }
+
+      const { error } = await supabase
+        .from("sistema_project_members")
+        .update({ role: memberRole })
+        .eq("id", memberId)
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === "remove-project-member") {
+      const { memberId } = body
+      const supabase = getAdminClient()
+
+      const { data: requester } = await supabase
+        .from("sistema_users")
+        .select("role")
+        .eq("id", userId)
+        .single()
+
+      if (!requester || requester.role !== "admin") {
+        const { data: member } = await supabase
+          .from("sistema_project_members")
+          .select("project_id")
+          .eq("id", memberId)
+          .single()
+
+        if (member) {
+          const { data: project } = await supabase
+            .from("sistema_projects")
+            .select("owner_id")
+            .eq("id", member.project_id)
+            .single()
+
+          if (!project || project.owner_id !== userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+          }
+        } else {
+          return NextResponse.json({ error: "Member not found" }, { status: 404 })
+        }
+      }
+
+      const { error } = await supabase
+        .from("sistema_project_members")
+        .delete()
+        .eq("id", memberId)
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
       return NextResponse.json({ success: true })

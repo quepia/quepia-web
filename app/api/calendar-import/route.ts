@@ -20,17 +20,45 @@ export async function GET(request: Request) {
 
     const supabase = getAdminClient()
 
-    // Get user's projects
-    const { data: projects } = await supabase
-      .from("sistema_projects")
-      .select("id")
-      .eq("owner_id", userId)
+    // Check if user is a global admin
+    const { data: globalUser } = await supabase
+      .from("sistema_users")
+      .select("role")
+      .eq("id", userId)
+      .single()
 
-    if (!projects || projects.length === 0) {
-      return NextResponse.json({ events: [] })
+    const isGlobalAdmin = globalUser?.role === "admin"
+
+    let projectIds: string[] = []
+
+    if (isGlobalAdmin) {
+      // Global admins can see all projects
+      const { data: allProjects } = await supabase
+        .from("sistema_projects")
+        .select("id")
+
+      projectIds = (allProjects || []).map((p: any) => p.id)
+    } else {
+      // Get projects user owns
+      const { data: ownedProjects } = await supabase
+        .from("sistema_projects")
+        .select("id")
+        .eq("owner_id", userId)
+
+      // Get projects user is a member of
+      const { data: memberProjects } = await supabase
+        .from("sistema_project_members")
+        .select("project_id")
+        .eq("user_id", userId)
+
+      const ownedIds = (ownedProjects || []).map((p: any) => p.id)
+      const memberIds = (memberProjects || []).map((p: any) => p.project_id)
+      projectIds = [...new Set([...ownedIds, ...memberIds])]
     }
 
-    const projectIds = projects.map((p: any) => p.id)
+    if (projectIds.length === 0) {
+      return NextResponse.json({ events: [] })
+    }
 
     const { data, error } = await supabase
       .from("sistema_calendar_events")
@@ -75,15 +103,27 @@ export async function POST(request: Request) {
     }
 
     if (project.owner_id !== userId) {
-      const { data: member } = await supabase
-        .from("sistema_project_members")
-        .select("id")
-        .eq("project_id", projectId)
-        .eq("user_id", userId)
-        .maybeSingle()
+      // Check if user is a global admin
+      const { data: globalUser } = await supabase
+        .from("sistema_users")
+        .select("role")
+        .eq("id", userId)
+        .single()
 
-      if (!member) {
-        return NextResponse.json({ error: "No permission" }, { status: 403 })
+      const isGlobalAdmin = globalUser?.role === "admin"
+
+      if (!isGlobalAdmin) {
+        // Check if user is a project member
+        const { data: member } = await supabase
+          .from("sistema_project_members")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("user_id", userId)
+          .maybeSingle()
+
+        if (!member) {
+          return NextResponse.json({ error: "No permission" }, { status: 403 })
+        }
       }
     }
 
