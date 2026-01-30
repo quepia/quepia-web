@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Calendar, Plus, X, Sparkles, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Plus, X, Sparkles, Loader2, Trash2 } from "lucide-react"
+import { createClient } from "@/lib/sistema/supabase/client"
 import { cn } from "@/lib/sistema/utils"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { CalendarEvent } from "@/types/sistema"
@@ -43,6 +44,9 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   const [showProjectPicker, setShowProjectPicker] = useState(false)
   const [pendingImport, setPendingImport] = useState<ImportedEvent[] | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<(CalendarEvent & { project?: ProjectWithLogo }) | null>(null)
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [bulkDeleteProjectFilter, setBulkDeleteProjectFilter] = useState<string>("all")
 
   // Sync selectedEvent with events prop when it changes (e.g. after adding a comment or refresh)
   useEffect(() => {
@@ -136,6 +140,13 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
             >
               <Sparkles className="h-3.5 w-3.5" />
               IA Calendar
+            </button>
+            <button
+              onClick={() => { setBulkDeleteProjectFilter("all"); setShowBulkDeleteModal(true) }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Limpiar mes
             </button>
             <button onClick={goToToday} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors">
               Hoy
@@ -435,6 +446,85 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
         </div>
       )}
 
+      {/* Bulk delete confirmation modal */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowBulkDeleteModal(false)} />
+          <div className="relative z-50 w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl p-6">
+            <h3 className="text-white font-semibold mb-1">Limpiar mes</h3>
+            <p className="text-xs text-white/40 mb-4">
+              Eliminar eventos del calendario de <span className="text-white/60 capitalize">{monthName}</span>.
+            </p>
+
+            {/* Project filter */}
+            {projects.length > 1 && (
+              <div className="mb-4">
+                <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">
+                  Filtrar por cliente
+                </label>
+                <select
+                  value={bulkDeleteProjectFilter}
+                  onChange={(e) => setBulkDeleteProjectFilter(e.target.value)}
+                  className="w-full text-sm bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-white/80 outline-none focus:border-quepia-cyan/30"
+                >
+                  <option value="all">Todos los clientes</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(() => {
+              const monthEvents = events.filter(e => {
+                const d = new Date(e.fecha_inicio)
+                return d.getFullYear() === year && d.getMonth() === month
+              })
+              const filtered = bulkDeleteProjectFilter === "all"
+                ? monthEvents
+                : monthEvents.filter(e => e.project_id === bulkDeleteProjectFilter)
+              return (
+                <>
+                  <div className="mb-4 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <span className="text-sm text-white/70">
+                      {filtered.length === 0
+                        ? "No hay eventos para eliminar."
+                        : <>Se eliminarán <span className="text-red-400 font-semibold">{filtered.length}</span> evento{filtered.length !== 1 ? "s" : ""}.</>
+                      }
+                    </span>
+                  </div>
+                  {filtered.length > 0 && (
+                    <p className="text-[10px] text-red-400/60 mb-4">Esta acción no se puede deshacer.</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBulkDeleteModal(false)}
+                      className="flex-1 text-sm text-white/50 hover:text-white py-2 rounded-lg hover:bg-white/[0.05] transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleBulkDelete()}
+                      disabled={bulkDeleting || filtered.length === 0}
+                      className="flex-1 text-sm text-white py-2 rounded-lg bg-red-500/80 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                    >
+                      {bulkDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Eliminar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Importing overlay */}
       {importing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -446,6 +536,41 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
       )}
     </div>
   )
+
+  async function handleBulkDelete() {
+    setBulkDeleting(true)
+    try {
+      const monthEvents = events.filter(e => {
+        const d = new Date(e.fecha_inicio)
+        return d.getFullYear() === year && d.getMonth() === month
+      })
+      const filtered = bulkDeleteProjectFilter === "all"
+        ? monthEvents
+        : monthEvents.filter(e => e.project_id === bulkDeleteProjectFilter)
+
+      if (filtered.length === 0) return
+
+      const ids = filtered.map(e => e.id)
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('sistema_calendar_events')
+        .delete()
+        .in('id', ids)
+
+      if (error) {
+        console.error("Error bulk deleting events:", error)
+        alert(`Error al eliminar eventos: ${error.message}`)
+      } else {
+        onRefresh?.()
+        setShowBulkDeleteModal(false)
+      }
+    } catch (err) {
+      console.error("Error bulk deleting events:", err)
+      alert("Error inesperado al eliminar eventos.")
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
 
   async function handleImportToProject(imported: ImportedEvent[], projectId: string) {
     if (!userId) {
