@@ -226,6 +226,7 @@ export default function ClientViewPage() {
                 {activeTab === "calendar" && client?.can_view_calendar && (
                     <ClientCalendarView
                         events={calendar_events || []}
+                        tasks={tasks || []}
                         canComment={client.can_comment}
                         clientName={client.nombre}
                         onCommentAdded={() => fetchData(true)}
@@ -255,12 +256,14 @@ export default function ClientViewPage() {
 
 function ClientCalendarView({
     events,
+    tasks,
     canComment,
     clientName,
     onCommentAdded,
     token
 }: {
     events: ClientData["calendar_events"],
+    tasks: ClientData["tasks"],
     canComment: boolean,
     clientName: string,
     onCommentAdded: () => void,
@@ -268,6 +271,7 @@ function ClientCalendarView({
 }) {
     const [currentMonth, setCurrentMonth] = useState(new Date())
     const [selectedEvent, setSelectedEvent] = useState<Exclude<ClientData["calendar_events"], undefined>[0] | null>(null)
+    const [selectedTask, setSelectedTask] = useState<Exclude<ClientData["tasks"], undefined>[0] | null>(null)
 
     // Sync selectedEvent with events prop when it changes (e.g. after adding a comment)
     useEffect(() => {
@@ -313,6 +317,14 @@ function ClientCalendarView({
             const eventDateStr = event.fecha_inicio.split("T")[0]
             return eventDateStr === targetDateStr
         })
+    }
+
+    const getTasksForDay = (day: number) => {
+        if (!tasks) return []
+        const year = currentMonth.getFullYear()
+        const month = currentMonth.getMonth()
+        const targetDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        return tasks.filter(t => !t.completed && t.due_date === targetDateStr)
     }
 
     const monthNames = [
@@ -363,6 +375,8 @@ function ClientCalendarView({
                         <div className="grid grid-cols-7">
                             {days.map((day, index) => {
                                 const dayEvents = day ? getEventsForDay(day) : []
+                                const dayTasks = day ? getTasksForDay(day) : []
+                                const totalItems = dayEvents.length + dayTasks.length
                                 const isToday =
                                     day &&
                                     today.getDate() === day &&
@@ -388,7 +402,20 @@ function ClientCalendarView({
                                                     </span>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    {dayEvents.slice(0, 3).map((event) => (
+                                                    {dayTasks.slice(0, 3).map((task) => (
+                                                        <button
+                                                            key={task.id}
+                                                            onClick={() => setSelectedTask(task)}
+                                                            className="w-full text-left text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-opacity"
+                                                            style={{
+                                                                backgroundColor: `${PRIORITY_COLORS[task.priority]}20`,
+                                                                color: PRIORITY_COLORS[task.priority],
+                                                            }}
+                                                        >
+                                                            {task.titulo}
+                                                        </button>
+                                                    ))}
+                                                    {dayEvents.slice(0, Math.max(0, 3 - dayTasks.length)).map((event) => (
                                                         <button
                                                             key={event.id}
                                                             onClick={() => setSelectedEvent(event)}
@@ -401,9 +428,9 @@ function ClientCalendarView({
                                                             {event.titulo}
                                                         </button>
                                                     ))}
-                                                    {dayEvents.length > 3 && (
+                                                    {totalItems > 3 && (
                                                         <div className="text-xs text-white/40 px-2 text-center">
-                                                            +{dayEvents.length - 3} más
+                                                            +{totalItems - 3} más
                                                         </div>
                                                     )}
                                                 </div>
@@ -417,8 +444,12 @@ function ClientCalendarView({
                 </div>
             </div>
 
-            {/* Event Legend */}
+            {/* Legend */}
             <div className="mt-6 flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-white/40" />
+                    <span className="text-sm text-white/60">Tareas</span>
+                </div>
                 {Object.entries(EVENT_TYPE_LABELS).map(([type, label]) => (
                     <div key={type} className="flex items-center gap-2">
                         <div
@@ -440,6 +471,18 @@ function ClientCalendarView({
                 onCommentAdded={onCommentAdded}
                 token={token}
             />
+
+            {/* Task Detail Modal */}
+            {selectedTask && (
+                <ClientTaskDetailModal
+                    task={selectedTask}
+                    isOpen={!!selectedTask}
+                    onClose={() => setSelectedTask(null)}
+                    token={token}
+                    clientName={clientName}
+                    onUpdate={onCommentAdded}
+                />
+            )}
         </div>
     )
 }

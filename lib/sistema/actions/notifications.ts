@@ -90,12 +90,36 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
     try {
         const supabase = await createClient()
 
-        // 1. Validate token and get project_id
-        const { data: clientAccess } = await supabase
+        // 1. Validate token and get project_id (supports V1 access_token and V2 session UUID)
+        let clientAccess: { project_id: string } | null = null
+
+        // Try V1: direct access_token lookup
+        const { data: v1Access } = await supabase
             .from('sistema_client_access')
             .select('project_id')
-            .eq('token', token)
+            .eq('access_token', token)
             .single()
+
+        if (v1Access) {
+            clientAccess = v1Access
+        } else if (token.length === 36) {
+            // Try V2: session token -> client_access
+            const { data: session } = await supabase
+                .from('sistema_client_sessions')
+                .select('client_access_id')
+                .eq('id', token)
+                .single()
+
+            if (session) {
+                const { data: v2Access } = await supabase
+                    .from('sistema_client_access')
+                    .select('project_id')
+                    .eq('id', session.client_access_id)
+                    .single()
+
+                if (v2Access) clientAccess = v2Access
+            }
+        }
 
         if (!clientAccess) return { success: false, error: 'Invalid token' }
 

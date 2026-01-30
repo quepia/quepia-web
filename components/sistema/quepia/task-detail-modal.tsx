@@ -68,7 +68,9 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [showPriorityMenu, setShowPriorityMenu] = useState(false)
     const [showAssigneeMenu, setShowAssigneeMenu] = useState(false)
     const [editingDueDate, setEditingDueDate] = useState(false)
+    const [dueDateValue, setDueDateValue] = useState("")
     const [editingDeadline, setEditingDeadline] = useState(false)
+    const [deadlineValue, setDeadlineValue] = useState("")
     const [showTaskTypeMenu, setShowTaskTypeMenu] = useState(false)
     const [editingHours, setEditingHours] = useState(false)
     const [hoursValue, setHoursValue] = useState("")
@@ -671,20 +673,36 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                         {editingDueDate ? (
                                             <input
                                                 type="date"
-                                                defaultValue={task.due_date || ""}
-                                                onChange={(e) => { updateTaskField("due_date", e.target.value || null); setEditingDueDate(false) }}
-                                                onBlur={() => setEditingDueDate(false)}
+                                                value={dueDateValue}
+                                                onChange={(e) => setDueDateValue(e.target.value)}
+                                                onBlur={() => {
+                                                    const val = dueDateValue || null
+                                                    if (val !== (task.due_date || null)) {
+                                                        updateTaskField("due_date", val)
+                                                    }
+                                                    setEditingDueDate(false)
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        const val = dueDateValue || null
+                                                        if (val !== (task.due_date || null)) {
+                                                            updateTaskField("due_date", val)
+                                                        }
+                                                        setEditingDueDate(false)
+                                                    }
+                                                    if (e.key === "Escape") setEditingDueDate(false)
+                                                }}
                                                 autoFocus
                                                 className="text-sm bg-white/[0.03] border border-white/10 rounded px-2 py-1 text-white outline-none focus:border-quepia-cyan w-full [color-scheme:dark]"
                                             />
                                         ) : (
                                             <button
-                                                onClick={() => setEditingDueDate(true)}
+                                                onClick={() => { setDueDateValue(task.due_date || ""); setEditingDueDate(true) }}
                                                 className="flex items-center gap-2 text-sm hover:bg-white/[0.04] rounded px-1 -mx-1 py-0.5 transition-colors"
                                             >
                                                 <Calendar className="h-4 w-4 text-white/30" />
                                                 {task.due_date ? (
-                                                    <span className="text-white/70">{new Date(task.due_date).toLocaleDateString("es-AR")}</span>
+                                                    <span className="text-white/70">{new Date(task.due_date + "T12:00:00").toLocaleDateString("es-AR")}</span>
                                                 ) : (
                                                     <span className="text-white/30">Agregar fecha</span>
                                                 )}
@@ -697,15 +715,36 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                         {editingDeadline ? (
                                             <input
                                                 type="date"
-                                                defaultValue={task.deadline || ""}
-                                                onChange={(e) => { updateTaskField("deadline", e.target.value || null); setEditingDeadline(false) }}
-                                                onBlur={() => setEditingDeadline(false)}
+                                                value={deadlineValue}
+                                                onChange={(e) => setDeadlineValue(e.target.value)}
+                                                onBlur={() => {
+                                                    const currentDeadlineDate = task.deadline ? task.deadline.split("T")[0] : null
+                                                    const val = deadlineValue || null
+                                                    if (val !== currentDeadlineDate) {
+                                                        updateTaskField("deadline", val)
+                                                    }
+                                                    setEditingDeadline(false)
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        const currentDeadlineDate = task.deadline ? task.deadline.split("T")[0] : null
+                                                        const val = deadlineValue || null
+                                                        if (val !== currentDeadlineDate) {
+                                                            updateTaskField("deadline", val)
+                                                        }
+                                                        setEditingDeadline(false)
+                                                    }
+                                                    if (e.key === "Escape") setEditingDeadline(false)
+                                                }}
                                                 autoFocus
                                                 className="text-sm bg-white/[0.03] border border-white/10 rounded px-2 py-1 text-white outline-none focus:border-quepia-cyan w-full [color-scheme:dark]"
                                             />
                                         ) : (
                                             <button
-                                                onClick={() => setEditingDeadline(true)}
+                                                onClick={() => {
+                                                    setDeadlineValue(task.deadline ? task.deadline.split("T")[0] : "")
+                                                    setEditingDeadline(true)
+                                                }}
                                                 className="flex items-center gap-2 text-sm hover:bg-white/[0.04] rounded px-1 -mx-1 py-0.5 transition-colors"
                                             >
                                                 {task.deadline && new Date(task.deadline) < new Date(new Date().setHours(0, 0, 0, 0)) ? (

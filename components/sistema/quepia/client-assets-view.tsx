@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, Filter, Download, Copy, Check, Eye, FileIcon, ExternalLink } from "lucide-react"
 import { APPROVAL_STATUS_COLORS, APPROVAL_STATUS_LABELS } from "@/types/sistema"
 import type { ApprovalStatus } from "@/types/sistema"
@@ -26,6 +26,16 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedAsset, setSelectedAsset] = useState<{ asset: ClientAsset, taskTitle: string } | null>(null)
     const [copiedId, setCopiedId] = useState<string | null>(null)
+
+    // Re-sync selectedAsset when tasks prop updates (e.g. after approval/rating)
+    useEffect(() => {
+        if (selectedAsset) {
+            const updatedAsset = tasks.flatMap(t => t.assets || []).find(a => a.id === selectedAsset.asset.id)
+            if (updatedAsset) {
+                setSelectedAsset({ asset: updatedAsset, taskTitle: selectedAsset.taskTitle })
+            }
+        }
+    }, [tasks])
 
     // Flatten assets from tasks
     const allAssets = tasks.flatMap(task =>

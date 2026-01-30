@@ -57,6 +57,8 @@ export function ClientAssetViewer({
     onUpdate
 }: ClientAssetViewerProps) {
     const [annotations, setAnnotations] = useState<Annotation[]>(asset.annotations || [])
+    const [localStatus, setLocalStatus] = useState<ApprovalStatus>(asset.approval_status)
+    const [localRating, setLocalRating] = useState<number | undefined>(asset.client_rating)
 
     // New annotation state
     const [pendingAnnotation, setPendingAnnotation] = useState<{ x: number, y: number } | null>(null)
@@ -72,13 +74,9 @@ export function ClientAssetViewer({
     const [showSidebar, setShowSidebar] = useState(true)
 
     useEffect(() => {
-        console.log("ClientAssetViewer asset update:", {
-            id: asset.id,
-            rating: asset.client_rating,
-            status: asset.approval_status,
-            annotations: asset.annotations?.length
-        })
         setAnnotations(asset.annotations || [])
+        setLocalStatus(asset.approval_status)
+        setLocalRating(asset.client_rating)
     }, [asset])
 
     useEffect(() => {
@@ -117,7 +115,24 @@ export function ClientAssetViewer({
             )
 
             if (res.success && res.data) {
-                // Optimistic update or refresh
+                // Optimistic update: add annotation to local state immediately
+                const newAnnotation: Annotation = {
+                    id: res.data.id,
+                    asset_version_id: asset.current_version_id,
+                    author_id: null,
+                    author_name: clientName,
+                    x_percent: pendingAnnotation.x,
+                    y_percent: pendingAnnotation.y,
+                    feedback_type: feedbackType,
+                    contenido: feedbackContent.trim(),
+                    resolved: false,
+                    resolved_by: null,
+                    resolved_at: null,
+                    created_at: new Date().toISOString()
+                }
+                setAnnotations(prev => [...prev, newAnnotation])
+
+                // Also refresh parent data for consistency
                 onUpdate()
                 setPendingAnnotation(null)
                 setFeedbackContent("")
@@ -137,15 +152,19 @@ export function ClientAssetViewer({
     const handleStatusUpdate = async (status: ApprovalStatus) => {
         if (updatingStatus) return
         setUpdatingStatus(true)
+        const previousStatus = localStatus
+        setLocalStatus(status) // Optimistic update
         try {
             const res = await updatePublicAssetStatus(token, asset.id, status)
             if (res.success) {
                 onUpdate()
             } else {
+                setLocalStatus(previousStatus) // Revert on error
                 console.error("Error updating status:", res.error)
                 alert("Error al actualizar estado: " + (res.error || "Intente nuevamente"))
             }
         } catch (e) {
+            setLocalStatus(previousStatus) // Revert on error
             console.error("Exception updating status:", e)
             alert("Error inesperado al actualizar estado")
         } finally {
@@ -156,16 +175,19 @@ export function ClientAssetViewer({
     const handleRating = async (rating: number) => {
         if (updatingStatus) return
         setUpdatingStatus(true)
+        const previousRating = localRating
+        setLocalRating(rating) // Optimistic update
         try {
-            // Use current status to avoid changing it accidentally
-            const res = await updatePublicAssetStatus(token, asset.id, asset.approval_status, rating)
+            const res = await updatePublicAssetStatus(token, asset.id, localStatus, rating)
             if (res.success) {
                 onUpdate()
             } else {
+                setLocalRating(previousRating) // Revert on error
                 console.error("Error updating rating:", res.error)
                 alert("Error al enviar calificación: " + (res.error || "Intente nuevamente"))
             }
         } catch (e) {
+            setLocalRating(previousRating) // Revert on error
             console.error("Exception updating rating:", e)
             alert("Error inesperado al calificar")
         } finally {
@@ -212,13 +234,13 @@ export function ClientAssetViewer({
                                 <h2 className="text-white font-medium text-lg drop-shadow-md">{asset.nombre}</h2>
                                 <div className="flex items-center gap-2">
                                     <span
-                                        className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                        className="text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors"
                                         style={{
-                                            backgroundColor: APPROVAL_STATUS_COLORS[asset.approval_status] + '30',
-                                            color: APPROVAL_STATUS_COLORS[asset.approval_status] // Use 100% opacity color for text
+                                            backgroundColor: APPROVAL_STATUS_COLORS[localStatus] + '30',
+                                            color: APPROVAL_STATUS_COLORS[localStatus]
                                         }}
                                     >
-                                        {APPROVAL_STATUS_LABELS[asset.approval_status]}
+                                        {APPROVAL_STATUS_LABELS[localStatus]}
                                     </span>
                                 </div>
                             </div>
@@ -233,7 +255,7 @@ export function ClientAssetViewer({
                                         onClick={() => handleRating(star)}
                                         className={cn(
                                             "p-1 hover:scale-110 transition-transform",
-                                            (asset.client_rating || 0) >= star ? "text-yellow-400" : "text-white/20 hover:text-yellow-400/50"
+                                            (localRating || 0) >= star ? "text-yellow-400" : "text-white/20 hover:text-yellow-400/50"
                                         )}
                                     >
                                         <Star className="w-4 h-4 fill-current" />
@@ -248,7 +270,7 @@ export function ClientAssetViewer({
                                     disabled={updatingStatus}
                                     className={cn(
                                         "px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors",
-                                        asset.approval_status === 'approved_final'
+                                        localStatus === 'approved_final'
                                             ? "bg-green-500/20 text-green-400 border border-green-500/30"
                                             : "bg-black/50 text-white/70 hover:text-green-400 hover:bg-green-500/10 border border-white/10"
                                     )}
@@ -261,7 +283,7 @@ export function ClientAssetViewer({
                                     disabled={updatingStatus}
                                     className={cn(
                                         "px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors",
-                                        asset.approval_status === 'changes_requested'
+                                        localStatus === 'changes_requested'
                                             ? "bg-red-500/20 text-red-400 border border-red-500/30"
                                             : "bg-black/50 text-white/70 hover:text-red-400 hover:bg-red-500/10 border border-white/10"
                                     )}
