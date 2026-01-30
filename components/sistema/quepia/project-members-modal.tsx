@@ -266,11 +266,11 @@ export function ProjectMembersModal({
                 {/* Add Member */}
                 <div className="p-4 border-b border-white/[0.06]">
                     <p className="text-[10px] text-white/30 uppercase tracking-wider font-semibold mb-2">Agregar miembro al proyecto</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                         <select
                             value={selectedUserId}
                             onChange={(e) => setSelectedUserId(e.target.value)}
-                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white outline-none focus:border-quepia-purple/50 transition-colors"
+                            className="w-full sm:flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white outline-none focus:border-quepia-purple/50 transition-colors"
                         >
                             <option value="" className="bg-[#1a1a1a]">Seleccionar usuario...</option>
                             {availableUsers.map((u) => (
@@ -279,26 +279,28 @@ export function ProjectMembersModal({
                                 </option>
                             ))}
                         </select>
-                        <select
-                            value={selectedRole}
-                            onChange={(e) => setSelectedRole(e.target.value as any)}
-                            className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white outline-none focus:border-quepia-purple/50 transition-colors"
-                        >
-                            <option value="admin" className="bg-[#1a1a1a]">Admin Proyecto</option>
-                            <option value="member" className="bg-[#1a1a1a]">Miembro</option>
-                            <option value="viewer" className="bg-[#1a1a1a]">Viewer</option>
-                        </select>
-                        <button
-                            onClick={handleAddMember}
-                            disabled={!selectedUserId || adding}
-                            className="px-4 py-2 bg-quepia-purple hover:bg-quepia-purple/80 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {adding ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <UserPlus className="h-4 w-4" />
-                            )}
-                        </button>
+                        <div className="flex gap-2">
+                            <select
+                                value={selectedRole}
+                                onChange={(e) => setSelectedRole(e.target.value as any)}
+                                className="flex-1 sm:flex-none px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white outline-none focus:border-quepia-purple/50 transition-colors"
+                            >
+                                <option value="admin" className="bg-[#1a1a1a]">Admin</option>
+                                <option value="member" className="bg-[#1a1a1a]">Miembro</option>
+                                <option value="viewer" className="bg-[#1a1a1a]">Viewer</option>
+                            </select>
+                            <button
+                                onClick={handleAddMember}
+                                disabled={!selectedUserId || adding}
+                                className="px-4 py-2 bg-quepia-purple hover:bg-quepia-purple/80 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {adding ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <UserPlus className="h-4 w-4" />
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -329,7 +331,7 @@ export function ProjectMembersModal({
                                     })()}
 
                                     {/* Global Admins (auto-access, not explicitly added as members) */}
-                                    {globalAdmins.map((admin) =>
+                                    {globalAdmins.filter(a => a.id !== ownerId).map((admin) =>
                                         renderUserRow(admin, {
                                             label: "Admin Global",
                                             color: "text-quepia-purple",
@@ -340,7 +342,7 @@ export function ProjectMembersModal({
 
                                     {/* Members with global admin role (show they have elevated access) */}
                                     {members
-                                        .filter((m) => m.user?.role === "admin")
+                                        .filter((m) => m.user?.role === "admin" && m.user_id !== ownerId)
                                         .map((member) =>
                                             renderUserRow(member.user, {
                                                 label: "Admin Global",
@@ -354,7 +356,7 @@ export function ProjectMembersModal({
 
                             {/* Section: Miembros del proyecto (non-admin members) */}
                             {(() => {
-                                const projectMembers = members.filter((m) => m.user?.role !== "admin")
+                                const projectMembers = members.filter((m) => m.user?.role !== "admin" && m.user_id !== ownerId)
                                 if (projectMembers.length === 0 && globalAdmins.length === 0 && members.filter(m => m.user?.role === "admin").length === 0) {
                                     return (
                                         <div className="text-center py-6">

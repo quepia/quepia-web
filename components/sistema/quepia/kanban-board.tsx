@@ -22,6 +22,7 @@ import type { Task, ColumnWithTasks, SistemaUser, TaskType } from "@/types/siste
 import { PRIORITY_COLORS, PRIORITY_LABELS, Priority, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
 import { TaskContextMenu } from "@/components/sistema/quepia/task-context-menu"
 import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
+import { ProjectResources } from "@/components/sistema/quepia/project-resources"
 
 // Re-export types for backward compatibility
 export type { Task, ColumnWithTasks as ColumnType }
@@ -248,8 +249,9 @@ export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoard
     return (
         <div className="flex-1 overflow-hidden flex flex-col bg-[#0a0a0a]">
             {/* Project Header */}
-            <div className="px-6 py-3 border-b border-white/[0.06]">
+            <div className="px-6 py-3 border-b border-white/[0.06] flex items-center justify-between gap-4">
                 <h1 className="text-lg font-semibold text-white">{projectName}</h1>
+                {projectId && <ProjectResources projectId={projectId} />}
             </div>
 
             {/* Kanban Columns */}

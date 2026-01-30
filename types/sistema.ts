@@ -15,6 +15,17 @@ export type OrgRole = 'superadmin' | 'admin_org' | 'team_member' | 'client_guest
 // Project icon types
 export type ProjectIcon = 'folder' | 'hash' | 'briefcase' | 'building-2' | 'store' | 'globe' | 'laptop' | 'megaphone' | 'camera' | 'pen-tool' | 'music' | 'video' | 'code' | 'type';
 
+// Project resource types
+export type ProjectResourceType = 'social' | 'drive' | 'design' | 'link' | 'other';
+
+export interface ProjectResource {
+  id: string;
+  title: string;
+  url: string;
+  type: ProjectResourceType;
+  icon?: string;
+}
+
 // ============ USERS ============
 export interface SistemaUser {
   id: string;
@@ -42,6 +53,7 @@ export interface Project {
   owner_id: string;
   orden: number;
   logo_url?: string | null;
+  resources: ProjectResource[];
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +67,7 @@ export interface ProjectInsert {
   owner_id: string;
   orden?: number;
   logo_url?: string | null;
+  resources?: ProjectResource[];
 }
 
 export interface ProjectUpdate {
@@ -65,6 +78,7 @@ export interface ProjectUpdate {
   parent_id?: string | null;
   orden?: number;
   logo_url?: string | null;
+  resources?: ProjectResource[];
 }
 
 // Project with nested children for sidebar

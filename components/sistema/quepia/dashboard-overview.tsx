@@ -126,6 +126,11 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
   ]
 
   const formatDate = (dateStr: string) => {
+    // If it's a full ISO string (e.g. 2023-10-27T10:00:00), calculate date from it
+    if (dateStr.includes('T')) {
+      const date = new Date(dateStr)
+      return date.toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })
+    }
     const date = new Date(dateStr + "T12:00:00")
     return date.toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })
   }
