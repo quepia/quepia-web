@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Image from "next/image"
-import { Calendar, CheckCircle2, Circle, Clock, AlertCircle, Loader2, MessageSquare, Send, X, AlignLeft, Tag, FileIcon, Eye, LayoutGrid } from "lucide-react"
+import { Calendar, CheckCircle2, Circle, Clock, AlertCircle, Loader2, MessageSquare, Send, X, AlignLeft, Tag, FileIcon, Eye, LayoutGrid, ChevronLeft, ChevronRight, List, Briefcase, Building2, Store, Globe, Laptop, Megaphone, Camera, PenTool, Music, Video, Code, Type, Folder, Hash } from "lucide-react"
 import { getPublicClientData, getPublicClientDataV2 } from "@/lib/sistema/hooks"
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS, PRIORITY_COLORS, PRIORITY_LABELS, APPROVAL_STATUS_COLORS, APPROVAL_STATUS_LABELS } from "@/types/sistema"
-import type { CalendarEventType, Priority } from "@/types/sistema"
+import type { CalendarEventType, Priority, ProjectIcon } from "@/types/sistema"
 import { createClient } from "@/lib/sistema/supabase/client"
 import { ClientAssetViewer, type ClientAsset } from "@/components/sistema/quepia/client-asset-viewer"
 import { ClientAssetsView } from "@/components/sistema/quepia/client-assets-view"
@@ -17,6 +16,8 @@ interface ClientData {
         id: string
         nombre: string
         color: string
+        icon?: ProjectIcon
+        logo_url?: string | null
     }
     client?: {
         id: string
@@ -154,15 +155,35 @@ export default function ClientViewPage() {
                 <div className="max-w-6xl mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-quepia-cyan to-quepia-magenta flex items-center justify-center">
-                                <Image
-                                    src="/images/logo.png"
-                                    alt="Quepia"
-                                    width={40}
-                                    height={40}
-                                    className="object-cover rounded-full"
+                            {project?.logo_url ? (
+                                <img
+                                    src={project.logo_url}
+                                    alt=""
+                                    className="w-10 h-10 rounded-full object-cover shrink-0"
                                 />
-                            </div>
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                                    {(() => {
+                                        const iconMap: Record<string, any> = {
+                                            "briefcase": Briefcase,
+                                            "building-2": Building2,
+                                            "store": Store,
+                                            "globe": Globe,
+                                            "laptop": Laptop,
+                                            "megaphone": Megaphone,
+                                            "camera": Camera,
+                                            "pen-tool": PenTool,
+                                            "music": Music,
+                                            "video": Video,
+                                            "code": Code,
+                                            "type": Type,
+                                            "folder": Folder
+                                        }
+                                        const IconComponent = iconMap[project?.icon || ""] || Hash
+                                        return <IconComponent className="h-5 w-5" style={{ color: project?.color }} />
+                                    })()}
+                                </div>
+                            )}
                             <div>
                                 <h1 className="text-lg font-bold text-white">{project?.nombre}</h1>
                                 <p className="text-sm text-white/60">
@@ -270,8 +291,10 @@ function ClientCalendarView({
     token: string
 }) {
     const [currentMonth, setCurrentMonth] = useState(new Date())
+    const [selectedDate, setSelectedDate] = useState<string | null>(null)
     const [selectedEvent, setSelectedEvent] = useState<Exclude<ClientData["calendar_events"], undefined>[0] | null>(null)
     const [selectedTask, setSelectedTask] = useState<Exclude<ClientData["tasks"], undefined>[0] | null>(null)
+    const [mobileView, setMobileView] = useState<"calendar" | "list">("calendar")
 
     // Sync selectedEvent with events prop when it changes (e.g. after adding a comment)
     useEffect(() => {
@@ -304,16 +327,15 @@ function ClientCalendarView({
         return days
     }
 
+    const getDateStr = (day: number, date?: Date) => {
+        const d = date || currentMonth
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    }
+
     const getEventsForDay = (day: number) => {
         if (!events) return []
-        const year = currentMonth.getFullYear()
-        const month = currentMonth.getMonth()
-
-        // Construct target date string YYYY-MM-DD
-        const targetDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-
+        const targetDateStr = getDateStr(day)
         return events.filter((event) => {
-            // Use string splitting to avoid timezone issues, matching Admin view
             const eventDateStr = event.fecha_inicio.split("T")[0]
             return eventDateStr === targetDateStr
         })
@@ -321,10 +343,39 @@ function ClientCalendarView({
 
     const getTasksForDay = (day: number) => {
         if (!tasks) return []
+        const targetDateStr = getDateStr(day)
+        return tasks.filter(t => !t.completed && t.due_date === targetDateStr)
+    }
+
+    const getEventsForDateStr = (dateStr: string) => {
+        if (!events) return []
+        return events.filter((event) => event.fecha_inicio.split("T")[0] === dateStr)
+    }
+
+    const getTasksForDateStr = (dateStr: string) => {
+        if (!tasks) return []
+        return tasks.filter(t => !t.completed && t.due_date === dateStr)
+    }
+
+    // Get all events for current month sorted by date (for list view)
+    const getMonthEvents = () => {
+        if (!events) return []
         const year = currentMonth.getFullYear()
         const month = currentMonth.getMonth()
-        const targetDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        return tasks.filter(t => !t.completed && t.due_date === targetDateStr)
+        const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
+        return events
+            .filter(e => e.fecha_inicio.startsWith(monthStr))
+            .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
+    }
+
+    const getMonthTasks = () => {
+        if (!tasks) return []
+        const year = currentMonth.getFullYear()
+        const month = currentMonth.getMonth()
+        const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
+        return tasks
+            .filter(t => !t.completed && t.due_date && t.due_date.startsWith(monthStr))
+            .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
     }
 
     const monthNames = [
@@ -332,133 +383,456 @@ function ClientCalendarView({
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
     ]
 
+    const monthNamesShort = [
+        "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+        "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+    ]
+
     const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+    const dayNamesShort = ["D", "L", "M", "X", "J", "V", "S"]
 
     const days = getDaysInMonth(currentMonth)
     const today = new Date()
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+    const goToToday = () => {
+        setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1))
+        setSelectedDate(todayStr)
+    }
+
+    const prevMonth = () => {
+        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))
+        setSelectedDate(null)
+    }
+
+    const nextMonth = () => {
+        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))
+        setSelectedDate(null)
+    }
+
+    // Selected date items
+    const selectedDayEvents = selectedDate ? getEventsForDateStr(selectedDate) : []
+    const selectedDayTasks = selectedDate ? getTasksForDateStr(selectedDate) : []
+
+    const formatSelectedDate = (dateStr: string) => {
+        const [y, m, d] = dateStr.split('-').map(Number)
+        const date = new Date(y, m - 1, d)
+        const weekday = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][date.getDay()]
+        return `${weekday} ${d} de ${monthNames[m - 1]}`
+    }
 
     return (
         <div>
-            {/* Month Navigation */}
-            <div className="flex items-center justify-between mb-6">
-                <button
-                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-                    className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                >
-                    ← Anterior
-                </button>
-                <h2 className="text-xl font-bold text-white capitalize">
-                    {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-                </h2>
-                <button
-                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-                    className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                >
-                    Siguiente →
-                </button>
-            </div>
+            {/* ============================================= */}
+            {/* MOBILE VIEW - Apple Calendar Style (md:hidden) */}
+            {/* ============================================= */}
+            <div className="md:hidden">
+                {/* Mobile Header Bar */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-1">
+                        <h2 className="text-lg font-semibold text-white">
+                            {monthNamesShort[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                        </h2>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={goToToday}
+                            className="px-3 py-1.5 text-xs font-medium text-quepia-cyan hover:bg-quepia-cyan/10 rounded-lg transition-colors"
+                        >
+                            Hoy
+                        </button>
+                        <button
+                            onClick={() => setMobileView(mobileView === "calendar" ? "list" : "calendar")}
+                            className={`p-2 rounded-lg transition-colors ${mobileView === "list" ? "bg-quepia-cyan/10 text-quepia-cyan" : "text-white/50 hover:text-white hover:bg-white/5"}`}
+                        >
+                            <List className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
 
-            {/* Calendar Grid */}
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                    <div className="min-w-[700px]">
-                        {/* Day Headers */}
-                        <div className="grid grid-cols-7 border-b border-white/10">
-                            {dayNames.map((day) => (
-                                <div key={day} className="p-3 text-center text-sm font-medium text-white/60">
-                                    {day}
+                {mobileView === "calendar" ? (
+                    <>
+                        {/* Month Navigation Arrows */}
+                        <div className="flex items-center justify-between mb-3">
+                            <button
+                                onClick={prevMonth}
+                                className="p-2 -ml-2 text-white/40 hover:text-white active:scale-95 transition-all"
+                            >
+                                <ChevronLeft className="h-5 w-5" />
+                            </button>
+                            <span className="text-sm font-medium text-white/70 capitalize">
+                                {monthNames[currentMonth.getMonth()]}
+                            </span>
+                            <button
+                                onClick={nextMonth}
+                                className="p-2 -mr-2 text-white/40 hover:text-white active:scale-95 transition-all"
+                            >
+                                <ChevronRight className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Day-of-week Headers */}
+                        <div className="grid grid-cols-7 mb-1">
+                            {dayNamesShort.map((d, i) => (
+                                <div
+                                    key={d}
+                                    className={`text-center text-[11px] font-medium py-1 ${i === 0 || i === 6 ? "text-white/30" : "text-white/50"}`}
+                                >
+                                    {d}
                                 </div>
                             ))}
                         </div>
 
-                        {/* Days Grid */}
+                        {/* Compact Calendar Grid */}
                         <div className="grid grid-cols-7">
                             {days.map((day, index) => {
-                                const dayEvents = day ? getEventsForDay(day) : []
-                                const dayTasks = day ? getTasksForDay(day) : []
-                                const totalItems = dayEvents.length + dayTasks.length
-                                const isToday =
-                                    day &&
-                                    today.getDate() === day &&
-                                    today.getMonth() === currentMonth.getMonth() &&
-                                    today.getFullYear() === currentMonth.getFullYear()
+                                if (!day) {
+                                    return <div key={index} className="aspect-square" />
+                                }
+
+                                const dateStr = getDateStr(day)
+                                const dayEvents = getEventsForDay(day)
+                                const dayTasks = getTasksForDay(day)
+                                const hasItems = dayEvents.length > 0 || dayTasks.length > 0
+                                const isToday = dateStr === todayStr
+                                const isSelected = dateStr === selectedDate
+                                const isWeekend = index % 7 === 0 || index % 7 === 6
+
+                                // Collect unique dot colors (max 3)
+                                const dotColors: string[] = []
+                                dayEvents.forEach(e => {
+                                    const c = EVENT_TYPE_COLORS[e.tipo]
+                                    if (!dotColors.includes(c) && dotColors.length < 3) dotColors.push(c)
+                                })
+                                if (dayTasks.length > 0 && dotColors.length < 3) {
+                                    dotColors.push('#a1a1aa') // zinc-400 for tasks
+                                }
 
                                 return (
-                                    <div
+                                    <button
                                         key={index}
-                                        className={`min-h-[100px] border-b border-r border-white/5 p-2 ${day ? "bg-white/[0.02]" : "bg-transparent"
-                                            }`}
+                                        onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                                        className="flex flex-col items-center justify-center aspect-square relative transition-all active:scale-90"
                                     >
-                                        {day && (
-                                            <>
-                                                <div className="flex justify-center mb-1">
-                                                    <span
-                                                        className={`inline-flex items-center justify-center w-7 h-7 text-sm rounded-full ${isToday
-                                                            ? "bg-quepia-cyan text-black font-bold"
-                                                            : "text-white/80"
-                                                            }`}
-                                                    >
-                                                        {day}
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    {dayTasks.slice(0, 3).map((task) => (
-                                                        <button
-                                                            key={task.id}
-                                                            onClick={() => setSelectedTask(task)}
-                                                            className="w-full text-left text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-opacity"
-                                                            style={{
-                                                                backgroundColor: `${PRIORITY_COLORS[task.priority]}20`,
-                                                                color: PRIORITY_COLORS[task.priority],
-                                                            }}
-                                                        >
-                                                            {task.titulo}
-                                                        </button>
-                                                    ))}
-                                                    {dayEvents.slice(0, Math.max(0, 3 - dayTasks.length)).map((event) => (
-                                                        <button
-                                                            key={event.id}
-                                                            onClick={() => setSelectedEvent(event)}
-                                                            className="w-full text-left text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-opacity"
-                                                            style={{
-                                                                backgroundColor: `${EVENT_TYPE_COLORS[event.tipo]}20`,
-                                                                color: EVENT_TYPE_COLORS[event.tipo],
-                                                            }}
-                                                        >
-                                                            {event.titulo}
-                                                        </button>
-                                                    ))}
-                                                    {totalItems > 3 && (
-                                                        <div className="text-xs text-white/40 px-2 text-center">
-                                                            +{totalItems - 3} más
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
+                                        <span
+                                            className={`
+                                                flex items-center justify-center w-9 h-9 text-sm rounded-full transition-all
+                                                ${isToday && isSelected
+                                                    ? "bg-red-500 text-white font-bold ring-2 ring-red-500/30"
+                                                    : isToday
+                                                        ? "bg-red-500 text-white font-bold"
+                                                        : isSelected
+                                                            ? "bg-white/15 text-white font-semibold"
+                                                            : isWeekend
+                                                                ? "text-white/35"
+                                                                : "text-white/80"
+                                                }
+                                            `}
+                                        >
+                                            {day}
+                                        </span>
+                                        {/* Event dots */}
+                                        <div className="flex gap-[3px] mt-0.5 h-[5px]">
+                                            {hasItems && dotColors.map((color, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="w-[5px] h-[5px] rounded-full"
+                                                    style={{ backgroundColor: color }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </button>
                                 )
                             })}
                         </div>
+
+                        {/* Selected Day Events List */}
+                        {selectedDate && (
+                            <div className="mt-4 border-t border-white/10 pt-4">
+                                <h3 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-3 px-1">
+                                    {formatSelectedDate(selectedDate)}
+                                </h3>
+
+                                {selectedDayEvents.length === 0 && selectedDayTasks.length === 0 ? (
+                                    <div className="py-8 text-center">
+                                        <p className="text-sm text-white/30">No hay eventos este día</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {selectedDayTasks.map((task) => (
+                                            <button
+                                                key={task.id}
+                                                onClick={() => setSelectedTask(task)}
+                                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] active:bg-white/[0.10] border border-white/[0.06] transition-colors text-left"
+                                            >
+                                                <div
+                                                    className="w-1 self-stretch rounded-full shrink-0"
+                                                    style={{ backgroundColor: PRIORITY_COLORS[task.priority] }}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-white font-medium truncate">{task.titulo}</p>
+                                                    <p className="text-xs text-white/40 mt-0.5">
+                                                        Tarea • {PRIORITY_LABELS[task.priority]}
+                                                    </p>
+                                                </div>
+                                                <ChevronRight className="h-4 w-4 text-white/20 shrink-0" />
+                                            </button>
+                                        ))}
+                                        {selectedDayEvents.map((event) => (
+                                            <button
+                                                key={event.id}
+                                                onClick={() => setSelectedEvent(event)}
+                                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] active:bg-white/[0.10] border border-white/[0.06] transition-colors text-left"
+                                            >
+                                                <div
+                                                    className="w-1 self-stretch rounded-full shrink-0"
+                                                    style={{ backgroundColor: EVENT_TYPE_COLORS[event.tipo] }}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-white font-medium truncate">{event.titulo}</p>
+                                                    <p className="text-xs text-white/40 mt-0.5">
+                                                        {EVENT_TYPE_LABELS[event.tipo]}
+                                                        {!event.todo_el_dia && event.fecha_inicio.includes('T') && (
+                                                            <> • {event.fecha_inicio.split('T')[1]?.slice(0, 5)}</>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                {event.comments && event.comments.length > 0 && (
+                                                    <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded-full">
+                                                        {event.comments.length}
+                                                    </span>
+                                                )}
+                                                <ChevronRight className="h-4 w-4 text-white/20 shrink-0" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    /* LIST VIEW - All events for the month */
+                    <div>
+                        {/* Month nav in list mode */}
+                        <div className="flex items-center justify-between mb-4">
+                            <button onClick={prevMonth} className="p-2 -ml-2 text-white/40 hover:text-white active:scale-95 transition-all">
+                                <ChevronLeft className="h-5 w-5" />
+                            </button>
+                            <span className="text-sm font-medium text-white/70 capitalize">
+                                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                            </span>
+                            <button onClick={nextMonth} className="p-2 -mr-2 text-white/40 hover:text-white active:scale-95 transition-all">
+                                <ChevronRight className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {(() => {
+                            const monthEvents = getMonthEvents()
+                            const monthTasks = getMonthTasks()
+
+                            // Combine and group by date
+                            const allItems: { type: 'event' | 'task', date: string, data: any }[] = [
+                                ...monthEvents.map(e => ({ type: 'event' as const, date: e.fecha_inicio.split('T')[0], data: e })),
+                                ...monthTasks.map(t => ({ type: 'task' as const, date: t.due_date!, data: t }))
+                            ].sort((a, b) => a.date.localeCompare(b.date))
+
+                            if (allItems.length === 0) {
+                                return (
+                                    <div className="py-16 text-center">
+                                        <Calendar className="h-10 w-10 text-white/15 mx-auto mb-3" />
+                                        <p className="text-sm text-white/30">No hay eventos este mes</p>
+                                    </div>
+                                )
+                            }
+
+                            // Group by date
+                            const grouped: Record<string, typeof allItems> = {}
+                            allItems.forEach(item => {
+                                if (!grouped[item.date]) grouped[item.date] = []
+                                grouped[item.date].push(item)
+                            })
+
+                            return (
+                                <div className="space-y-1">
+                                    {Object.entries(grouped).map(([dateStr, items]) => {
+                                        const [y, m, d] = dateStr.split('-').map(Number)
+                                        const date = new Date(y, m - 1, d)
+                                        const weekday = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][date.getDay()]
+                                        const isToday = dateStr === todayStr
+
+                                        return (
+                                            <div key={dateStr}>
+                                                {/* Date Header */}
+                                                <div className="flex items-center gap-3 py-2 px-1 sticky top-0 bg-[#0a0a0a] z-[1]">
+                                                    <div className={`flex flex-col items-center w-10 ${isToday ? "text-red-500" : "text-white/50"}`}>
+                                                        <span className="text-[10px] font-medium uppercase">{weekday}</span>
+                                                        <span className={`text-lg font-bold leading-none ${isToday ? "bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center" : ""}`}>
+                                                            {d}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex-1 h-px bg-white/[0.06]" />
+                                                </div>
+
+                                                {/* Items */}
+                                                <div className="ml-[52px] space-y-1.5 pb-2">
+                                                    {items.map((item, i) => (
+                                                        <button
+                                                            key={`${item.type}-${item.data.id}`}
+                                                            onClick={() => item.type === 'event' ? setSelectedEvent(item.data) : setSelectedTask(item.data)}
+                                                            className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] active:bg-white/[0.09] border border-white/[0.05] transition-colors text-left"
+                                                        >
+                                                            <div
+                                                                className="w-1 h-8 rounded-full shrink-0"
+                                                                style={{
+                                                                    backgroundColor: item.type === 'event'
+                                                                        ? EVENT_TYPE_COLORS[item.data.tipo as CalendarEventType]
+                                                                        : PRIORITY_COLORS[item.data.priority as Priority]
+                                                                }}
+                                                            />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm text-white truncate">{item.data.titulo}</p>
+                                                                <p className="text-[11px] text-white/35 mt-0.5">
+                                                                    {item.type === 'event'
+                                                                        ? EVENT_TYPE_LABELS[item.data.tipo as CalendarEventType]
+                                                                        : `Tarea • ${PRIORITY_LABELS[item.data.priority as Priority]}`
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                            <ChevronRight className="h-3.5 w-3.5 text-white/15 shrink-0" />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )
+                        })()}
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* Legend */}
-            <div className="mt-6 flex flex-wrap gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-white/40" />
-                    <span className="text-sm text-white/60">Tareas</span>
+            {/* ============================================= */}
+            {/* DESKTOP VIEW - Original layout (hidden md:block) */}
+            {/* ============================================= */}
+            <div className="hidden md:block">
+                {/* Month Navigation */}
+                <div className="flex items-center justify-between mb-6">
+                    <button
+                        onClick={prevMonth}
+                        className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                        ← Anterior
+                    </button>
+                    <h2 className="text-xl font-bold text-white capitalize">
+                        {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                    </h2>
+                    <button
+                        onClick={nextMonth}
+                        className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                        Siguiente →
+                    </button>
                 </div>
-                {Object.entries(EVENT_TYPE_LABELS).map(([type, label]) => (
-                    <div key={type} className="flex items-center gap-2">
-                        <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: EVENT_TYPE_COLORS[type as CalendarEventType] }}
-                        />
-                        <span className="text-sm text-white/60">{label}</span>
+
+                {/* Calendar Grid */}
+                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    {/* Day Headers */}
+                    <div className="grid grid-cols-7 border-b border-white/10">
+                        {dayNames.map((day) => (
+                            <div key={day} className="p-3 text-center text-sm font-medium text-white/60">
+                                {day}
+                            </div>
+                        ))}
                     </div>
-                ))}
+
+                    {/* Days Grid */}
+                    <div className="grid grid-cols-7">
+                        {days.map((day, index) => {
+                            const dayEvents = day ? getEventsForDay(day) : []
+                            const dayTasks = day ? getTasksForDay(day) : []
+                            const totalItems = dayEvents.length + dayTasks.length
+                            const isToday =
+                                day &&
+                                today.getDate() === day &&
+                                today.getMonth() === currentMonth.getMonth() &&
+                                today.getFullYear() === currentMonth.getFullYear()
+
+                            return (
+                                <div
+                                    key={index}
+                                    className={`min-h-[100px] border-b border-r border-white/5 p-2 ${day ? "bg-white/[0.02]" : "bg-transparent"
+                                        }`}
+                                >
+                                    {day && (
+                                        <>
+                                            <div className="flex justify-center mb-1">
+                                                <span
+                                                    className={`inline-flex items-center justify-center w-7 h-7 text-sm rounded-full ${isToday
+                                                        ? "bg-quepia-cyan text-black font-bold"
+                                                        : "text-white/80"
+                                                        }`}
+                                                >
+                                                    {day}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1">
+                                                {dayTasks.slice(0, 3).map((task) => (
+                                                    <button
+                                                        key={task.id}
+                                                        onClick={() => setSelectedTask(task)}
+                                                        className="w-full text-left text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-opacity"
+                                                        style={{
+                                                            backgroundColor: `${PRIORITY_COLORS[task.priority]}20`,
+                                                            color: PRIORITY_COLORS[task.priority],
+                                                        }}
+                                                    >
+                                                        {task.titulo}
+                                                    </button>
+                                                ))}
+                                                {dayEvents.slice(0, Math.max(0, 3 - dayTasks.length)).map((event) => (
+                                                    <button
+                                                        key={event.id}
+                                                        onClick={() => setSelectedEvent(event)}
+                                                        className="w-full text-left text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-opacity"
+                                                        style={{
+                                                            backgroundColor: `${EVENT_TYPE_COLORS[event.tipo]}20`,
+                                                            color: EVENT_TYPE_COLORS[event.tipo],
+                                                        }}
+                                                    >
+                                                        {event.titulo}
+                                                    </button>
+                                                ))}
+                                                {totalItems > 3 && (
+                                                    <div className="text-xs text-white/40 px-2 text-center">
+                                                        +{totalItems - 3} más
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+
+                {/* Legend */}
+                <div className="mt-6 flex flex-wrap gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-white/40" />
+                        <span className="text-sm text-white/60">Tareas</span>
+                    </div>
+                    {Object.entries(EVENT_TYPE_LABELS).map(([type, label]) => (
+                        <div key={type} className="flex items-center gap-2">
+                            <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: EVENT_TYPE_COLORS[type as CalendarEventType] }}
+                            />
+                            <span className="text-sm text-white/60">{label}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Event Detail Modal */}

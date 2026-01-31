@@ -22,20 +22,37 @@ export default function ClientLayout({
 }) {
     const pathname = usePathname();
 
-    // Don't show Header/Footer/Background on admin and auth routes
+    // Don't show Header/Footer/Background on admin, auth, and sistema routes
     const isAdminRoute = pathname?.startsWith('/admin');
     const isAuthRoute = pathname?.startsWith('/auth');
     const isSistemaRoute = pathname?.startsWith('/sistema');
+    const isClienteRoute = pathname?.startsWith('/cliente');
     const hideLayout = isAdminRoute || isAuthRoute || isSistemaRoute;
 
     const contextValue = config || {};
 
     if (hideLayout) {
-        // Admin/Auth pages have their own layout (but we still provide config if needed)
+        // Admin/Auth/Sistema pages have their own layout
         return (
             <ConfigContext.Provider value={contextValue}>
                 <ModalProvider>
                     {children}
+                </ModalProvider>
+            </ConfigContext.Provider>
+        );
+    }
+
+    // Client portal: Header only (no Footer, no GlassBackground)
+    if (isClienteRoute) {
+        return (
+            <ConfigContext.Provider value={contextValue}>
+                <ModalProvider>
+                    <div className="relative z-10 flex flex-col min-h-screen">
+                        <Header />
+                        <main className="flex-grow">
+                            {children}
+                        </main>
+                    </div>
                 </ModalProvider>
             </ConfigContext.Provider>
         );
