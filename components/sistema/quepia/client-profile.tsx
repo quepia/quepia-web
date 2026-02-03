@@ -25,11 +25,14 @@ import {
   Copy,
   ExternalLink,
   Plus,
-  Trash2
+  Trash2,
+  Link,
+  Send
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { createClient } from "@/lib/sistema/supabase/client"
 import { useClientAccess } from "@/lib/sistema/hooks/useCalendar"
+import { generateDirectAccessLink } from "@/app/actions/client-auth"
 
 
 interface ClientProfileProps {
@@ -109,6 +112,8 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
   const [isAddingAccess, setIsAddingAccess] = useState(false)
   const [newAccessName, setNewAccessName] = useState("")
   const [newAccessEmail, setNewAccessEmail] = useState("")
+  const [generatingLinkFor, setGeneratingLinkFor] = useState<string | null>(null)
+  const [generatedLinks, setGeneratedLinks] = useState<Record<string, string>>({})
 
   const { clients: accessClients, createClientAccess, deleteClientAccess, getShareableLink, refresh: refreshAccess } = useClientAccess(projectId)
 
@@ -598,6 +603,8 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
                       {accessClients.map(client => {
                         const link = getShareableLink(client.access_token)
                         const isActive = !client.expires_at || new Date(client.expires_at) > new Date()
+                        const directLink = generatedLinks[client.id]
+                        const isGenerating = generatingLinkFor === client.id
                         return (
                           <div key={client.id} className="bg-[#1a1a1a] border border-white/10 rounded-lg p-3 space-y-2">
                             <div className="flex items-center justify-between">
@@ -624,37 +631,111 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              {client.email ? (
-                                <div className="flex-1 bg-black/30 border border-white/5 rounded px-2 py-1.5 flex items-center justify-between">
-                                  <span className="text-[10px] text-white/40 font-mono truncate">
-                                    {typeof window !== 'undefined' ? `${window.location.origin}/cliente/login` : '/cliente/login'}
-                                  </span>
-                                  <span className="text-[10px] text-quepia-cyan bg-quepia-cyan/10 px-1 rounded ml-2 whitespace-nowrap">
-                                    Magic Link
-                                  </span>
+                            {/* Direct access link section */}
+                            {directLink ? (
+                              <div className="space-y-2">
+                                <div className="bg-black/30 border border-quepia-cyan/20 rounded px-2 py-1.5">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Link className="w-3 h-3 text-quepia-cyan" />
+                                    <span className="text-[10px] text-quepia-cyan font-medium">Link directo generado (30 dias)</span>
+                                  </div>
+                                  <span className="text-[10px] text-white/50 font-mono block truncate">{directLink}</span>
                                 </div>
-                              ) : (
-                                <div className="flex-1 bg-black/30 border border-white/5 rounded px-2 py-1.5 truncate text-[10px] text-white/40 font-mono">
-                                  {link}
+                                <div className="flex gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(directLink)
+                                      alert("Link copiado al portapapeles")
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] rounded-md bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    Copiar
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const msg = `Hola ${client.nombre}! Aca tenes tu acceso a la planificacion de tu proyecto en Quepia:\n\n${directLink}\n\nEl link es valido por 30 dias.`
+                                      const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`
+                                      window.open(waUrl, '_blank')
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] rounded-md bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 transition-colors"
+                                  >
+                                    <Send className="w-3 h-3" />
+                                    WhatsApp
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const subject = encodeURIComponent("Tu acceso a Quepia")
+                                      const body = encodeURIComponent(`Hola ${client.nombre},\n\nAca tenes tu link de acceso directo a la planificacion de tu proyecto en Quepia:\n\n${directLink}\n\nEl link es valido por 30 dias.\n\nSaludos,\nQuepia`)
+                                      window.open(`mailto:${client.email || ''}?subject=${subject}&body=${body}`, '_blank')
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                                  >
+                                    <Mail className="w-3 h-3" />
+                                    Email
+                                  </button>
                                 </div>
-                              )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {client.email ? (
+                                  <div className="flex-1 bg-black/30 border border-white/5 rounded px-2 py-1.5 flex items-center justify-between">
+                                    <span className="text-[10px] text-white/40 font-mono truncate">
+                                      {typeof window !== 'undefined' ? `${window.location.origin}/cliente/login` : '/cliente/login'}
+                                    </span>
+                                    <span className="text-[10px] text-quepia-cyan bg-quepia-cyan/10 px-1 rounded ml-2 whitespace-nowrap">
+                                      Magic Link
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex-1 bg-black/30 border border-white/5 rounded px-2 py-1.5 truncate text-[10px] text-white/40 font-mono">
+                                    {link}
+                                  </div>
+                                )}
 
+                                <button
+                                  onClick={() => {
+                                    const url = client.email
+                                      ? (typeof window !== 'undefined' ? `${window.location.origin}/cliente/login` : '')
+                                      : link
+
+                                    navigator.clipboard.writeText(url)
+                                    alert("Enlace copiado")
+                                  }}
+                                  className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
+                                  title="Copiar"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Generate direct link button */}
+                            {!directLink && (
                               <button
-                                onClick={() => {
-                                  const url = client.email
-                                    ? (typeof window !== 'undefined' ? `${window.location.origin}/cliente/login` : '')
-                                    : link
-
-                                  navigator.clipboard.writeText(url)
-                                  alert("Enlace copiado")
+                                onClick={async () => {
+                                  setGeneratingLinkFor(client.id)
+                                  const result = await generateDirectAccessLink(client.id)
+                                  if (result.success && result.token) {
+                                    const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+                                    const fullLink = `${baseUrl}/cliente/${result.token}`
+                                    setGeneratedLinks(prev => ({ ...prev, [client.id]: fullLink }))
+                                  } else {
+                                    alert(result.error || "Error al generar el link")
+                                  }
+                                  setGeneratingLinkFor(null)
                                 }}
-                                className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
-                                title="Copiar"
+                                disabled={isGenerating}
+                                className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] rounded-md bg-quepia-cyan/10 border border-quepia-cyan/20 text-quepia-cyan hover:bg-quepia-cyan/20 transition-colors disabled:opacity-50"
                               >
-                                <Copy className="w-3.5 h-3.5" />
+                                {isGenerating ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Link className="w-3 h-3" />
+                                )}
+                                {isGenerating ? "Generando..." : "Generar Link Directo"}
                               </button>
-                            </div>
+                            )}
 
                             <div className="flex items-center gap-2 text-[10px] text-white/40">
                               <span className={client.can_view_calendar ? "text-quepia-cyan" : ""}>Calendar</span>

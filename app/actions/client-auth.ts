@@ -146,3 +146,40 @@ export async function verifyClientLoginCode(email: string, code: string) {
 
     return { success: true, token: sessionData.id }
 }
+
+/**
+ * Generates a direct access session link for a client.
+ * Used by admins when email delivery fails — allows sharing
+ * the link via WhatsApp or any other channel.
+ */
+export async function generateDirectAccessLink(clientAccessId: string) {
+    const supabase = createAdminClient()
+
+    // Verify the client access record exists
+    const { data: client, error } = await supabase
+        .from("sistema_client_access")
+        .select("id, nombre, email")
+        .eq("id", clientAccessId)
+        .single()
+
+    if (error || !client) {
+        return { error: "Acceso de cliente no encontrado." }
+    }
+
+    // Create a session token (same as OTP verification would)
+    const { data: sessionData, error: sessionError } = await supabase
+        .from("sistema_client_sessions")
+        .insert({
+            client_access_id: clientAccessId,
+            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+        })
+        .select("id")
+        .single()
+
+    if (sessionError) {
+        console.error("Error creating direct session:", sessionError)
+        return { error: "Error al generar la sesión." }
+    }
+
+    return { success: true, token: sessionData.id, clientName: client.nombre }
+}
