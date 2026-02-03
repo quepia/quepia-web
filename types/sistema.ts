@@ -139,6 +139,8 @@ export interface Task {
   estimated_hours: number | null;
   blocking_subtasks: boolean;
   type_metadata: Record<string, any> | null;
+  parent_task_id: string | null;
+  parent_task?: { id: string; titulo: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -159,6 +161,7 @@ export interface TaskInsert {
   estimated_hours?: number | null;
   blocking_subtasks?: boolean;
   type_metadata?: Record<string, any> | null;
+  parent_task_id?: string | null;
 }
 
 export interface TaskUpdate {
@@ -178,6 +181,7 @@ export interface TaskUpdate {
   estimated_hours?: number | null;
   blocking_subtasks?: boolean;
   type_metadata?: Record<string, any> | null;
+  parent_task_id?: string | null;
 }
 
 // Task with related data

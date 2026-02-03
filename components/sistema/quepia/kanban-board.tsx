@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import {
     Plus,
     MoreHorizontal,
@@ -14,7 +14,9 @@ import {
     X,
     Flag,
     Calendar,
-    LayoutGrid
+    LayoutGrid,
+    GitBranch,
+    CornerDownRight,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useTasks, useColumns } from "@/lib/sistema/hooks"
@@ -31,10 +33,23 @@ interface KanbanBoardProps {
     projectId?: string
     projectName: string
     onTaskClick?: (task: Task) => void
+    onRefreshRef?: React.MutableRefObject<(() => void) | null>
 }
 
-export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoardProps) {
-    const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, refresh: refreshTasks } = useTasks(projectId)
+export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef }: KanbanBoardProps) {
+    const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, silentRefresh } = useTasks(projectId)
+
+    // Expose silentRefresh to parent via ref
+    useEffect(() => {
+        if (onRefreshRef) {
+            onRefreshRef.current = silentRefresh
+        }
+        return () => {
+            if (onRefreshRef) {
+                onRefreshRef.current = null
+            }
+        }
+    }, [onRefreshRef, silentRefresh])
     const { updateColumn, updateColumnWipLimit, createColumn, deleteColumn } = useColumns(projectId)
 
     const [addingTaskColumn, setAddingTaskColumn] = useState<string | null>(null)
@@ -182,7 +197,8 @@ export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoard
         await updateColumn(columnId, editingColumnName.trim())
         setEditingColumnId(null)
         setEditingColumnName("")
-        await refreshTasks()
+        // Column name updated optimistically via useColumns, silently sync tasks
+        await silentRefresh()
     }
 
     const handleCancelColumnEdit = () => {
@@ -198,7 +214,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoard
         }
         if (confirm("¿Estás seguro de eliminar esta columna?")) {
             await deleteColumn(columnId)
-            await refreshTasks()
+            await silentRefresh()
         }
     }
 
@@ -207,7 +223,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoard
         await createColumn(newColumnName.trim())
         setNewColumnName("")
         setIsAddingColumn(false)
-        await refreshTasks()
+        await silentRefresh()
     }
 
     const handleToggleComplete = async (taskId: string) => {
@@ -292,7 +308,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick }: KanbanBoard
                             onSendForReview={handleSendForReview}
                             onUpdateColumnWip={async (colId, wip) => {
                                 await updateColumnWipLimit(colId, wip)
-                                await refreshTasks()
+                                await silentRefresh()
                             }}
                             editingTaskId={editingTaskId}
                             onSetEditingTaskId={setEditingTaskId}
@@ -428,6 +444,48 @@ function KanbanColumn({
 
     const isAtWipLimit = column.wip_limit !== null && column.wip_limit !== undefined && column.tasks.length >= column.wip_limit
     const isNearWipLimit = column.wip_limit !== null && column.wip_limit !== undefined && column.tasks.length >= column.wip_limit - 1
+
+    // Reorganize tasks: group children under their parents
+    const organizedTasks = useMemo(() => {
+        const tasks = [...column.tasks]
+        const taskMap = new Map(tasks.map(t => [t.id, t]))
+        const visited = new Set<string>()
+        const result: Array<{ task: Task; isChild: boolean; parentTask?: Task }> = []
+
+        const addTaskWithChildren = (task: Task) => {
+            if (visited.has(task.id)) return
+            visited.add(task.id)
+
+            // Add parent task
+            result.push({ task, isChild: false })
+
+            // Find and add all children immediately after
+            const children = tasks.filter(t => t.parent_task_id === task.id)
+            children.forEach(child => {
+                if (!visited.has(child.id)) {
+                    visited.add(child.id)
+                    result.push({ task: child, isChild: true, parentTask: task })
+                }
+            })
+        }
+
+        // First add all parent tasks (tasks without parent_task_id or whose parent is not in this column)
+        tasks.forEach(task => {
+            if (!task.parent_task_id || !taskMap.has(task.parent_task_id)) {
+                addTaskWithChildren(task)
+            }
+        })
+
+        // Add remaining tasks (orphaned children whose parent is not in this column)
+        tasks.forEach(task => {
+            if (!visited.has(task.id)) {
+                const parentTask = task.parent_task_id ? taskMap.get(task.parent_task_id) : undefined
+                result.push({ task, isChild: !!task.parent_task_id, parentTask })
+            }
+        })
+
+        return result
+    }, [column.tasks])
 
     return (
         <div
@@ -577,33 +635,54 @@ function KanbanColumn({
 
             {/* Tasks */}
             <div className="flex-1 space-y-2 overflow-y-auto pb-4">
-                {column.tasks.map((task) => (
-                    <TaskContextMenu
-                        key={task.id}
-                        task={task}
-                        onDuplicate={(t) => onDuplicateTask(t)}
-                        onDelete={onDeleteTask}
-                        onUpdate={(id, updates) => onUpdateTask(id, updates)}
-                        onEdit={(t) => onTaskClick?.(t)}
-                        onQuickEdit={(t) => onSetEditingTaskId(t.id)}
-                        onSendForReview={onSendForReview}
-                    >
-                        <TaskCard
-                            task={task}
-                            onClick={() => onTaskClick?.(task)}
-                            onDragStart={(e) => onDragStart(e, task)}
-                            onDragEnd={onDragEnd}
-                            isDragging={draggedTaskId === task.id}
-                            onToggleComplete={onToggleComplete}
-                            isEditing={editingTaskId === task.id}
-                            onSaveEdit={async (updates) => {
-                                await onUpdateTask(task.id, updates)
-                                onSetEditingTaskId(null)
-                            }}
-                            onCancelEdit={() => onSetEditingTaskId(null)}
-                        />
-                    </TaskContextMenu>
-                ))}
+                {organizedTasks.map(({ task, isChild, parentTask }, index) => {
+                    // Find siblings to determine if this is the last child
+                    const siblings = organizedTasks.filter(t =>
+                        t.parentTask?.id === parentTask?.id
+                    )
+                    const isLastChild = isChild && siblings[siblings.length - 1]?.task.id === task.id
+                    // Check if there are more children after this one in the list
+                    const hasMoreSiblings = isChild && siblings.some((s, i) =>
+                        i > siblings.findIndex(sib => sib.task.id === task.id)
+                    )
+                    // Check if this task has children
+                    const hasChildren = organizedTasks.some(t => t.parentTask?.id === task.id)
+
+                    return (
+                        <div key={task.id} className="relative">
+
+                            <TaskContextMenu
+                                task={task}
+                                onDuplicate={(t) => onDuplicateTask(t)}
+                                onDelete={onDeleteTask}
+                                onUpdate={(id, updates) => onUpdateTask(id, updates)}
+                                onEdit={(t) => onTaskClick?.(t)}
+                                onQuickEdit={(t) => onSetEditingTaskId(t.id)}
+                                onSendForReview={onSendForReview}
+                            >
+                                <TaskCard
+                                    task={task}
+                                    isChild={isChild}
+                                    isLastChild={isLastChild}
+                                    hasMoreSiblings={hasMoreSiblings}
+                                    hasChildren={hasChildren}
+                                    parentTask={parentTask}
+                                    onClick={() => onTaskClick?.(task)}
+                                    onDragStart={(e) => onDragStart(e, task)}
+                                    onDragEnd={onDragEnd}
+                                    isDragging={draggedTaskId === task.id}
+                                    onToggleComplete={onToggleComplete}
+                                    isEditing={editingTaskId === task.id}
+                                    onSaveEdit={async (updates) => {
+                                        await onUpdateTask(task.id, updates)
+                                        onSetEditingTaskId(null)
+                                    }}
+                                    onCancelEdit={() => onSetEditingTaskId(null)}
+                                />
+                            </TaskContextMenu>
+                        </div>
+                    )
+                })}
 
                 {/* Add Task Form */}
                 {isAddingTask ? (
@@ -652,6 +731,11 @@ function KanbanColumn({
 
 interface TaskCardProps {
     task: Task & { assignee?: SistemaUser | null }
+    isChild?: boolean
+    isLastChild?: boolean
+    hasMoreSiblings?: boolean
+    hasChildren?: boolean
+    parentTask?: Task
     onClick?: () => void
     onDragStart: (e: React.DragEvent) => void
     onDragEnd: () => void
@@ -662,8 +746,13 @@ interface TaskCardProps {
     onCancelEdit?: () => void
 }
 
-function TaskCard({
+const TaskCard = React.memo(function TaskCard({
     task,
+    isChild,
+    isLastChild,
+    hasMoreSiblings,
+    hasChildren,
+    parentTask,
     onClick,
     onDragStart,
     onDragEnd,
@@ -706,7 +795,10 @@ function TaskCard({
     if (isEditing) {
         return (
             <div
-                className="w-full text-left bg-[#1a1a1a] border border-white/10 rounded-lg p-3 cursor-default shadow-lg"
+                className={cn(
+                    "w-full text-left bg-[#1a1a1a] border border-white/10 rounded-lg p-3 cursor-default shadow-lg",
+                    isChild && "ml-4"
+                )}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
                     if (e.key === "Escape") {
@@ -778,6 +870,9 @@ function TaskCard({
         return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" })
     }
 
+    // Check if this task has a parent (was converted from subtask)
+    const isChildTask = !!task.parent_task_id
+
     return (
         <div
             draggable
@@ -785,11 +880,42 @@ function TaskCard({
             onDragEnd={onDragEnd}
             onClick={onClick}
             className={cn(
-                "w-full text-left bg-[#161616] hover:bg-[#1a1a1a] border border-white/[0.04] hover:border-white/[0.08] rounded-lg p-3 transition-all cursor-pointer group relative overflow-hidden",
+                "relative text-left bg-[#161616] hover:bg-[#1a1a1a] border border-white/[0.04] hover:border-white/[0.08] rounded-lg p-3 transition-all cursor-pointer group overflow-hidden",
                 isDragging && "opacity-50 scale-95 shadow-xl ring-1 ring-quepia-cyan/50",
-                task.completed && "opacity-60"
+                task.completed && "opacity-60",
+                // Child task styling: indented with gradient background
+                isChild && [
+                    "ml-8 w-[calc(100%-32px)]",
+                    "bg-gradient-to-r from-quepia-cyan/10 via-quepia-cyan/5 to-transparent",
+                    "shadow-sm"
+                ],
+                // Parent task with children styling
+                !isChild && isChildTask && "border-l-2 border-l-quepia-cyan/30"
             )}
         >
+            {/* Tree-style connector for child tasks */}
+            {isChild && (
+                <div className="absolute -left-[32px] top-0 bottom-0 w-8 pointer-events-none">
+                    {/* Vertical line coming from above (parent) */}
+                    <div className="absolute left-[11px] top-0 w-[2px] bg-quepia-cyan/40 h-1/2" />
+
+                    {/* If there are more siblings below, extend vertical line further down */}
+                    {hasMoreSiblings && (
+                        <div className="absolute left-[11px] top-1/2 w-[2px] bg-quepia-cyan/40 h-1/2" />
+                    )}
+
+                    {/* Horizontal line to the card */}
+                    <div className="absolute left-[11px] top-1/2 w-[18px] h-[2px] bg-quepia-cyan/50" />
+
+                    {/* Corner/curve at the junction */}
+                    <div className="absolute left-[9px] top-[calc(50%-2px)] w-[6px] h-[6px] rounded-full bg-quepia-cyan border-2 border-[#0a0a0a]" />
+                </div>
+            )}
+
+            {/* Parent connector - shows that this task has children below */}
+            {!isChild && hasChildren && (
+                <div className="absolute -bottom-[10px] left-[11px] w-[2px] h-[18px] bg-quepia-cyan/40 pointer-events-none" />
+            )}
             <div className="flex items-start gap-3">
                 {/* Circular Checkbox (Todoist Style) */}
                 <button
@@ -804,9 +930,9 @@ function TaskCard({
                             <Check className="h-3 w-3 text-white" />
                         </div>
                     ) : (
-                        <div 
+                        <div
                             className="h-[18px] w-[18px] rounded-full border-2 transition-all flex items-center justify-center group-hover/check:bg-opacity-10"
-                            style={{ 
+                            style={{
                                 borderColor: priorityColor,
                                 backgroundColor: 'transparent'
                             }}
@@ -849,8 +975,8 @@ function TaskCard({
                             <span className={cn(
                                 "inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-medium transition-colors",
                                 isOverdue ? "text-red-400 bg-red-500/10" :
-                                isDueSoon ? "text-amber-400 bg-amber-500/10" :
-                                "text-white/50 bg-white/[0.04]"
+                                    isDueSoon ? "text-amber-400 bg-amber-500/10" :
+                                        "text-white/50 bg-white/[0.04]"
                             )}>
                                 <Calendar className="h-3 w-3" />
                                 {formatDueDate(task.due_date)}
@@ -904,6 +1030,19 @@ function TaskCard({
                         {task.link && (
                             <Link2 className="h-3 w-3 text-quepia-cyan/60 ml-0.5" />
                         )}
+
+                        {/* Parent Task Indicator - Shows when task was converted from subtask */}
+                        {task.parent_task_id && (
+                            <span
+                                className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-md bg-quepia-cyan/15 text-quepia-cyan font-medium border border-quepia-cyan/20"
+                                title={task.parent_task?.titulo ? `Subtarea de: ${task.parent_task.titulo}` : 'Tarea convertida desde subtarea'}
+                            >
+                                <GitBranch className="h-3 w-3" />
+                                <span className="max-w-[100px] truncate">
+                                    {task.parent_task?.titulo ? `↳ ${task.parent_task.titulo}` : 'Subtarea'}
+                                </span>
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -916,4 +1055,4 @@ function TaskCard({
             </div>
         </div>
     )
-}
+})

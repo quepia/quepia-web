@@ -37,6 +37,8 @@ import {
     Video,
     Code,
     Type,
+    Calculator,
+    Shield,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useProjects, useFavorites } from "@/lib/sistema/hooks"
@@ -226,11 +228,12 @@ export function AppSidebar({
 
     if (userRole === 'admin') {
         menuItems.push(
-            { id: "admin-users", icon: Users, label: "Usuarios (Admin)" },
-            { id: "admin-projects", icon: Folder, label: "Portfolio (Admin)" },
-            { id: "admin-services", icon: CheckCircle2, label: "Servicios (Admin)" },
-            { id: "admin-team", icon: Users, label: "Equipo (Admin)" },
-            { id: "admin-config", icon: Settings, label: "Config (Admin)" }
+            { id: "accounting", icon: Calculator, label: "Contabilidad", isAdmin: true },
+            { id: "admin-users", icon: Users, label: "Usuarios", isAdmin: true },
+            { id: "admin-projects", icon: Folder, label: "Portfolio", isAdmin: true },
+            { id: "admin-services", icon: CheckCircle2, label: "Servicios", isAdmin: true },
+            { id: "admin-team", icon: Users, label: "Equipo", isAdmin: true },
+            { id: "admin-config", icon: Settings, label: "Configuración", isAdmin: true }
         )
     }
 
@@ -306,14 +309,26 @@ export function AppSidebar({
                         key={item.id}
                         onClick={() => onViewChange(item.id)}
                         className={cn(
-                            "w-full flex items-center gap-3 px-3 py-1.5 text-sm rounded-md transition-colors",
+                            "w-full flex items-center gap-3 px-3 py-1.5 text-sm rounded-md transition-all duration-200",
                             activeView === item.id
-                                ? "bg-white/[0.08] text-white"
-                                : "text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                                ? item.isAdmin 
+                                    ? "bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent text-white shadow-[inset_2px_0_0_0_rgba(251,191,36,0.5)]"
+                                    : "bg-white/[0.08] text-white"
+                                : item.isAdmin
+                                    ? "bg-gradient-to-r from-amber-500/[0.08] to-transparent text-white/60 hover:from-amber-500/[0.15] hover:via-amber-500/[0.05] hover:to-transparent hover:text-white/80 hover:shadow-[inset_2px_0_0_0_rgba(251,191,36,0.3)]"
+                                    : "text-white/60 hover:bg-white/[0.04] hover:text-white/80"
                         )}
                     >
-                        <item.icon className={cn("h-4 w-4", activeView === item.id ? "text-quepia-cyan" : "text-white/40")} />
-                        <span>{item.label}</span>
+                        <item.icon className={cn(
+                            "h-4 w-4", 
+                            activeView === item.id 
+                                ? item.isAdmin ? "text-amber-400" : "text-quepia-cyan"
+                                : "text-white/40"
+                        )} />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {item.isAdmin && (
+                            <Shield className="h-3 w-3 text-amber-500/50" />
+                        )}
                     </button>
                 ))}
             </nav>

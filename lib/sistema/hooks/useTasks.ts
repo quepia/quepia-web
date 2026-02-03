@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/sistema/supabase/client';
 import type {
   Task,
@@ -16,6 +16,7 @@ import type {
   CommentInsert,
   TaskLink,
   TaskLinkInsert,
+  Priority,
 } from '@/types/sistema';
 import { sendNotification, notifyTaskComment } from '@/lib/sistema/actions/notifications';
 
@@ -52,15 +53,20 @@ export function useColumns(projectId?: string) {
 
   const updateColumn = async (id: string, nombre: string): Promise<boolean> => {
     try {
+      // Optimistic update
+      setColumns(prev => prev.map(c => c.id === id ? { ...c, nombre } : c));
+
       const supabase = createClient();
       const { error } = await supabase
         .from('sistema_columns')
         .update({ nombre })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        await fetchColumns(); // Revert on error
+        throw error;
+      }
 
-      await fetchColumns();
       return true;
     } catch (err) {
       console.error('Error updating column:', err);
@@ -70,15 +76,20 @@ export function useColumns(projectId?: string) {
 
   const updateColumnWipLimit = async (id: string, wipLimit: number | null): Promise<boolean> => {
     try {
+      // Optimistic update
+      setColumns(prev => prev.map(c => c.id === id ? { ...c, wip_limit: wipLimit } : c));
+
       const supabase = createClient();
       const { error } = await supabase
         .from('sistema_columns')
         .update({ wip_limit: wipLimit })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        await fetchColumns(); // Revert on error
+        throw error;
+      }
 
-      await fetchColumns();
       return true;
     } catch (err) {
       console.error('Error updating column WIP limit:', err);
@@ -105,7 +116,10 @@ export function useColumns(projectId?: string) {
 
       if (error) throw error;
 
-      await fetchColumns();
+      // Optimistic: append new column
+      if (data) {
+        setColumns(prev => [...prev, data]);
+      }
       return data;
     } catch (err) {
       console.error('Error creating column:', err);
@@ -115,15 +129,20 @@ export function useColumns(projectId?: string) {
 
   const deleteColumn = async (id: string): Promise<boolean> => {
     try {
+      // Optimistic: remove column
+      setColumns(prev => prev.filter(c => c.id !== id));
+
       const supabase = createClient();
       const { error } = await supabase
         .from('sistema_columns')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        await fetchColumns(); // Revert on error
+        throw error;
+      }
 
-      await fetchColumns();
       return true;
     } catch (err) {
       console.error('Error deleting column:', err);
@@ -146,15 +165,20 @@ export function useTasks(projectId?: string) {
   const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const initialLoadDone = useRef(false);
 
-  const fetchTasks = useCallback(async () => {
+  // Core fetch function - only shows loading spinner on initial load
+  const fetchTasks = useCallback(async (silent = false) => {
     if (!projectId) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      // Only show loading on initial load, not on refetches
+      if (!silent && !initialLoadDone.current) {
+        setLoading(true);
+      }
       const supabase = createClient();
 
       // Fetch columns for this project
@@ -166,12 +190,13 @@ export function useTasks(projectId?: string) {
 
       if (columnsError) throw columnsError;
 
-      // Fetch tasks for this project with assignee info
+      // Fetch tasks for this project with assignee and parent task info
       const { data: tasksData, error: tasksError } = await supabase
         .from('sistema_tasks')
         .select(`
           *,
-          assignee:sistema_users(id, nombre, avatar_url)
+          assignee:sistema_users(id, nombre, avatar_url),
+          parent_task:sistema_tasks!parent_task_id(id, titulo)
         `)
         .eq('project_id', projectId)
         .order('orden', { ascending: true });
@@ -186,6 +211,7 @@ export function useTasks(projectId?: string) {
 
       setColumns(columnsWithTasks);
       setError(null);
+      initialLoadDone.current = true;
     } catch (err) {
       console.error('Error fetching tasks:', err);
       setError(err instanceof Error ? err.message : 'Error fetching tasks');
@@ -194,7 +220,13 @@ export function useTasks(projectId?: string) {
     }
   }, [projectId]);
 
+  // Background refresh - never shows loading spinner
+  const silentRefresh = useCallback(() => {
+    return fetchTasks(true);
+  }, [fetchTasks]);
+
   useEffect(() => {
+    initialLoadDone.current = false;
     fetchTasks();
   }, [fetchTasks]);
 
@@ -216,40 +248,52 @@ export function useTasks(projectId?: string) {
       const { data, error: insertError } = await supabase
         .from('sistema_tasks')
         .insert({ ...task, orden: newOrden })
-        .select()
+        .select(`
+          *,
+          assignee:sistema_users(id, nombre, avatar_url),
+          parent_task:sistema_tasks!parent_task_id(id, titulo)
+        `)
         .single();
 
       if (insertError) throw insertError;
 
-      // Handle notification for assignee
-      if (data && data.assignee_id) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && data.assignee_id !== user.id) {
-          await sendNotification({
-            userId: data.assignee_id,
-            actorId: user.id,
-            type: 'assignment',
-            title: `Nueva tarea asignada: ${data.titulo}`,
-            content: `Te han asignado una nueva tarea en la columna ${task.column_id ? 'correspondiente' : ''}`, // Could fetch column name but maybe overkill
-            link: `/sistema?taskId=${data.id}`,
-            data: { taskId: data.id, projectId: data.project_id }
-          })
-        }
+      // Optimistic: add task to the correct column
+      if (data) {
+        setColumns(prev => prev.map(col =>
+          col.id === task.column_id
+            ? { ...col, tasks: [...col.tasks, data] }
+            : col
+        ));
       }
 
-      await fetchTasks();
+      // Handle notification for assignee (fire and forget)
+      if (data && data.assignee_id) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user && data.assignee_id !== user.id) {
+            sendNotification({
+              userId: data.assignee_id!,
+              actorId: user.id,
+              type: 'assignment',
+              title: `Nueva tarea asignada: ${data.titulo}`,
+              content: `Te han asignado una nueva tarea en la columna ${task.column_id ? 'correspondiente' : ''}`,
+              link: `/sistema?taskId=${data.id}`,
+              data: { taskId: data.id, projectId: data.project_id }
+            });
+          }
+        });
+      }
+
       return data;
     } catch (err) {
       console.error('Error creating task:', err);
       setError(err instanceof Error ? err.message : 'Error creating task');
+      await silentRefresh(); // Revert on error
       return null;
     }
   };
 
   const updateTask = async (id: string, updates: TaskUpdate): Promise<boolean> => {
     try {
-      const supabase = createClient();
-
       // If marking as completed, set completed_at
       if (updates.completed === true) {
         updates.completed_at = new Date().toISOString();
@@ -257,14 +301,30 @@ export function useTasks(projectId?: string) {
         updates.completed_at = null;
       }
 
+      // Optimistic update: apply changes to local state immediately
+      setColumns(prev => prev.map(col => ({
+        ...col,
+        tasks: col.tasks.map(t =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      })));
+
+      const supabase = createClient();
       const { error: updateError } = await supabase
         .from('sistema_tasks')
         .update(updates)
         .eq('id', id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        await silentRefresh(); // Revert on error
+        throw updateError;
+      }
 
-      await fetchTasks();
+      // If assignee changed, we need the full task data with joined relations
+      if (updates.assignee_id !== undefined) {
+        await silentRefresh();
+      }
+
       return true;
     } catch (err) {
       console.error('Error updating task:', err);
@@ -274,16 +334,27 @@ export function useTasks(projectId?: string) {
   };
 
   const deleteTask = async (id: string): Promise<boolean> => {
+    // Save previous state for rollback
+    const prevColumns = columns;
+
     try {
+      // Optimistic: remove task from local state
+      setColumns(prev => prev.map(col => ({
+        ...col,
+        tasks: col.tasks.filter(t => t.id !== id),
+      })));
+
       const supabase = createClient();
       const { error: deleteError } = await supabase
         .from('sistema_tasks')
         .delete()
         .eq('id', id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        setColumns(prevColumns); // Revert on error
+        throw deleteError;
+      }
 
-      await fetchTasks();
       return true;
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -297,7 +368,31 @@ export function useTasks(projectId?: string) {
     newColumnId: string,
     newOrden: number
   ): Promise<boolean> => {
+    // Save previous state for rollback
+    const prevColumns = columns;
+
     try {
+      // Optimistic: move task between columns locally
+      let movedTaskData: Task | undefined;
+      setColumns(prev => {
+        const updated = prev.map(col => {
+          const taskInCol = col.tasks.find(t => t.id === taskId);
+          if (taskInCol) {
+            movedTaskData = taskInCol;
+            return { ...col, tasks: col.tasks.filter(t => t.id !== taskId) };
+          }
+          return col;
+        });
+        if (movedTaskData) {
+          return updated.map(col =>
+            col.id === newColumnId
+              ? { ...col, tasks: [...col.tasks, { ...movedTaskData!, column_id: newColumnId, orden: newOrden }] }
+              : col
+          );
+        }
+        return updated;
+      });
+
       const supabase = createClient();
 
       // Update task column and order
@@ -308,32 +403,34 @@ export function useTasks(projectId?: string) {
         .select(`*, assignee:sistema_users(id), project:sistema_projects(nombre)`)
         .single();
 
-      if (updateError) throw updateError;
-
-      // Notify assignee if not the current user (we'll need current user id)
-      // Since this is a client hook, we can get the user session
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (movedTask && user && movedTask.assignee?.id && movedTask.assignee.id !== user.id) {
-        // Get new column name
-        const { data: newColumn } = await supabase
-          .from('sistema_columns')
-          .select('nombre')
-          .eq('id', newColumnId)
-          .single()
-
-        await sendNotification({
-          userId: movedTask.assignee.id,
-          actorId: user.id,
-          type: 'status_change',
-          title: `Tarea movida: ${movedTask.titulo}`,
-          content: `La tarea fue movida a la columna "${newColumn?.nombre || 'Desconocida'}"`,
-          link: `/sistema?taskId=${taskId}`,
-          data: { taskId, projectId: movedTask.project_id, oldColumnId: movedTask.column_id, newColumnId }
-        })
+      if (updateError) {
+        setColumns(prevColumns); // Revert on error
+        throw updateError;
       }
 
-      await fetchTasks();
+      // Notify assignee if not the current user (fire and forget)
+      if (movedTask) {
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+          if (user && movedTask.assignee?.id && movedTask.assignee.id !== user.id) {
+            const { data: newColumn } = await supabase
+              .from('sistema_columns')
+              .select('nombre')
+              .eq('id', newColumnId)
+              .single();
+
+            sendNotification({
+              userId: movedTask.assignee.id,
+              actorId: user.id,
+              type: 'status_change',
+              title: `Tarea movida: ${movedTask.titulo}`,
+              content: `La tarea fue movida a la columna "${newColumn?.nombre || 'Desconocida'}"`,
+              link: `/sistema?taskId=${taskId}`,
+              data: { taskId, projectId: movedTask.project_id, oldColumnId: movedTask.column_id, newColumnId }
+            });
+          }
+        });
+      }
+
       return true;
     } catch (err) {
       console.error('Error moving task:', err);
@@ -346,6 +443,19 @@ export function useTasks(projectId?: string) {
     columnId: string,
     taskIds: string[]
   ): Promise<boolean> => {
+    // Optimistic: reorder tasks in local state
+    setColumns(prev => prev.map(col => {
+      if (col.id !== columnId) return col;
+      const taskMap = new Map(col.tasks.map(t => [t.id, t]));
+      const reordered = taskIds
+        .map((id, index) => {
+          const t = taskMap.get(id);
+          return t ? { ...t, orden: index, column_id: columnId } : null;
+        })
+        .filter(Boolean) as Task[];
+      return { ...col, tasks: reordered };
+    }));
+
     try {
       const supabase = createClient();
 
@@ -358,11 +468,11 @@ export function useTasks(projectId?: string) {
       );
 
       await Promise.all(updates);
-      await fetchTasks();
       return true;
     } catch (err) {
       console.error('Error reordering tasks:', err);
       setError(err instanceof Error ? err.message : 'Error reordering tasks');
+      await silentRefresh(); // Revert on error
       return false;
     }
   };
@@ -393,12 +503,24 @@ export function useTasks(projectId?: string) {
           orden: newOrden,
           completed: false
         })
-        .select()
+        .select(`
+          *,
+          assignee:sistema_users(id, nombre, avatar_url),
+          parent_task:sistema_tasks!parent_task_id(id, titulo)
+        `)
         .single();
 
       if (insertError) throw insertError;
 
-      await fetchTasks();
+      // Optimistic: add duplicated task to the column
+      if (data) {
+        setColumns(prev => prev.map(col =>
+          col.id === task.column_id
+            ? { ...col, tasks: [...col.tasks, data] }
+            : col
+        ));
+      }
+
       return data;
     } catch (err) {
       console.error('Error duplicating task:', err);
@@ -412,6 +534,7 @@ export function useTasks(projectId?: string) {
     loading,
     error,
     refresh: fetchTasks,
+    silentRefresh,
     createTask,
     updateTask,
     deleteTask,
@@ -425,6 +548,7 @@ export function useTaskDetails(taskId?: string) {
   const [task, setTask] = useState<TaskWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasFetchedOnce = useRef(false);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) {
@@ -433,7 +557,10 @@ export function useTaskDetails(taskId?: string) {
     }
 
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load
+      if (!hasFetchedOnce.current) {
+        setLoading(true);
+      }
       const supabase = createClient();
 
       const { data, error: fetchError } = await supabase
@@ -471,6 +598,7 @@ export function useTaskDetails(taskId?: string) {
 
       setTask(data);
       setError(null);
+      hasFetchedOnce.current = true;
     } catch (err) {
       console.error('Error fetching task details:', err);
       setError(err instanceof Error ? err.message : 'Error fetching task');
@@ -480,6 +608,7 @@ export function useTaskDetails(taskId?: string) {
   }, [taskId]);
 
   useEffect(() => {
+    hasFetchedOnce.current = false;
     fetchTask();
   }, [fetchTask]);
 
@@ -494,12 +623,15 @@ export function useTaskDetails(taskId?: string) {
 export function useSubtasks(taskId?: string) {
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [loading, setLoading] = useState(false);
+  const hasFetchedOnce = useRef(false);
 
   const fetchSubtasks = useCallback(async () => {
     if (!taskId) return;
 
     try {
-      setLoading(true);
+      if (!hasFetchedOnce.current) {
+        setLoading(true);
+      }
       const supabase = createClient();
 
       const { data, error } = await supabase
@@ -514,6 +646,7 @@ export function useSubtasks(taskId?: string) {
       if (error) throw error;
 
       setSubtasks(data || []);
+      hasFetchedOnce.current = true;
     } catch (err) {
       console.error('Error fetching subtasks:', err);
     } finally {
@@ -522,6 +655,7 @@ export function useSubtasks(taskId?: string) {
   }, [taskId]);
 
   useEffect(() => {
+    hasFetchedOnce.current = false;
     fetchSubtasks();
   }, [fetchSubtasks]);
 
@@ -537,34 +671,44 @@ export function useSubtasks(taskId?: string) {
       const { data, error } = await supabase
         .from('sistema_subtasks')
         .insert({ ...subtask, orden: maxOrden + 1 })
-        .select()
+        .select(`
+          *,
+          assignee:sistema_users(id, nombre, avatar_url)
+        `)
         .single();
 
       if (error) throw error;
 
-      // Notify task assignee
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && taskId) {
-        const { data: task } = await supabase
-          .from('sistema_tasks')
-          .select('assignee_id, titulo, project_id')
-          .eq('id', taskId)
-          .single();
-
-        if (task && task.assignee_id && task.assignee_id !== user.id) {
-          await sendNotification({
-            userId: task.assignee_id,
-            actorId: user.id,
-            type: 'system',
-            title: `Nueva subtarea en: ${task.titulo}`,
-            content: `Se agregó la subtarea "${subtask.titulo}"`,
-            link: `/sistema?taskId=${taskId}`,
-            data: { taskId, projectId: task.project_id }
-          });
-        }
+      // Optimistic: add to local list
+      if (data) {
+        setSubtasks(prev => [...prev, data]);
       }
 
-      await fetchSubtasks();
+      // Notify task assignee (fire and forget)
+      if (taskId) {
+        supabase.auth.getUser().then(async ({ data: { user } }) => {
+          if (user) {
+            const { data: task } = await supabase
+              .from('sistema_tasks')
+              .select('assignee_id, titulo, project_id')
+              .eq('id', taskId)
+              .single();
+
+            if (task && task.assignee_id && task.assignee_id !== user.id) {
+              sendNotification({
+                userId: task.assignee_id,
+                actorId: user.id,
+                type: 'system',
+                title: `Nueva subtarea en: ${task.titulo}`,
+                content: `Se agregó la subtarea "${subtask.titulo}"`,
+                link: `/sistema?taskId=${taskId}`,
+                data: { taskId, projectId: task.project_id }
+              });
+            }
+          }
+        });
+      }
+
       return data;
     } catch (err) {
       console.error('Error creating subtask:', err);
@@ -574,15 +718,20 @@ export function useSubtasks(taskId?: string) {
 
   const updateSubtask = async (id: string, updates: SubtaskUpdate): Promise<boolean> => {
     try {
+      // Optimistic update
+      setSubtasks(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
       const supabase = createClient();
       const { error } = await supabase
         .from('sistema_subtasks')
         .update(updates)
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        await fetchSubtasks(); // Revert on error
+        throw error;
+      }
 
-      await fetchSubtasks();
       return true;
     } catch (err) {
       console.error('Error updating subtask:', err);
@@ -591,16 +740,22 @@ export function useSubtasks(taskId?: string) {
   };
 
   const deleteSubtask = async (id: string): Promise<boolean> => {
+    const prevSubtasks = subtasks;
     try {
+      // Optimistic: remove from local list
+      setSubtasks(prev => prev.filter(s => s.id !== id));
+
       const supabase = createClient();
       const { error } = await supabase
         .from('sistema_subtasks')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        setSubtasks(prevSubtasks); // Revert on error
+        throw error;
+      }
 
-      await fetchSubtasks();
       return true;
     } catch (err) {
       console.error('Error deleting subtask:', err);
@@ -645,6 +800,103 @@ export function useSubtasks(taskId?: string) {
     return success;
   };
 
+  const convertSubtaskToTask = async (
+    subtaskId: string,
+    columnId: string,
+    options?: { assigneeId?: string | null; priority?: Priority }
+  ): Promise<Task | null> => {
+    try {
+      const supabase = createClient();
+
+      // Get subtask info
+      const { data: subtask, error: subtaskError } = await supabase
+        .from('sistema_subtasks')
+        .select('*')
+        .eq('id', subtaskId)
+        .single();
+
+      if (subtaskError || !subtask) throw new Error('Subtask not found');
+
+      // Get parent task info
+      const { data: parentTask, error: parentError } = await supabase
+        .from('sistema_tasks')
+        .select('project_id, titulo, assignee_id')
+        .eq('id', subtask.task_id)
+        .single();
+
+      if (parentError || !parentTask) throw new Error('Parent task not found');
+
+      // Get max orden for the column
+      const { data: maxOrden } = await supabase
+        .from('sistema_tasks')
+        .select('orden')
+        .eq('column_id', columnId)
+        .order('orden', { ascending: false })
+        .limit(1)
+        .single();
+
+      const newOrden = (maxOrden?.orden || 0) + 1;
+
+      // Get current user for comment
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Create new task from subtask
+      const { data: newTask, error: createError } = await supabase
+        .from('sistema_tasks')
+        .insert({
+          project_id: parentTask.project_id,
+          column_id: columnId,
+          titulo: subtask.titulo,
+          descripcion: null,
+          assignee_id: options?.assigneeId ?? subtask.assignee_id,
+          priority: options?.priority ?? 'P4',
+          orden: newOrden,
+          completed: subtask.completed,
+          parent_task_id: subtask.task_id,
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      // Add comment to new task referencing parent
+      await supabase.from('sistema_comments').insert({
+        task_id: newTask.id,
+        user_id: user?.id || parentTask.assignee_id,
+        contenido: `Convertida desde subtarea de: ${parentTask.titulo}`,
+      });
+
+      // Delete the subtask
+      const { error: deleteError } = await supabase
+        .from('sistema_subtasks')
+        .delete()
+        .eq('id', subtaskId);
+
+      if (deleteError) throw deleteError;
+
+      // Notify parent task assignee
+      if (user && parentTask.assignee_id && parentTask.assignee_id !== user.id) {
+        await sendNotification({
+          userId: parentTask.assignee_id,
+          actorId: user.id,
+          type: 'system',
+          title: `Subtarea convertida a tarea: ${subtask.titulo}`,
+          content: `La subtarea "${subtask.titulo}" fue convertida a tarea independiente`,
+          link: `/sistema?taskId=${newTask.id}`,
+          data: { taskId: newTask.id, projectId: parentTask.project_id }
+        });
+      }
+
+      // Optimistic: remove subtask from local list
+      setSubtasks(prev => prev.filter(s => s.id !== subtaskId));
+
+      return newTask;
+    } catch (err) {
+      console.error('Error converting subtask to task:', err);
+      return null;
+    }
+  };
+
   return {
     subtasks,
     loading,
@@ -653,18 +905,22 @@ export function useSubtasks(taskId?: string) {
     updateSubtask,
     deleteSubtask,
     toggleSubtask,
+    convertSubtaskToTask,
   };
 }
 
 export function useComments(taskId?: string) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
+  const hasFetchedOnce = useRef(false);
 
   const fetchComments = useCallback(async () => {
     if (!taskId) return;
 
     try {
-      setLoading(true);
+      if (!hasFetchedOnce.current) {
+        setLoading(true);
+      }
       const supabase = createClient();
 
       const { data, error } = await supabase
@@ -679,6 +935,7 @@ export function useComments(taskId?: string) {
       if (error) throw error;
 
       setComments(data || []);
+      hasFetchedOnce.current = true;
     } catch (err) {
       console.error('Error fetching comments:', err);
     } finally {
@@ -687,6 +944,7 @@ export function useComments(taskId?: string) {
   }, [taskId]);
 
   useEffect(() => {
+    hasFetchedOnce.current = false;
     fetchComments();
   }, [fetchComments]);
 
@@ -704,13 +962,20 @@ export function useComments(taskId?: string) {
 
       if (error) throw error;
 
-      // Notify
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && comment.task_id) {
-        await notifyTaskComment(comment.task_id, comment.contenido, user.id);
+      // Optimistic: prepend to comments list (ordered by created_at desc)
+      if (data) {
+        setComments(prev => [data, ...prev]);
       }
 
-      await fetchComments();
+      // Notify (fire and forget)
+      if (comment.task_id) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            notifyTaskComment(comment.task_id, comment.contenido, user.id);
+          }
+        });
+      }
+
       return data;
     } catch (err) {
       console.error('Error creating comment:', err);
@@ -719,16 +984,22 @@ export function useComments(taskId?: string) {
   };
 
   const deleteComment = async (id: string): Promise<boolean> => {
+    const prevComments = comments;
     try {
+      // Optimistic: remove from local list
+      setComments(prev => prev.filter(c => c.id !== id));
+
       const supabase = createClient();
       const { error } = await supabase
         .from('sistema_comments')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        setComments(prevComments); // Revert on error
+        throw error;
+      }
 
-      await fetchComments();
       return true;
     } catch (err) {
       console.error('Error deleting comment:', err);
@@ -748,12 +1019,15 @@ export function useComments(taskId?: string) {
 export function useTaskLinks(taskId?: string) {
   const [links, setLinks] = useState<TaskLink[]>([]);
   const [loading, setLoading] = useState(false);
+  const hasFetchedOnce = useRef(false);
 
   const fetchLinks = useCallback(async () => {
     if (!taskId) return;
 
     try {
-      setLoading(true);
+      if (!hasFetchedOnce.current) {
+        setLoading(true);
+      }
       const supabase = createClient();
 
       const { data, error } = await supabase
@@ -765,6 +1039,7 @@ export function useTaskLinks(taskId?: string) {
       if (error) throw error;
 
       setLinks(data || []);
+      hasFetchedOnce.current = true;
     } catch (err) {
       console.error('Error fetching links:', err);
     } finally {
@@ -773,6 +1048,7 @@ export function useTaskLinks(taskId?: string) {
   }, [taskId]);
 
   useEffect(() => {
+    hasFetchedOnce.current = false;
     fetchLinks();
   }, [fetchLinks]);
 
@@ -787,7 +1063,11 @@ export function useTaskLinks(taskId?: string) {
 
       if (error) throw error;
 
-      await fetchLinks();
+      // Optimistic: prepend to links list
+      if (data) {
+        setLinks(prev => [data, ...prev]);
+      }
+
       return data;
     } catch (err) {
       console.error('Error creating link:', err);
@@ -796,16 +1076,22 @@ export function useTaskLinks(taskId?: string) {
   };
 
   const deleteLink = async (id: string): Promise<boolean> => {
+    const prevLinks = links;
     try {
+      // Optimistic: remove from local list
+      setLinks(prev => prev.filter(l => l.id !== id));
+
       const supabase = createClient();
       const { error } = await supabase
         .from('sistema_task_links')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        setLinks(prevLinks); // Revert on error
+        throw error;
+      }
 
-      await fetchLinks();
       return true;
     } catch (err) {
       console.error('Error deleting link:', err);

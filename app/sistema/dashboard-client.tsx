@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { AppSidebar } from "@/components/sistema/quepia/app-sidebar"
@@ -26,6 +26,7 @@ import { AdminProjectsView } from "@/components/sistema/quepia/admin-projects-vi
 import { AdminServicesView } from "@/components/sistema/quepia/admin-services-view"
 import { AdminConfigView } from "@/components/sistema/quepia/admin-config-view"
 import { AdminTeamView } from "@/components/sistema/quepia/admin-team-view"
+import { AccountingView } from "@/components/sistema/quepia/accounting-view"
 import { ProjectMembersModal } from "@/components/sistema/quepia/project-members-modal"
 import type { Task, ProjectWithChildren } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
@@ -82,7 +83,7 @@ export default function DashboardPage() {
     const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [kanbanKey, setKanbanKey] = useState(0)
+    const kanbanRefreshRef = useRef<(() => void) | null>(null)
 
     const { brief, saveBrief } = useClientBrief(activeProjectId);
 
@@ -117,7 +118,7 @@ export default function DashboardPage() {
     const activeProject = activeProjectId ? findProject(projects, activeProjectId) : null
 
     // Determine if we're showing a project-specific view vs a global view
-    const isProjectView = activeProjectId !== null && !["dashboard", "today", "upcoming", "completed", "search", "inbox", "filters", "calendar", "workload", "portfolio", "docs", "admin-users", "admin-projects", "admin-services", "admin-config", "admin-team"].includes(activeView)
+    const isProjectView = activeProjectId !== null && !["dashboard", "today", "upcoming", "completed", "search", "inbox", "filters", "calendar", "workload", "portfolio", "docs", "admin-users", "admin-projects", "admin-services", "admin-config", "admin-team", "accounting"].includes(activeView)
 
     const handleTaskClick = (task: Task | TaskWithProject) => {
         setSelectedTaskId(task.id)
@@ -241,14 +242,15 @@ export default function DashboardPage() {
         setSelectedTaskId(null)
     }
 
-    const handleModalUpdate = () => {
+    const handleModalUpdate = useCallback(() => {
+        // Silently refresh the kanban board data (no remounting)
+        kanbanRefreshRef.current?.()
+        // Refresh global task list for sidebar views
         refreshAllTasks()
         if (activeView === "calendar") {
             refreshAllEvents()
         }
-        // Force re-render of Kanban board if active
-        setKanbanKey(prev => prev + 1)
-    }
+    }, [activeView, refreshAllTasks, refreshAllEvents])
 
     // Compute breadcrumb based on current view
     const getBreadcrumb = (): string[] => {
@@ -273,10 +275,10 @@ export default function DashboardPage() {
         if (isProjectView) {
             return (
                 <KanbanBoard
-                    key={kanbanKey}
                     projectId={activeProjectId || undefined}
                     projectName={activeProject?.nombre || "Selecciona un proyecto"}
                     onTaskClick={handleTaskClick}
+                    onRefreshRef={kanbanRefreshRef}
                 />
             )
         }
@@ -396,6 +398,12 @@ export default function DashboardPage() {
                         }}
                     />
                 )
+            case "accounting":
+                if (sistemaUser?.role !== 'admin') {
+                    setActiveView("dashboard")
+                    return null
+                }
+                return <AccountingView projects={projects} />
             case "docs":
                 return <DocsView />
             default:

@@ -23,9 +23,12 @@ import {
     Send,
     Pencil,
     Check,
+    UserPlus,
+    ArrowUpRight,
+    GitBranch,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
-import { useTaskDetails, useSubtasks, useComments, useTaskLinks, useSistemaUsers, useTasks, useTaskDependencies } from "@/lib/sistema/hooks"
+import { useTaskDetails, useSubtasks, useComments, useTaskLinks, useSistemaUsers, useTaskDependencies } from "@/lib/sistema/hooks"
 import { sendNotification } from "@/lib/sistema/actions/notifications"
 import type { Task, TaskWithDetails, Subtask, Comment, TaskLink, Priority, SistemaUser, TaskType, AssetWithVersions } from "@/types/sistema"
 import { PRIORITY_COLORS, PRIORITY_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
@@ -42,7 +45,7 @@ interface TaskDetailModalProps {
 
 export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: TaskDetailModalProps) {
     const { task, loading, refresh } = useTaskDetails(taskId)
-    const { subtasks, createSubtask, toggleSubtask, deleteSubtask } = useSubtasks(taskId)
+    const { subtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, convertSubtaskToTask } = useSubtasks(taskId)
     const { comments, createComment, deleteComment } = useComments(taskId)
     const { links, createLink, deleteLink } = useTaskLinks(taskId)
     const { users } = useSistemaUsers()
@@ -75,11 +78,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [editingHours, setEditingHours] = useState(false)
     const [hoursValue, setHoursValue] = useState("")
 
-    useEffect(() => {
-        if (isOpen && taskId) {
-            refresh()
-        }
-    }, [isOpen, taskId])
+    // No separate refresh on open - useTaskDetails already fetches when taskId changes
 
     useEffect(() => {
         if (task) {
@@ -169,6 +168,52 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         setSubmitting(false)
     }
 
+    const handleAssignSubtask = async (subtaskId: string, assigneeId: string | null, subtaskTitle: string) => {
+        await updateSubtask(subtaskId, { assignee_id: assigneeId })
+        if (assigneeId && userId && assigneeId !== userId && task) {
+            await sendNotification({
+                userId: assigneeId,
+                actorId: userId,
+                type: 'assignment',
+                title: `Te asignaron una subtarea: ${subtaskTitle}`,
+                content: `Se te asignó la subtarea "${subtaskTitle}" en la tarea "${task.titulo}"`,
+                link: `/sistema?taskId=${taskId}`,
+                data: { taskId, projectId: task.project_id }
+            })
+        }
+    }
+
+    const handleConvertSubtaskToTask = async (subtaskId: string, subtaskTitle: string) => {
+        // Default to first column of the project
+        if (!task?.project_id) return
+        
+        // Get columns for the project
+        const { createClient } = await import("@/lib/sistema/supabase/client")
+        const supabase = createClient()
+        const { data: columns } = await supabase
+            .from('sistema_columns')
+            .select('id, orden')
+            .eq('project_id', task.project_id)
+            .order('orden', { ascending: true })
+            .limit(1)
+        
+        const firstColumnId = columns?.[0]?.id
+        if (!firstColumnId) {
+            alert('No se encontró una columna para crear la tarea')
+            return
+        }
+        
+        if (!confirm(`¿Convertir "${subtaskTitle}" en una tarea independiente?`)) return
+        
+        const newTask = await convertSubtaskToTask(subtaskId, firstColumnId)
+        if (newTask) {
+            // Open the new task in a new tab or refresh
+            window.open(`/sistema?taskId=${newTask.id}`, '_blank')
+        } else {
+            alert('Error al convertir la subtarea')
+        }
+    }
+
     const handleAddComment = async () => {
         if (!comment.trim() || !taskId || !userId) return
         setSubmitting(true)
@@ -221,6 +266,12 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
             await updateTaskField("social_copy", val)
         }
         setEditingSocialCopy(false)
+    }
+
+    const handleOpenParentTask = async () => {
+        if (!task?.parent_task_id) return
+        // Open parent task in same view
+        window.open(`/sistema?taskId=${task.parent_task_id}`, '_blank')
     }
 
     return (
@@ -471,10 +522,27 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                     {/* Subtask List */}
                                     <div className="space-y-0.5">
                                         {pendingSubtasks.map((subtask) => (
-                                            <SubtaskItem key={subtask.id} subtask={subtask} onToggle={() => toggleSubtask(subtask.id)} onDelete={() => deleteSubtask(subtask.id)} />
+                                            <SubtaskItem 
+                                                key={subtask.id} 
+                                                subtask={subtask} 
+                                                onToggle={() => toggleSubtask(subtask.id)} 
+                                                onDelete={() => deleteSubtask(subtask.id)} 
+                                                onAssign={(uid) => handleAssignSubtask(subtask.id, uid, subtask.titulo)} 
+                                                onConvert={() => handleConvertSubtaskToTask(subtask.id, subtask.titulo)}
+                                                users={users} 
+                                            />
                                         ))}
                                         {showCompletedSubtasks && completedSubtasks.map((subtask) => (
-                                            <SubtaskItem key={subtask.id} subtask={subtask} onToggle={() => toggleSubtask(subtask.id)} onDelete={() => deleteSubtask(subtask.id)} completed />
+                                            <SubtaskItem 
+                                                key={subtask.id} 
+                                                subtask={subtask} 
+                                                onToggle={() => toggleSubtask(subtask.id)} 
+                                                onDelete={() => deleteSubtask(subtask.id)} 
+                                                onAssign={(uid) => handleAssignSubtask(subtask.id, uid, subtask.titulo)} 
+                                                onConvert={() => handleConvertSubtaskToTask(subtask.id, subtask.titulo)}
+                                                users={users} 
+                                                completed 
+                                            />
                                         ))}
                                     </div>
                                 </div>
@@ -612,6 +680,23 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                             {/* Sidebar */}
                             <div className="w-56 border-l border-white/[0.06] p-4 bg-white/[0.02]">
                                 <div className="space-y-5">
+                                    {/* Parent Task - Only shown if this task was converted from a subtask */}
+                                    {task?.parent_task_id && (
+                                        <SidebarField label="Convertida desde">
+                                            <button
+                                                onClick={handleOpenParentTask}
+                                                className="flex items-center gap-2 text-sm text-quepia-cyan hover:text-quepia-cyan/80 hover:bg-quepia-cyan/10 rounded px-1 -mx-1 py-0.5 transition-colors w-full text-left group"
+                                                title="Ver tarea padre"
+                                            >
+                                                <GitBranch className="h-4 w-4" />
+                                                <span className="truncate flex-1">
+                                                    {task.parent_task?.titulo || 'Tarea padre'}
+                                                </span>
+                                                <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </button>
+                                        </SidebarField>
+                                    )}
+
                                     {/* Project */}
                                     <SidebarField label="Proyecto">
                                         <div className="flex items-center gap-2 text-sm text-white/70">
@@ -974,20 +1059,41 @@ function DepSearchResults({ projectId, query, currentTaskId, existingDepIds, onA
     existingDepIds: string[]
     onAdd: (id: string) => void
 }) {
-    const { columns } = useTasks(projectId)
-    const allTasks = columns.flatMap(c => c.tasks).filter(t =>
-        t.id !== currentTaskId &&
-        !existingDepIds.includes(t.id) &&
-        (!query || t.titulo.toLowerCase().includes(query.toLowerCase()))
-    )
+    const [tasks, setTasks] = useState<{ id: string; titulo: string }[]>([])
 
-    if (allTasks.length === 0) {
+    useEffect(() => {
+        let cancelled = false
+        const fetchTasks = async () => {
+            const { createClient } = await import("@/lib/sistema/supabase/client")
+            const supabase = createClient()
+            let q = supabase
+                .from("sistema_tasks")
+                .select("id, titulo")
+                .eq("project_id", projectId)
+                .neq("id", currentTaskId)
+                .order("titulo", { ascending: true })
+                .limit(50)
+
+            if (query) {
+                q = q.ilike("titulo", `%${query}%`)
+            }
+
+            const { data } = await q
+            if (!cancelled && data) {
+                setTasks(data.filter(t => !existingDepIds.includes(t.id)))
+            }
+        }
+        fetchTasks()
+        return () => { cancelled = true }
+    }, [projectId, query, currentTaskId, existingDepIds])
+
+    if (tasks.length === 0) {
         return <p className="text-xs text-white/25 py-2 text-center">Sin resultados</p>
     }
 
     return (
         <>
-            {allTasks.slice(0, 8).map(t => (
+            {tasks.slice(0, 8).map(t => (
                 <button
                     key={t.id}
                     onClick={() => onAdd(t.id)}
@@ -1026,12 +1132,17 @@ function DepItem({ depId, onRemove }: { depId: string; onRemove?: () => void }) 
     )
 }
 
-function SubtaskItem({ subtask, onToggle, onDelete, completed }: {
-    subtask: Subtask & { assignee?: { nombre: string } | null };
+function SubtaskItem({ subtask, onToggle, onDelete, onAssign, onConvert, users, completed }: {
+    subtask: Subtask & { assignee?: { id?: string; nombre: string } | null };
     onToggle: () => void;
     onDelete: () => void;
+    onAssign: (userId: string | null) => void;
+    onConvert: () => void;
+    users: SistemaUser[];
     completed?: boolean;
 }) {
+    const [showAssigneeMenu, setShowAssigneeMenu] = useState(false)
+
     return (
         <div className={cn(
             "flex items-center gap-3 px-2 py-1.5 hover:bg-white/[0.03] rounded-md transition-colors group",
@@ -1047,11 +1158,52 @@ function SubtaskItem({ subtask, onToggle, onDelete, completed }: {
             <span className={cn("flex-1 text-sm", completed ? "text-white/35 line-through" : "text-white/75")}>
                 {subtask.titulo}
             </span>
-            {subtask.assignee && (
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-quepia-cyan/60 to-quepia-magenta/60 flex items-center justify-center text-[8px] text-white font-medium">
-                    {subtask.assignee.nombre.split(" ").map(n => n[0]).join("").toUpperCase()}
-                </div>
-            )}
+            <div className="relative">
+                <button
+                    onClick={() => setShowAssigneeMenu(!showAssigneeMenu)}
+                    title={subtask.assignee ? subtask.assignee.nombre : "Asignar"}
+                >
+                    {subtask.assignee ? (
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-quepia-cyan/60 to-quepia-magenta/60 flex items-center justify-center text-[8px] text-white font-medium hover:ring-1 hover:ring-quepia-cyan/50 transition-all">
+                            {subtask.assignee.nombre.split(" ").map(n => n[0]).join("").toUpperCase()}
+                        </div>
+                    ) : (
+                        <UserPlus className="h-3.5 w-3.5 text-white/20 opacity-0 group-hover:opacity-100 hover:text-quepia-cyan transition-all" />
+                    )}
+                </button>
+                {showAssigneeMenu && (
+                    <DropdownMenu onClose={() => setShowAssigneeMenu(false)}>
+                        <button
+                            onClick={() => { onAssign(null); setShowAssigneeMenu(false) }}
+                            className="w-full text-left px-3 py-2 text-sm text-white/50 hover:bg-white/[0.06] transition-colors"
+                        >
+                            Sin asignar
+                        </button>
+                        {users.map((u) => (
+                            <button
+                                key={u.id}
+                                onClick={() => { onAssign(u.id); setShowAssigneeMenu(false) }}
+                                className={cn(
+                                    "w-full text-left px-3 py-2 text-sm hover:bg-white/[0.06] transition-colors flex items-center gap-2",
+                                    subtask.assignee_id === u.id ? "text-quepia-cyan" : "text-white/70"
+                                )}
+                            >
+                                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-quepia-cyan/60 to-quepia-magenta/60 flex items-center justify-center text-[9px] text-white font-medium">
+                                    {u.nombre.split(" ").map(n => n[0]).join("").toUpperCase()}
+                                </div>
+                                {u.nombre}
+                            </button>
+                        ))}
+                    </DropdownMenu>
+                )}
+            </div>
+            <button 
+                onClick={onConvert} 
+                title="Convertir a tarea"
+                className="p-1 opacity-0 group-hover:opacity-100 hover:bg-quepia-cyan/10 hover:text-quepia-cyan rounded transition-all"
+            >
+                <ArrowUpRight className="h-3 w-3 text-white/30 hover:text-quepia-cyan" />
+            </button>
             <button onClick={onDelete} className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/[0.06] rounded transition-all">
                 <Trash2 className="h-3 w-3 text-white/30" />
             </button>
