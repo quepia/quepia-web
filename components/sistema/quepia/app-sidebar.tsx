@@ -39,6 +39,7 @@ import {
     Type,
     Calculator,
     Shield,
+    FileText,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useProjects, useFavorites } from "@/lib/sistema/hooks"
@@ -228,6 +229,8 @@ export function AppSidebar({
 
     if (userRole === 'admin') {
         menuItems.push(
+            { id: "crm", icon: Briefcase, label: "CRM", isAdmin: true },
+            { id: "proposals", icon: FileText, label: "Propuestas", isAdmin: true },
             { id: "accounting", icon: Calculator, label: "Contabilidad", isAdmin: true },
             { id: "admin-users", icon: Users, label: "Usuarios", isAdmin: true },
             { id: "admin-projects", icon: Folder, label: "Portfolio", isAdmin: true },
@@ -238,7 +241,7 @@ export function AppSidebar({
     }
 
     return (
-        <aside className={cn("w-[260px] h-screen bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col", className)}>
+        <aside className={cn("w-[82vw] max-w-[320px] sm:w-[260px] h-[100svh] bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col", className)}>
             {/* Header */}
             <div className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -302,96 +305,101 @@ export function AppSidebar({
                 </div>
             </div>
 
-            {/* Main Menu */}
-            <nav className="px-2 space-y-0.5 mb-4">
-                {menuItems.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => onViewChange(item.id)}
-                        className={cn(
-                            "w-full flex items-center gap-3 px-3 py-1.5 text-sm rounded-md transition-all duration-200",
-                            activeView === item.id
-                                ? item.isAdmin 
-                                    ? "bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent text-white shadow-[inset_2px_0_0_0_rgba(251,191,36,0.5)]"
-                                    : "bg-white/[0.08] text-white"
-                                : item.isAdmin
-                                    ? "bg-gradient-to-r from-amber-500/[0.08] to-transparent text-white/60 hover:from-amber-500/[0.15] hover:via-amber-500/[0.05] hover:to-transparent hover:text-white/80 hover:shadow-[inset_2px_0_0_0_rgba(251,191,36,0.3)]"
-                                    : "text-white/60 hover:bg-white/[0.04] hover:text-white/80"
-                        )}
-                    >
-                        <item.icon className={cn(
-                            "h-4 w-4", 
-                            activeView === item.id 
-                                ? item.isAdmin ? "text-amber-400" : "text-quepia-cyan"
-                                : "text-white/40"
-                        )} />
-                        <span className="flex-1 text-left">{item.label}</span>
-                        {item.isAdmin && (
-                            <Shield className="h-3 w-3 text-amber-500/50" />
-                        )}
-                    </button>
-                ))}
-            </nav>
-
-            {/* Favorites Section */}
-            {favorites.length > 0 && (
-                <div className="px-3 mb-4">
-                    <h3 className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mb-1.5 px-2">
-                        Favoritos
-                    </h3>
-                    <div className="space-y-0.5">
-                        {favorites.map((fav) => (
-                            <button
-                                key={fav.id}
-                                type="button"
-                                onClick={() => onProjectChange?.(fav.id)}
-                                className={cn(
-                                    "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-white/[0.04] transition-colors",
-                                    activeProject === fav.id ? "bg-white/[0.08] text-white" : "text-white/60"
-                                )}
-                            >
-                                <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
-                                <span className="truncate flex-1 text-left">{fav.nombre}</span>
-                                {fav.task_count !== undefined && fav.task_count > 0 && (
-                                    <span className="text-[11px] text-white/25">{fav.task_count}</span>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* My Projects Section */}
-            <div className="px-3 flex-1 overflow-y-auto">
-                <div className="flex items-center justify-between mb-1.5 px-2">
-                    <h3 className="text-[10px] font-semibold text-white/25 uppercase tracking-wider">
-                        Proyectos
-                    </h3>
-                    {onAddProject && (
-                        <button onClick={onAddProject} className="p-0.5 hover:bg-white/[0.06] rounded transition-colors">
-                            <Plus className="h-3.5 w-3.5 text-white/30" />
+            <div
+                className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-8"
+                style={{ WebkitOverflowScrolling: "touch" }}
+            >
+                {/* Main Menu */}
+                <nav className="px-2 space-y-0.5 mb-4">
+                    {menuItems.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => onViewChange(item.id)}
+                            className={cn(
+                                "w-full flex items-center gap-3 px-3 py-1.5 text-sm rounded-md transition-all duration-200",
+                                activeView === item.id
+                                    ? item.isAdmin
+                                        ? "bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent text-white shadow-[inset_2px_0_0_0_rgba(251,191,36,0.5)]"
+                                        : "bg-white/[0.08] text-white"
+                                    : item.isAdmin
+                                        ? "bg-gradient-to-r from-amber-500/[0.08] to-transparent text-white/60 hover:from-amber-500/[0.15] hover:via-amber-500/[0.05] hover:to-transparent hover:text-white/80 hover:shadow-[inset_2px_0_0_0_rgba(251,191,36,0.3)]"
+                                        : "text-white/60 hover:bg-white/[0.04] hover:text-white/80"
+                            )}
+                        >
+                            <item.icon className={cn(
+                                "h-4 w-4",
+                                activeView === item.id
+                                    ? item.isAdmin ? "text-amber-400" : "text-quepia-cyan"
+                                    : "text-white/40"
+                            )} />
+                            <span className="flex-1 text-left">{item.label}</span>
+                            {item.isAdmin && (
+                                <Shield className="h-3 w-3 text-amber-500/50" />
+                            )}
                         </button>
-                    )}
-                </div>
+                    ))}
+                </nav>
 
-                {projectsLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                        <Loader2 className="h-4 w-4 animate-spin text-white/30" />
-                    </div>
-                ) : projects.length === 0 ? (
-                    <div className="text-center py-6">
-                        <p className="text-xs text-white/30 mb-2">Sin proyectos</p>
-                        {onAddProject && (
-                            <button onClick={onAddProject} className="text-xs text-quepia-cyan hover:underline">
-                                Crear primer proyecto
-                            </button>
-                        )}
-                    </div>
-                ) : (
-                    <div className="space-y-0.5">
-                        {projects.map(project => renderProject(project))}
+                {/* Favorites Section */}
+                {favorites.length > 0 && (
+                    <div className="px-3 mb-4">
+                        <h3 className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mb-1.5 px-2">
+                            Favoritos
+                        </h3>
+                        <div className="space-y-0.5">
+                            {favorites.map((fav) => (
+                                <button
+                                    key={fav.id}
+                                    type="button"
+                                    onClick={() => onProjectChange?.(fav.id)}
+                                    className={cn(
+                                        "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-white/[0.04] transition-colors",
+                                        activeProject === fav.id ? "bg-white/[0.08] text-white" : "text-white/60"
+                                    )}
+                                >
+                                    <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
+                                    <span className="truncate flex-1 text-left">{fav.nombre}</span>
+                                    {fav.task_count !== undefined && fav.task_count > 0 && (
+                                        <span className="text-[11px] text-white/25">{fav.task_count}</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
+
+                {/* My Projects Section */}
+                <div className="px-3">
+                    <div className="flex items-center justify-between mb-1.5 px-2">
+                        <h3 className="text-[10px] font-semibold text-white/25 uppercase tracking-wider">
+                            Proyectos
+                        </h3>
+                        {onAddProject && (
+                            <button onClick={onAddProject} className="p-0.5 hover:bg-white/[0.06] rounded transition-colors">
+                                <Plus className="h-3.5 w-3.5 text-white/30" />
+                            </button>
+                        )}
+                    </div>
+
+                    {projectsLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-4 w-4 animate-spin text-white/30" />
+                        </div>
+                    ) : projects.length === 0 ? (
+                        <div className="text-center py-6">
+                            <p className="text-xs text-white/30 mb-2">Sin proyectos</p>
+                            {onAddProject && (
+                                <button onClick={onAddProject} className="text-xs text-quepia-cyan hover:underline">
+                                    Crear primer proyecto
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-0.5">
+                            {projects.map(project => renderProject(project))}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Context Menu */}

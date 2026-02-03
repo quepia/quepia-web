@@ -92,13 +92,13 @@ export function ManualEventModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div 
         className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity" 
         onClick={onClose}
       />
       
-      <div className="relative z-50 w-full max-w-md bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="relative z-50 w-full h-[100svh] sm:h-auto sm:max-w-md bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col sm:max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <h2 className="text-lg font-semibold text-white">Nuevo Evento</h2>
@@ -111,7 +111,7 @@ export function ManualEventModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto">
           {/* Title */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-white/60 uppercase tracking-wide">Título</label>

@@ -57,8 +57,8 @@ export function AccountingView({ projects }: AccountingViewProps) {
     return (
         <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white">
             {/* Header */}
-            <div className="p-6 border-b border-white/[0.06]">
-                <div className="flex items-center justify-between mb-4">
+            <div className="p-4 sm:p-6 border-b border-white/[0.06]">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-emerald-500/20 rounded-lg">
                             <Calculator className="h-6 w-6 text-emerald-400" />
@@ -71,13 +71,13 @@ export function AccountingView({ projects }: AccountingViewProps) {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-1 bg-white/[0.03] p-1 rounded-lg w-fit">
+                <div className="flex gap-1 bg-white/[0.03] p-1 rounded-lg w-full sm:w-fit overflow-x-auto">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                                "flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
                                 activeTab === tab.id
                                     ? "bg-white/[0.1] text-white"
                                     : "text-white/50 hover:text-white/80"

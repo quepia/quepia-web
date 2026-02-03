@@ -107,24 +107,24 @@ export function AccountingAccountsView({
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
             {/* Header con totales */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="space-y-1">
                     <h2 className="text-lg font-semibold text-white">Cuentas y Reservas</h2>
                     <p className="text-sm text-white/40">Gestiona dónde está tu dinero</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                     <button
                         onClick={() => setShowTransferModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] rounded-lg text-sm font-medium transition-colors"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] rounded-lg text-sm font-medium transition-colors"
                     >
                         <ArrowRightLeft className="h-4 w-4" />
                         Transferir
                     </button>
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 rounded-lg text-sm font-medium transition-colors"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-violet-500 hover:bg-violet-600 rounded-lg text-sm font-medium transition-colors"
                     >
                         <Plus className="h-4 w-4" />
                         Nueva Cuenta
@@ -381,8 +381,8 @@ function CreateAccountModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-[#1a1a1a] border-0 sm:border sm:border-white/[0.1] rounded-t-2xl sm:rounded-xl w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-lg font-semibold text-white">Nueva Cuenta</h2>
                     <button onClick={onClose} className="p-1 hover:bg-white/[0.1] rounded">
@@ -525,8 +525,8 @@ function TransferModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-[#1a1a1a] border-0 sm:border sm:border-white/[0.1] rounded-t-2xl sm:rounded-xl w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-violet-500/20 rounded-lg">
@@ -663,8 +663,8 @@ function AssignBalanceModal({
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-[#1a1a1a] border border-white/[0.1] rounded-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-[#1a1a1a] border-0 sm:border sm:border-white/[0.1] rounded-t-2xl sm:rounded-xl w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-amber-500/20 rounded-lg">

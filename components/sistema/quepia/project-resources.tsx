@@ -240,7 +240,7 @@ export function ProjectResources({ projectId }: ProjectResourcesProps) {
 
             {/* Manager Overlay */}
             {showManager && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
                     <div
                         className="fixed inset-0 bg-black/80 backdrop-blur-sm"
                         onClick={() => {
@@ -249,7 +249,7 @@ export function ProjectResources({ projectId }: ProjectResourcesProps) {
                             setEditingId(null)
                         }}
                     />
-                    <div className="relative z-50 w-full max-w-md rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl p-6">
+                    <div className="relative z-50 w-full h-[100svh] sm:h-auto sm:max-w-md rounded-t-2xl sm:rounded-xl border-0 sm:border sm:border-white/10 bg-[#1a1a1a] shadow-2xl p-4 sm:p-6">
                         {/* Header */}
                         <div className="flex items-center justify-between mb-5">
                             <h2 className="text-lg font-semibold text-white">Recursos del proyecto</h2>

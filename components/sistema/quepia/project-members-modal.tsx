@@ -244,11 +244,11 @@ export function ProjectMembersModal({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-lg border border-white/10 flex flex-col max-h-[85vh] mx-4">
+            <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-h-[85vh] sm:max-w-lg border-0 sm:border sm:border-white/10 flex flex-col rounded-t-2xl sm:rounded-xl shadow-2xl mx-0 sm:mx-4">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/[0.06]">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.06]">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-quepia-purple/20 rounded-lg">
                             <Users className="h-5 w-5 text-quepia-purple" />

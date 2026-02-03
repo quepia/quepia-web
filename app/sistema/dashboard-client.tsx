@@ -21,12 +21,14 @@ import { useAuth, useProjects, useAllTasks, useAllCalendarEvents, useSistemaUser
 import { PortfolioView } from "@/components/sistema/quepia/portfolio-view"
 import { ClientProfile } from "@/components/sistema/quepia/client-profile"
 import { BriefingForm } from "@/components/sistema/quepia/briefing-form"
+import { ProposalsView } from "@/components/sistema/quepia/proposals-view"
 import { AdminUsersView } from "@/components/sistema/quepia/admin-users-view"
 import { AdminProjectsView } from "@/components/sistema/quepia/admin-projects-view"
 import { AdminServicesView } from "@/components/sistema/quepia/admin-services-view"
 import { AdminConfigView } from "@/components/sistema/quepia/admin-config-view"
 import { AdminTeamView } from "@/components/sistema/quepia/admin-team-view"
 import { AccountingView } from "@/components/sistema/quepia/accounting-view"
+import { CrmPipelineView } from "@/components/sistema/quepia/crm-pipeline-view"
 import { ProjectMembersModal } from "@/components/sistema/quepia/project-members-modal"
 import type { Task, ProjectWithChildren } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
@@ -62,6 +64,49 @@ function flattenHashProjects(projects: ProjectWithChildren[]): { id: string; nom
     return result
 }
 
+type ProjectVisitStore = {
+    counts: Record<string, number>
+    lastVisited?: string
+}
+
+function readProjectVisits(key: string): ProjectVisitStore {
+    if (typeof window === "undefined") return { counts: {} }
+    try {
+        const raw = window.localStorage.getItem(key)
+        if (!raw) return { counts: {} }
+        const parsed = JSON.parse(raw) as ProjectVisitStore
+        if (!parsed || typeof parsed !== "object") return { counts: {} }
+        return {
+            counts: parsed.counts || {},
+            lastVisited: parsed.lastVisited,
+        }
+    } catch (error) {
+        console.error("Failed to read project visits:", error)
+        return { counts: {} }
+    }
+}
+
+function writeProjectVisits(key: string, data: ProjectVisitStore) {
+    if (typeof window === "undefined") return
+    try {
+        window.localStorage.setItem(key, JSON.stringify(data))
+    } catch (error) {
+        console.error("Failed to write project visits:", error)
+    }
+}
+
+function getMostVisitedProjectId(counts: Record<string, number>) {
+    let bestId: string | null = null
+    let bestCount = -1
+    Object.entries(counts).forEach(([id, count]) => {
+        if (count > bestCount) {
+            bestCount = count
+            bestId = id
+        }
+    })
+    return bestId
+}
+
 export default function DashboardPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -81,6 +126,7 @@ export default function DashboardPage() {
 
     const [activeView, setActiveView] = useState(initialView)
     const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+    const [mostVisitedProjectId, setMostVisitedProjectId] = useState<string | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const kanbanRefreshRef = useRef<(() => void) | null>(null)
@@ -116,9 +162,28 @@ export default function DashboardPage() {
     const [newProjectIcon, setNewProjectIcon] = useState<string | null>(null)
 
     const activeProject = activeProjectId ? findProject(projects, activeProjectId) : null
+    const projectVisitsKey = user?.id ? `quepia:projectVisits:${user.id}` : null
+
+    useEffect(() => {
+        if (!projectVisitsKey) {
+            setMostVisitedProjectId(null)
+            return
+        }
+        const stored = readProjectVisits(projectVisitsKey)
+        setMostVisitedProjectId(getMostVisitedProjectId(stored.counts))
+    }, [projectVisitsKey])
+
+    useEffect(() => {
+        if (!projectVisitsKey || !activeProjectId) return
+        const stored = readProjectVisits(projectVisitsKey)
+        stored.counts[activeProjectId] = (stored.counts[activeProjectId] || 0) + 1
+        stored.lastVisited = activeProjectId
+        writeProjectVisits(projectVisitsKey, stored)
+        setMostVisitedProjectId(getMostVisitedProjectId(stored.counts))
+    }, [activeProjectId, projectVisitsKey])
 
     // Determine if we're showing a project-specific view vs a global view
-    const isProjectView = activeProjectId !== null && !["dashboard", "today", "upcoming", "completed", "search", "inbox", "filters", "calendar", "workload", "portfolio", "docs", "admin-users", "admin-projects", "admin-services", "admin-config", "admin-team", "accounting"].includes(activeView)
+    const isProjectView = activeProjectId !== null && !["dashboard", "today", "upcoming", "completed", "search", "inbox", "filters", "calendar", "workload", "portfolio", "proposals", "crm", "docs", "admin-users", "admin-projects", "admin-services", "admin-config", "admin-team", "accounting"].includes(activeView)
 
     const handleTaskClick = (task: Task | TaskWithProject) => {
         setSelectedTaskId(task.id)
@@ -266,6 +331,8 @@ export default function DashboardPage() {
             calendar: "Calendario",
             workload: "Carga de trabajo",
             portfolio: "Portafolios",
+            proposals: "Propuestas",
+            crm: "CRM",
         }
         return ["Quepia", viewLabels[activeView] || "Dashboard"]
     }
@@ -398,6 +465,18 @@ export default function DashboardPage() {
                         }}
                     />
                 )
+            case "proposals":
+                if (sistemaUser?.role !== 'admin') {
+                    setActiveView("dashboard")
+                    return null
+                }
+                return <ProposalsView projects={projects} userId={user?.id} />
+            case "crm":
+                if (sistemaUser?.role !== 'admin') {
+                    setActiveView("dashboard")
+                    return null
+                }
+                return <CrmPipelineView userId={user?.id} />
             case "accounting":
                 if (sistemaUser?.role !== 'admin') {
                     setActiveView("dashboard")
@@ -414,6 +493,12 @@ export default function DashboardPage() {
                         loading={allTasksLoading || allEventsLoading}
                         onTaskClick={handleTaskClick}
                         onViewChange={handleViewChange}
+                        onProjectOpen={(projectId) => {
+                            setActiveProjectId(projectId)
+                            setActiveView("project")
+                        }}
+                        projects={projects}
+                        mostVisitedProjectId={mostVisitedProjectId}
                         userRole={sistemaUser?.role}
                     />
                 )
@@ -697,12 +782,12 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="flex h-screen bg-[#0a0a0a]">
+        <div className="flex min-h-[100svh] h-[100svh] bg-[#0a0a0a] overflow-hidden">
             {/* Setup Profile Modal */}
             {showSetupModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-                    <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-md p-6 border border-white/10">
+                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-2">Bienvenido al Sistema</h2>
                         <p className="text-white/60 mb-6">Configura tu perfil para comenzar</p>
 
@@ -749,12 +834,12 @@ export default function DashboardPage() {
 
             {/* Settings Modal */}
             {showSettingsModal && user?.id && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setShowSettingsModal(false)}
                     />
-                    <div className="relative z-10 w-full max-w-md">
+                    <div className="relative z-10 w-full h-[100svh] sm:h-auto sm:max-w-md">
                         <NotificationSettings
                             userId={user.id}
                             onClose={() => setShowSettingsModal(false)}
@@ -765,7 +850,7 @@ export default function DashboardPage() {
 
             {/* New Project Modal */}
             {showNewProjectModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => {
@@ -776,7 +861,7 @@ export default function DashboardPage() {
                             setNewProjectParentId(null)
                         }}
                     />
-                    <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-md p-6 border border-white/10">
+                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-6">
                             {editingProjectId ? "Editar Proyecto" : "Nuevo Cliente"}
                         </h2>
@@ -1015,7 +1100,7 @@ export default function DashboardPage() {
             />
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                 {/* Top Header */}
                 <TopHeader
                     breadcrumb={getBreadcrumb()}

@@ -102,6 +102,25 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const completedSubtasks = subtasks.filter(st => st.completed)
     const pendingSubtasks = subtasks.filter(st => !st.completed)
 
+    const formatLocalDate = (date: Date) => {
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, "0")
+        const day = String(date.getDate()).padStart(2, "0")
+        return `${year}-${month}-${day}`
+    }
+
+    const getDateOnly = (value?: string | null) => (value ? value.split("T")[0] : "")
+
+    const toDeadlineTimestamp = (value?: string | null) => (value ? `${value}T12:00:00` : null)
+
+    const isPastDate = (value?: string | null) => {
+        if (!value) return false
+        const date = new Date(`${getDateOnly(value)}T12:00:00`)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        return date < today
+    }
+
     const updateTaskField = async (field: string, value: any) => {
         if (!taskId) return
         try {
@@ -275,12 +294,12 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative bg-[#141414] rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col border border-white/[0.08]">
+            <div className="relative bg-[#141414] w-full h-[100svh] sm:h-auto sm:max-h-[85vh] sm:max-w-3xl overflow-hidden flex flex-col border-0 sm:border sm:border-white/[0.08] rounded-t-2xl sm:rounded-xl shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/[0.06]">
                     <div className="flex items-center gap-2 text-sm text-white/50">
                         <Hash className="h-4 w-4 text-quepia-cyan" />
                         <span>{task?.project?.nombre || "Proyecto"}</span>
@@ -308,9 +327,9 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                     </div>
                 ) : task ? (
                     <div className="flex-1 overflow-y-auto">
-                        <div className="flex">
+                        <div className="flex flex-col md:flex-row">
                             {/* Main Content */}
-                            <div className="flex-1 p-6">
+                            <div className="flex-1 p-4 sm:p-6">
                                 {/* Task Title */}
                                 <div className="flex items-start gap-3 mb-4">
                                     <button
@@ -678,7 +697,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                             </div>
 
                             {/* Sidebar */}
-                            <div className="w-56 border-l border-white/[0.06] p-4 bg-white/[0.02]">
+                            <div className="w-full md:w-56 border-t md:border-t-0 md:border-l border-white/[0.06] p-4 bg-white/[0.02]">
                                 <div className="space-y-5">
                                     {/* Parent Task - Only shown if this task was converted from a subtask */}
                                     {task?.parent_task_id && (
@@ -798,52 +817,79 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                     {/* Deadline */}
                                     <SidebarField label="Deadline">
                                         {editingDeadline ? (
-                                            <input
-                                                type="date"
-                                                value={deadlineValue}
-                                                onChange={(e) => setDeadlineValue(e.target.value)}
-                                                onBlur={() => {
-                                                    const currentDeadlineDate = task.deadline ? task.deadline.split("T")[0] : null
-                                                    const val = deadlineValue || null
-                                                    if (val !== currentDeadlineDate) {
-                                                        updateTaskField("deadline", val)
-                                                    }
-                                                    setEditingDeadline(false)
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        const currentDeadlineDate = task.deadline ? task.deadline.split("T")[0] : null
+                                            <div>
+                                                <input
+                                                    type="date"
+                                                    value={deadlineValue}
+                                                    onChange={(e) => setDeadlineValue(e.target.value)}
+                                                    onBlur={() => {
+                                                        const currentDeadlineDate = getDateOnly(task.deadline) || null
                                                         const val = deadlineValue || null
                                                         if (val !== currentDeadlineDate) {
-                                                            updateTaskField("deadline", val)
+                                                            updateTaskField("deadline", toDeadlineTimestamp(val))
                                                         }
                                                         setEditingDeadline(false)
-                                                    }
-                                                    if (e.key === "Escape") setEditingDeadline(false)
-                                                }}
-                                                autoFocus
-                                                className="text-sm bg-white/[0.03] border border-white/10 rounded px-2 py-1 text-white outline-none focus:border-quepia-cyan w-full [color-scheme:dark]"
-                                            />
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") {
+                                                            const currentDeadlineDate = getDateOnly(task.deadline) || null
+                                                            const val = deadlineValue || null
+                                                            if (val !== currentDeadlineDate) {
+                                                                updateTaskField("deadline", toDeadlineTimestamp(val))
+                                                            }
+                                                            setEditingDeadline(false)
+                                                        }
+                                                        if (e.key === "Escape") setEditingDeadline(false)
+                                                    }}
+                                                    autoFocus
+                                                    className="text-sm bg-white/[0.03] border border-white/10 rounded px-2 py-1 text-white outline-none focus:border-quepia-cyan w-full [color-scheme:dark]"
+                                                />
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {[
+                                                        { label: "Hoy", days: 0 },
+                                                        { label: "Mañana", days: 1 },
+                                                        { label: "+7 días", days: 7 },
+                                                    ].map(option => (
+                                                        <button
+                                                            key={option.label}
+                                                            type="button"
+                                                            onMouseDown={(e) => e.preventDefault()}
+                                                            onClick={() => {
+                                                                const base = new Date()
+                                                                base.setHours(0, 0, 0, 0)
+                                                                base.setDate(base.getDate() + option.days)
+                                                                const dateStr = formatLocalDate(base)
+                                                                setDeadlineValue(dateStr)
+                                                                updateTaskField("deadline", toDeadlineTimestamp(dateStr))
+                                                                setEditingDeadline(false)
+                                                            }}
+                                                            className="text-[11px] px-2 py-1 rounded-full bg-white/[0.04] text-white/70 hover:bg-white/[0.08] transition-colors"
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         ) : (
                                             <button
                                                 onClick={() => {
-                                                    setDeadlineValue(task.deadline ? task.deadline.split("T")[0] : "")
+                                                    setDeadlineValue(getDateOnly(task.deadline))
                                                     setEditingDeadline(true)
                                                 }}
                                                 className="flex items-center gap-2 text-sm hover:bg-white/[0.04] rounded px-1 -mx-1 py-0.5 transition-colors"
                                             >
-                                                {task.deadline && new Date(task.deadline) < new Date(new Date().setHours(0, 0, 0, 0)) ? (
+                                                {task.deadline && isPastDate(task.deadline) ? (
                                                     <AlertCircle className="h-4 w-4 text-red-400" />
                                                 ) : (
                                                     <Calendar className="h-4 w-4 text-white/30" />
                                                 )}
                                                 {task.deadline ? (
                                                     <span className={cn(
-                                                        new Date(task.deadline) < new Date(new Date().setHours(0, 0, 0, 0))
+                                                        isPastDate(task.deadline)
                                                             ? "text-red-400"
                                                             : "text-white/70"
                                                     )}>
-                                                        {new Date(task.deadline).toLocaleDateString("es-AR")}
+                                                        {new Date(`${getDateOnly(task.deadline)}T12:00:00`).toLocaleDateString("es-AR")}
                                                     </span>
                                                 ) : (
                                                     <span className="text-white/30">Agregar deadline</span>

@@ -387,6 +387,218 @@ export interface CalendarEventWithProject extends CalendarEvent {
   project?: Project;
 }
 
+// ============ PROPOSALS ============
+export type ProposalStatus = 'draft' | 'sent' | 'changes_requested' | 'accepted' | 'rejected';
+
+export type ProposalCurrency = 'ARS' | 'USD' | 'EUR';
+
+export interface Proposal {
+  id: string;
+  proposal_number: number | null;
+  project_id: string | null;
+  client_access_id: string | null;
+  client_name: string | null;
+  client_email: string | null;
+  title: string;
+  summary: string | null;
+  currency: ProposalCurrency;
+  status: ProposalStatus;
+  public_token: string;
+  total_amount: number;
+  sent_at: string | null;
+  changes_requested_at: string | null;
+  accepted_at: string | null;
+  rejected_at: string | null;
+  auto_create_payment: boolean;
+  accounting_payment_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalInsert {
+  project_id?: string | null;
+  client_access_id?: string | null;
+  client_name?: string | null;
+  client_email?: string | null;
+  title: string;
+  summary?: string | null;
+  currency?: ProposalCurrency;
+  status?: ProposalStatus;
+  total_amount?: number;
+  auto_create_payment?: boolean;
+  created_by?: string | null;
+}
+
+export interface ProposalUpdate {
+  project_id?: string | null;
+  client_access_id?: string | null;
+  client_name?: string | null;
+  client_email?: string | null;
+  title?: string;
+  summary?: string | null;
+  currency?: ProposalCurrency;
+  status?: ProposalStatus;
+  total_amount?: number;
+  sent_at?: string | null;
+  changes_requested_at?: string | null;
+  accepted_at?: string | null;
+  rejected_at?: string | null;
+  auto_create_payment?: boolean;
+  accounting_payment_id?: string | null;
+}
+
+export interface ProposalSection {
+  id: string;
+  proposal_id: string;
+  title: string;
+  description: string | null;
+  moodboard_links?: { label: string; url: string }[];
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalSectionInsert {
+  proposal_id: string;
+  title: string;
+  description?: string | null;
+  moodboard_links?: { label: string; url: string }[];
+  position?: number;
+}
+
+export interface ProposalItem {
+  id: string;
+  proposal_id: string;
+  section_id: string | null;
+  title: string;
+  description: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalItemInsert {
+  proposal_id: string;
+  section_id?: string | null;
+  title: string;
+  description?: string | null;
+  quantity?: number;
+  unit_price?: number;
+  total_price?: number;
+  position?: number;
+}
+
+export interface ProposalComment {
+  id: string;
+  proposal_id: string;
+  author_name: string;
+  content: string;
+  is_client: boolean;
+  created_at: string;
+}
+
+export interface ProposalWithDetails extends Proposal {
+  project?: Project | null;
+  sections?: ProposalSection[];
+  items?: ProposalItem[];
+  comments?: ProposalComment[];
+}
+
+// ============ PROPOSAL TEMPLATES ============
+export interface ProposalTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  currency: ProposalCurrency;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalTemplateSection {
+  id: string;
+  template_id: string;
+  title: string;
+  description: string | null;
+  moodboard_links?: { label: string; url: string }[];
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalTemplateItem {
+  id: string;
+  template_id: string;
+  section_id: string | null;
+  title: string;
+  description: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============ CRM / PIPELINE ============
+export interface CrmStage {
+  id: string;
+  name: string;
+  position: number;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmLead {
+  id: string;
+  company_name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  service_interest: string | null;
+  estimated_budget: number | null;
+  status_id: string | null;
+  owner_id: string | null;
+  notes: string | null;
+  proposal_id: string | null;
+  project_id: string | null;
+  last_contact_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmLeadInsert {
+  company_name: string;
+  contact_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  service_interest?: string | null;
+  estimated_budget?: number | null;
+  status_id?: string | null;
+  owner_id?: string | null;
+  notes?: string | null;
+}
+
+export interface CrmLeadUpdate {
+  company_name?: string;
+  contact_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  service_interest?: string | null;
+  estimated_budget?: number | null;
+  status_id?: string | null;
+  owner_id?: string | null;
+  notes?: string | null;
+  proposal_id?: string | null;
+  project_id?: string | null;
+  last_contact_at?: string | null;
+}
+
 // ============ CLIENT ACCESS ============
 export interface ClientAccess {
   id: string;

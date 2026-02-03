@@ -75,14 +75,14 @@ export function NotificationSettings({ userId, onClose }: NotificationSettingsPr
 
     if (loading) {
         return (
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 max-w-md w-full mx-auto min-h-[400px] flex items-center justify-center">
+            <div className="bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-xl p-6 max-w-none sm:max-w-md w-full h-full sm:h-auto mx-auto min-h-[400px] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-quepia-cyan"></div>
             </div>
         )
     }
 
     return (
-        <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 max-w-md w-full mx-auto">
+        <div className="bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-xl p-6 max-w-none sm:max-w-md w-full h-full sm:h-auto mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Bell className="h-5 w-5 text-quepia-cyan" />

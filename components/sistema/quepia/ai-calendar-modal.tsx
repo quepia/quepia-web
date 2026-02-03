@@ -144,7 +144,7 @@ export default function AICalendarModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
@@ -152,9 +152,9 @@ export default function AICalendarModal({
       />
 
       {/* Modal */}
-      <div className="relative z-50 w-full max-w-3xl max-h-[90vh] flex flex-col rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl transition-all">
+      <div className="relative z-50 w-full h-[100svh] sm:h-auto sm:max-w-3xl sm:max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-xl border-0 sm:border sm:border-white/10 bg-[#1a1a1a] shadow-2xl transition-all">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 sm:px-6 py-4">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-quepia-cyan" />
             <h2 className="text-lg font-semibold text-white">
@@ -173,7 +173,7 @@ export default function AICalendarModal({
         </div>
 
         {/* Step indicator */}
-        <div className="flex gap-1 px-6 pt-4">
+        <div className="flex gap-1 px-4 sm:px-6 pt-4">
           {[1, 2, 3].map((s) => (
             <div
               key={s}
@@ -185,11 +185,11 @@ export default function AICalendarModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           {/* ── Step 1: Prompt Builder ── */}
           {step === 1 && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Industry */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-white/70">

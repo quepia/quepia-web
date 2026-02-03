@@ -119,36 +119,36 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   return (
     <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row">
       {/* Calendar Grid */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-4 sm:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
             <Calendar className="h-5 w-5 text-quepia-cyan" />
             <h2 className="text-lg font-semibold text-white capitalize">{monthName}</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowManualModal(true)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-quepia-cyan text-black hover:bg-quepia-cyan/90 transition-colors flex items-center gap-1.5 font-medium"
+              className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-quepia-cyan text-black hover:bg-quepia-cyan/90 transition-colors flex items-center gap-1.5 font-medium"
             >
               <Plus className="h-3.5 w-3.5" />
               Crear
             </button>
             <button
               onClick={() => setShowAIModal(true)}
-              className="text-xs px-3 py-1.5 rounded-lg bg-quepia-cyan/10 text-quepia-cyan hover:bg-quepia-cyan/20 transition-colors flex items-center gap-1.5"
+              className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-quepia-cyan/10 text-quepia-cyan hover:bg-quepia-cyan/20 transition-colors flex items-center gap-1.5"
             >
               <Sparkles className="h-3.5 w-3.5" />
               IA Calendar
             </button>
             <button
               onClick={() => { setBulkDeleteProjectFilter("all"); setShowBulkDeleteModal(true) }}
-              className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-1.5"
+              className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-1.5"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Limpiar mes
             </button>
-            <button onClick={goToToday} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors">
+            <button onClick={goToToday} className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors">
               Hoy
             </button>
             <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors">
@@ -163,7 +163,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
         {/* Week headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {weekDays.map(d => (
-            <div key={d} className="text-center text-[10px] font-semibold text-white/25 uppercase py-1">
+            <div key={d} className="text-center text-[9px] sm:text-[10px] font-semibold text-white/25 uppercase py-0.5 sm:py-1">
               {d}
             </div>
           ))}
@@ -186,7 +186,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                 key={cell.dateStr}
                 onClick={() => setSelectedDate(isSelected ? null : cell.dateStr)}
                 className={cn(
-                  "aspect-square rounded-lg flex flex-col items-start justify-start p-1.5 transition-all relative group/cell overflow-hidden",
+                  "aspect-square rounded-lg flex flex-col items-start justify-start p-1 sm:p-1.5 transition-all relative group/cell overflow-hidden",
                   isSelected
                     ? "bg-quepia-cyan/10 border border-quepia-cyan/30"
                     : isToday
@@ -195,54 +195,73 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                 )}
               >
                 <span className={cn(
-                  "text-xs font-medium mb-1",
+                  "text-[10px] sm:text-xs font-medium mb-0.5 sm:mb-1",
                   isToday ? "text-quepia-cyan" : isSelected ? "text-white" : "text-white/60"
                 )}>
                   {cell.day}
                 </span>
 
                 {hasItems && (
-                  <div className="w-full flex-1 flex flex-col gap-1 overflow-hidden">
-                    {/* Combine tasks and events, prioritize items with project */}
-                    {[
-                      ...items.tasks.map(t => ({
-                        id: t.id,
-                        color: PRIORITY_COLORS[t.priority],
-                        label: t.project?.nombre || t.titulo,
-                        title: t.titulo,
-                        projectC: t.project?.color,
-                        logo: t.project?.logo_url,
-                        isTask: true
-                      })),
-                      ...items.events.map(e => ({
-                        id: e.id,
-                        color: e.color,
-                        label: e.project?.nombre || e.titulo,
-                        title: e.titulo,
-                        projectC: e.project?.color,
-                        logo: e.project?.logo_url,
-                        isTask: false
-                      }))
-                    ].slice(0, 3).map((item, j) => (
-                      <div key={item.id} className="flex items-center gap-1.5 w-full bg-white/[0.03] border border-white/5 px-1.5 py-1 rounded hover:bg-white/10 transition-colors">
-                        {item.logo ? (
-                          <img src={item.logo} alt="" className="w-3.5 h-3.5 rounded-full object-cover shrink-0 bg-white/5" />
-                        ) : (
-                          <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.projectC || item.color }} />
-                        )}
-                        <span className="text-[9px] text-white/80 truncate font-medium leading-none">
-                          {item.title}
-                        </span>
-                      </div>
-                    ))}
-                    {(items.tasks.length + items.events.length) > 3 && (
-                      <div className="px-1 pt-0.5">
-                        <span className="text-[9px] text-white/40 font-medium">
-                          +{(items.tasks.length + items.events.length) - 3} más
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  <>
+                    {/* Mobile: dots only */}
+                    <div className="mt-auto flex flex-wrap gap-1 sm:hidden">
+                      {[
+                        ...items.tasks.map(t => ({ id: t.id, color: PRIORITY_COLORS[t.priority] })),
+                        ...items.events.map(e => ({ id: e.id, color: e.color }))
+                      ].slice(0, 4).map((item) => (
+                        <span
+                          key={item.id}
+                          className="inline-block w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                      ))}
+                      {(items.tasks.length + items.events.length) > 4 && (
+                        <span className="text-[9px] text-white/40 font-medium leading-none">+</span>
+                      )}
+                    </div>
+
+                    {/* Desktop: detailed items */}
+                    <div className="hidden sm:flex w-full flex-1 flex-col gap-1 overflow-hidden">
+                      {[
+                        ...items.tasks.map(t => ({
+                          id: t.id,
+                          color: PRIORITY_COLORS[t.priority],
+                          label: t.project?.nombre || t.titulo,
+                          title: t.titulo,
+                          projectC: t.project?.color,
+                          logo: t.project?.logo_url,
+                          isTask: true
+                        })),
+                        ...items.events.map(e => ({
+                          id: e.id,
+                          color: e.color,
+                          label: e.project?.nombre || e.titulo,
+                          title: e.titulo,
+                          projectC: e.project?.color,
+                          logo: e.project?.logo_url,
+                          isTask: false
+                        }))
+                      ].slice(0, 3).map((item) => (
+                        <div key={item.id} className="flex items-center gap-1.5 w-full bg-white/[0.03] border border-white/5 px-1.5 py-1 rounded hover:bg-white/10 transition-colors">
+                          {item.logo ? (
+                            <img src={item.logo} alt="" className="w-3.5 h-3.5 rounded-full object-cover shrink-0 bg-white/5" />
+                          ) : (
+                            <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.projectC || item.color }} />
+                          )}
+                          <span className="text-[9px] text-white/80 truncate font-medium leading-none">
+                            {item.title}
+                          </span>
+                        </div>
+                      ))}
+                      {(items.tasks.length + items.events.length) > 3 && (
+                        <div className="px-1 pt-0.5">
+                          <span className="text-[9px] text-white/40 font-medium">
+                            +{(items.tasks.length + items.events.length) - 3} más
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </button>
             )
@@ -250,7 +269,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
         </div>
 
         {/* Legend */}
-        <div className="mt-6 flex flex-wrap gap-4 text-[10px] text-white/30">
+        <div className="mt-6 flex flex-wrap gap-2 sm:gap-4 text-[9px] sm:text-[10px] text-white/30">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-red-500" />
             <span>Urgente</span>
@@ -414,9 +433,9 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
 
       {/* Project picker for import */}
       {showProjectPicker && pendingImport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setShowProjectPicker(false); setPendingImport(null) }} />
-          <div className="relative z-50 w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl p-6">
+          <div className="relative z-50 w-full h-[100svh] sm:h-auto sm:max-w-sm rounded-t-2xl sm:rounded-xl border-0 sm:border sm:border-white/10 bg-[#1a1a1a] shadow-2xl p-4 sm:p-6">
             <h3 className="text-white font-semibold mb-1">Seleccionar cliente</h3>
             <p className="text-xs text-white/40 mb-4">Elegí en qué cliente importar los {pendingImport.length} eventos.</p>
             <div className="space-y-1 max-h-60 overflow-y-auto">
@@ -448,9 +467,9 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
 
       {/* Bulk delete confirmation modal */}
       {showBulkDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowBulkDeleteModal(false)} />
-          <div className="relative z-50 w-full max-w-sm rounded-xl border border-white/10 bg-[#1a1a1a] shadow-2xl p-6">
+          <div className="relative z-50 w-full h-[100svh] sm:h-auto sm:max-w-sm rounded-t-2xl sm:rounded-xl border-0 sm:border sm:border-white/10 bg-[#1a1a1a] shadow-2xl p-4 sm:p-6">
             <h3 className="text-white font-semibold mb-1">Limpiar mes</h3>
             <p className="text-xs text-white/40 mb-4">
               Eliminar eventos del calendario de <span className="text-white/60 capitalize">{monthName}</span>.

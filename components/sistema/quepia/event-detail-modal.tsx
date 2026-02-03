@@ -215,13 +215,13 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
     }
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm"
                 onClick={onClose}
             />
 
-            <div className="relative z-[70] w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="relative z-[70] w-full h-[100svh] sm:h-auto sm:max-w-lg bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col sm:max-h-[90vh]">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-white/10">
                     <div className="flex items-center gap-3">

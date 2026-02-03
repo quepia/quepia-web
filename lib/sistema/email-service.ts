@@ -5,13 +5,14 @@ import DailyDigestEmail from '@/components/emails/DailyDigestEmail';
 import MentionEmail from '@/components/emails/MentionEmail';
 import ContactFormEmail from '@/components/emails/ContactFormEmail';
 import GeneralNotificationEmail from '@/components/emails/GeneralNotificationEmail';
+import ProposalEmail from '@/components/emails/ProposalEmail';
 // cleaned up imports
 
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
 
-export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification';
+export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification' | 'proposal';
 
 export interface SendEmailParams {
     type: EmailType;
@@ -48,6 +49,10 @@ export async function sendEmail({ type, to, data }: SendEmailParams) {
             case 'general_notification':
                 subject = data.title || 'Nueva notificación de Quepia';
                 html = await render(GeneralNotificationEmail(data as any));
+                break;
+            case 'proposal':
+                subject = `Propuesta: ${data.proposalTitle}`;
+                html = await render(ProposalEmail(data as any));
                 break;
             default:
                 return { success: false, error: `Unsupported email type: ${type}` };

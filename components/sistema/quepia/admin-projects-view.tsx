@@ -185,7 +185,7 @@ export function AdminProjectsView() {
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white p-6 overflow-auto">
+        <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white p-4 sm:p-6 overflow-auto">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
@@ -212,8 +212,8 @@ export function AdminProjectsView() {
                     </Button>
                 </div>
             ) : (
-                <div className="admin-card overflow-hidden border border-white/[0.06] rounded-xl">
-                    <table className="w-full text-left text-sm">
+                <div className="admin-card overflow-x-auto border border-white/[0.06] rounded-xl">
+                    <table className="w-full min-w-[700px] text-left text-sm">
                         <thead className="bg-white/[0.02] border-b border-white/[0.06]">
                             <tr>
                                 <th className="px-6 py-4 font-medium text-white/40">Imagen</th>
@@ -284,9 +284,9 @@ export function AdminProjectsView() {
 
             {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-                    <div className="relative w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+                    <div className="relative w-full h-[100svh] sm:h-auto sm:max-w-lg bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl p-4 sm:p-6 sm:max-h-[90vh] overflow-y-auto shadow-2xl">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-white">
                                 {editingId ? 'Editar Proyecto' : 'Nuevo Proyecto'}
@@ -434,9 +434,9 @@ export function AdminProjectsView() {
 
             {/* Delete Confirmation */}
             {deleteConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
-                    <div className="relative w-full max-w-sm bg-[#1a1a1a] border border-white/10 rounded-xl p-6 shadow-2xl">
+                    <div className="relative w-full h-[100svh] sm:h-auto sm:max-w-sm bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl p-4 sm:p-6 shadow-2xl">
                         <h3 className="text-xl font-bold text-white mb-2">¿Eliminar proyecto?</h3>
                         <p className="text-gray-400 mb-6">Esta acción no se puede deshacer.</p>
                         <div className="flex gap-3">

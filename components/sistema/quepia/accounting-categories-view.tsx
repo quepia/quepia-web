@@ -131,7 +131,7 @@ export function AccountingCategoriesView({
     }
 
     return (
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -303,12 +303,12 @@ export function AccountingCategoriesView({
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setIsModalOpen(false)}
                     />
-                    <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-md p-6 border border-white/10">
+                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-6">
                             {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
                         </h2>

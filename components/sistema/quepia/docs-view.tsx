@@ -99,8 +99,8 @@ export function DocsView() {
                         <h1 className="text-3xl font-bold mb-4">Arquitectura del Sistema</h1>
 
                         <h2 className="text-xl font-semibold mb-4">Tecnologías Utilizadas</h2>
-                        <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-                            <table className="w-full text-sm">
+                        <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+                            <table className="w-full min-w-[520px] text-sm">
                                 <thead>
                                     <tr className="bg-white/[0.04]">
                                         <th className="text-left p-3 text-white/70 font-medium">Componente</th>
@@ -221,8 +221,8 @@ lib/supabase/
                         </p>
 
                         <h2 className="text-xl font-semibold mt-8 mb-4">Columnas del Kanban</h2>
-                        <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-                            <table className="w-full text-sm">
+                        <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+                            <table className="w-full min-w-[520px] text-sm">
                                 <thead>
                                     <tr className="bg-white/[0.04]">
                                         <th className="text-left p-3 text-white/70 font-medium">Columna</th>
@@ -300,8 +300,8 @@ lib/supabase/
                         </ul>
 
                         <h3 className="text-lg font-semibold text-quepia-cyan mb-3">Barra Lateral del Modal</h3>
-                        <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-                            <table className="w-full text-sm">
+                        <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+                            <table className="w-full min-w-[520px] text-sm">
                                 <thead>
                                     <tr className="bg-white/[0.04]">
                                         <th className="text-left p-3 text-white/70 font-medium">Campo</th>
@@ -349,8 +349,8 @@ lib/supabase/
                         </p>
 
                         <h2 className="text-xl font-semibold mt-8 mb-4">Menú Principal</h2>
-                        <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-                            <table className="w-full text-sm">
+                        <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+                            <table className="w-full min-w-[520px] text-sm">
                                 <thead>
                                     <tr className="bg-white/[0.04]">
                                         <th className="text-left p-3 text-white/70 font-medium">Opción</th>
@@ -405,8 +405,8 @@ lib/supabase/
                         </ul>
 
                         <h2 className="text-xl font-semibold mt-8 mb-4">Acciones</h2>
-                        <div className="overflow-hidden rounded-xl border border-white/[0.06]">
-                            <table className="w-full text-sm">
+                        <div className="overflow-x-auto rounded-xl border border-white/[0.06]">
+                            <table className="w-full min-w-[520px] text-sm">
                                 <thead>
                                     <tr className="bg-white/[0.04]">
                                         <th className="text-left p-3 text-white/70 font-medium">Botón</th>

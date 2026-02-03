@@ -115,21 +115,23 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
     : null
 
   return (
-    <div className="flex-1 overflow-auto p-6">
+    <div className="flex-1 overflow-auto p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
           <Users className="h-5 w-5 text-quepia-cyan" />
           <h2 className="text-lg font-semibold text-white">Carga de trabajo</h2>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setWeekOffset(0)} className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors">
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setWeekOffset(0)} className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors">
             Esta semana
           </button>
           <button onClick={() => setWeekOffset(w => w - 1)} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors">
             <ChevronLeft className="h-4 w-4 text-white/40" />
           </button>
-          <span className="text-sm text-white/60 min-w-[180px] text-center">{formatWeekRange()}</span>
+          <span className="text-[11px] sm:text-sm text-white/60 min-w-0 sm:min-w-[180px] text-left sm:text-center">
+            {formatWeekRange()}
+          </span>
           <button onClick={() => setWeekOffset(w => w + 1)} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors">
             <ChevronRight className="h-4 w-4 text-white/40" />
           </button>
@@ -142,13 +144,13 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
           <p className="text-white/40 text-sm">No hay usuarios en el equipo</p>
         </div>
       ) : (
-        <div className="flex gap-6">
+        <div className="flex flex-col lg:flex-row gap-4">
           {/* Heatmap grid */}
           <div className="flex-1 overflow-x-auto">
-            <table className="w-full border-collapse">
+            <table className="w-full min-w-[560px] sm:min-w-[720px] border-collapse">
               <thead>
                 <tr>
-                  <th className="text-left text-xs text-white/30 font-semibold uppercase tracking-wider pb-3 pr-4 w-40">
+                  <th className="text-left text-[10px] sm:text-xs text-white/30 font-semibold uppercase tracking-wider pb-3 pr-4 w-28 sm:w-40">
                     Miembro
                   </th>
                   {weekDays.map(day => {
@@ -182,7 +184,7 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
                           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80 flex items-center justify-center text-[9px] text-white font-medium shrink-0">
                             {user.nombre.split(" ").map(n => n[0]).join("").toUpperCase()}
                           </div>
-                          <span className="text-xs text-white/70 truncate">{user.nombre}</span>
+                          <span className="text-[11px] sm:text-xs text-white/70 truncate">{user.nombre}</span>
                           {isOverloaded && (
                             <span title="Sobrecargado" className="shrink-0 flex">
                               <AlertTriangle className="h-3 w-3 text-red-400" />
@@ -201,7 +203,7 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
                             <button
                               onClick={() => setSelectedCell(isSelected ? null : { userId: user.id, dayStr })}
                               className={cn(
-                                "w-full aspect-square min-w-[48px] rounded-lg border transition-all flex items-center justify-center",
+                                "w-full aspect-square min-w-[40px] sm:min-w-[48px] rounded-lg border transition-all flex items-center justify-center",
                                 getHeatColor(hours),
                                 isSelected ? "border-quepia-cyan ring-1 ring-quepia-cyan/30" : getHeatBorder(hours),
                                 hours > 0 && "cursor-pointer hover:scale-105"
@@ -209,7 +211,7 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
                             >
                               {hours > 0 && (
                                 <span className={cn(
-                                  "text-xs font-medium",
+                                  "text-[10px] sm:text-xs font-medium",
                                   hours > 8 ? "text-red-400" : hours > 6 ? "text-amber-400" : "text-green-400"
                                 )}>
                                   {hours}h
@@ -234,7 +236,7 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
             </table>
 
             {/* Legend */}
-            <div className="mt-6 flex items-center gap-4 text-[10px] text-white/30">
+            <div className="mt-6 flex flex-wrap items-center gap-3 text-[9px] sm:text-[10px] text-white/30">
               <span>Carga:</span>
               <div className="flex items-center gap-1.5">
                 <div className="w-4 h-4 rounded bg-green-500/20 border border-green-500/20" />
@@ -253,7 +255,7 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
 
           {/* Selected cell detail panel */}
           {selectedCell && selectedData && selectedData.tasks.length > 0 && (
-            <div className="w-64 shrink-0 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+            <div className="w-full lg:w-64 shrink-0 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
               <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">
                 {users.find(u => u.id === selectedCell.userId)?.nombre} — {new Date(selectedCell.dayStr + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })}
               </h4>

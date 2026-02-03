@@ -10,10 +10,12 @@ import {
   Calendar,
   ArrowRight,
   Eye,
+  Activity,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { CalendarEvent } from "@/types/sistema"
+import type { ProjectWithChildren } from "@/types/sistema"
 import { PRIORITY_COLORS } from "@/types/sistema"
 
 interface DashboardOverviewProps {
@@ -22,6 +24,9 @@ interface DashboardOverviewProps {
   loading: boolean
   onTaskClick: (task: TaskWithProject) => void
   onViewChange: (view: string) => void
+  onProjectOpen: (projectId: string) => void
+  projects: ProjectWithChildren[]
+  mostVisitedProjectId?: string | null
   userRole?: string
 }
 
@@ -38,7 +43,7 @@ interface PendingAsset {
   }[]
 }
 
-export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewChange, userRole }: DashboardOverviewProps) {
+export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole }: DashboardOverviewProps) {
   console.log("DashboardOverview - userRole prop:", userRole)
   const [pendingAssets, setPendingAssets] = useState<PendingAsset[]>([])
 
@@ -64,17 +69,6 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
     }
     loadPending()
   }, [])
-
-  const stats = useMemo(() => {
-    const total = tasks.length
-    const completed = tasks.filter(t => t.completed).length
-    const active = total - completed
-    const overdue = tasks.filter(t => !t.completed && t.due_date && t.due_date < todayStr).length
-    const dueToday = tasks.filter(t => !t.completed && t.due_date === todayStr).length
-    const projectSet = new Set(tasks.map(t => t.project_id))
-
-    return { total, completed, active, overdue, dueToday, projectCount: projectSet.size }
-  }, [tasks, todayStr])
 
   const todayTasks = useMemo(() => {
     return tasks
@@ -110,6 +104,43 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
       .slice(0, 5)
   }, [events, today, todayStr])
 
+  const flatProjects = useMemo(() => {
+    const result: ProjectWithChildren[] = []
+    const walk = (list: ProjectWithChildren[]) => {
+      list.forEach(project => {
+        result.push(project)
+        if (project.children && project.children.length > 0) {
+          walk(project.children)
+        }
+      })
+    }
+    walk(projects)
+    return result
+  }, [projects])
+
+  const mostVisitedProject = useMemo(() => {
+    if (!mostVisitedProjectId) return null
+    return flatProjects.find(project => project.id === mostVisitedProjectId) || null
+  }, [flatProjects, mostVisitedProjectId])
+
+  const recentActivity = useMemo(() => {
+    return tasks
+      .map(task => {
+        const activityDate = task.completed_at || task.updated_at || task.created_at
+        return {
+          task,
+          activityDate,
+          type: task.completed && task.completed_at ? "completed" : "updated",
+        }
+      })
+      .filter(
+        (item): item is { task: TaskWithProject; activityDate: string; type: "completed" | "updated" } =>
+          Boolean(item.activityDate)
+      )
+      .sort((a, b) => new Date(b.activityDate).getTime() - new Date(a.activityDate).getTime())
+      .slice(0, 6)
+  }, [tasks])
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -117,13 +148,6 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
       </div>
     )
   }
-
-  const statCards = [
-    { label: "Tareas activas", value: stats.active, icon: TrendingUp, color: "text-quepia-cyan" },
-    { label: "Completadas", value: stats.completed, icon: CheckCircle2, color: "text-green-400" },
-    { label: "Vencidas", value: stats.overdue, icon: AlertTriangle, color: stats.overdue > 0 ? "text-red-400" : "text-white/30" },
-    { label: "Clientes", value: stats.projectCount, icon: FolderOpen, color: "text-purple-400" },
-  ]
 
   const formatDate = (dateStr: string) => {
     // If it's a full ISO string (e.g. 2023-10-27T10:00:00), calculate date from it
@@ -144,19 +168,49 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
     return `En ${diff}d`
   }
 
+  const formatActivityDate = (dateStr: string) => {
+    const date = dateStr.includes("T") ? new Date(dateStr) : new Date(dateStr + "T12:00:00")
+    date.setHours(0, 0, 0, 0)
+    const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays === 0) return "Hoy"
+    if (diffDays === 1) return "Ayer"
+    if (diffDays < 0) return `En ${Math.abs(diffDays)}d`
+    return `Hace ${diffDays}d`
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map(card => (
-          <div key={card.label} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <card.icon className={cn("h-5 w-5", card.color)} />
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+      {/* Quick Access */}
+      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-quepia-cyan" />
+            Acceso rápido
+          </h3>
+          <button
+            onClick={() => onViewChange("portfolio")}
+            className="text-xs text-quepia-cyan hover:underline flex items-center gap-1"
+          >
+            Ver proyectos <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+        {mostVisitedProject ? (
+          <button
+            onClick={() => onProjectOpen(mostVisitedProject.id)}
+            className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors text-left"
+          >
+            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: mostVisitedProject.color }} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-white/90 truncate">{mostVisitedProject.nombre}</p>
+              <p className="text-xs text-white/40">Proyecto más visitado</p>
             </div>
-            <p className="text-2xl font-bold text-white">{card.value}</p>
-            <p className="text-xs text-white/40 mt-1">{card.label}</p>
-          </div>
-        ))}
+            <ArrowRight className="h-4 w-4 text-white/40" />
+          </button>
+        ) : (
+          <p className="text-sm text-white/30 py-4 text-center">
+            Todavía no hay historial de visitas. Abrí un proyecto y aparecerá acá.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -321,6 +375,45 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
           </div>
         )}
       </div>
+
+      {/* Recent Team Activity (Admin) */}
+      {userRole === 'admin' && (
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Activity className="h-4 w-4 text-emerald-400" />
+              Actividad reciente del equipo
+            </h3>
+          </div>
+          {recentActivity.length === 0 ? (
+            <p className="text-sm text-white/30 py-4 text-center">Sin actividad reciente</p>
+          ) : (
+            <div className="space-y-2">
+              {recentActivity.map(({ task, activityDate, type }) => (
+                <div
+                  key={`${task.id}-${activityDate}`}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02]"
+                >
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full shrink-0",
+                    type === "completed" ? "bg-green-500/10 text-green-400" : "bg-white/10 text-white/50"
+                  )}>
+                    {type === "completed" ? "Completó" : "Actualizó"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-white/85 truncate">{task.titulo}</p>
+                    <p className="text-xs text-white/40 truncate">
+                      {task.project?.nombre || "Proyecto sin nombre"}
+                      {task.assignee?.nombre ? ` · ${task.assignee.nombre}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-white/40 shrink-0">{formatActivityDate(activityDate)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Admin Panel Quick Access */}
       {userRole === 'admin' && (

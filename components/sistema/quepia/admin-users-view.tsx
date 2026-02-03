@@ -143,31 +143,31 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
     return (
         <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white">
             {/* Header */}
-            <div className="p-6 border-b border-white/[0.06]">
-                <div className="flex items-center justify-between mb-4">
+            <div className="p-4 sm:p-6 border-b border-white/[0.06]">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-quepia-purple/20 rounded-lg">
                             <Shield className="h-6 w-6 text-quepia-purple" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold">Gestión de Usuarios</h1>
+                            <h1 className="text-xl sm:text-2xl font-bold">Gestión de Usuarios</h1>
                             <p className="text-white/40 text-sm">Administra los roles y permisos del equipo</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                             <input
                                 type="text"
                                 placeholder="Buscar usuarios..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-9 pr-4 py-2 bg-white/[0.05] border border-white/[0.1] rounded-lg text-sm text-white focus:outline-none focus:border-quepia-purple/50 transition-colors w-64"
+                                className="pl-9 pr-4 py-2 bg-white/[0.05] border border-white/[0.1] rounded-lg text-sm text-white focus:outline-none focus:border-quepia-purple/50 transition-colors w-full sm:w-64"
                             />
                         </div>
                         <button
                             onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-quepia-purple hover:bg-quepia-purple/80 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                            className="bg-quepia-purple hover:bg-quepia-purple/80 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto"
                         >
                             Agregar Usuario
                         </button>
@@ -176,9 +176,9 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
             </div>
 
             {/* Table */}
-            <div className="flex-1 overflow-auto p-6">
-                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-                    <table className="w-full text-left text-sm">
+            <div className="flex-1 overflow-auto p-4 sm:p-6">
+                <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
+                    <table className="w-full min-w-[700px] text-left text-sm">
                         <thead className="bg-white/[0.02] border-b border-white/[0.06]">
                             <tr>
                                 <th className="px-6 py-4 font-medium text-white/40">Usuario</th>
@@ -251,12 +251,12 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
 
             {/* Create User Modal */}
             {isCreateModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setIsCreateModalOpen(false)}
                     />
-                    <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-md p-6 border border-white/10">
+                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl">
                         <h2 className="text-xl font-bold text-white mb-6">Agregar Usuario</h2>
 
                         <div className="space-y-4">
@@ -326,12 +326,12 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
 
             {/* Delete Confirmation Modal */}
             {isDeleteModalOpen && userToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setIsDeleteModalOpen(false)}
                     />
-                    <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-sm p-6 border border-white/10">
+                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-sm p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl">
                         <div className="flex flex-col items-center text-center mb-6">
                             <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
                                 <AlertTriangle className="h-6 w-6 text-red-500" />

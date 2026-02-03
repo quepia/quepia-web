@@ -156,7 +156,7 @@ export function AdminServicesView() {
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white p-6 overflow-auto">
+        <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white p-4 sm:p-6 overflow-auto">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
@@ -228,9 +228,9 @@ export function AdminServicesView() {
 
             {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-                    <div className="relative w-full max-w-lg bg-[#1a1a1a] border border-white/10 rounded-xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+                    <div className="relative w-full h-[100svh] sm:h-auto sm:max-w-lg bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl p-4 sm:p-6 sm:max-h-[90vh] overflow-y-auto shadow-2xl">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-white">
                                 {editingId ? 'Editar Servicio' : 'Nuevo Servicio'}
@@ -384,9 +384,9 @@ export function AdminServicesView() {
 
             {/* Delete Confirmation */}
             {deleteConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
                      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)} />
-                    <div className="relative w-full max-w-sm bg-[#1a1a1a] border border-white/10 rounded-xl p-6 shadow-2xl">
+                    <div className="relative w-full h-[100svh] sm:h-auto sm:max-w-sm bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl p-4 sm:p-6 shadow-2xl">
                         <h3 className="text-xl font-bold text-white mb-2">¿Eliminar servicio?</h3>
                         <p className="text-gray-400 mb-6">Esta acción no se puede deshacer.</p>
                         <div className="flex gap-3">

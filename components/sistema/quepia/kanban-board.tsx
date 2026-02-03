@@ -265,14 +265,16 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef 
     return (
         <div className="flex-1 overflow-hidden flex flex-col bg-[#0a0a0a]">
             {/* Project Header */}
-            <div className="px-6 py-3 border-b border-white/[0.06] flex items-center justify-between gap-4">
-                <h1 className="text-lg font-semibold text-white">{projectName}</h1>
-                {projectId && <ProjectResources projectId={projectId} />}
+            <div className="px-4 sm:px-6 py-3 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                <h1 className="text-lg font-semibold text-white truncate">{projectName}</h1>
+                <div className="w-full sm:w-auto">
+                    {projectId && <ProjectResources projectId={projectId} />}
+                </div>
             </div>
 
             {/* Kanban Columns */}
-            <div className="flex-1 overflow-x-auto p-6">
-                <div className="flex gap-4 h-full min-w-max">
+            <div className="flex-1 overflow-x-auto p-3 sm:p-6">
+                <div className="flex gap-4 h-full min-w-max snap-x snap-mandatory">
                     {columns.map((column) => (
                         <KanbanColumn
                             key={column.id}
@@ -317,7 +319,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef 
 
                     {/* Add Column */}
                     {isAddingColumn ? (
-                        <div className="w-[320px] shrink-0 bg-white/5 border border-white/10 rounded-lg p-3">
+                        <div className="w-[280px] sm:w-[320px] shrink-0 bg-white/5 border border-white/10 rounded-lg p-3 snap-start">
                             <input
                                 type="text"
                                 placeholder="Nombre de la columna"
@@ -355,7 +357,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef 
                     ) : (
                         <button
                             onClick={() => setIsAddingColumn(true)}
-                            className="w-[320px] shrink-0 flex items-center justify-center gap-2 py-4 border-2 border-dashed border-white/10 rounded-lg text-white/40 hover:border-white/20 hover:text-white/60 transition-colors"
+                            className="w-[280px] sm:w-[320px] shrink-0 flex items-center justify-center gap-2 py-4 border-2 border-dashed border-white/10 rounded-lg text-white/40 hover:border-white/20 hover:text-white/60 transition-colors snap-start"
                         >
                             <Plus className="h-5 w-5" />
                             <span>Agregar columna</span>
@@ -490,7 +492,7 @@ function KanbanColumn({
     return (
         <div
             className={cn(
-                "w-[320px] flex flex-col shrink-0 rounded-lg transition-colors",
+                "w-[280px] sm:w-[320px] flex flex-col shrink-0 rounded-lg transition-colors snap-start",
                 isDragOver && !isAtWipLimit && "bg-quepia-cyan/10",
                 isDragOver && isAtWipLimit && "bg-red-500/10"
             )}
@@ -912,10 +914,7 @@ const TaskCard = React.memo(function TaskCard({
                 </div>
             )}
 
-            {/* Parent connector - shows that this task has children below */}
-            {!isChild && hasChildren && (
-                <div className="absolute -bottom-[10px] left-[11px] w-[2px] h-[18px] bg-quepia-cyan/40 pointer-events-none" />
-            )}
+            {/* Parent connector removed to avoid visual artifacts in compact cards */}
             <div className="flex items-start gap-3">
                 {/* Circular Checkbox (Todoist Style) */}
                 <button

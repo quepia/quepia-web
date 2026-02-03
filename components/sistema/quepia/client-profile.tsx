@@ -213,7 +213,7 @@ export function ClientProfile({ projectId, isOpen, onClose }: ClientProfileProps
   if (!isOpen) return null
 
   return (
-    <div className="absolute right-0 top-0 bottom-0 w-[400px] bg-[#0a0a0a] border-l border-white/10 z-40 flex flex-col shadow-2xl">
+    <div className="fixed inset-0 sm:absolute sm:right-0 sm:top-0 sm:bottom-0 w-full sm:w-[400px] bg-[#0a0a0a] border-l border-white/10 z-50 flex flex-col shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">

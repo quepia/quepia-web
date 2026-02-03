@@ -195,7 +195,7 @@ export function AccountingExpensesView({
     }
 
     return (
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3 mb-6">
                 <div className="relative flex-1 min-w-[200px] max-w-xs">
@@ -256,8 +256,8 @@ export function AccountingExpensesView({
             </div>
 
             {/* Table */}
-            <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-                <table className="w-full text-left text-sm">
+            <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
                     <thead className="bg-white/[0.02] border-b border-white/[0.06]">
                         <tr>
                             <th className="px-6 py-4 font-medium text-white/40">Fecha</th>
@@ -384,12 +384,12 @@ export function AccountingExpensesView({
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setIsModalOpen(false)}
                     />
-                    <div className="relative bg-[#1a1a1a] rounded-xl shadow-2xl w-full max-w-lg p-6 border border-white/10 max-h-[90vh] overflow-y-auto">
+                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-lg p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl sm:max-h-[90vh] overflow-y-auto">
                         <h2 className="text-xl font-bold text-white mb-6">
                             {editingExpense ? 'Editar Gasto' : 'Nuevo Gasto'}
                         </h2>
