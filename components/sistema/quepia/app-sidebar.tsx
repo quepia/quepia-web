@@ -213,7 +213,7 @@ export function AppSidebar({
 
 
 
-    const menuItems = [
+    const menuItems: { id: string; icon: typeof LayoutDashboard; label: string; isAdmin?: boolean }[] = [
         { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
         { id: "search", icon: Search, label: "Buscar" },
         { id: "inbox", icon: Inbox, label: "Inbox" },
