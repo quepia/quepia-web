@@ -13,6 +13,7 @@ import {
     Minimize2,
     Columns2,
     GitCompare,
+    Download,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 // Use the wrapper to avoid SSR issues
@@ -196,6 +197,22 @@ export function AssetDetailModal({
                                 </>
                             )}
                             <button
+                                onClick={() => {
+                                    const link = document.createElement("a")
+                                    link.href = activeVersion.file_url
+                                    link.download = activeVersion.original_filename || asset.nombre
+                                    link.target = "_blank"
+                                    document.body.appendChild(link)
+                                    link.click()
+                                    document.body.removeChild(link)
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors border border-white/10 text-xs"
+                                title="Descargar"
+                            >
+                                <Download className="w-3.5 h-3.5" />
+                                Descargar
+                            </button>
+                            <button
                                 onClick={() => setShowSidebar(!showSidebar)}
                                 className="p-2 bg-black/50 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors border border-white/10"
                                 title={showSidebar ? "Ocultar panel" : "Ver panel"}
@@ -207,13 +224,17 @@ export function AssetDetailModal({
 
                     <div className="flex-1 w-full h-full relative bg-black flex items-center justify-center">
                         {(() => {
-                            const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].some(ext => activeVersion.file_url.toLowerCase().includes(ext))
-                            const isGoogleDrive = activeVersion.file_url.includes("drive.google.com") || activeVersion.file_url.includes("docs.google.com")
+                            const originalUrl = activeVersion.file_url
+                            const previewUrl = activeVersion.preview_url || activeVersion.file_url
+                            const ext = (activeVersion.original_filename || originalUrl).split('.').pop()?.toLowerCase() || ''
+                            const isImage = (activeVersion.file_type || '').startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)
+                            const isVideo = (activeVersion.file_type || '').startsWith('video/') || ['mp4', 'mov', 'webm', 'ogg'].includes(ext)
+                            const isGoogleDrive = originalUrl.includes("drive.google.com") || originalUrl.includes("docs.google.com")
 
                             if (isImage) {
                                 return (
                                     <AnnotationCanvasWrapper
-                                        imageUrl={activeVersion.file_url}
+                                        imageUrl={previewUrl}
                                         annotations={annotations}
                                         onAddAnnotation={handleAddAnnotationClick}
                                         onSelectAnnotation={(ann) => {
@@ -225,14 +246,26 @@ export function AssetDetailModal({
                                 )
                             }
 
+                            if (isVideo) {
+                                return (
+                                    <video
+                                        src={previewUrl}
+                                        poster={activeVersion.thumbnail_url || undefined}
+                                        controls
+                                        playsInline
+                                        className="w-full h-full object-contain bg-black"
+                                    />
+                                )
+                            }
+
                             if (isGoogleDrive) {
                                 // Extract ID and construct preview URL
-                                let embedUrl = activeVersion.file_url
-                                const idMatch = activeVersion.file_url.match(/\/d\/([a-zA-Z0-9_-]+)/)
+                                let embedUrl = originalUrl
+                                const idMatch = originalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)
                                 if (idMatch && idMatch[1]) {
                                     embedUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview`
-                                } else if (activeVersion.file_url.includes("view")) {
-                                    embedUrl = activeVersion.file_url.replace(/\/view.*/, "/preview")
+                                } else if (originalUrl.includes("view")) {
+                                    embedUrl = originalUrl.replace(/\/view.*/, "/preview")
                                 }
 
                                 return (
@@ -243,9 +276,6 @@ export function AssetDetailModal({
                                             allow="autoplay; fullscreen"
                                             title="Asset Preview"
                                         />
-                                        {/* Overlay to allow capturing clicks for general annotations if needed, 
-                                            but generally video annotations are complex. 
-                                            For now, we just show the content as requested. */}
                                     </div>
                                 )
                             }
@@ -254,7 +284,7 @@ export function AssetDetailModal({
                                 <div className="w-full h-full flex items-center justify-center flex-col gap-4">
                                     <p className="text-white/50">Vista previa no disponible para este formato</p>
                                     <a
-                                        href={activeVersion.file_url}
+                                        href={originalUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-quepia-cyan hover:underline"

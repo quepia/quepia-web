@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo, useEffect, useRef } from "react"
 import {
     Plus,
     MoreHorizontal,
@@ -17,6 +17,8 @@ import {
     LayoutGrid,
     GitBranch,
     CornerDownRight,
+    CloudUpload,
+    Paperclip,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useTasks, useColumns } from "@/lib/sistema/hooks"
@@ -25,6 +27,7 @@ import { PRIORITY_COLORS, PRIORITY_LABELS, Priority, TASK_TYPE_LABELS, TASK_TYPE
 import { TaskContextMenu } from "@/components/sistema/quepia/task-context-menu"
 import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
 import { ProjectResources } from "@/components/sistema/quepia/project-resources"
+import { uploadAssetFile, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 
 // Re-export types for backward compatibility
 export type { Task, ColumnWithTasks as ColumnType }
@@ -34,9 +37,10 @@ interface KanbanBoardProps {
     projectName: string
     onTaskClick?: (task: Task) => void
     onRefreshRef?: React.MutableRefObject<(() => void) | null>
+    userId?: string
 }
 
-export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef }: KanbanBoardProps) {
+export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef, userId }: KanbanBoardProps) {
     const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, silentRefresh } = useTasks(projectId)
 
     // Expose silentRefresh to parent via ref
@@ -314,6 +318,8 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef 
                             }}
                             editingTaskId={editingTaskId}
                             onSetEditingTaskId={setEditingTaskId}
+                            userId={userId}
+                            onAssetsUploaded={() => silentRefresh()}
                         />
                     ))}
 
@@ -406,6 +412,8 @@ interface KanbanColumnProps {
     onUpdateColumnWip?: (columnId: string, wipLimit: number | null) => void
     editingTaskId: string | null
     onSetEditingTaskId: (taskId: string | null) => void
+    userId?: string
+    onAssetsUploaded?: () => void
 }
 
 function KanbanColumn({
@@ -438,7 +446,9 @@ function KanbanColumn({
     draggedTaskId,
     onUpdateColumnWip,
     editingTaskId,
-    onSetEditingTaskId
+    onSetEditingTaskId,
+    userId,
+    onAssetsUploaded: onAssetsUploadedProp,
 }: KanbanColumnProps) {
     const [showMenu, setShowMenu] = useState(false)
     const [editingWip, setEditingWip] = useState(false)
@@ -675,6 +685,8 @@ function KanbanColumn({
                                     isDragging={draggedTaskId === task.id}
                                     onToggleComplete={onToggleComplete}
                                     isEditing={editingTaskId === task.id}
+                                    userId={userId}
+                                    onAssetsUploaded={onAssetsUploadedProp}
                                     onSaveEdit={async (updates) => {
                                         await onUpdateTask(task.id, updates)
                                         onSetEditingTaskId(null)
@@ -746,6 +758,8 @@ interface TaskCardProps {
     isEditing?: boolean
     onSaveEdit?: (updates: Partial<Task>) => void
     onCancelEdit?: () => void
+    userId?: string
+    onAssetsUploaded?: () => void
 }
 
 const TaskCard = React.memo(function TaskCard({
@@ -762,11 +776,16 @@ const TaskCard = React.memo(function TaskCard({
     onToggleComplete,
     isEditing,
     onSaveEdit,
-    onCancelEdit
+    onCancelEdit,
+    userId,
+    onAssetsUploaded
 }: TaskCardProps) {
     const [editTitle, setEditTitle] = useState(task.titulo)
     const [editPriority, setEditPriority] = useState<Priority>(task.priority || "P4")
     const [editDueDate, setEditDueDate] = useState(task.due_date || "")
+    const [uploadQueue, setUploadQueue] = useState<UploadProgressUpdate[]>([])
+    const [isFileDragOver, setIsFileDragOver] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Reset state when entering edit mode
     if (isEditing && editTitle === task.titulo && editTitle === "") {
@@ -789,6 +808,44 @@ const TaskCard = React.memo(function TaskCard({
         setEditTitle(task.titulo)
         setEditPriority(task.priority || "P4")
         setEditDueDate(task.due_date || "")
+    }
+
+    const updateUploadQueue = (update: UploadProgressUpdate) => {
+        setUploadQueue((prev) => {
+            const idx = prev.findIndex((u) => u.id === update.id)
+            if (idx === -1) return [...prev, update]
+            const next = [...prev]
+            next[idx] = { ...next[idx], ...update }
+            return next
+        })
+    }
+
+    const handleFilesUpload = async (files: FileList | File[]) => {
+        if (!userId) return
+        const list = Array.from(files || [])
+        if (list.length === 0) return
+
+        for (const file of list) {
+            try {
+                await uploadAssetFile({
+                    file,
+                    taskId: task.id,
+                    projectId: task.project_id,
+                    userId,
+                    onProgress: updateUploadQueue,
+                })
+            } catch (err: any) {
+                updateUploadQueue({
+                    id: `${file.name}-${Date.now()}`,
+                    fileName: file.name,
+                    percent: 0,
+                    stage: "error",
+                    message: err?.message || "Error subiendo archivo",
+                })
+            }
+        }
+
+        onAssetsUploaded?.()
     }
 
     const priorityColor = PRIORITY_COLORS[task.priority as Priority] || PRIORITY_COLORS["P4"]
@@ -874,6 +931,7 @@ const TaskCard = React.memo(function TaskCard({
 
     // Check if this task has a parent (was converted from subtask)
     const isChildTask = !!task.parent_task_id
+    const assetThumbs = (task.assets || []).map(a => a.thumbnail_url).filter(Boolean).slice(0, 3) as string[]
 
     return (
         <div
@@ -881,6 +939,25 @@ const TaskCard = React.memo(function TaskCard({
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onClick={onClick}
+            onDragOver={(e) => {
+                if (!userId) return
+                const hasFiles = Array.from(e.dataTransfer?.types || []).includes("Files")
+                if (hasFiles) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setIsFileDragOver(true)
+                }
+            }}
+            onDragLeave={() => setIsFileDragOver(false)}
+            onDrop={(e) => {
+                if (!userId) return
+                const hasFiles = Array.from(e.dataTransfer?.types || []).includes("Files")
+                if (!hasFiles) return
+                e.preventDefault()
+                e.stopPropagation()
+                setIsFileDragOver(false)
+                handleFilesUpload(e.dataTransfer.files)
+            }}
             className={cn(
                 "relative text-left bg-[#161616] hover:bg-[#1a1a1a] border border-white/[0.04] hover:border-white/[0.08] rounded-lg p-3 transition-all cursor-pointer group overflow-hidden",
                 isDragging && "opacity-50 scale-95 shadow-xl ring-1 ring-quepia-cyan/50",
@@ -892,9 +969,29 @@ const TaskCard = React.memo(function TaskCard({
                     "shadow-sm"
                 ],
                 // Parent task with children styling
-                !isChild && isChildTask && "border-l-2 border-l-quepia-cyan/30"
+                !isChild && isChildTask && "border-l-2 border-l-quepia-cyan/30",
+                isFileDragOver && "border-quepia-cyan/60 bg-quepia-cyan/10"
             )}
         >
+            {isFileDragOver && (
+                <div className="absolute inset-0 border-2 border-dashed border-quepia-cyan/60 bg-black/40 flex items-center justify-center z-10 pointer-events-none">
+                    <div className="flex items-center gap-2 text-[11px] text-white/80">
+                        <CloudUpload className="h-4 w-4 text-quepia-cyan" />
+                        Soltá para subir assets
+                    </div>
+                </div>
+            )}
+
+            <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
+                className="hidden"
+                onChange={(e) => {
+                    if (e.target.files) handleFilesUpload(e.target.files)
+                }}
+            />
             {/* Tree-style connector for child tasks */}
             {isChild && (
                 <div className="absolute -left-[32px] top-0 bottom-0 w-8 pointer-events-none">
@@ -1043,6 +1140,95 @@ const TaskCard = React.memo(function TaskCard({
                             </span>
                         )}
                     </div>
+
+                    {/* Assets Summary + Upload */}
+                    {Array.isArray(task.assets) && task.assets.length > 0 && (() => {
+                        const carouselCount = new Set(task.assets!.filter(a => a.asset_type === 'carousel' && a.group_id).map(a => a.group_id)).size
+                        const reelCount = task.assets!.filter(a => a.asset_type === 'reel').length
+                        const singleCount = task.assets!.filter(a => !a.asset_type || a.asset_type === 'single').length
+                        return (
+                            <div className="mt-2 flex items-center gap-3 text-[10px] text-white/40 flex-wrap">
+                                {assetThumbs.length > 0 && (
+                                    <div className="flex items-center -space-x-1">
+                                        {assetThumbs.map((url, idx) => (
+                                            <div key={`${url}-${idx}`} className="w-5 h-5 rounded-md border border-black/30 overflow-hidden bg-white/5">
+                                                <img src={url} alt="" className="w-full h-full object-cover" />
+                                            </div>
+                                        ))}
+                                        {task.assets!.length > assetThumbs.length && (
+                                            <span className="text-[9px] text-white/40 ml-2">+{task.assets!.length - assetThumbs.length}</span>
+                                        )}
+                                    </div>
+                                )}
+                                <span className="inline-flex items-center gap-1">
+                                    <Paperclip className="h-3 w-3 text-white/30" />
+                                    {task.assets!.length}
+                                </span>
+                                {carouselCount > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-purple-300/80 text-[9px]">
+                                        <LayoutGrid className="h-2.5 w-2.5" />
+                                        {carouselCount}
+                                    </span>
+                                )}
+                                {reelCount > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-pink-300/80 text-[9px]">
+                                        <GitBranch className="h-2.5 w-2.5" />
+                                        {reelCount}
+                                    </span>
+                                )}
+                                <span className="inline-flex items-center gap-1 text-emerald-400/80">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+                                    {task.assets!.filter(a => ['approved_internal', 'approved_final', 'published'].includes(a.approval_status)).length}
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-amber-400/80">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
+                                    {task.assets!.filter(a => a.approval_status === 'pending_review').length}
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-red-400/80">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400/80" />
+                                    {task.assets!.filter(a => a.approval_status === 'changes_requested').length}
+                                </span>
+                            </div>
+                        )
+                    })()}
+
+                    {userId && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                fileInputRef.current?.click()
+                            }}
+                            className="mt-2 inline-flex items-center gap-1 text-[10px] text-quepia-cyan hover:underline"
+                        >
+                            <CloudUpload className="h-3 w-3" />
+                            Subir assets
+                        </button>
+                    )}
+
+                    {uploadQueue.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                            {uploadQueue.slice(0, 2).map((u) => (
+                                <div key={u.id} className="bg-white/[0.03] border border-white/[0.06] rounded p-1.5">
+                                    <div className="flex items-center justify-between text-[10px] text-white/50 mb-1">
+                                        <span className="truncate max-w-[140px]">{u.fileName || u.id}</span>
+                                        <span>{u.stage === "error" ? "Error" : `${u.percent}%`}</span>
+                                    </div>
+                                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div
+                                            className={cn(
+                                                "h-full transition-all",
+                                                u.stage === "error" ? "bg-red-400/70" : "bg-quepia-cyan"
+                                            )}
+                                            style={{ width: `${Math.min(100, Math.max(0, u.percent))}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                            {uploadQueue.length > 2 && (
+                                <div className="text-[10px] text-white/30">+{uploadQueue.length - 2} más</div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Assignee Avatar */}

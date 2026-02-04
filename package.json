@@ -16,6 +16,7 @@
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "@types/three": "^0.182.0",
+    "archiver": "^7.0.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.27.1",
     "konva": "^10.2.0",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/archiver": "^6.0.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

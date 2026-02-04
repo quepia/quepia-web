@@ -12,7 +12,16 @@ import {
     Minimize2,
     ThumbsUp,
     ThumbsDown,
-    Star
+    Star,
+    Download,
+    ChevronLeft,
+    ChevronRight,
+    Copy,
+    Check,
+    FileText,
+    Hash,
+    Layers,
+    Film,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import AnnotationCanvasWrapper from "./annotation-canvas-wrapper"
@@ -31,16 +40,30 @@ export interface ClientAsset {
     id: string
     nombre: string
     approval_status: ApprovalStatus
+    asset_type?: 'single' | 'carousel' | 'reel'
+    group_id?: string | null
+    group_order?: number
     client_rating?: number
     current_version_id: string
     file_url: string
+    thumbnail_url?: string | null
+    preview_url?: string | null
     file_type: string | null
+    file_size?: number | null
+    original_filename?: string | null
     version_number: number
     annotations: Annotation[]
+    access_revoked?: boolean
 }
 
 interface ClientAssetViewerProps {
     asset: ClientAsset
+    assets?: ClientAsset[]
+    currentIndex?: number
+    onNavigate?: (index: number) => void
+    taskTitle?: string
+    socialCopy?: string | null
+    taskId?: string
     isOpen: boolean
     onClose: () => void
     token: string
@@ -50,15 +73,22 @@ interface ClientAssetViewerProps {
 
 export function ClientAssetViewer({
     asset,
+    assets,
+    currentIndex = 0,
+    onNavigate,
+    taskTitle,
+    socialCopy,
+    taskId,
     isOpen,
     onClose,
     token,
     clientName,
     onUpdate
 }: ClientAssetViewerProps) {
-    const [annotations, setAnnotations] = useState<Annotation[]>(asset.annotations || [])
-    const [localStatus, setLocalStatus] = useState<ApprovalStatus>(asset.approval_status)
-    const [localRating, setLocalRating] = useState<number | undefined>(asset.client_rating)
+    const activeAsset = assets && assets.length > 0 ? assets[currentIndex] : asset
+    const [annotations, setAnnotations] = useState<Annotation[]>(activeAsset.annotations || [])
+    const [localStatus, setLocalStatus] = useState<ApprovalStatus>(activeAsset.approval_status)
+    const [localRating, setLocalRating] = useState<number | undefined>(activeAsset.client_rating)
 
     // New annotation state
     const [pendingAnnotation, setPendingAnnotation] = useState<{ x: number, y: number } | null>(null)
@@ -72,20 +102,25 @@ export function ClientAssetViewer({
 
     // UI state
     const [showSidebar, setShowSidebar] = useState(true)
+    const [copied, setCopied] = useState<"all" | "copy" | "hashtags" | null>(null)
+    const [touchStartX, setTouchStartX] = useState<number | null>(null)
 
     useEffect(() => {
-        setAnnotations(asset.annotations || [])
-        setLocalStatus(asset.approval_status)
-        setLocalRating(asset.client_rating)
-    }, [asset])
+        setAnnotations(activeAsset.annotations || [])
+        setLocalStatus(activeAsset.approval_status)
+        setLocalRating(activeAsset.client_rating)
+    }, [activeAsset])
 
     useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose()
-        }
-        if (isOpen) window.addEventListener("keydown", handleEsc)
-        return () => window.removeEventListener("keydown", handleEsc)
-    }, [isOpen, onClose])
+        if (!isOpen) return
+        fetch("/api/assets/log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, versionId: activeAsset.current_version_id })
+        }).catch(() => {
+            // silent
+        })
+    }, [isOpen, activeAsset.current_version_id, token])
 
     const handleAddAnnotationClick = (x: number, y: number) => {
         setPendingAnnotation({ x, y })
@@ -106,7 +141,7 @@ export function ClientAssetViewer({
         try {
             const res = await addPublicAnnotation(
                 token,
-                asset.current_version_id,
+                activeAsset.current_version_id,
                 feedbackContent.trim(),
                 pendingAnnotation.x,
                 pendingAnnotation.y,
@@ -118,7 +153,7 @@ export function ClientAssetViewer({
                 // Optimistic update: add annotation to local state immediately
                 const newAnnotation: Annotation = {
                     id: res.data.id,
-                    asset_version_id: asset.current_version_id,
+                    asset_version_id: activeAsset.current_version_id,
                     author_id: null,
                     author_name: clientName,
                     x_percent: pendingAnnotation.x,
@@ -155,7 +190,7 @@ export function ClientAssetViewer({
         const previousStatus = localStatus
         setLocalStatus(status) // Optimistic update
         try {
-            const res = await updatePublicAssetStatus(token, asset.id, status)
+            const res = await updatePublicAssetStatus(token, activeAsset.id, status)
             if (res.success) {
                 onUpdate()
             } else {
@@ -178,7 +213,7 @@ export function ClientAssetViewer({
         const previousRating = localRating
         setLocalRating(rating) // Optimistic update
         try {
-            const res = await updatePublicAssetStatus(token, asset.id, localStatus, rating)
+            const res = await updatePublicAssetStatus(token, activeAsset.id, localStatus, rating)
             if (res.success) {
                 onUpdate()
             } else {
@@ -195,6 +230,87 @@ export function ClientAssetViewer({
         }
     }
 
+    const hasMultiple = !!assets && assets.length > 1
+    const canPrev = hasMultiple && currentIndex > 0
+    const canNext = hasMultiple && currentIndex < (assets?.length || 0) - 1
+
+    // Carousel group context
+    const isCarouselItem = activeAsset.asset_type === 'carousel' && !!activeAsset.group_id
+    const carouselGroup = isCarouselItem && assets
+        ? assets
+            .map((a, i) => ({ asset: a, globalIndex: i }))
+            .filter(({ asset }) => asset.group_id === activeAsset.group_id)
+            .sort((a, b) => (a.asset.group_order ?? 0) - (b.asset.group_order ?? 0))
+        : null
+    const carouselIndex = carouselGroup
+        ? carouselGroup.findIndex(({ asset }) => asset.id === activeAsset.id)
+        : -1
+
+    const handlePrev = () => {
+        if (!onNavigate || !canPrev) return
+        onNavigate(currentIndex - 1)
+    }
+
+    const handleNext = () => {
+        if (!onNavigate || !canNext) return
+        onNavigate(currentIndex + 1)
+    }
+
+    useEffect(() => {
+        const handleKeys = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose()
+            if (e.key === "ArrowLeft") handlePrev()
+            if (e.key === "ArrowRight") handleNext()
+        }
+        if (isOpen) window.addEventListener("keydown", handleKeys)
+        return () => window.removeEventListener("keydown", handleKeys)
+    }, [isOpen, onClose, currentIndex, canPrev, canNext])
+
+    const handleDownload = async () => {
+        const res = await fetch("/api/assets/download", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, versionId: activeAsset.current_version_id })
+        })
+        const data = await res.json()
+        if (data?.url) {
+            const link = document.createElement("a")
+            link.href = data.url
+            link.download = activeAsset.original_filename || activeAsset.nombre
+            link.target = "_blank"
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        }
+    }
+
+    const handleCopy = (type: "all" | "copy" | "hashtags") => {
+        const full = socialCopy || ""
+        const tags = (full.match(/#\\w+/g) || []).join(" ")
+        const onlyCopy = full.replace(/#\\w+/g, "").replace(/\\s+/g, " ").trim()
+
+        const text = type === "hashtags" ? tags : type === "copy" ? onlyCopy : full
+        if (!text) return
+
+        navigator.clipboard.writeText(text)
+        setCopied(type)
+        setTimeout(() => setCopied(null), 1500)
+    }
+
+    const formatFileSize = (bytes?: number | null) => {
+        if (!bytes) return "—"
+        const units = ["B", "KB", "MB", "GB"]
+        let size = bytes
+        let idx = 0
+        while (size >= 1024 && idx < units.length - 1) {
+            size /= 1024
+            idx++
+        }
+        return `${size.toFixed(size >= 10 || idx === 0 ? 0 : 1)} ${units[idx]}`
+    }
+
+    const hashtags = (socialCopy || "").match(/#\w+/g) || []
+
     // Mounted check for portal
     const [mounted, setMounted] = useState(false)
     useEffect(() => {
@@ -203,12 +319,15 @@ export function ClientAssetViewer({
 
     if (!isOpen || !mounted) return null
 
-    // Drive Link Logic
-    const fileUrl = asset.file_url || ""
-    const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].some(ext => fileUrl.toLowerCase().includes(ext))
-    const isGoogleDrive = fileUrl.includes("drive.google.com") || fileUrl.includes("docs.google.com")
+    // File Logic
+    const originalUrl = activeAsset.file_url || ""
+    const fileUrl = activeAsset.preview_url || activeAsset.file_url || ""
+    const fileExt = (activeAsset.original_filename || originalUrl).split(".").pop()?.toLowerCase() || ""
+    const isImage = (activeAsset.file_type || "").startsWith("image/") || ["jpg", "jpeg", "png", "webp", "gif"].includes(fileExt)
+    const isVideo = (activeAsset.file_type || "").startsWith("video/") || ["mp4", "mov", "webm", "ogg"].includes(fileExt)
+    const isGoogleDrive = originalUrl.includes("drive.google.com") || originalUrl.includes("docs.google.com")
 
-    let embedUrl = fileUrl
+    let embedUrl = originalUrl
     if (isGoogleDrive) {
         const idMatch = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)
         if (idMatch && idMatch[1]) {
@@ -219,7 +338,18 @@ export function ClientAssetViewer({
     }
 
     const viewerContent = (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm">
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm"
+            onTouchStart={(e) => setTouchStartX(e.touches[0]?.clientX ?? null)}
+            onTouchEnd={(e) => {
+                if (touchStartX === null) return
+                const endX = e.changedTouches[0]?.clientX ?? touchStartX
+                const delta = endX - touchStartX
+                if (delta > 60) handlePrev()
+                if (delta < -60) handleNext()
+                setTouchStartX(null)
+            }}
+        >
             <div className="relative w-full h-full flex flex-col md:flex-row overflow-hidden">
 
                 {/* Main Canvas Area */}
@@ -231,7 +361,24 @@ export function ClientAssetViewer({
                                 <X className="w-5 h-5" />
                             </button>
                             <div>
-                                <h2 className="text-white font-medium text-lg drop-shadow-md">{asset.nombre}</h2>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-white font-medium text-lg drop-shadow-md">{activeAsset.nombre}</h2>
+                                    {isCarouselItem && (
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold flex items-center gap-1">
+                                            <Layers className="h-3 w-3" />
+                                            {(carouselIndex ?? 0) + 1}/{carouselGroup?.length || 0}
+                                        </span>
+                                    )}
+                                    {activeAsset.asset_type === 'reel' && (
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold flex items-center gap-1">
+                                            <Film className="h-3 w-3" />
+                                            Reel
+                                        </span>
+                                    )}
+                                </div>
+                                {taskTitle && (
+                                    <p className="text-[11px] text-white/40">{taskTitle}</p>
+                                )}
                                 <div className="flex items-center gap-2">
                                     <span
                                         className="text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors"
@@ -247,6 +394,39 @@ export function ClientAssetViewer({
                         </div>
 
                         <div className="pointer-events-auto flex items-center gap-2">
+                            {hasMultiple && (
+                                <div className="flex items-center gap-1 bg-black/50 rounded-lg p-1 border border-white/10 mr-2">
+                                    <button
+                                        onClick={handlePrev}
+                                        disabled={!canPrev}
+                                        className={cn(
+                                            "p-1 rounded hover:bg-white/10 transition-colors",
+                                            canPrev ? "text-white/70" : "text-white/20"
+                                        )}
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={handleNext}
+                                        disabled={!canNext}
+                                        className={cn(
+                                            "p-1 rounded hover:bg-white/10 transition-colors",
+                                            canNext ? "text-white/70" : "text-white/20"
+                                        )}
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleDownload}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-black/50 text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                            >
+                                <Download className="w-3.5 h-3.5" />
+                                Descargar
+                            </button>
+
                             {/* Rating */}
                             <div className="flex items-center gap-0.5 bg-black/50 rounded-lg p-1 border border-white/10 mr-2">
                                 {[1, 2, 3, 4, 5].map((star) => (
@@ -304,50 +484,90 @@ export function ClientAssetViewer({
                     </div>
 
                     {/* Canvas */}
-                    <div className="flex-1 w-full h-full relative bg-black flex items-center justify-center">
-                        {(() => {
-                            if (isImage) {
-                                return (
-                                    <AnnotationCanvasWrapper
-                                        imageUrl={fileUrl}
-                                        annotations={annotations}
-                                        onAddAnnotation={handleAddAnnotationClick}
-                                        onSelectAnnotation={(ann) => {
-                                            setSelectedAnnotationId(ann.id)
-                                            if (!showSidebar) setShowSidebar(true)
-                                        }}
-                                        selectedAnnotationId={selectedAnnotationId}
-                                    />
-                                )
-                            }
-
-                            if (isGoogleDrive) {
-                                return (
-                                    <div className="w-full h-full">
-                                        <iframe
-                                            src={embedUrl}
-                                            className="w-full h-full border-0"
-                                            allow="autoplay; fullscreen"
-                                            title="Asset Preview"
+                    <div className="flex-1 w-full h-full relative bg-black flex flex-col">
+                        <div className="flex-1 relative flex items-center justify-center">
+                            {(() => {
+                                if (isImage) {
+                                    return (
+                                        <AnnotationCanvasWrapper
+                                            imageUrl={fileUrl}
+                                            annotations={annotations}
+                                            onAddAnnotation={handleAddAnnotationClick}
+                                            onSelectAnnotation={(ann) => {
+                                                setSelectedAnnotationId(ann.id)
+                                                if (!showSidebar) setShowSidebar(true)
+                                            }}
+                                            selectedAnnotationId={selectedAnnotationId}
                                         />
+                                    )
+                                }
+
+                                if (isVideo) {
+                                    return (
+                                        <video
+                                            src={activeAsset.preview_url || originalUrl}
+                                            poster={activeAsset.thumbnail_url || undefined}
+                                            controls
+                                            playsInline
+                                            className="w-full h-full object-contain bg-black"
+                                        />
+                                    )
+                                }
+
+                                if (isGoogleDrive) {
+                                    return (
+                                        <div className="w-full h-full">
+                                            <iframe
+                                                src={embedUrl}
+                                                className="w-full h-full border-0"
+                                                allow="autoplay; fullscreen"
+                                                title="Asset Preview"
+                                            />
+                                        </div>
+                                    )
+                                }
+
+                                return (
+                                    <div className="w-full h-full flex items-center justify-center flex-col gap-4">
+                                        <p className="text-white/50">Vista previa no disponible para este formato</p>
+                                        <a
+                                            href={originalUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-quepia-cyan hover:underline"
+                                        >
+                                            Abrir archivo original
+                                        </a>
                                     </div>
                                 )
-                            }
+                            })()}
+                        </div>
 
-                            return (
-                                <div className="w-full h-full flex items-center justify-center flex-col gap-4">
-                                    <p className="text-white/50">Vista previa no disponible para este formato</p>
-                                    <a
-                                        href={fileUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-quepia-cyan hover:underline"
-                                    >
-                                        Abrir archivo original
-                                    </a>
+                        {/* Carousel thumbnail strip */}
+                        {isCarouselItem && carouselGroup && carouselGroup.length > 1 && (
+                            <div className="flex-shrink-0 bg-black/80 border-t border-white/10 px-4 py-2">
+                                <div className="flex gap-2 overflow-x-auto scrollbar-thin justify-center">
+                                    {carouselGroup.map(({ asset: slide, globalIndex }, idx) => {
+                                        const thumbSrc = slide.thumbnail_url || slide.preview_url || slide.file_url
+                                        const isCurrent = slide.id === activeAsset.id
+                                        return (
+                                            <button
+                                                key={slide.id}
+                                                onClick={() => onNavigate?.(globalIndex)}
+                                                className={cn(
+                                                    "shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all",
+                                                    isCurrent
+                                                        ? "border-quepia-cyan scale-105 ring-1 ring-quepia-cyan/30"
+                                                        : "border-white/10 opacity-60 hover:opacity-100"
+                                                )}
+                                            >
+                                                <img src={thumbSrc} alt="" className="w-full h-full object-cover" />
+                                            </button>
+                                        )
+                                    })}
                                 </div>
-                            )
-                        })()}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -370,6 +590,55 @@ export function ClientAssetViewer({
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                            {/* Copy / File Info */}
+                            <div className="space-y-3">
+                                {socialCopy && (
+                                    <div className="bg-white/[0.03] border border-white/[0.08] rounded-lg p-3">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] uppercase tracking-wider text-white/40 flex items-center gap-1">
+                                                <FileText className="h-3 w-3 text-quepia-cyan" />
+                                                Copy para publicación
+                                            </span>
+                                            <button
+                                                onClick={() => handleCopy("all")}
+                                                className="text-[10px] text-white/50 hover:text-quepia-cyan flex items-center gap-1"
+                                            >
+                                                {copied === "all" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                Copiar todo
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
+                                            {socialCopy}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 mt-3">
+                                            <button
+                                                onClick={() => handleCopy("copy")}
+                                                className="text-[10px] px-2 py-1 rounded bg-white/5 border border-white/10 text-white/60 hover:text-white"
+                                            >
+                                                Copiar solo texto
+                                            </button>
+                                            {hashtags.length > 0 && (
+                                                <button
+                                                    onClick={() => handleCopy("hashtags")}
+                                                    className="text-[10px] px-2 py-1 rounded bg-white/5 border border-white/10 text-white/60 hover:text-white flex items-center gap-1"
+                                                >
+                                                    <Hash className="h-3 w-3" />
+                                                    Copiar hashtags
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-3">
+                                    <div className="text-[10px] uppercase tracking-wider text-white/30 mb-1">Archivo</div>
+                                    <p className="text-xs text-white/70 truncate">{activeAsset.original_filename || activeAsset.nombre}</p>
+                                    <div className="text-[10px] text-white/40 mt-1">
+                                        {formatFileSize(activeAsset.file_size)} · {activeAsset.file_type?.toUpperCase() || "FILE"}
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Creation Form */}
                             {pendingAnnotation && (
                                 <div className="bg-white/[0.05] border border-quepia-cyan/50 rounded-lg p-3 animate-in slide-in-from-right-2 fade-in duration-200">

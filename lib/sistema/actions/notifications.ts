@@ -170,3 +170,77 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
         return { success: false, error: 'Internal server error' }
     }
 }
+
+export async function notifyClientAssetStatus(token: string, assetId: string, status: string) {
+    try {
+        const supabase = await createClient()
+
+        // Resolve project from token (V1 or V2)
+        let clientAccess: { project_id: string; nombre: string } | null = null
+
+        const { data: v1Access } = await supabase
+            .from('sistema_client_access')
+            .select('project_id, nombre')
+            .eq('access_token', token)
+            .single()
+
+        if (v1Access) {
+            clientAccess = v1Access
+        } else if (token.length === 36) {
+            const { data: session } = await supabase
+                .from('sistema_client_sessions')
+                .select('client_access_id')
+                .eq('id', token)
+                .single()
+
+            if (session?.client_access_id) {
+                const { data: v2Access } = await supabase
+                    .from('sistema_client_access')
+                    .select('project_id, nombre')
+                    .eq('id', session.client_access_id)
+                    .single()
+
+                if (v2Access) clientAccess = v2Access
+            }
+        }
+
+        if (!clientAccess) return { success: false, error: 'Invalid token' }
+
+        const { data: asset } = await supabase
+            .from('sistema_assets')
+            .select('id, nombre, task_id')
+            .eq('id', assetId)
+            .single()
+
+        if (!asset) return { success: false, error: 'Asset not found' }
+
+        const { data: members } = await supabase
+            .from('sistema_project_members')
+            .select('user_id')
+            .eq('project_id', clientAccess.project_id)
+
+        const recipientIds = members?.map(m => m.user_id) || []
+
+        const statusLabel = status === 'approved_final'
+            ? 'Aprobado'
+            : status === 'changes_requested'
+                ? 'Cambios solicitados'
+                : 'Estado actualizado'
+
+        await Promise.all(recipientIds.map(userId =>
+            notifyUser({
+                userId,
+                type: 'status_change',
+                title: `Cliente: ${statusLabel}`,
+                content: `${clientAccess?.nombre || 'Cliente'} marcó "${asset.nombre}" como ${statusLabel.toLowerCase()}.`,
+                link: `/sistema?taskId=${asset.task_id}`,
+                data: { projectId: clientAccess.project_id, assetId: asset.id, status }
+            })
+        ))
+
+        return { success: true }
+    } catch (error) {
+        console.error('Error notifying asset status:', error)
+        return { success: false, error: 'Internal server error' }
+    }
+}

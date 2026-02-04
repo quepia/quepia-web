@@ -40,6 +40,7 @@ interface PendingAsset {
   }
   versions?: {
     file_url: string
+    thumbnail_url?: string | null
   }[]
 }
 
@@ -349,7 +350,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
                   {asset.versions?.[0]?.file_url && /\.(jpg|jpeg|png|gif|webp|svg|avif)(\?.*)?$/i.test(asset.versions[0].file_url) ? (
                     <div className="w-10 h-10 rounded bg-white/5 overflow-hidden shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={asset.versions[0].file_url} className="w-full h-full object-cover" alt={asset.nombre} />
+                      <img src={asset.versions[0].thumbnail_url || asset.versions[0].file_url} className="w-full h-full object-cover" alt={asset.nombre} />
                     </div>
                   ) : (
                     <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center shrink-0">

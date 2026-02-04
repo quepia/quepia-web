@@ -26,7 +26,9 @@ export default function AnnotationCanvas({
     const [image] = useImage(imageUrl, "anonymous")
     const containerRef = useRef<HTMLDivElement>(null)
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
-    const [scale, setScale] = useState(1)
+    const [zoom, setZoom] = useState(1)
+    const [stagePos, setStagePos] = useState({ x: 0, y: 0 })
+    const lastDistRef = useRef<number | null>(null)
 
     // Use ResizeObserver to handle responsive container sizing
     useEffect(() => {
@@ -42,20 +44,19 @@ export default function AnnotationCanvas({
             const imageRatio = image.width / image.height
             const containerRatio = containerWidth / containerHeight
 
-            let finalWidth, finalHeight, newScale
+            let finalWidth, finalHeight
 
             if (containerRatio > imageRatio) {
                 finalHeight = containerHeight
                 finalWidth = finalHeight * imageRatio
-                newScale = finalHeight / image.height
             } else {
                 finalWidth = containerWidth
                 finalHeight = finalWidth / imageRatio
-                newScale = finalWidth / image.width
             }
 
             setDimensions({ width: finalWidth, height: finalHeight })
-            setScale(newScale)
+            setZoom(1)
+            setStagePos({ x: 0, y: 0 })
         }
 
         updateSize()
@@ -71,22 +72,78 @@ export default function AnnotationCanvas({
             const imageRatio = image.width / image.height
             const containerRatio = containerWidth / containerHeight
 
-            let finalWidth, finalHeight, newScale
+            let finalWidth, finalHeight
 
             if (containerRatio > imageRatio) {
                 finalHeight = containerHeight
                 finalWidth = finalHeight * imageRatio
-                newScale = finalHeight / image.height
             } else {
                 finalWidth = containerWidth
                 finalHeight = finalWidth / imageRatio
-                newScale = finalWidth / image.width
             }
             setDimensions({ width: finalWidth, height: finalHeight })
-            setScale(newScale)
+            setZoom(1)
+            setStagePos({ x: 0, y: 0 })
         }
     }, [image])
 
+    const clampZoom = (value: number) => Math.max(1, Math.min(4, value))
+
+    const handleWheel = (e: any) => {
+        e.evt.preventDefault()
+        const stage = e.target.getStage()
+        if (!stage) return
+
+        const oldScale = zoom
+        const pointer = stage.getPointerPosition()
+        if (!pointer) return
+
+        const scaleBy = 1.08
+        const direction = e.evt.deltaY > 0 ? -1 : 1
+        const newScale = clampZoom(oldScale * (direction > 0 ? scaleBy : 1 / scaleBy))
+
+        const mousePointTo = {
+            x: (pointer.x - stagePos.x) / oldScale,
+            y: (pointer.y - stagePos.y) / oldScale,
+        }
+
+        const newPos = {
+            x: pointer.x - mousePointTo.x * newScale,
+            y: pointer.y - mousePointTo.y * newScale,
+        }
+
+        setZoom(newScale)
+        setStagePos(newPos)
+    }
+
+    const handleTouchStart = (e: any) => {
+        const touches = e.evt.touches
+        if (touches && touches.length === 2) {
+            const dx = touches[0].clientX - touches[1].clientX
+            const dy = touches[0].clientY - touches[1].clientY
+            lastDistRef.current = Math.sqrt(dx * dx + dy * dy)
+        }
+    }
+
+    const handleTouchMove = (e: any) => {
+        const touches = e.evt.touches
+        if (!touches || touches.length !== 2) return
+        e.evt.preventDefault()
+
+        const dx = touches[0].clientX - touches[1].clientX
+        const dy = touches[0].clientY - touches[1].clientY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const lastDist = lastDistRef.current
+        if (!lastDist) {
+            lastDistRef.current = dist
+            return
+        }
+
+        const scaleBy = dist / lastDist
+        const newScale = clampZoom(zoom * scaleBy)
+        setZoom(newScale)
+        lastDistRef.current = dist
+    }
 
     const handleClick = (e: any) => {
         if (readOnly || !onAddAnnotation || !image) return
@@ -98,12 +155,13 @@ export default function AnnotationCanvas({
         const pointerPosition = stage.getPointerPosition()
 
         if (pointerPosition) {
-            // Calculate percentage relative to the image logic
-            // We need to account that the Stage might be centered or offset?
-            // In this simple implementation, Stage equals image display size
+            const currentScale = stage.scaleX() || 1
+            const stagePosition = stage.position()
+            const x = (pointerPosition.x - stagePosition.x) / currentScale
+            const y = (pointerPosition.y - stagePosition.y) / currentScale
 
-            const xPercent = (pointerPosition.x / dimensions.width) * 100
-            const yPercent = (pointerPosition.y / dimensions.height) * 100
+            const xPercent = (x / dimensions.width) * 100
+            const yPercent = (y / dimensions.height) * 100
 
             onAddAnnotation(xPercent, yPercent)
         }
@@ -121,6 +179,15 @@ export default function AnnotationCanvas({
                 onClick={handleClick}
                 onTap={handleClick}
                 style={{ cursor: readOnly ? 'default' : 'crosshair' }}
+                scaleX={zoom}
+                scaleY={zoom}
+                x={stagePos.x}
+                y={stagePos.y}
+                draggable={zoom > 1}
+                onDragEnd={(e) => setStagePos(e.target.position())}
+                onWheel={handleWheel}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
             >
                 <Layer>
                     <KonvaImage

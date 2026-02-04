@@ -197,17 +197,65 @@ export function useTasks(projectId?: string) {
         .select(`
           *,
           assignee:sistema_users(id, nombre, avatar_url),
-          parent_task:sistema_tasks!parent_task_id(id, titulo)
+          parent_task:sistema_tasks!parent_task_id(id, titulo),
+          assets:sistema_assets(
+            id,
+            approval_status,
+            asset_type,
+            group_id,
+            group_order,
+            current_version,
+            versions:sistema_asset_versions(id, version_number, thumbnail_path, thumbnail_url, storage_path, file_url)
+          )
         `)
         .eq('project_id', projectId)
         .order('orden', { ascending: true });
 
       if (tasksError) throw tasksError;
 
+      // Build thumbnail signing map for latest asset previews
+      const thumbPaths: string[] = [];
+      const tasksWithThumbs = (tasksData || []).map((task: any) => {
+        const assets = (task.assets || []).map((asset: any) => {
+          const latest = (asset.versions || []).find((v: any) => v.version_number === asset.current_version) || asset.versions?.[0];
+          const path = latest?.thumbnail_path || latest?.thumbnail_url || latest?.storage_path || latest?.file_url || null;
+          if (path) thumbPaths.push(path);
+          return {
+            id: asset.id,
+            approval_status: asset.approval_status,
+            thumbnail_url: path || null,
+          };
+        });
+        return { ...task, assets };
+      });
+
+      let signedMap: Record<string, string | null> = {};
+      if (thumbPaths.length > 0) {
+        try {
+          const res = await fetch("/api/assets/sign", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paths: Array.from(new Set(thumbPaths)) }),
+          });
+          const data = await res.json();
+          signedMap = data?.urls || {};
+        } catch (err) {
+          console.warn("Error signing asset thumbnails:", err);
+        }
+      }
+
+      const hydratedTasks = tasksWithThumbs.map((task: any) => ({
+        ...task,
+        assets: (task.assets || []).map((asset: any) => ({
+          ...asset,
+          thumbnail_url: asset.thumbnail_url ? (signedMap[asset.thumbnail_url] || asset.thumbnail_url) : null,
+        })),
+      }));
+
       // Combine columns with their tasks
       const columnsWithTasks: ColumnWithTasks[] = (columnsData || []).map((column: Column) => ({
         ...column,
-        tasks: (tasksData || []).filter((task: Task) => task.column_id === column.id),
+        tasks: hydratedTasks.filter((task: Task) => task.column_id === column.id),
       }));
 
       setColumns(columnsWithTasks);

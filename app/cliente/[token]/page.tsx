@@ -113,6 +113,15 @@ export default function ClientViewPage() {
         }
     }, [token])
 
+    // Auto-refresh signed URLs while the client is browsing
+    useEffect(() => {
+        if (!token) return
+        const interval = setInterval(() => {
+            fetchData(true)
+        }, 1000 * 60 * 30) // every 30 minutes
+        return () => clearInterval(interval)
+    }, [token])
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">

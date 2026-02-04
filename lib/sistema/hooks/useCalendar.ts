@@ -10,7 +10,7 @@ import type {
   ClientAccessInsert,
   ClientAccessUpdate,
 } from '@/types/sistema';
-import { notifyClientFeedback } from '@/lib/sistema/actions/notifications';
+import { notifyClientFeedback, notifyClientAssetStatus } from '@/lib/sistema/actions/notifications';
 
 export function useCalendarEvents(projectId?: string) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -236,20 +236,10 @@ export function useClientAccess(projectId?: string) {
 // Public function to get client data (no auth required)
 export async function getPublicClientData(token: string) {
   try {
-    const supabase = createClient();
-    const { data, error } = await supabase.rpc('get_client_project_data', { token });
-
-    if (error) {
-      console.error('Supabase RPC Error:', error);
-      throw error;
-    }
-
-    // Check if data returned an error object itself (handled in RPC)
-    if (data && typeof data === 'object' && 'error' in data) {
-      console.error('RPC Logical Error:', data.error);
-      return { error: data.error };
-    }
-
+    const res = await fetch(`/api/client/data?token=${encodeURIComponent(token)}`, {
+      cache: 'no-store',
+    });
+    const data = await res.json();
     return data;
   } catch (err) {
     console.error('Error fetching public client data:', err);
@@ -275,6 +265,10 @@ export async function updatePublicAssetStatus(token: string, assetId: string, st
       console.error('Logic Error in updatePublicAssetStatus:', data.error);
       throw new Error(data.error);
     }
+
+    // Notify team members about client status change
+    await notifyClientAssetStatus(token, assetId, status);
+
     return { success: true, data };
   } catch (err: any) {
     console.error('Exception in updatePublicAssetStatus:', JSON.stringify(err, null, 2), err?.message, err?.code);
@@ -317,20 +311,10 @@ export async function addPublicAnnotation(token: string, assetVersionId: string,
 
 export async function getPublicClientDataV2(sessionToken: string) {
   try {
-    const supabase = createClient();
-    const { data, error } = await supabase.rpc('get_client_project_data_v2', { p_session_token: sessionToken });
-
-    if (error) {
-      console.error('Supabase RPC Error (V2) for token:', sessionToken);
-      console.error('Full Error Details:', JSON.stringify(error, null, 2));
-      throw error;
-    }
-
-    if (data && typeof data === 'object' && 'error' in data) {
-      console.error('RPC V2 Logic Error:', data.error);
-      return { error: data.error };
-    }
-
+    const res = await fetch(`/api/client/data?token=${encodeURIComponent(sessionToken)}`, {
+      cache: 'no-store',
+    });
+    const data = await res.json();
     return data;
   } catch (err) {
     console.error('Error fetching V2 client data:', err);

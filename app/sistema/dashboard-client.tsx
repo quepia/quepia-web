@@ -526,6 +526,7 @@ export default function DashboardPage() {
                     projectName={activeProject?.nombre || "Selecciona un proyecto"}
                     onTaskClick={handleTaskClick}
                     onRefreshRef={kanbanRefreshRef}
+                    userId={user?.id}
                 />
             )
         }

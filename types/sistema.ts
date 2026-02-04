@@ -141,6 +141,7 @@ export interface Task {
   type_metadata: Record<string, any> | null;
   parent_task_id: string | null;
   parent_task?: { id: string; titulo: string } | null;
+  assets?: { id: string; approval_status: ApprovalStatus; asset_type?: AssetType; group_id?: string | null; group_order?: number; thumbnail_url?: string | null }[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -633,6 +634,20 @@ export interface ClientAccessUpdate {
 }
 
 // ============ ASSETS & APPROVALS ============
+export type AssetType = 'single' | 'carousel' | 'reel';
+
+export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
+  single: 'Individual',
+  carousel: 'Carrusel',
+  reel: 'Reel',
+};
+
+export const ASSET_TYPE_ICONS: Record<AssetType, string> = {
+  single: 'image',
+  carousel: 'layers',
+  reel: 'film',
+};
+
 export type ApprovalStatus = 'pending_review' | 'changes_requested' | 'approved_internal' | 'approved_final' | 'published';
 
 export type FeedbackType =
@@ -651,7 +666,13 @@ export interface Asset {
   current_version: number;
   approval_status: ApprovalStatus;
   iteration_count: number;
+  asset_type: AssetType;
+  group_id: string | null;
+  group_order: number;
   client_rating?: number;
+  access_revoked?: boolean;
+  access_revoked_at?: string | null;
+  access_revoked_by?: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -662,6 +683,9 @@ export interface AssetInsert {
   project_id: string;
   nombre: string;
   descripcion?: string | null;
+  asset_type?: AssetType;
+  group_id?: string | null;
+  group_order?: number;
   created_by: string;
 }
 
@@ -673,6 +697,11 @@ export interface AssetVersion {
   file_type: string | null;
   file_size: number | null;
   thumbnail_url: string | null;
+  preview_url?: string | null;
+  storage_path?: string | null;
+  thumbnail_path?: string | null;
+  preview_path?: string | null;
+  original_filename?: string | null;
   notes: string | null;
   uploaded_by: string;
   created_at: string;
@@ -685,6 +714,11 @@ export interface AssetVersionInsert {
   file_type?: string | null;
   file_size?: number | null;
   thumbnail_url?: string | null;
+  preview_url?: string | null;
+  storage_path?: string | null;
+  thumbnail_path?: string | null;
+  preview_path?: string | null;
+  original_filename?: string | null;
   notes?: string | null;
   uploaded_by: string;
 }

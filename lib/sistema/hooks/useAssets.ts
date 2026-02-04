@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/sistema/supabase/client';
-import { serverCreateAsset, serverAddVersion } from '@/lib/sistema/actions/assets';
+import { serverCreateAsset, serverAddVersion, serverGetAssetsForTask } from '@/lib/sistema/actions/assets';
 import type {
   Asset,
   AssetInsert,
@@ -24,26 +24,9 @@ export function useAssets(taskId?: string) {
     if (!taskId) { setLoading(false); return; }
     try {
       setLoading(true);
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('sistema_assets')
-        .select(`
-          *,
-          creator:sistema_users(id, nombre, avatar_url),
-          versions:sistema_asset_versions(*)
-        `)
-        .eq('task_id', taskId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Sort versions by version_number desc
-      const sorted = (data || []).map((a: any) => ({
-        ...a,
-        versions: (a.versions || []).sort((x: AssetVersion, y: AssetVersion) => y.version_number - x.version_number),
-      }));
-
-      setAssets(sorted);
+      const res = await serverGetAssetsForTask(taskId);
+      if (!res.success) throw new Error(res.error);
+      setAssets(res.data || []);
     } catch (err) {
       console.error('Error fetching assets:', err);
     } finally {
@@ -131,6 +114,30 @@ export function useAssets(taskId?: string) {
     }
   };
 
+  /**
+   * Optimistically reorder carousel assets in local state.
+   * Updates group_order values based on new order array.
+   */
+  const optimisticReorder = (assetIds: string[]) => {
+    setAssets(prev => {
+      const updated = [...prev];
+      assetIds.forEach((id, index) => {
+        const assetIdx = updated.findIndex(a => a.id === id);
+        if (assetIdx !== -1) {
+          updated[assetIdx] = { ...updated[assetIdx], group_order: index };
+        }
+      });
+      // Re-sort to ensure correct order in UI
+      return updated.sort((a, b) => {
+        // First sort by group_id, then by group_order
+        if (a.group_id && b.group_id && a.group_id === b.group_id) {
+          return (a.group_order ?? 0) - (b.group_order ?? 0);
+        }
+        return 0;
+      });
+    });
+  };
+
   return {
     assets,
     loading,
@@ -139,6 +146,7 @@ export function useAssets(taskId?: string) {
     addVersion,
     updateApprovalStatus,
     deleteAsset,
+    optimisticReorder,
   };
 }
 
