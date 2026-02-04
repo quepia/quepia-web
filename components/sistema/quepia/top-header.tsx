@@ -1,16 +1,18 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, Users, BarChart3, MessageSquare, MoreHorizontal, Search, UserCircle, FileText, Menu } from "lucide-react"
+import { ChevronLeft, ChevronRight, Users, BarChart3, MessageSquare, MoreHorizontal, Search, UserCircle, FileText, Menu, Sun, Moon } from "lucide-react"
 
 interface TopHeaderProps {
     breadcrumb: string[]
     onOpenClientProfile?: () => void
     onOpenBriefing?: () => void
     onMenuClick?: () => void
+    theme?: "light" | "dark"
+    onToggleTheme?: () => void
 }
 
-export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onMenuClick }: TopHeaderProps) {
+export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onMenuClick, theme = "dark", onToggleTheme }: TopHeaderProps) {
     const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
     const actionsRef = useRef<HTMLDivElement | null>(null)
 
@@ -62,6 +64,16 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
             {/* Right: Actions */}
             <div className="flex items-center gap-1">
                 <div className="hidden sm:flex items-center gap-1">
+                    {onToggleTheme && (
+                        <button
+                            onClick={onToggleTheme}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/50 hover:bg-white/[0.06] rounded-md transition-colors"
+                            title={theme === "light" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
+                        >
+                            {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                            <span>{theme === "light" ? "Oscuro" : "Claro"}</span>
+                        </button>
+                    )}
                     {onOpenBriefing && (
                         <button
                             onClick={onOpenBriefing}
@@ -111,6 +123,15 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                     </button>
                     {mobileActionsOpen && (
                         <div className="absolute right-0 top-full mt-2 w-48 bg-[#111] border border-white/[0.08] rounded-lg shadow-xl py-1 z-50">
+                            {onToggleTheme && (
+                                <button
+                                    onClick={() => { onToggleTheme(); setMobileActionsOpen(false) }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                                >
+                                    {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                                    {theme === "light" ? "Modo oscuro" : "Modo claro"}
+                                </button>
+                            )}
                             {onOpenBriefing && (
                                 <button
                                     onClick={() => { onOpenBriefing(); setMobileActionsOpen(false) }}

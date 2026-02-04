@@ -96,7 +96,7 @@ export function ClientOnboardingOverlay({ clientName, onComplete }: OnboardingOv
 
                     <button
                         onClick={handleNext}
-                        className="w-full py-3.5 bg-white text-black font-bold rounded-xl hover:bg-quepia-cyan transition-colors"
+                        className="w-full py-3.5 s-btn-solid font-bold rounded-xl hover:bg-quepia-cyan hover:text-black transition-colors"
                     >
                         {steps[step].action}
                     </button>

@@ -133,6 +133,8 @@ export default function DashboardPage() {
 
     const { brief, saveBrief } = useClientBrief(activeProjectId);
 
+    const [theme, setTheme] = useState<"light" | "dark">("dark")
+
     const [showSetupModal, setShowSetupModal] = useState(false)
     const [setupName, setSetupName] = useState("")
     const [settingUp, setSettingUp] = useState(false)
@@ -172,6 +174,26 @@ export default function DashboardPage() {
         const stored = readProjectVisits(projectVisitsKey)
         setMostVisitedProjectId(getMostVisitedProjectId(stored.counts))
     }, [projectVisitsKey])
+
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        const stored = window.localStorage.getItem("quepia:sistema:theme")
+        if (stored === "light" || stored === "dark") {
+            setTheme(stored)
+            return
+        }
+        const prefersLight = window.matchMedia?.("(prefers-color-scheme: light)")?.matches
+        setTheme(prefersLight ? "light" : "dark")
+    }, [])
+
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        document.body.dataset.sistemaTheme = theme
+        window.localStorage.setItem("quepia:sistema:theme", theme)
+        return () => {
+            delete document.body.dataset.sistemaTheme
+        }
+    }, [theme])
 
     useEffect(() => {
         if (!projectVisitsKey || !activeProjectId) return
@@ -1107,6 +1129,8 @@ export default function DashboardPage() {
                     onOpenClientProfile={isProjectView ? () => setShowClientProfile(true) : undefined}
                     onOpenBriefing={isProjectView ? () => setShowBriefingForm(true) : undefined}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}
+                    theme={theme}
+                    onToggleTheme={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
                 />
 
                 {/* Content Area */}

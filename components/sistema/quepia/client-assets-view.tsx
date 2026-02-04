@@ -176,7 +176,7 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
 
                                 {/* Hover Overlay */}
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px] pointer-events-none">
-                                    <button className="px-3 py-1.5 bg-white text-black text-xs font-bold rounded-full flex items-center gap-1.5 transform group-hover:scale-105 transition-transform">
+                                    <button className="px-3 py-1.5 s-btn-solid text-xs font-bold rounded-full flex items-center gap-1.5 transform group-hover:scale-105 transition-transform">
                                         <Eye className="h-3.5 w-3.5" /> Ver
                                     </button>
                                 </div>

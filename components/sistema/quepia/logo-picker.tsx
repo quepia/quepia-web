@@ -116,7 +116,7 @@ export function LogoPicker({ currentLogo, currentIcon, onLogoChange, onIconChang
                                 <div className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="bg-white text-black px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-white/90 transform transition-transform active:scale-95"
+                                        className="s-btn-solid px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider hover:opacity-90 transform transition-transform active:scale-95"
                                     >
                                         Cambiar imagen
                                     </button>

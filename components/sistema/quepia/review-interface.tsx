@@ -146,7 +146,7 @@ export function ReviewInterface({ review: initialReview }: ReviewInterfaceProps)
                         href={review.deliverable_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-black font-semibold hover:bg-white/90 transition-transform active:scale-95"
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-xl s-btn-solid font-semibold hover:opacity-90 transition-transform active:scale-95"
                     >
                         <ExternalLink className="w-5 h-5" />
                         Abrir Entregable
