@@ -14,8 +14,53 @@ const COLORS = {
     cyanNeon: '#00ffff',
 };
 
+function usePrefersReducedMotion() {
+    const [reduced, setReduced] = useState(false);
+
+    useEffect(() => {
+        const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const update = () => setReduced(media.matches);
+        update();
+        if (media.addEventListener) {
+            media.addEventListener('change', update);
+            return () => media.removeEventListener('change', update);
+        }
+        media.addListener(update);
+        return () => media.removeListener(update);
+    }, []);
+
+    return reduced;
+}
+
+function useDocumentVisible() {
+    const [isVisible, setIsVisible] = useState(true);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => setIsVisible(!document.hidden);
+        handleVisibilityChange();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
+
+    return isVisible;
+}
+
+function usePerformanceHints() {
+    const [hints, setHints] = useState({ saveData: false, lowCpu: false });
+
+    useEffect(() => {
+        const connection = (navigator as any).connection;
+        const saveData = Boolean(connection?.saveData);
+        const lowCpu = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+            ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4);
+        setHints({ saveData, lowCpu: Boolean(lowCpu) });
+    }, []);
+
+    return hints;
+}
+
 // Glass Sphere component with physics
-function GlassSphere({ position, color, scale, paused }: { position: [number, number, number], color: string, scale: number, paused: boolean }) {
+function GlassSphere({ position, color, scale, paused, lowPower }: { position: [number, number, number], color: string, scale: number, paused: boolean, lowPower: boolean }) {
     const ref = useRef<RapierRigidBody>(null);
     const vec = new THREE.Vector3();
 
@@ -41,16 +86,16 @@ function GlassSphere({ position, color, scale, paused }: { position: [number, nu
         <Float speed={paused ? 0 : 1.5} rotationIntensity={paused ? 0 : 1} floatIntensity={paused ? 0 : 2}>
             <RigidBody ref={ref} position={position} colliders="ball" linearDamping={2} angularDamping={1}>
                 <mesh scale={scale}>
-                    <sphereGeometry args={[1, 24, 24]} />
+                    <sphereGeometry args={[1, lowPower ? 16 : 24, lowPower ? 16 : 24]} />
                     <MeshTransmissionMaterial
-                        resolution={128}
+                        resolution={lowPower ? 64 : 128}
                         thickness={0.5}
                         roughness={0.1}
                         transmission={1}
                         ior={1.2}
                         chromaticAberration={0.01}
                         color={color}
-                        samples={2}
+                        samples={lowPower ? 1 : 2}
                         backside={false}
                     />
                 </mesh>
@@ -60,8 +105,9 @@ function GlassSphere({ position, color, scale, paused }: { position: [number, nu
 }
 
 // Desktop 3D Background
-function DesktopBackground({ paused }: { paused: boolean }) {
-    const spheres = useMemo(() => Array.from({ length: 5 }, (_, i) => ({
+function DesktopBackground({ paused, lowPower }: { paused: boolean; lowPower: boolean }) {
+    const sphereCount = lowPower ? 3 : 5;
+    const spheres = useMemo(() => Array.from({ length: sphereCount }, (_, i) => ({
         position: [
             (Math.random() - 0.5) * 20,
             (Math.random() - 0.5) * 15,
@@ -69,16 +115,16 @@ function DesktopBackground({ paused }: { paused: boolean }) {
         ] as [number, number, number],
         color: i % 2 === 0 ? COLORS.purple : COLORS.cyan,
         scale: 2.5 + Math.random() * 2
-    })), []);
+    })), [sphereCount]);
 
     return (
         <Canvas
-            dpr={[1, 1.5]}
+            dpr={[1, lowPower ? 1.1 : 1.5]}
             camera={{ position: [0, 0, 20], fov: 50 }}
             gl={{
                 antialias: false,
                 alpha: false,
-                powerPreference: 'high-performance',
+                powerPreference: lowPower ? 'low-power' : 'high-performance',
                 stencil: false,
             }}
             frameloop={paused ? 'demand' : 'always'}
@@ -89,7 +135,7 @@ function DesktopBackground({ paused }: { paused: boolean }) {
             <pointLight position={[-10, -10, 5]} intensity={0.5} color={COLORS.cyan} />
 
             <Physics gravity={[0, 0, 0]} paused={paused}>
-                {spheres.map((props, i) => <GlassSphere key={i} {...props} paused={paused} />)}
+                {spheres.map((props, i) => <GlassSphere key={i} {...props} paused={paused} lowPower={lowPower} />)}
             </Physics>
         </Canvas>
     );
@@ -155,6 +201,10 @@ export default function GlassBackground() {
     const [mounted, setMounted] = useState(false);
     const [bgOpacity, setBgOpacity] = useState(1);
     const { isModalOpen } = useModal();
+    const prefersReducedMotion = usePrefersReducedMotion();
+    const isVisible = useDocumentVisible();
+    const { saveData, lowCpu } = usePerformanceHints();
+    const isLowPower = prefersReducedMotion || saveData || lowCpu;
 
     useEffect(() => {
         const checkMobile = () => {
@@ -170,18 +220,26 @@ export default function GlassBackground() {
     useEffect(() => {
         if (!isMobile) return;
 
+        let rafId = 0;
         const handleScroll = () => {
-            const scrollY = window.scrollY;
-            const windowHeight = window.innerHeight;
-            const scrollProgress = Math.min(scrollY / windowHeight, 1);
-            const newOpacity = 1 - (scrollProgress * 0.65);
-            setBgOpacity(newOpacity);
+            if (rafId) return;
+            rafId = window.requestAnimationFrame(() => {
+                const scrollY = window.scrollY;
+                const windowHeight = window.innerHeight || 1;
+                const scrollProgress = Math.min(scrollY / windowHeight, 1);
+                const newOpacity = 1 - (scrollProgress * 0.65);
+                setBgOpacity(newOpacity);
+                rafId = 0;
+            });
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         handleScroll();
 
-        return () => window.removeEventListener('scroll', handleScroll);
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            if (rafId) window.cancelAnimationFrame(rafId);
+        };
     }, [isMobile]);
 
     // Prevent flash during SSR
@@ -189,12 +247,15 @@ export default function GlassBackground() {
         return <div className="fixed inset-0 z-0 bg-[#050505]" />;
     }
 
+    const shouldUseWebgl = !isMobile && !isLowPower;
+    const paused = isModalOpen || !isVisible || prefersReducedMotion;
+
     return (
         <div className="fixed inset-0 z-0 bg-[#050505]">
-            {isMobile ? (
-                <MobileBackground opacity={isModalOpen ? 0.3 : bgOpacity} />
+            {shouldUseWebgl ? (
+                <DesktopBackground paused={paused} lowPower={isLowPower} />
             ) : (
-                <DesktopBackground paused={isModalOpen} />
+                <MobileBackground opacity={isModalOpen ? 0.3 : bgOpacity} />
             )}
         </div>
     );

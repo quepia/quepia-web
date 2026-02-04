@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import HomeCarousel from '@/components/home/HomeCarousel';
 import ServicesGrid from '@/components/home/ServicesGrid';
 import HeroSection from '@/components/home/HeroSection';
@@ -12,7 +12,7 @@ import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 export const revalidate = 60;
 
 export default async function Home() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const config = await getSiteConfigServer();
 
   // Fetch featured projects

@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import * as THREE from 'three';
 
 // Check if device is mobile
@@ -34,6 +34,36 @@ function useIsLowPower() {
   }, []);
 
   return isLowPower;
+}
+
+function useDocumentVisible() {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+    handleVisibilityChange();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  return isVisible;
+}
+
+function usePerformanceHints() {
+  const [hints, setHints] = useState({ saveData: false, lowCpu: false });
+
+  useEffect(() => {
+    const connection = (navigator as any).connection;
+    const saveData = Boolean(connection?.saveData);
+    const lowCpu = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+      ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4);
+
+    setHints({ saveData, lowCpu: Boolean(lowCpu) });
+  }, []);
+
+  return hints;
 }
 
 // Simplex noise function for vertex shader
@@ -105,9 +135,9 @@ const simplexNoise = `
 `;
 
 // Perfect sphere with cursor-based deformation only
-function GradientSphere({ isMobile, isLowPower }: { isMobile: boolean; isLowPower: boolean }) {
+function GradientSphere({ isMobile, isLowPower, active }: { isMobile: boolean; isLowPower: boolean; active: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const { viewport, size } = useThree();
+  const { viewport } = useThree();
   const entranceProgress = useRef(0);
   const isActive = useRef(true);
   
@@ -246,7 +276,7 @@ function GradientSphere({ isMobile, isLowPower }: { isMobile: boolean; isLowPowe
   }, []);
 
   useFrame((state) => {
-    if (!meshRef.current || !isActive.current) return;
+    if (!meshRef.current || !isActive.current || !active) return;
 
     const time = state.clock.elapsedTime;
     const mesh = meshRef.current;
@@ -308,6 +338,7 @@ function GradientSphere({ isMobile, isLowPower }: { isMobile: boolean; isLowPowe
   }, [material]);
 
   const baseScale = isMobile ? 1.4 : Math.min(viewport.width * 0.24, 2.4);
+  const segments = isMobile || isLowPower ? 48 : 64;
 
   return (
     <mesh
@@ -316,15 +347,14 @@ function GradientSphere({ isMobile, isLowPower }: { isMobile: boolean; isLowPowe
       position={[basePositionRef.current.x, 0, 0]}
       scale={0}
     >
-      <sphereGeometry args={[1, isMobile || isLowPower ? 64 : 96, isMobile || isLowPower ? 64 : 96]} />
+      <sphereGeometry args={[1, segments, segments]} />
     </mesh>
   );
 }
 
 // Particles with orbital motion
-function Particles({ count = 60, isMobile, isLowPower }: { count?: number; isMobile: boolean; isLowPower: boolean }) {
+function Particles({ count = 48, isMobile, isLowPower, active }: { count?: number; isMobile: boolean; isLowPower: boolean; active: boolean }) {
   const pointsRef = useRef<THREE.Points>(null);
-  const { viewport } = useThree();
   const entranceProgress = useRef(0);
   const isActive = useRef(true);
   const rotationRef = useRef(0);
@@ -369,7 +399,7 @@ function Particles({ count = 60, isMobile, isLowPower }: { count?: number; isMob
   }, [positions, colors]);
 
   useFrame((state) => {
-    if (!pointsRef.current || !isActive.current) return;
+    if (!pointsRef.current || !isActive.current || !active) return;
 
     const time = state.clock.elapsedTime;
 
@@ -419,7 +449,7 @@ function Particles({ count = 60, isMobile, isLowPower }: { count?: number; isMob
 }
 
 // Orbiting ring
-function OrbitRing({ isMobile, isLowPower }: { isMobile: boolean; isLowPower: boolean }) {
+function OrbitRing({ isMobile, isLowPower, active }: { isMobile: boolean; isLowPower: boolean; active: boolean }) {
   const ringRef = useRef<THREE.Mesh>(null);
   const { viewport } = useThree();
   const rotationRef = useRef(0);
@@ -459,7 +489,7 @@ function OrbitRing({ isMobile, isLowPower }: { isMobile: boolean; isLowPower: bo
   }, []);
 
   useFrame((state) => {
-    if (!ringRef.current) return;
+    if (!ringRef.current || !active) return;
     material.uniforms.uTime.value = state.clock.elapsedTime;
     
     // Consistent rotation, no scroll dependency
@@ -479,16 +509,13 @@ function OrbitRing({ isMobile, isLowPower }: { isMobile: boolean; isLowPower: bo
 }
 
 // Main 3D scene
-function Scene() {
-  const isMobile = useIsMobile();
-  const isLowPower = useIsLowPower();
-
+function Scene({ active, isMobile, isLowPower }: { active: boolean; isMobile: boolean; isLowPower: boolean }) {
   return (
     <>
       <ambientLight intensity={0.3} />
-      <GradientSphere isMobile={isMobile} isLowPower={isLowPower} />
-      <Particles count={60} isMobile={isMobile} isLowPower={isLowPower} />
-      <OrbitRing isMobile={isMobile} isLowPower={isLowPower} />
+      <GradientSphere isMobile={isMobile} isLowPower={isLowPower} active={active} />
+      <Particles count={48} isMobile={isMobile} isLowPower={isLowPower} active={active} />
+      <OrbitRing isMobile={isMobile} isLowPower={isLowPower} active={active} />
     </>
   );
 }
@@ -550,9 +577,16 @@ function FallbackBackground() {
 }
 
 // Main component
-export default function ParticleBackground() {
+interface ParticleBackgroundProps {
+  active?: boolean;
+}
+
+export default function ParticleBackground({ active = true }: ParticleBackgroundProps) {
   const isMobile = useIsMobile();
   const isLowPower = useIsLowPower();
+  const prefersReducedMotion = useReducedMotion();
+  const isVisible = useDocumentVisible();
+  const { saveData, lowCpu } = usePerformanceHints();
   const [webglFailed, setWebglFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -590,7 +624,11 @@ export default function ParticleBackground() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  if (isMobile || isLowPower || webglFailed) {
+  const shouldUseWebgl = !isMobile && !isLowPower && !prefersReducedMotion && !saveData && !lowCpu && !webglFailed;
+  const isActive = active && isVisible;
+  const maxDpr = 1.5;
+
+  if (!shouldUseWebgl) {
     return <FallbackBackground />;
   }
 
@@ -610,7 +648,7 @@ export default function ParticleBackground() {
     >
       <Canvas
         camera={{ position: [0, 0, 7], fov: 45 }}
-        dpr={[1, Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2)]}
+        dpr={[1, Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, maxDpr)]}
         gl={{
           antialias: false,
           alpha: true,
@@ -619,9 +657,9 @@ export default function ParticleBackground() {
           depth: true,
         }}
         style={{ background: 'transparent' }}
-        frameloop="always"
+        frameloop={isActive ? "always" : "demand"}
       >
-        <Scene />
+        <Scene active={isActive} isMobile={isMobile} isLowPower={isLowPower} />
       </Canvas>
     </motion.div>
   );

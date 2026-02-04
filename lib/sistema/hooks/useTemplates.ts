@@ -4,11 +4,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/sistema/supabase/client';
 import type { ProjectTemplate, ProjectTemplateInsert } from '@/types/sistema';
 
-export function useProjectTemplates() {
+type UseTemplatesOptions = {
+  enabled?: boolean;
+};
+
+export function useProjectTemplates(options?: UseTemplatesOptions) {
+  const enabled = options?.enabled ?? true;
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTemplates = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const supabase = createClient();
@@ -19,12 +28,13 @@ export function useProjectTemplates() {
 
       if (error) throw error;
       setTemplates(data || []);
-    } catch (err: any) {
-      console.error('Error fetching templates:', err.message || err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('Error fetching templates:', message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     fetchTemplates();

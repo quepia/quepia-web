@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
 
@@ -10,6 +10,7 @@ interface PageTransitionProps {
 
 export default function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
+  const prefersReducedMotion = useReducedMotion();
 
   // Skip animation for admin/auth routes
   const isAdminRoute = pathname?.startsWith('/admin');
@@ -17,7 +18,7 @@ export default function PageTransition({ children }: PageTransitionProps) {
   const isSistemaRoute = pathname?.startsWith('/sistema');
   const skipAnimation = isAdminRoute || isAuthRoute || isSistemaRoute;
 
-  if (skipAnimation) {
+  if (skipAnimation || prefersReducedMotion) {
     return <>{children}</>;
   }
 

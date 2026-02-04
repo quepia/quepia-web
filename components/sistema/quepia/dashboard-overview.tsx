@@ -44,7 +44,6 @@ interface PendingAsset {
 }
 
 export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole }: DashboardOverviewProps) {
-  console.log("DashboardOverview - userRole prop:", userRole)
   const [pendingAssets, setPendingAssets] = useState<PendingAsset[]>([])
 
   const todayStr = useMemo(() => {

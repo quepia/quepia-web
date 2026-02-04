@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Task, Project, CalendarEvent } from '@/types/sistema';
 
 export interface TaskWithProject extends Task {
@@ -9,18 +9,34 @@ export interface TaskWithProject extends Task {
   column?: { id: string; nombre: string } | null;
 }
 
-export function useAllTasks(userId?: string) {
+type UseAllOptions = {
+  enabled?: boolean;
+};
+
+export function useAllTasks(userId?: string, options?: UseAllOptions) {
+  const enabled = options?.enabled ?? true;
   const [tasks, setTasks] = useState<TaskWithProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
+
+  useEffect(() => {
+    initialLoadDone.current = false;
+    if (!userId) {
+      setTasks([]);
+      setLoading(false);
+    }
+  }, [userId]);
 
   const fetchAllTasks = useCallback(async () => {
-    if (!userId) {
+    if (!enabled || !userId) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!initialLoadDone.current) {
+        setLoading(true);
+      }
       const res = await fetch(`/api/sistema-data?userId=${userId}&type=tasks`);
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -29,8 +45,9 @@ export function useAllTasks(userId?: string) {
       console.error('Error fetching all tasks:', err);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
-  }, [userId]);
+  }, [enabled, userId]);
 
   useEffect(() => {
     fetchAllTasks();
@@ -39,18 +56,30 @@ export function useAllTasks(userId?: string) {
   return { tasks, loading, refresh: fetchAllTasks };
 }
 
-export function useAllCalendarEvents(userId?: string) {
+export function useAllCalendarEvents(userId?: string, options?: UseAllOptions) {
+  const enabled = options?.enabled ?? true;
   const [events, setEvents] = useState<(CalendarEvent & { project?: { id: string; nombre: string; color: string; logo_url?: string | null } })[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialLoadDone = useRef(false);
+
+  useEffect(() => {
+    initialLoadDone.current = false;
+    if (!userId) {
+      setEvents([]);
+      setLoading(false);
+    }
+  }, [userId]);
 
   const fetchAllEvents = useCallback(async () => {
-    if (!userId) {
+    if (!enabled || !userId) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!initialLoadDone.current) {
+        setLoading(true);
+      }
       const res = await fetch(`/api/sistema-data?userId=${userId}&type=events`);
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -59,8 +88,9 @@ export function useAllCalendarEvents(userId?: string) {
       console.error('Error fetching all calendar events:', err);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
-  }, [userId]);
+  }, [enabled, userId]);
 
   useEffect(() => {
     fetchAllEvents();

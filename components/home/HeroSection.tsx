@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
@@ -67,6 +67,7 @@ const AnimatedWords = ({ text, className = "" }: { text: string; className?: str
 
 export default function HeroSection({ subtitle }: HeroSectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isHeroInView = useInView(containerRef, { margin: "-20% 0px" });
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
@@ -83,7 +84,7 @@ export default function HeroSection({ subtitle }: HeroSectionProps) {
       
       {/* Three.js Background with Chrome Sphere - semi-transparent */}
       <div className="absolute inset-0 z-0 opacity-70">
-        <ParticleBackground />
+        <ParticleBackground active={isHeroInView} />
       </div>
 
       {/* Very subtle gradient overlay so GlassBackground shows through */}

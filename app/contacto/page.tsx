@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Mail, MapPin, Instagram, Clock, Phone, Send, LucideIcon } from 'lucide-react';
-import { getSiteConfig, SiteConfig } from '@/lib/fetchConfig';
+import type { SiteConfig } from '@/lib/fetchConfig';
+import { useConfig } from '@/components/layout/ClientLayout';
 
 // Animated words component
 const AnimatedWords = ({ text, className = "" }: { text: string; className?: string }) => {
@@ -109,7 +110,7 @@ function ContactCard({
 }
 
 export default function ContactoPage() {
-    const [config, setConfig] = useState<SiteConfig | null>(null);
+    const config = useConfig() as SiteConfig;
     const [formState, setFormState] = useState({
         nombre: '',
         email: '',
@@ -120,10 +121,6 @@ export default function ContactoPage() {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const heroRef = useRef<HTMLDivElement>(null);
     const isHeroInView = useInView(heroRef, { once: true });
-
-    useEffect(() => {
-        getSiteConfig().then(setConfig);
-    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

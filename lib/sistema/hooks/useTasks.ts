@@ -17,6 +17,7 @@ import type {
   TaskLink,
   TaskLinkInsert,
   Priority,
+  CommentWithUser,
 } from '@/types/sistema';
 import { sendNotification, notifyTaskComment } from '@/lib/sistema/actions/notifications';
 
@@ -910,7 +911,7 @@ export function useSubtasks(taskId?: string) {
 }
 
 export function useComments(taskId?: string) {
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const hasFetchedOnce = useRef(false);
 
@@ -948,7 +949,7 @@ export function useComments(taskId?: string) {
     fetchComments();
   }, [fetchComments]);
 
-  const createComment = async (comment: CommentInsert): Promise<Comment | null> => {
+  const createComment = async (comment: CommentInsert): Promise<CommentWithUser | null> => {
     try {
       const supabase = createClient();
       const { data, error } = await supabase

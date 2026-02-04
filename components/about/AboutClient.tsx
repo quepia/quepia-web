@@ -388,6 +388,7 @@ export default function AboutClient({ team }: AboutClientProps) {
                                                 alt={member.nombre}
                                                 fill
                                                 className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700"
+                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 480px"
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-gradient-to-br from-quepia-purple/20 to-quepia-cyan/20 flex items-center justify-center text-white/40">

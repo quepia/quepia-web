@@ -1,52 +1,190 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import dynamic from "next/dynamic"
 import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { AppSidebar } from "@/components/sistema/quepia/app-sidebar"
 import { TopHeader } from "@/components/sistema/quepia/top-header"
-import { KanbanBoard } from "@/components/sistema/quepia/kanban-board"
-import { TaskDetailModal } from "@/components/sistema/quepia/task-detail-modal"
-import { DashboardOverview } from "@/components/sistema/quepia/dashboard-overview"
-import { NotificationSettings } from "@/components/sistema/quepia/notification-settings"
-import { TodayView } from "@/components/sistema/quepia/today-view"
-import { UpcomingView } from "@/components/sistema/quepia/upcoming-view"
-import { CompletedView } from "@/components/sistema/quepia/completed-view"
-import { SearchView } from "@/components/sistema/quepia/search-view"
-import { CalendarView } from "@/components/sistema/quepia/calendar-view"
-import { InboxView } from "@/components/sistema/quepia/inbox-view"
-import { WorkloadView } from "@/components/sistema/quepia/workload-view"
-import { DocsView } from "@/components/sistema/quepia/docs-view"
 import { useAuth, useProjects, useAllTasks, useAllCalendarEvents, useSistemaUsers, useProjectTemplates, useClientBrief } from "@/lib/sistema/hooks"
-import { PortfolioView } from "@/components/sistema/quepia/portfolio-view"
-import { ClientProfile } from "@/components/sistema/quepia/client-profile"
-import { BriefingForm } from "@/components/sistema/quepia/briefing-form"
-import { ProposalsView } from "@/components/sistema/quepia/proposals-view"
-import { AdminUsersView } from "@/components/sistema/quepia/admin-users-view"
-import { AdminProjectsView } from "@/components/sistema/quepia/admin-projects-view"
-import { AdminServicesView } from "@/components/sistema/quepia/admin-services-view"
-import { AdminConfigView } from "@/components/sistema/quepia/admin-config-view"
-import { AdminTeamView } from "@/components/sistema/quepia/admin-team-view"
-import { AccountingView } from "@/components/sistema/quepia/accounting-view"
-import { CrmPipelineView } from "@/components/sistema/quepia/crm-pipeline-view"
-import { ProjectMembersModal } from "@/components/sistema/quepia/project-members-modal"
-import type { Task, ProjectWithChildren } from "@/types/sistema"
+import type { Task, ProjectWithChildren, ProjectIcon } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { LogoPicker } from "@/components/sistema/quepia/logo-picker"
 
+const GLOBAL_VIEWS = new Set([
+    "dashboard",
+    "today",
+    "upcoming",
+    "completed",
+    "search",
+    "inbox",
+    "filters",
+    "calendar",
+    "workload",
+    "portfolio",
+    "proposals",
+    "crm",
+    "docs",
+    "admin-users",
+    "admin-projects",
+    "admin-services",
+    "admin-config",
+    "admin-team",
+    "accounting",
+])
 
-function findProject(projects: ProjectWithChildren[], id: string): ProjectWithChildren | null {
-    for (const p of projects) {
-        if (p.id === id) return p
-        if (p.children && p.children.length > 0) {
-            const found = findProject(p.children, id)
-            if (found) return found
-        }
-    }
-    return null
+const TASK_VIEWS = new Set([
+    "dashboard",
+    "today",
+    "upcoming",
+    "completed",
+    "search",
+    "filters",
+    "inbox",
+    "workload",
+    "calendar",
+    "portfolio",
+])
+
+const EVENT_VIEWS = new Set(["dashboard", "calendar"])
+
+const ADMIN_VIEWS = new Set([
+    "admin-users",
+    "admin-projects",
+    "admin-services",
+    "admin-config",
+    "admin-team",
+    "accounting",
+    "crm",
+    "proposals",
+])
+
+const VIEW_LABELS: Record<string, string> = {
+    dashboard: "Dashboard",
+    today: "Hoy",
+    upcoming: "Próximo",
+    completed: "Completado",
+    search: "Buscar",
+    inbox: "Inbox",
+    filters: "Filtros",
+    calendar: "Calendario",
+    workload: "Carga de trabajo",
+    portfolio: "Portafolios",
+    proposals: "Propuestas",
+    crm: "CRM",
 }
+
+const ViewFallback = () => (
+    <div className="flex flex-1 items-center justify-center p-6 text-white/50">
+        <Loader2 className="h-5 w-5 animate-spin" />
+    </div>
+)
+
+const ModalFallback = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <Loader2 className="h-6 w-6 animate-spin text-white/70" />
+    </div>
+)
+
+const KanbanBoard = dynamic(
+    () => import("@/components/sistema/quepia/kanban-board").then((mod) => mod.KanbanBoard),
+    { loading: ViewFallback }
+)
+const TaskDetailModal = dynamic(
+    () => import("@/components/sistema/quepia/task-detail-modal").then((mod) => mod.TaskDetailModal),
+    { loading: ModalFallback }
+)
+const DashboardOverview = dynamic(
+    () => import("@/components/sistema/quepia/dashboard-overview").then((mod) => mod.DashboardOverview),
+    { loading: ViewFallback }
+)
+const NotificationSettings = dynamic(
+    () => import("@/components/sistema/quepia/notification-settings").then((mod) => mod.NotificationSettings),
+    { loading: ModalFallback }
+)
+const TodayView = dynamic(
+    () => import("@/components/sistema/quepia/today-view").then((mod) => mod.TodayView),
+    { loading: ViewFallback }
+)
+const UpcomingView = dynamic(
+    () => import("@/components/sistema/quepia/upcoming-view").then((mod) => mod.UpcomingView),
+    { loading: ViewFallback }
+)
+const CompletedView = dynamic(
+    () => import("@/components/sistema/quepia/completed-view").then((mod) => mod.CompletedView),
+    { loading: ViewFallback }
+)
+const SearchView = dynamic(
+    () => import("@/components/sistema/quepia/search-view").then((mod) => mod.SearchView),
+    { loading: ViewFallback }
+)
+const CalendarView = dynamic(
+    () => import("@/components/sistema/quepia/calendar-view").then((mod) => mod.CalendarView),
+    { loading: ViewFallback }
+)
+const InboxView = dynamic(
+    () => import("@/components/sistema/quepia/inbox-view").then((mod) => mod.InboxView),
+    { loading: ViewFallback }
+)
+const WorkloadView = dynamic(
+    () => import("@/components/sistema/quepia/workload-view").then((mod) => mod.WorkloadView),
+    { loading: ViewFallback }
+)
+const DocsView = dynamic(
+    () => import("@/components/sistema/quepia/docs-view").then((mod) => mod.DocsView),
+    { loading: ViewFallback }
+)
+const PortfolioView = dynamic(
+    () => import("@/components/sistema/quepia/portfolio-view").then((mod) => mod.PortfolioView),
+    { loading: ViewFallback }
+)
+const ClientProfile = dynamic(
+    () => import("@/components/sistema/quepia/client-profile").then((mod) => mod.ClientProfile),
+    { loading: ModalFallback }
+)
+const BriefingForm = dynamic(
+    () => import("@/components/sistema/quepia/briefing-form").then((mod) => mod.BriefingForm),
+    { loading: ModalFallback }
+)
+const ProposalsView = dynamic(
+    () => import("@/components/sistema/quepia/proposals-view").then((mod) => mod.ProposalsView),
+    { loading: ViewFallback }
+)
+const AdminUsersView = dynamic(
+    () => import("@/components/sistema/quepia/admin-users-view").then((mod) => mod.AdminUsersView),
+    { loading: ViewFallback }
+)
+const AdminProjectsView = dynamic(
+    () => import("@/components/sistema/quepia/admin-projects-view").then((mod) => mod.AdminProjectsView),
+    { loading: ViewFallback }
+)
+const AdminServicesView = dynamic(
+    () => import("@/components/sistema/quepia/admin-services-view").then((mod) => mod.AdminServicesView),
+    { loading: ViewFallback }
+)
+const AdminConfigView = dynamic(
+    () => import("@/components/sistema/quepia/admin-config-view").then((mod) => mod.AdminConfigView),
+    { loading: ViewFallback }
+)
+const AdminTeamView = dynamic(
+    () => import("@/components/sistema/quepia/admin-team-view").then((mod) => mod.AdminTeamView),
+    { loading: ViewFallback }
+)
+const AccountingView = dynamic(
+    () => import("@/components/sistema/quepia/accounting-view").then((mod) => mod.AccountingView),
+    { loading: ViewFallback }
+)
+const CrmPipelineView = dynamic(
+    () => import("@/components/sistema/quepia/crm-pipeline-view").then((mod) => mod.CrmPipelineView),
+    { loading: ViewFallback }
+)
+const ProjectMembersModal = dynamic(
+    () => import("@/components/sistema/quepia/project-members-modal").then((mod) => mod.ProjectMembersModal),
+    { loading: ModalFallback }
+)
+
 
 function flattenHashProjects(projects: ProjectWithChildren[]): { id: string; nombre: string; color: string }[] {
     const result: { id: string; nombre: string; color: string }[] = []
@@ -113,25 +251,12 @@ export default function DashboardPage() {
     const initialView = searchParams.get("view") || "dashboard"
     const { user, sistemaUser, loading: authLoading, isAuthenticated, tablesExist, setupError, createSistemaUser, signOut } = useAuth()
 
-    useEffect(() => {
-        console.log("DashboardPage - sistemaUser:", sistemaUser)
-        console.log("DashboardPage - role:", sistemaUser?.role)
-    }, [sistemaUser])
-
-    const { projects, deleteProject, createProject, updateProject, loading: projectsLoading } = useProjects(user?.id)
-    const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id)
-    const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id)
-    const { users: sistemaUsers, refresh: refreshUsers } = useSistemaUsers()
-    const { templates, createProjectFromTemplate } = useProjectTemplates()
-
     const [activeView, setActiveView] = useState(initialView)
     const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
     const [mostVisitedProjectId, setMostVisitedProjectId] = useState<string | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const kanbanRefreshRef = useRef<(() => void) | null>(null)
-
-    const { brief, saveBrief } = useClientBrief(activeProjectId);
 
     const [theme, setTheme] = useState<"light" | "dark">("dark")
 
@@ -156,14 +281,57 @@ export default function DashboardPage() {
     const [newProjectLogo, setNewProjectLogo] = useState("")
     const [newProjectColor, setNewProjectColor] = useState("#dc4a3e")
     const [newProjectParentId, setNewProjectParentId] = useState<string | null>(null)
-    const [newProjectType, setNewProjectType] = useState<"folder" | "hash">("hash")
+    const [newProjectType, setNewProjectType] = useState<ProjectIcon>("hash")
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
     const [creatingProject, setCreatingProject] = useState(false)
     const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-    const [newProjectIcon, setNewProjectIcon] = useState<string | null>(null)
+    const [newProjectIcon, setNewProjectIcon] = useState<ProjectIcon | null>(null)
 
-    const activeProject = activeProjectId ? findProject(projects, activeProjectId) : null
+    const isAdmin = sistemaUser?.role === "admin"
+    const shouldLoadAllTasks = TASK_VIEWS.has(activeView)
+    const shouldLoadAllEvents = EVENT_VIEWS.has(activeView)
+    const shouldLoadSistemaUsers = activeView === "workload" || (activeView === "admin-users" && isAdmin)
+    const shouldLoadTemplates = showNewProjectModal
+    const briefingProjectId = showBriefingForm ? activeProjectId : null
+
+    const { projects, deleteProject, createProject, updateProject, loading: projectsLoading } = useProjects(user?.id)
+    const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id, { enabled: shouldLoadAllTasks })
+    const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id, { enabled: shouldLoadAllEvents })
+    const { users: sistemaUsers, refresh: refreshUsers } = useSistemaUsers({ enabled: shouldLoadSistemaUsers })
+    const { templates, createProjectFromTemplate } = useProjectTemplates({ enabled: shouldLoadTemplates })
+    const { brief, saveBrief } = useClientBrief(briefingProjectId)
+
+    const projectById = useMemo(() => {
+        const map = new Map<string, ProjectWithChildren>()
+        const walk = (list: ProjectWithChildren[]) => {
+            list.forEach((project) => {
+                map.set(project.id, project)
+                if (project.children && project.children.length > 0) {
+                    walk(project.children)
+                }
+            })
+        }
+        walk(projects)
+        return map
+    }, [projects])
+
+    const activeProject = activeProjectId ? projectById.get(activeProjectId) ?? null : null
+    const membersProject = membersProjectId ? projectById.get(membersProjectId) ?? null : null
+    const hashProjects = useMemo(() => flattenHashProjects(projects), [projects])
+    const workloadUsers = useMemo(
+        () => sistemaUsers.filter((u) => u.id === user?.id),
+        [sistemaUsers, user?.id]
+    )
+    const isProjectView = useMemo(
+        () => activeProjectId !== null && !GLOBAL_VIEWS.has(activeView),
+        [activeProjectId, activeView]
+    )
+    const breadcrumb = useMemo(() => {
+        if (isProjectView && activeProject) return ["Quepia", activeProject.nombre]
+        return ["Quepia", VIEW_LABELS[activeView] || "Dashboard"]
+    }, [isProjectView, activeProject, activeView])
+
     const projectVisitsKey = user?.id ? `quepia:projectVisits:${user.id}` : null
 
     useEffect(() => {
@@ -204,13 +372,18 @@ export default function DashboardPage() {
         setMostVisitedProjectId(getMostVisitedProjectId(stored.counts))
     }, [activeProjectId, projectVisitsKey])
 
-    // Determine if we're showing a project-specific view vs a global view
-    const isProjectView = activeProjectId !== null && !["dashboard", "today", "upcoming", "completed", "search", "inbox", "filters", "calendar", "workload", "portfolio", "proposals", "crm", "docs", "admin-users", "admin-projects", "admin-services", "admin-config", "admin-team", "accounting"].includes(activeView)
+    useEffect(() => {
+        if (!sistemaUser) return
+        if (ADMIN_VIEWS.has(activeView) && sistemaUser.role !== "admin") {
+            setActiveView("dashboard")
+            setActiveProjectId(null)
+        }
+    }, [activeView, sistemaUser])
 
-    const handleTaskClick = (task: Task | TaskWithProject) => {
+    const handleTaskClick = useCallback((task: Task | TaskWithProject) => {
         setSelectedTaskId(task.id)
         setIsModalOpen(true)
-    }
+    }, [])
 
     // Sync activeView with URL param if it changes externally or initially
     useEffect(() => {
@@ -221,14 +394,19 @@ export default function DashboardPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams])
 
-    const handleViewChange = (view: string) => {
+    const handleViewChange = useCallback((view: string) => {
+        if (ADMIN_VIEWS.has(view) && sistemaUser && sistemaUser.role !== "admin") {
+            setActiveView("dashboard")
+            setActiveProjectId(null)
+            return
+        }
         setActiveView(view)
         setActiveProjectId(null)
         // Update URL without reloading
         const url = new URL(window.location.href)
         url.searchParams.set("view", view)
         window.history.pushState({}, "", url)
-    }
+    }, [sistemaUser])
 
     const handleSetupProfile = async () => {
         if (!setupName.trim()) return
@@ -251,7 +429,7 @@ export default function DashboardPage() {
     }
 
     const handleEditProject = (projectId: string) => {
-        const project = findProject(projects, projectId)
+        const project = projectById.get(projectId)
         if (!project) return
 
         setEditingProjectId(projectId)
@@ -275,7 +453,7 @@ export default function DashboardPage() {
                     nombre: newProjectName.trim(),
                     color: newProjectColor,
                     // If project icon is set (from LogoPicker), use it. Otherwise use folder/hash type
-                    icon: (newProjectIcon || newProjectType) as any,
+                    icon: newProjectIcon || newProjectType,
                     parent_id: newProjectParentId,
                     logo_url: newProjectLogo.trim() || null,
                 })
@@ -304,7 +482,7 @@ export default function DashboardPage() {
                 const newProject = await createProject({
                     nombre: newProjectName.trim(),
                     color: newProjectColor,
-                    icon: (newProjectIcon || newProjectType) as any,
+                    icon: newProjectIcon || newProjectType,
                     parent_id: newProjectParentId,
                     owner_id: user.id,
                     logo_url: newProjectLogo.trim() || null,
@@ -338,26 +516,6 @@ export default function DashboardPage() {
             refreshAllEvents()
         }
     }, [activeView, refreshAllTasks, refreshAllEvents])
-
-    // Compute breadcrumb based on current view
-    const getBreadcrumb = (): string[] => {
-        if (isProjectView && activeProject) return ["Quepia", activeProject.nombre]
-        const viewLabels: Record<string, string> = {
-            dashboard: "Dashboard",
-            today: "Hoy",
-            upcoming: "Próximo",
-            completed: "Completado",
-            search: "Buscar",
-            inbox: "Inbox",
-            filters: "Filtros",
-            calendar: "Calendario",
-            workload: "Carga de trabajo",
-            portfolio: "Portafolios",
-            proposals: "Propuestas",
-            crm: "CRM",
-        }
-        return ["Quepia", viewLabels[activeView] || "Dashboard"]
-    }
 
     // Render the main content area based on active view
     const renderContent = () => {
@@ -422,16 +580,13 @@ export default function DashboardPage() {
                 return (
                     <WorkloadView
                         tasks={allTasks}
-                        users={sistemaUsers.filter(u => u.id === user?.id)}
+                        users={workloadUsers}
                         loading={allTasksLoading}
                         onTaskClick={handleTaskClick}
                     />
                 )
             case "admin-users":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return (
                     <AdminUsersView
                         users={sistemaUsers}
@@ -440,28 +595,16 @@ export default function DashboardPage() {
                     />
                 )
             case "admin-projects":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return <AdminProjectsView />
             case "admin-services":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return <AdminServicesView />
             case "admin-config":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return <AdminConfigView />
             case "admin-team":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return <AdminTeamView />
             case "calendar":
                 return (
@@ -471,7 +614,7 @@ export default function DashboardPage() {
                         loading={allTasksLoading || allEventsLoading}
                         onTaskClick={handleTaskClick}
                         userId={user?.id}
-                        projects={flattenHashProjects(projects)}
+                        projects={hashProjects}
                         onRefresh={refreshAllEvents}
                     />
                 )
@@ -488,22 +631,13 @@ export default function DashboardPage() {
                     />
                 )
             case "proposals":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return <ProposalsView projects={projects} userId={user?.id} />
             case "crm":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return <CrmPipelineView userId={user?.id} />
             case "accounting":
-                if (sistemaUser?.role !== 'admin') {
-                    setActiveView("dashboard")
-                    return null
-                }
+                if (!isAdmin) return null
                 return <AccountingView projects={projects} />
             case "docs":
                 return <DocsView />
@@ -916,7 +1050,7 @@ export default function DashboardPage() {
                                         if (url) setNewProjectIcon(null)
                                     }}
                                     onIconChange={(icon) => {
-                                        setNewProjectIcon(icon)
+                                        setNewProjectIcon(icon as ProjectIcon)
                                         // For now we don't save icon to DB in a separate field, 
                                         // keeping it simple or reusing fields if needed.
                                         // But if user picks icon, we clear logo URL
@@ -1125,7 +1259,7 @@ export default function DashboardPage() {
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                 {/* Top Header */}
                 <TopHeader
-                    breadcrumb={getBreadcrumb()}
+                    breadcrumb={breadcrumb}
                     onOpenClientProfile={isProjectView ? () => setShowClientProfile(true) : undefined}
                     onOpenBriefing={isProjectView ? () => setShowBriefingForm(true) : undefined}
                     onMenuClick={() => setIsMobileSidebarOpen(true)}
@@ -1138,17 +1272,19 @@ export default function DashboardPage() {
             </div>
 
             {/* Task Detail Modal */}
-            <TaskDetailModal
-                taskId={selectedTaskId || undefined}
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                onUpdate={handleModalUpdate}
-                userId={user?.id}
-            />
+            {isModalOpen && selectedTaskId && (
+                <TaskDetailModal
+                    taskId={selectedTaskId}
+                    isOpen={isModalOpen}
+                    onClose={handleCloseModal}
+                    onUpdate={handleModalUpdate}
+                    userId={user?.id}
+                />
+            )}
 
             {/* Client Profile Panel */}
             {
-                activeProjectId && (
+                showClientProfile && activeProjectId && (
                     <ClientProfile
                         projectId={activeProjectId}
                         isOpen={showClientProfile}
@@ -1159,7 +1295,7 @@ export default function DashboardPage() {
 
             {/* Briefing Form Modal */}
             {
-                activeProjectId && (
+                showBriefingForm && activeProjectId && (
                     <BriefingForm
                         projectId={activeProjectId}
                         isOpen={showBriefingForm}
@@ -1211,9 +1347,9 @@ export default function DashboardPage() {
                     isOpen={!!membersProjectId}
                     onClose={() => setMembersProjectId(null)}
                     projectId={membersProjectId}
-                    projectName={findProject(projects, membersProjectId)?.nombre || "Proyecto"}
+                    projectName={membersProject?.nombre || "Proyecto"}
                     currentUserId={user.id}
-                    ownerId={findProject(projects, membersProjectId)?.owner_id || ""}
+                    ownerId={membersProject?.owner_id || ""}
                 />
             )}
         </div >

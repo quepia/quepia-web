@@ -55,27 +55,21 @@ export function useAuth() {
 
     const initAuth = async () => {
       try {
-        console.log("[useAuth] 1. Starting initAuth...");
         // First check if tables exist
         const exists = await checkTablesExist();
-        console.log("[useAuth] 2. Tables exist:", exists);
 
         // Get initial session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log("[useAuth] 3. Session:", !!session, "Error:", sessionError);
         if (sessionError) console.error("Session error:", sessionError);
 
         setUser(session?.user ?? null);
 
         if (session?.user && exists) {
-          console.log("[useAuth] 4. Fetching sistema user...");
           await fetchSistemaUser(session.user.id);
-          console.log("[useAuth] 5. Sistema user fetched");
         }
       } catch (err) {
         console.error("Auth initialization error:", err);
       } finally {
-        console.log("[useAuth] 6. Setting loading=false");
         setLoading(false);
       }
     };
@@ -181,11 +175,20 @@ export function useAuth() {
   };
 }
 
-export function useSistemaUsers() {
+type UseSistemaUsersOptions = {
+  enabled?: boolean;
+};
+
+export function useSistemaUsers(options?: UseSistemaUsersOptions) {
+  const enabled = options?.enabled ?? true;
   const [users, setUsers] = useState<SistemaUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchUsers = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     try {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -206,7 +209,7 @@ export function useSistemaUsers() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     fetchUsers();

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createPublicClient } from '@/lib/supabase/public';
 import { Configuracion, Equipo } from '@/types/database';
 
 // Helper to convert config array to key-value object
@@ -12,7 +12,7 @@ export const formatConfig = (config: Configuracion[]) => {
 
 export const getSiteConfigServer = async () => {
     try {
-        const supabase = await createClient();
+        const supabase = createPublicClient();
         const { data, error } = await supabase
             .from('configuracion')
             .select('*');
@@ -31,7 +31,7 @@ export const getSiteConfigServer = async () => {
 
 export const getTeamMembersServer = async () => {
     try {
-        const supabase = await createClient();
+        const supabase = createPublicClient();
         const { data, error } = await supabase
             .from('equipo')
             .select('*')

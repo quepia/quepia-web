@@ -48,7 +48,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const { subtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, convertSubtaskToTask } = useSubtasks(taskId)
     const { comments, createComment, deleteComment } = useComments(taskId)
     const { links, createLink, deleteLink } = useTaskLinks(taskId)
-    const { users } = useSistemaUsers()
+    const { users } = useSistemaUsers({ enabled: isOpen })
     const { dependencies, dependents, addDependency, removeDependency } = useTaskDependencies(taskId)
 
     const [showCompletedSubtasks, setShowCompletedSubtasks] = useState(false)
@@ -121,12 +121,12 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         return date < today
     }
 
-    const updateTaskField = async (field: string, value: any) => {
+    const updateTaskField = async (field: string, value: unknown) => {
         if (!taskId) return
         try {
             const { createClient } = await import("@/lib/sistema/supabase/client")
             const supabase = createClient()
-            const updates: Record<string, any> = { [field]: value }
+            const updates: Record<string, unknown> = { [field]: value }
             if (field === "completed") {
                 updates.completed_at = value ? new Date().toISOString() : null
             }
@@ -139,7 +139,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                 if (field === "assignee_id" && value && value !== userId) {
                     // Assignment notification
                     await sendNotification({
-                        userId: value,
+                        userId: value as string,
                         actorId: userId,
                         type: 'assignment',
                         title: `Te asignaron a la tarea: ${task?.titulo}`,
@@ -631,7 +631,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
 
                                     {comments.length > 0 && (
                                         <div className="space-y-3 mb-4">
-                                            {comments.map((c: any) => (
+                                            {comments.map((c) => (
                                                 <div key={c.id} className="flex items-start gap-3 group">
                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-quepia-cyan/70 to-quepia-magenta/70 flex items-center justify-center text-[10px] text-white font-medium shrink-0">
                                                         {c.user?.nombre?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "?"}

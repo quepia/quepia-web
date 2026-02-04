@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { useSearchParams } from 'next/navigation';
+import { useState, useRef } from 'react';
 import { CATEGORIES } from '@/types/database';
 import Link from 'next/link';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
@@ -67,6 +65,7 @@ function FeaturedProject({
                         alt={proyecto.titulo}
                         fill
                         className="object-cover transition-transform duration-700 ease-out"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
                         style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
                     />
                 ) : (
@@ -171,6 +170,7 @@ function SecondaryProject({
                         alt={proyecto.titulo}
                         fill
                         className="object-cover transition-transform duration-700 ease-out"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 45vw, 600px"
                         style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
                     />
                 ) : (
@@ -247,6 +247,7 @@ function Lightbox({
                             alt={proyecto.titulo}
                             fill
                             className="object-contain rounded-2xl"
+                            sizes="100vw"
                         />
                     </div>
                 ) : (
@@ -272,30 +273,15 @@ function Lightbox({
     );
 }
 
-export default function WorksPage() {
-    const searchParams = useSearchParams();
-    const activeCategory = searchParams?.get('category') || 'branding';
-    const [proyectos, setProyectos] = useState<Proyecto[]>([]);
-    const [loading, setLoading] = useState(true);
+interface WorksClientProps {
+    proyectos: Proyecto[];
+    activeCategory: string;
+}
+
+export default function WorksPage({ proyectos, activeCategory }: WorksClientProps) {
     const [selectedProject, setSelectedProject] = useState<Proyecto | null>(null);
     const heroRef = useRef<HTMLDivElement>(null);
     const isHeroInView = useInView(heroRef, { once: true });
-
-    useEffect(() => {
-        async function fetchProyectos() {
-            setLoading(true);
-            const supabase = createClient();
-            const { data } = await supabase
-                .from('proyectos')
-                .select('*')
-                .eq('categoria', activeCategory)
-                .order('orden', { ascending: true })
-                .order('fecha_creacion', { ascending: false });
-            setProyectos(data || []);
-            setLoading(false);
-        }
-        fetchProyectos();
-    }, [activeCategory]);
 
     // Split projects: first one featured, rest in grid
     const featuredProject = proyectos[0];
@@ -404,16 +390,7 @@ export default function WorksPage() {
                     </motion.div>
 
                     {/* Gallery Content */}
-                    {loading ? (
-                        <div className="space-y-6 md:space-y-8">
-                            <div className="aspect-[16/9] md:aspect-[21/9] rounded-xl bg-white/5 animate-pulse" />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                                {[...Array(4)].map((_, i) => (
-                                    <div key={i} className="aspect-[4/5] rounded-xl bg-white/5 animate-pulse" />
-                                ))}
-                            </div>
-                        </div>
-                    ) : proyectos.length === 0 ? (
+                    {proyectos.length === 0 ? (
                         <motion.div
                             className="text-center py-20"
                             initial={{ opacity: 0 }}
