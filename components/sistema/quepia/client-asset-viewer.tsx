@@ -354,105 +354,183 @@ export function ClientAssetViewer({
 
                 {/* Main Canvas Area */}
                 <div className="flex-1 relative bg-[#050505] flex flex-col">
-                    {/* Header Overlay */}
-                    <div className="absolute top-0 left-0 right-0 p-4 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-                        <div className="pointer-events-auto flex items-center gap-3">
-                            <button onClick={onClose} className="p-2 bg-black/50 hover:bg-white/10 rounded-full text-white transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h2 className="text-white font-medium text-lg drop-shadow-md">{activeAsset.nombre}</h2>
-                                    {isCarouselItem && (
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold flex items-center gap-1">
-                                            <Layers className="h-3 w-3" />
-                                            {(carouselIndex ?? 0) + 1}/{carouselGroup?.length || 0}
+                    {/* Header Overlay - Mobile Optimized */}
+                    <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 via-black/60 to-transparent pointer-events-none">
+                        {/* Top Row: Close + Title + Download */}
+                        <div className="p-3 md:p-4 flex items-start md:items-center justify-between gap-2">
+                            <div className="pointer-events-auto flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                                <button onClick={onClose} className="p-1.5 md:p-2 bg-black/50 hover:bg-white/10 rounded-full text-white transition-colors shrink-0">
+                                    <X className="w-4 h-4 md:w-5 md:h-5" />
+                                </button>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <h2 className="text-white font-medium text-sm md:text-lg drop-shadow-md truncate max-w-[150px] md:max-w-none">{activeAsset.nombre}</h2>
+                                        {isCarouselItem && (
+                                            <span className="text-[9px] md:text-[10px] px-1.5 md:px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold flex items-center gap-0.5 shrink-0">
+                                                <Layers className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                                                {(carouselIndex ?? 0) + 1}/{carouselGroup?.length || 0}
+                                            </span>
+                                        )}
+                                        {activeAsset.asset_type === 'reel' && (
+                                            <span className="text-[9px] md:text-[10px] px-1.5 md:px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold flex items-center gap-0.5 shrink-0">
+                                                <Film className="h-2.5 w-2.5 md:h-3 md:w-3" />
+                                                Reel
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <span
+                                            className="text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                            style={{
+                                                backgroundColor: APPROVAL_STATUS_COLORS[localStatus] + '30',
+                                                color: APPROVAL_STATUS_COLORS[localStatus]
+                                            }}
+                                        >
+                                            {APPROVAL_STATUS_LABELS[localStatus]}
                                         </span>
-                                    )}
-                                    {activeAsset.asset_type === 'reel' && (
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 font-bold flex items-center gap-1">
-                                            <Film className="h-3 w-3" />
-                                            Reel
-                                        </span>
-                                    )}
-                                </div>
-                                {taskTitle && (
-                                    <p className="text-[11px] text-white/40">{taskTitle}</p>
-                                )}
-                                <div className="flex items-center gap-2">
-                                    <span
-                                        className="text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors"
-                                        style={{
-                                            backgroundColor: APPROVAL_STATUS_COLORS[localStatus] + '30',
-                                            color: APPROVAL_STATUS_COLORS[localStatus]
-                                        }}
-                                    >
-                                        {APPROVAL_STATUS_LABELS[localStatus]}
-                                    </span>
+                                        {taskTitle && (
+                                            <p className="text-[10px] text-white/40 truncate hidden md:block">{taskTitle}</p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="pointer-events-auto flex items-center gap-2">
+                            {/* Desktop: Full controls */}
+                            <div className="pointer-events-auto hidden md:flex items-center gap-2">
+                                {hasMultiple && (
+                                    <div className="flex items-center gap-1 bg-black/50 rounded-lg p-1 border border-white/10">
+                                        <button
+                                            onClick={handlePrev}
+                                            disabled={!canPrev}
+                                            className={cn("p-1 rounded hover:bg-white/10 transition-colors", canPrev ? "text-white/70" : "text-white/20")}
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={handleNext}
+                                            disabled={!canNext}
+                                            className={cn("p-1 rounded hover:bg-white/10 transition-colors", canNext ? "text-white/70" : "text-white/20")}
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={handleDownload}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-black/50 text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                                >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Descargar
+                                </button>
+
+                                {/* Rating - Desktop only */}
+                                <div className="flex items-center gap-0.5 bg-black/50 rounded-lg p-1 border border-white/10">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            onClick={() => handleRating(star)}
+                                            className={cn(
+                                                "p-1 hover:scale-110 transition-transform",
+                                                (localRating || 0) >= star ? "text-yellow-400" : "text-white/20 hover:text-yellow-400/50"
+                                            )}
+                                        >
+                                            <Star className="w-4 h-4 fill-current" />
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Approval Actions */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handleStatusUpdate('approved_final')}
+                                        disabled={updatingStatus}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors",
+                                            localStatus === 'approved_final'
+                                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                                : "bg-black/50 text-white/70 hover:text-green-400 hover:bg-green-500/10 border border-white/10"
+                                        )}
+                                    >
+                                        <ThumbsUp className="w-3.5 h-3.5" />
+                                        Aprobar
+                                    </button>
+                                    <button
+                                        onClick={() => handleStatusUpdate('changes_requested')}
+                                        disabled={updatingStatus}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors",
+                                            localStatus === 'changes_requested'
+                                                ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                                                : "bg-black/50 text-white/70 hover:text-red-400 hover:bg-red-500/10 border border-white/10"
+                                        )}
+                                    >
+                                        <ThumbsDown className="w-3.5 h-3.5" />
+                                        Cambios
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowSidebar(!showSidebar)}
+                                    className="p-2 bg-black/50 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors border border-white/10"
+                                    title={showSidebar ? "Ocultar panel" : "Ver panel"}
+                                >
+                                    {showSidebar ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+                                </button>
+                            </div>
+
+                            {/* Mobile: Just download button */}
+                            <div className="pointer-events-auto flex md:hidden items-center gap-1.5 shrink-0">
+                                <button
+                                    onClick={handleDownload}
+                                    className="p-2 rounded-lg bg-black/50 text-white/70 hover:text-white border border-white/10"
+                                >
+                                    <Download className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setShowSidebar(!showSidebar)}
+                                    className="p-2 bg-black/50 hover:bg-white/10 rounded-lg text-white/70 hover:text-white border border-white/10"
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mobile Bottom Action Bar */}
+                    <div className="md:hidden absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/95 to-transparent pointer-events-none">
+                        <div className="pointer-events-auto p-3 flex items-center justify-between gap-2">
+                            {/* Navigation */}
                             {hasMultiple && (
-                                <div className="flex items-center gap-1 bg-black/50 rounded-lg p-1 border border-white/10 mr-2">
+                                <div className="flex items-center gap-1 bg-black/60 rounded-lg p-0.5 border border-white/10">
                                     <button
                                         onClick={handlePrev}
                                         disabled={!canPrev}
-                                        className={cn(
-                                            "p-1 rounded hover:bg-white/10 transition-colors",
-                                            canPrev ? "text-white/70" : "text-white/20"
-                                        )}
+                                        className={cn("p-1.5 rounded transition-colors", canPrev ? "text-white/70" : "text-white/20")}
                                     >
                                         <ChevronLeft className="w-4 h-4" />
                                     </button>
+                                    <span className="text-[10px] text-white/50 px-1">{currentIndex + 1}/{assets?.length || 1}</span>
                                     <button
                                         onClick={handleNext}
                                         disabled={!canNext}
-                                        className={cn(
-                                            "p-1 rounded hover:bg-white/10 transition-colors",
-                                            canNext ? "text-white/70" : "text-white/20"
-                                        )}
+                                        className={cn("p-1.5 rounded transition-colors", canNext ? "text-white/70" : "text-white/20")}
                                     >
                                         <ChevronRight className="w-4 h-4" />
                                     </button>
                                 </div>
                             )}
 
-                            <button
-                                onClick={handleDownload}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 bg-black/50 text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
-                            >
-                                <Download className="w-3.5 h-3.5" />
-                                Descargar
-                            </button>
-
-                            {/* Rating */}
-                            <div className="flex items-center gap-0.5 bg-black/50 rounded-lg p-1 border border-white/10 mr-2">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <button
-                                        key={star}
-                                        onClick={() => handleRating(star)}
-                                        className={cn(
-                                            "p-1 hover:scale-110 transition-transform",
-                                            (localRating || 0) >= star ? "text-yellow-400" : "text-white/20 hover:text-yellow-400/50"
-                                        )}
-                                    >
-                                        <Star className="w-4 h-4 fill-current" />
-                                    </button>
-                                ))}
-                            </div>
-
                             {/* Approval Actions */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-1 justify-end">
                                 <button
                                     onClick={() => handleStatusUpdate('approved_final')}
                                     disabled={updatingStatus}
                                     className={cn(
-                                        "px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors",
+                                        "px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors",
                                         localStatus === 'approved_final'
-                                            ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                                            : "bg-black/50 text-white/70 hover:text-green-400 hover:bg-green-500/10 border border-white/10"
+                                            ? "bg-green-500/30 text-green-400 border border-green-500/40"
+                                            : "bg-green-500/10 text-white/80 hover:bg-green-500/20 border border-white/10"
                                     )}
                                 >
                                     <ThumbsUp className="w-3.5 h-3.5" />
@@ -462,24 +540,16 @@ export function ClientAssetViewer({
                                     onClick={() => handleStatusUpdate('changes_requested')}
                                     disabled={updatingStatus}
                                     className={cn(
-                                        "px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors",
+                                        "px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors",
                                         localStatus === 'changes_requested'
-                                            ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                                            : "bg-black/50 text-white/70 hover:text-red-400 hover:bg-red-500/10 border border-white/10"
+                                            ? "bg-red-500/30 text-red-400 border border-red-500/40"
+                                            : "bg-red-500/10 text-white/80 hover:bg-red-500/20 border border-white/10"
                                     )}
                                 >
                                     <ThumbsDown className="w-3.5 h-3.5" />
-                                    Solicitar cambios
+                                    Cambios
                                 </button>
                             </div>
-
-                            <button
-                                onClick={() => setShowSidebar(!showSidebar)}
-                                className="p-2 bg-black/50 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors border border-white/10 ml-2"
-                                title={showSidebar ? "Ocultar panel" : "Ver panel"}
-                            >
-                                {showSidebar ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-                            </button>
                         </div>
                     </div>
 
