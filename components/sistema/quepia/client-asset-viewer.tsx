@@ -279,13 +279,22 @@ export function ClientAssetViewer({
         })
         const data = await res.json()
         if (data?.url) {
-            const link = document.createElement("a")
-            link.href = data.url
-            link.download = activeAsset.original_filename || activeAsset.nombre
-            link.target = "_blank"
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
+            // For videos on iOS Safari, window.open works better than programmatic link click
+            const isVideoAsset = isVideo || activeAsset.asset_type === 'reel'
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+            if (isVideoAsset && isMobile) {
+                // On mobile, open in new tab - user can then long-press to save
+                window.open(data.url, '_blank')
+            } else {
+                // Desktop: use download attribute
+                const link = document.createElement("a")
+                link.href = data.url
+                link.download = activeAsset.original_filename || activeAsset.nombre
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+            }
         }
     }
 
@@ -597,14 +606,26 @@ export function ClientAssetViewer({
                                 }
 
                                 if (isVideo) {
+                                    const isReel = activeAsset.asset_type === 'reel'
                                     return (
-                                        <video
-                                            src={activeAsset.preview_url || originalUrl}
-                                            poster={activeAsset.thumbnail_url || undefined}
-                                            controls
-                                            playsInline
-                                            className="w-full h-full object-contain bg-black"
-                                        />
+                                        <div className={cn(
+                                            "flex items-center justify-center w-full h-full",
+                                            isReel && "md:px-4"
+                                        )}>
+                                            <video
+                                                src={activeAsset.preview_url || originalUrl}
+                                                poster={activeAsset.thumbnail_url || undefined}
+                                                controls
+                                                playsInline
+                                                className={cn(
+                                                    "bg-black",
+                                                    isReel
+                                                        ? "h-full max-w-full object-contain"
+                                                        : "w-full h-full object-contain"
+                                                )}
+                                                style={isReel ? { aspectRatio: '9/16' } : undefined}
+                                            />
+                                        </div>
                                     )
                                 }
 
