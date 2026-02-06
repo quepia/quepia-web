@@ -762,18 +762,18 @@ body[data-sistema-theme="dark"] {
 
 body[data-sistema-theme="light"] {
   color-scheme: light;
-  --s-ink: 22 17 13;
-  --s-bg: 242 226 208;        /* #f2e2d0 */
-  --s-bg-050505: 231 214 195;
-  --s-bg-070707: 235 219 201;
-  --s-bg-0c0c0c: 255 242 230;
-  --s-bg-0d0d0d: 225 209 191;
-  --s-bg-0f0f0f: 223 206 188;
-  --s-bg-111: 221 203 185;
-  --s-bg-141414: 255 246 236;
-  --s-bg-161616: 255 242 230;
-  --s-bg-1a1a1a: 255 251 245;
-  --s-border-strong: 22 17 13;
+  --s-ink: 15 23 42;          /* #0f172a - Slate 900 for high contrast text */
+  --s-bg: 255 255 255;        /* #ffffff - Pure white background */
+  --s-bg-050505: 248 250 252; /* #f8fafc - Slate 50 for cards */
+  --s-bg-070707: 241 245 249; /* #f1f5f9 - Slate 100 for sidebar/elevated */
+  --s-bg-0c0c0c: 226 232 240; /* #e2e8f0 - Slate 200 for hover states */
+  --s-bg-0d0d0d: 248 250 252; /* #f8fafc - Slate 50 for inputs background */
+  --s-bg-0f0f0f: 241 245 249; /* #f1f5f9 - Slate 100 for secondary cards */
+  --s-bg-111: 255 255 255;    /* #ffffff - White for primary surfaces */
+  --s-bg-141414: 226 232 240; /* #e2e8f0 - Slate 200 for borders/dividers */
+  --s-bg-161616: 248 250 252; /* #f8fafc - Slate 50 for modal backgrounds */
+  --s-bg-1a1a1a: 241 245 249; /* #f1f5f9 - Slate 100 for elevated cards */
+  --s-border-strong: 15 23 42; /* #0f172a - Strong borders */
 }
 
 body[data-sistema-theme] {
@@ -926,3 +926,153 @@ body[data-sistema-theme="light"] [class*="to-quepia-purple"] {
 
 /* Inputs using dark color scheme */
 body[data-sistema-theme="light"] [class~="[color-scheme:dark]"] { color-scheme: light; }
+
+/* ═══════════════════════════════════════════════════════════
+   LIGHT MODE — Enhanced Contrast Overrides
+   ═══════════════════════════════════════════════════════════ */
+
+/* Darker accent colors for better contrast on white backgrounds */
+body[data-sistema-theme="light"] {
+  /* Override accent colors with darker variants for light mode */
+  --quepia-cyan: #0d9488;      /* Teal 600 - darker cyan */
+  --quepia-magenta: #a21caf;   /* Fuchsia 700 - darker magenta */
+  --quepia-purple: #86198f;    /* Fuchsia 800 - darker purple */
+}
+
+/* Ensure high contrast text on light backgrounds */
+body[data-sistema-theme="light"] .text-quepia-cyan,
+body[data-sistema-theme="light"] .text-quepia-magenta,
+body[data-sistema-theme="light"] .text-quepia-purple {
+  text-shadow: none;
+  font-weight: 600;
+}
+
+/* Remove glow effects in light mode that reduce perceived contrast */
+body[data-sistema-theme="light"] svg.text-quepia-cyan,
+body[data-sistema-theme="light"] svg.text-quepia-magenta,
+body[data-sistema-theme="light"] svg.text-quepia-purple {
+  filter: none;
+}
+
+/* Darker backgrounds for accent elements */
+body[data-sistema-theme="light"] .bg-quepia-cyan {
+  background-color: #0d9488;
+  box-shadow: none;
+}
+
+body[data-sistema-theme="light"] .bg-quepia-magenta {
+  background-color: #a21caf;
+  box-shadow: none;
+}
+
+body[data-sistema-theme="light"] .bg-quepia-purple {
+  background-color: #86198f;
+  box-shadow: none;
+}
+
+/* Override translucent accent backgrounds for better contrast */
+body[data-sistema-theme="light"] [class*="bg-quepia-cyan/"] {
+  background-color: rgba(13, 148, 136, 0.15) !important;
+}
+
+body[data-sistema-theme="light"] [class*="bg-quepia-magenta/"] {
+  background-color: rgba(162, 28, 175, 0.15) !important;
+}
+
+body[data-sistema-theme="light"] [class*="bg-quepia-purple/"] {
+  background-color: rgba(134, 25, 143, 0.15) !important;
+}
+
+/* Darker borders for accent elements */
+body[data-sistema-theme="light"] [class*="border-quepia-cyan"] {
+  border-color: rgba(13, 148, 136, 0.5) !important;
+}
+
+body[data-sistema-theme="light"] [class*="border-quepia-magenta"] {
+  border-color: rgba(162, 28, 175, 0.5) !important;
+}
+
+body[data-sistema-theme="light"] [class*="border-quepia-purple"] {
+  border-color: rgba(134, 25, 143, 0.5) !important;
+}
+
+/* Darker text for accent colors */
+body[data-sistema-theme="light"] [class*="text-quepia-cyan"] {
+  color: #0f766e !important; /* Teal 700 */
+}
+
+body[data-sistema-theme="light"] [class*="text-quepia-magenta"] {
+  color: #86198f !important; /* Fuchsia 800 */
+}
+
+body[data-sistema-theme="light"] [class*="text-quepia-purple"] {
+  color: #701a75 !important; /* Fuchsia 900 */
+}
+
+/* Special case: keep white text on solid accent backgrounds */
+body[data-sistema-theme="light"] .bg-quepia-cyan.text-white,
+body[data-sistema-theme="light"] .bg-quepia-magenta.text-white,
+body[data-sistema-theme="light"] .bg-quepia-purple.text-white {
+  color: white !important;
+}
+
+/* Gradients - use darker stops */
+body[data-sistema-theme="light"] [class*="from-quepia-cyan"],
+body[data-sistema-theme="light"] [class*="to-quepia-cyan"] {
+  --quepia-cyan: #0d9488;
+}
+
+body[data-sistema-theme="light"] [class*="from-quepia-magenta"],
+body[data-sistema-theme="light"] [class*="to-quepia-magenta"] {
+  --quepia-magenta: #a21caf;
+}
+
+body[data-sistema-theme="light"] [class*="from-quepia-purple"],
+body[data-sistema-theme="light"] [class*="to-quepia-purple"] {
+  --quepia-purple: #86198f;
+}
+
+/* Remove gradient glow in light mode */
+body[data-sistema-theme="light"] [class*="from-quepia-cyan"],
+body[data-sistema-theme="light"] [class*="from-quepia-magenta"],
+body[data-sistema-theme="light"] [class*="from-quepia-purple"],
+body[data-sistema-theme="light"] [class*="to-quepia-cyan"],
+body[data-sistema-theme="light"] [class*="to-quepia-magenta"],
+body[data-sistema-theme="light"] [class*="to-quepia-purple"] {
+  box-shadow: none;
+}
+
+/* Form elements - checkboxes, radios */
+body[data-sistema-theme="light"] [class*="text-quepia-cyan"][type="checkbox"],
+body[data-sistema-theme="light"] [class*="text-quepia-cyan"][type="radio"] {
+  accent-color: #0d9488;
+}
+
+/* Focus rings */
+body[data-sistema-theme="light"] [class*="focus:ring-quepia-cyan"] {
+  --tw-ring-color: rgba(13, 148, 136, 0.5);
+}
+
+body[data-sistema-theme="light"] [class*="focus:ring-quepia-magenta"] {
+  --tw-ring-color: rgba(162, 28, 175, 0.5);
+}
+
+body[data-sistema-theme="light"] [class*="focus:ring-quepia-purple"] {
+  --tw-ring-color: rgba(134, 25, 143, 0.5);
+}
+
+/* Links and interactive elements */
+body[data-sistema-theme="light"] a:has(.text-quepia-cyan),
+body[data-sistema-theme="light"] button:has(.text-quepia-cyan) {
+  color: #0f766e;
+}
+
+body[data-sistema-theme="light"] a:has(.text-quepia-magenta),
+body[data-sistema-theme="light"] button:has(.text-quepia-magenta) {
+  color: #86198f;
+}
+
+body[data-sistema-theme="light"] a:has(.text-quepia-purple),
+body[data-sistema-theme="light"] button:has(.text-quepia-purple) {
+  color: #701a75;
+}

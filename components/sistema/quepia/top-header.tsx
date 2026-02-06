@@ -63,6 +63,21 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
 
             {/* Right: Actions */}
             <div className="flex items-center gap-1">
+                {/* Mobile: Direct theme toggle button (always visible) */}
+                {onToggleTheme && (
+                    <button
+                        onClick={onToggleTheme}
+                        className="sm:hidden p-2 hover:bg-white/[0.06] rounded-md transition-colors"
+                        title={theme === "light" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
+                    >
+                        {theme === "light" ? (
+                            <Moon className="h-5 w-5 text-slate-600" />
+                        ) : (
+                            <Sun className="h-5 w-4 text-white/60" />
+                        )}
+                    </button>
+                )}
+
                 <div className="hidden sm:flex items-center gap-1">
                     {onToggleTheme && (
                         <button
