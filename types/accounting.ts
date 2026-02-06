@@ -378,7 +378,7 @@ export interface FutureInvestmentUpdate {
 // =====================================================
 // HISTORIAL UNIFICADO
 // =====================================================
-export type UnifiedMovementType = 'payment' | 'expense' | 'transfer_in' | 'transfer_out' | 'adjustment';
+export type UnifiedMovementType = 'payment' | 'expense' | 'transfer_in' | 'transfer_out' | 'adjustment' | 'contribution' | 'repayment';
 
 export interface UnifiedMovement {
     id: string;
@@ -414,5 +414,95 @@ export interface HistorySummary {
     total_expenses_usd: number;
     total_transfers: number;
     total_adjustments: number;
+    total_contributions: number;
+    total_repayments: number;
     movement_count: number;
+}
+
+// =====================================================
+// APORTES DE SOCIOS
+// =====================================================
+export type ContributionStatus = 'pending' | 'partial' | 'completed';
+export type RepaymentType = 'salary_deduction' | 'manual_payment' | 'transfer' | 'other';
+
+export interface PartnerContribution {
+    id: string;
+    partner_name: string;
+    amount: number;
+    currency: Currency;
+    date: string;
+    account_id: string | null;
+    account_name: string | null;
+    account_color: string | null;
+    notes: string | null;
+    status: ContributionStatus;
+    amount_repaid: number;
+    amount_pending: number;
+    repayment_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PartnerContributionInsert {
+    partner_name: string;
+    amount: number;
+    currency?: Currency;
+    date: string;
+    account_id?: string | null;
+    notes?: string | null;
+}
+
+export interface PartnerContributionUpdate {
+    partner_name?: string;
+    amount?: number;
+    currency?: Currency;
+    date?: string;
+    account_id?: string | null;
+    notes?: string | null;
+}
+
+export interface ContributionRepayment {
+    id: string;
+    contribution_id: string;
+    amount: number;
+    date: string;
+    repayment_type: RepaymentType;
+    account_id: string | null;
+    account_name: string | null;
+    account_color: string | null;
+    notes: string | null;
+    created_at: string;
+}
+
+export interface ContributionRepaymentInsert {
+    contribution_id: string;
+    amount: number;
+    date: string;
+    repayment_type?: RepaymentType;
+    account_id?: string | null;
+    notes?: string | null;
+}
+
+export interface ContributionsSummary {
+    partner_name: string;
+    total_contributed_ars: number;
+    total_contributed_usd: number;
+    total_repaid_ars: number;
+    total_repaid_usd: number;
+    total_pending_ars: number;
+    total_pending_usd: number;
+    contribution_count: number;
+    pending_count: number;
+}
+
+export interface ContributionsTotals {
+    total_contributed_ars: number;
+    total_contributed_usd: number;
+    total_repaid_ars: number;
+    total_repaid_usd: number;
+    total_pending_ars: number;
+    total_pending_usd: number;
+    total_contributions: number;
+    pending_contributions: number;
+    unique_partners: number;
 }

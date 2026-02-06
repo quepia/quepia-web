@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Calculator, CreditCard, Receipt, Tags, BarChart3, Wallet, Sparkles, History } from "lucide-react"
+import { Calculator, CreditCard, Receipt, Tags, BarChart3, Wallet, Sparkles, History, HandCoins } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useAccounting } from "@/lib/sistema/hooks/useAccounting"
 import { AccountingPaymentsView } from "./accounting-payments-view"
@@ -11,13 +11,14 @@ import { AccountingAccountsView } from "./accounting-accounts-view"
 import { AccountingChartsView } from "./accounting-charts-view"
 import { AccountingInvestmentsView } from "./accounting-investments-view"
 import { AccountingHistoryView } from "./accounting-history-view"
+import { AccountingContributionsView } from "./accounting-contributions-view"
 import type { ProjectWithChildren } from "@/types/sistema"
 
 interface AccountingViewProps {
     projects: ProjectWithChildren[]
 }
 
-type TabType = 'payments' | 'expenses' | 'accounts' | 'categories' | 'charts' | 'investments' | 'history'
+type TabType = 'payments' | 'expenses' | 'accounts' | 'categories' | 'charts' | 'investments' | 'history' | 'contributions'
 
 export function AccountingView({ projects }: AccountingViewProps) {
     const [activeTab, setActiveTab] = useState<TabType>('accounts')
@@ -28,6 +29,7 @@ export function AccountingView({ projects }: AccountingViewProps) {
         { id: 'accounts' as TabType, label: 'Cuentas', icon: Wallet },
         { id: 'payments' as TabType, label: 'Pagos', icon: CreditCard },
         { id: 'expenses' as TabType, label: 'Gastos', icon: Receipt },
+        { id: 'contributions' as TabType, label: 'Aportes', icon: HandCoins },
         { id: 'investments' as TabType, label: 'Inversiones', icon: Sparkles },
         { id: 'history' as TabType, label: 'Historial', icon: History },
         { id: 'categories' as TabType, label: 'Categorías', icon: Tags },
@@ -180,6 +182,26 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         onRefresh={() => {
                             accounting.fetchCategories()
                             accounting.fetchSubcategories()
+                        }}
+                    />
+                )}
+                {activeTab === 'contributions' && (
+                    <AccountingContributionsView
+                        contributions={accounting.contributions}
+                        loading={accounting.contributionsLoading}
+                        totals={accounting.contributionsTotals}
+                        accounts={accounting.accounts}
+                        onFetchContributions={accounting.fetchContributions}
+                        onCreateContribution={accounting.createContribution}
+                        onUpdateContribution={accounting.updateContribution}
+                        onDeleteContribution={accounting.deleteContribution}
+                        onFetchRepayments={accounting.fetchContributionRepayments}
+                        onCreateRepayment={accounting.createRepayment}
+                        onDeleteRepayment={accounting.deleteRepayment}
+                        onRefresh={() => {
+                            accounting.fetchContributions()
+                            accounting.fetchContributionsTotals()
+                            accounting.fetchAccounts()
                         }}
                     />
                 )}

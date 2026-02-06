@@ -37,6 +37,8 @@ const MOVEMENT_TYPE_CONFIG: Record<UnifiedMovementType, { label: string; icon: a
     transfer_in: { label: 'Transferencia entrada', icon: ArrowDownLeft, color: 'text-blue-400', bgColor: 'bg-blue-400/20' },
     transfer_out: { label: 'Transferencia salida', icon: ArrowUpRight, color: 'text-orange-400', bgColor: 'bg-orange-400/20' },
     adjustment: { label: 'Ajuste', icon: RefreshCw, color: 'text-amber-400', bgColor: 'bg-amber-400/20' },
+    contribution: { label: 'Aporte', icon: ArrowDownLeft, color: 'text-cyan-400', bgColor: 'bg-cyan-400/20' },
+    repayment: { label: 'Devolución', icon: ArrowUpRight, color: 'text-pink-400', bgColor: 'bg-pink-400/20' },
 }
 
 const ITEMS_PER_PAGE = 50
@@ -205,6 +207,8 @@ export function AccountingHistoryView({
                     <option value="payment">Pagos</option>
                     <option value="expense">Gastos</option>
                     <option value="transfer">Transferencias</option>
+                    <option value="contribution">Aportes</option>
+                    <option value="repayment">Devoluciones</option>
                     <option value="adjustment">Ajustes</option>
                 </select>
 

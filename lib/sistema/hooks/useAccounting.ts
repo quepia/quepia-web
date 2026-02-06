@@ -37,6 +37,15 @@ import type {
     UnifiedMovement,
     HistoryFilters,
     HistorySummary,
+    // Aportes de socios
+    PartnerContribution,
+    PartnerContributionInsert,
+    PartnerContributionUpdate,
+    ContributionRepayment,
+    ContributionRepaymentInsert,
+    ContributionsSummary,
+    ContributionsTotals,
+    ContributionStatus,
 } from '@/types/accounting';
 
 // =====================================================
@@ -848,6 +857,191 @@ export function useAccounting() {
         }
     }, []);
 
+    // =====================================================
+    // APORTES DE SOCIOS
+    // =====================================================
+    const [contributions, setContributions] = useState<PartnerContribution[]>([]);
+    const [contributionsLoading, setContributionsLoading] = useState(true);
+    const [contributionsTotals, setContributionsTotals] = useState<ContributionsTotals | null>(null);
+    const [contributionsSummary, setContributionsSummary] = useState<ContributionsSummary[]>([]);
+
+    const fetchContributions = useCallback(async (status?: ContributionStatus, partnerName?: string) => {
+        try {
+            setContributionsLoading(true);
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_partner_contributions', {
+                p_status: status || null,
+                p_partner_name: partnerName || null,
+            });
+
+            if (fetchError) throw fetchError;
+            setContributions(data || []);
+        } catch (err) {
+            console.error('Error fetching contributions:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching contributions');
+        } finally {
+            setContributionsLoading(false);
+        }
+    }, []);
+
+    const fetchContributionsTotals = useCallback(async () => {
+        try {
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_contributions_totals');
+
+            if (fetchError) throw fetchError;
+            setContributionsTotals(data);
+        } catch (err) {
+            console.error('Error fetching contributions totals:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching contributions totals');
+        }
+    }, []);
+
+    const fetchContributionsSummary = useCallback(async () => {
+        try {
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_contributions_summary');
+
+            if (fetchError) throw fetchError;
+            setContributionsSummary(data || []);
+        } catch (err) {
+            console.error('Error fetching contributions summary:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching contributions summary');
+        }
+    }, []);
+
+    const createContribution = async (contribution: PartnerContributionInsert): Promise<PartnerContribution | null> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { data, error: insertError } = await supabase
+                .from('accounting_partner_contributions')
+                .insert(contribution)
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+            await fetchContributions();
+            await fetchContributionsTotals();
+            await fetchAccounts(); // Actualizar balances de cuenta
+            return data;
+        } catch (err) {
+            console.error('Error creating contribution:', err);
+            setError(err instanceof Error ? err.message : 'Error creating contribution');
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateContribution = async (id: string, updates: PartnerContributionUpdate): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { error: updateError } = await supabase
+                .from('accounting_partner_contributions')
+                .update(updates)
+                .eq('id', id);
+
+            if (updateError) throw updateError;
+            await fetchContributions();
+            await fetchContributionsTotals();
+            return true;
+        } catch (err) {
+            console.error('Error updating contribution:', err);
+            setError(err instanceof Error ? err.message : 'Error updating contribution');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const deleteContribution = async (id: string): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { error: deleteError } = await supabase
+                .from('accounting_partner_contributions')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) throw deleteError;
+            await fetchContributions();
+            await fetchContributionsTotals();
+            await fetchAccounts();
+            return true;
+        } catch (err) {
+            console.error('Error deleting contribution:', err);
+            setError(err instanceof Error ? err.message : 'Error deleting contribution');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchContributionRepayments = async (contributionId: string): Promise<ContributionRepayment[]> => {
+        try {
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_contribution_repayments', {
+                p_contribution_id: contributionId,
+            });
+
+            if (fetchError) throw fetchError;
+            return data || [];
+        } catch (err) {
+            console.error('Error fetching repayments:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching repayments');
+            return [];
+        }
+    };
+
+    const createRepayment = async (repayment: ContributionRepaymentInsert): Promise<ContributionRepayment | null> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { data, error: insertError } = await supabase
+                .from('accounting_contribution_repayments')
+                .insert(repayment)
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+            await fetchContributions();
+            await fetchContributionsTotals();
+            await fetchAccounts(); // Actualizar balances
+            return data;
+        } catch (err) {
+            console.error('Error creating repayment:', err);
+            setError(err instanceof Error ? err.message : 'Error creating repayment');
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const deleteRepayment = async (id: string): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { error: deleteError } = await supabase
+                .from('accounting_contribution_repayments')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) throw deleteError;
+            await fetchContributions();
+            await fetchContributionsTotals();
+            await fetchAccounts();
+            return true;
+        } catch (err) {
+            console.error('Error deleting repayment:', err);
+            setError(err instanceof Error ? err.message : 'Error deleting repayment');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Cargar datos iniciales
     useEffect(() => {
         fetchCategories();
@@ -860,7 +1054,9 @@ export function useAccounting() {
         fetchMonthlyChartData();
         fetchExpenseDistribution();
         fetchInvestments();
-    }, [fetchCategories, fetchPayments, fetchExpenses, fetchSummary, fetchAccounts, fetchTransfers, fetchSubcategories, fetchMonthlyChartData, fetchExpenseDistribution, fetchInvestments]);
+        fetchContributions();
+        fetchContributionsTotals();
+    }, [fetchCategories, fetchPayments, fetchExpenses, fetchSummary, fetchAccounts, fetchTransfers, fetchSubcategories, fetchMonthlyChartData, fetchExpenseDistribution, fetchInvestments, fetchContributions, fetchContributionsTotals]);
 
     return {
         // Estado general
@@ -948,5 +1144,20 @@ export function useAccounting() {
         historySummary,
         fetchHistory,
         fetchHistorySummary,
+
+        // Aportes de socios
+        contributions,
+        contributionsLoading,
+        contributionsTotals,
+        contributionsSummary,
+        fetchContributions,
+        fetchContributionsTotals,
+        fetchContributionsSummary,
+        createContribution,
+        updateContribution,
+        deleteContribution,
+        fetchContributionRepayments,
+        createRepayment,
+        deleteRepayment,
     };
 }
