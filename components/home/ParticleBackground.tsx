@@ -1,30 +1,25 @@
 'use client';
 
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import React, { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { motion, useReducedMotion } from 'framer-motion';
 import * as THREE from 'three';
 
-// Check if device is mobile
+// ── Hooks ──────────────────────────────────────────────────────────
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
-
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const check = () => setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
-
   return isMobile;
 }
 
-// Check if device is low power mode
 function useIsLowPower() {
   const [isLowPower, setIsLowPower] = useState(false);
-
   useEffect(() => {
     if ('getBattery' in navigator) {
       (navigator as any).getBattery().then((battery: any) => {
@@ -32,328 +27,81 @@ function useIsLowPower() {
       });
     }
   }, []);
-
   return isLowPower;
 }
 
 function useDocumentVisible() {
   const [isVisible, setIsVisible] = useState(true);
-
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsVisible(!document.hidden);
-    };
-    handleVisibilityChange();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    const handler = () => setIsVisible(!document.hidden);
+    handler();
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
   }, []);
-
   return isVisible;
 }
 
 function usePerformanceHints() {
   const [hints, setHints] = useState({ saveData: false, lowCpu: false });
-
   useEffect(() => {
     const connection = (navigator as any).connection;
     const saveData = Boolean(connection?.saveData);
     const lowCpu = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
       ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4);
-
     setHints({ saveData, lowCpu: Boolean(lowCpu) });
   }, []);
-
   return hints;
 }
 
-// Simplex noise function for vertex shader
-const simplexNoise = `
-  vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-  vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-  vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-  vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+// Shared mouse position (normalized -1..1)
+const mouseState = { x: 0, y: 0, targetX: 0, targetY: 0 };
 
-  float snoise(vec3 v) {
-    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-    
-    vec3 i  = floor(v + dot(v, C.yyy));
-    vec3 x0 = v - i + dot(i, C.xxx);
-    
-    vec3 g = step(x0.yzx, x0.xyz);
-    vec3 l = 1.0 - g;
-    vec3 i1 = min(g.xyz, l.zxy);
-    vec3 i2 = max(g.xyz, l.zxy);
-    
-    vec3 x1 = x0 - i1 + C.xxx;
-    vec3 x2 = x0 - i2 + C.yyy;
-    vec3 x3 = x0 - D.yyy;
-    
-    i = mod289(i);
-    vec4 p = permute(permute(permute(
-              i.z + vec4(0.0, i1.z, i2.z, 1.0))
-            + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-            + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-            
-    float n_ = 0.142857142857;
-    vec3  ns = n_ * D.wyz - D.xzx;
-    
-    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-    
-    vec4 x_ = floor(j * ns.z);
-    vec4 y_ = floor(j - 7.0 * x_);
-    
-    vec4 x = x_ *ns.x + ns.yyyy;
-    vec4 y = y_ *ns.x + ns.yyyy;
-    vec4 h = 1.0 - abs(x) - abs(y);
-    
-    vec4 b0 = vec4(x.xy, y.xy);
-    vec4 b1 = vec4(x.zw, y.zw);
-    
-    vec4 s0 = floor(b0)*2.0 + 1.0;
-    vec4 s1 = floor(b1)*2.0 + 1.0;
-    vec4 sh = -step(h, vec4(0.0));
-    
-    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-    
-    vec3 p0 = vec3(a0.xy, h.x);
-    vec3 p1 = vec3(a0.zw, h.y);
-    vec3 p2 = vec3(a1.xy, h.z);
-    vec3 p3 = vec3(a1.zw, h.w);
-    
-    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
-    p0 *= norm.x;
-    p1 *= norm.y;
-    p2 *= norm.z;
-    p3 *= norm.w;
-    
-    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-    m = m * m;
-    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
-  }
-`;
-
-// Perfect sphere with cursor-based deformation only
-function GradientSphere({ isMobile, isLowPower, active }: { isMobile: boolean; isLowPower: boolean; active: boolean }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const { viewport } = useThree();
-  const entranceProgress = useRef(0);
-  const isActive = useRef(true);
-  
-  // Mouse tracking
-  const mouseRef = useRef({ x: 0, y: 0 });
-  const targetMouseRef = useRef({ x: 0, y: 0 });
-  const cursorProximityRef = useRef(0);
-  
-  // Store base position to prevent scroll jumps
-  const basePositionRef = useRef(new THREE.Vector3(viewport.width * 0.16, 0, 0));
-
-  const material = useMemo(() => {
-    const vertexShader = `
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-      varying vec3 vViewPosition;
-      uniform float uTime;
-      uniform float uCursorProximity;
-      uniform vec2 uCursorPos;
-      
-      ${simplexNoise}
-      
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        
-        // Only deform when cursor is near - based on proximity
-        float deformStrength = uCursorProximity * 0.15;
-        
-        // Create deformation pattern
-        float noise = snoise(position * 2.0 + uTime * 0.5);
-        float displacement = noise * deformStrength;
-        
-        vec3 newPosition = position + normal * displacement;
-        vPosition = newPosition;
-        
-        vec4 mvPosition = modelViewMatrix * vec4(newPosition, 1.0);
-        vViewPosition = -mvPosition.xyz;
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `;
-
-    const fragmentShader = `
-      uniform vec3 uColorCyan;
-      uniform vec3 uColorPurple;
-      uniform vec3 uColorMid;
-      uniform vec3 uColorHighlight;
-      uniform float uTime;
-      uniform float uPulseSpeed;
-      uniform float uCursorProximity;
-      
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-      varying vec3 vViewPosition;
-      
-      void main() {
-        // Create dynamic color waves
-        float wave1 = sin(vPosition.x * 3.0 + uTime * 0.8) * 0.5 + 0.5;
-        float wave2 = cos(vPosition.y * 3.0 + uTime * 0.6 + 1.0) * 0.5 + 0.5;
-        float wave3 = sin(vPosition.z * 3.0 + uTime * 0.4 + 2.0) * 0.5 + 0.5;
-        
-        // Combine waves for complex color mixing
-        float mixFactor = (wave1 + wave2 + wave3) / 3.0;
-        
-        // Primary gradient: Cyan to Purple with dynamic mixing
-        vec3 baseColor = mix(uColorCyan, uColorPurple, mixFactor);
-        
-        // Add mid-tone transitions for smoother color journey
-        float midMix = sin(uTime * 0.5) * 0.5 + 0.5;
-        baseColor = mix(baseColor, uColorMid, midMix * 0.3);
-        
-        // Secondary color waves for more variation
-        float secondaryWave = sin(vPosition.x * 5.0 + vPosition.y * 3.0 + uTime * 1.2) * 0.5 + 0.5;
-        baseColor = mix(baseColor, uColorCyan, secondaryWave * 0.2);
-        
-        float tertiaryWave = cos(vPosition.z * 4.0 + vPosition.x * 2.0 + uTime * 0.9) * 0.5 + 0.5;
-        baseColor = mix(baseColor, uColorPurple, tertiaryWave * 0.2);
-        
-        // Highlight when cursor is near
-        baseColor = mix(baseColor, uColorHighlight, uCursorProximity * 0.3);
-        
-        // Metallic/Fresnel effect
-        vec3 viewDir = normalize(vViewPosition);
-        float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 2.5);
-        
-        // Specular highlight with animation
-        vec3 lightDir = normalize(vec3(sin(uTime * 0.3) * 2.0, 2.0, 3.0));
-        vec3 halfDir = normalize(lightDir + viewDir);
-        float specAngle = max(dot(halfDir, vNormal), 0.0);
-        float specular = pow(specAngle, 32.0) * 0.8;
-        
-        // Animated rim light
-        float rim = pow(1.0 - abs(dot(viewDir, vNormal)), 3.0);
-        
-        // Pulsing glow effect
-        float pulse = sin(uTime * uPulseSpeed) * 0.1 + 0.9;
-        
-        // Combine all effects
-        vec3 finalColor = baseColor * (0.7 + fresnel * 0.5) * pulse;
-        finalColor += uColorHighlight * specular * 1.5;
-        finalColor += uColorCyan * rim * 1.5;
-        finalColor += uColorPurple * fresnel * 0.3;
-        
-        gl_FragColor = vec4(finalColor, 0.95);
-      }
-    `;
-
-    return new THREE.ShaderMaterial({
-      uniforms: {
-        uColorCyan: { value: new THREE.Color('#2AE7E4') },
-        uColorPurple: { value: new THREE.Color('#881078') },
-        uColorMid: { value: new THREE.Color('#4A4A9A') },
-        uColorHighlight: { value: new THREE.Color('#ffffff') },
-        uTime: { value: 0 },
-        uCursorProximity: { value: 0 },
-        uCursorPos: { value: new THREE.Vector2(0, 0) },
-        uPulseSpeed: { value: 0.5 },
-      },
-      vertexShader,
-      fragmentShader,
-      transparent: true,
-    });
-  }, []);
-
-  // Mouse position tracking
+function useGlobalMouse() {
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      // Normalize mouse to -1 to 1
-      targetMouseRef.current = {
-        x: (e.clientX / window.innerWidth) * 2 - 1,
-        y: -(e.clientY / window.innerHeight) * 2 + 1,
-      };
+    const onMove = (e: MouseEvent) => {
+      mouseState.targetX = (e.clientX / window.innerWidth) * 2 - 1;
+      mouseState.targetY = -(e.clientY / window.innerHeight) * 2 + 1;
     };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => window.removeEventListener('mousemove', onMove);
   }, []);
-
-  useFrame((state) => {
-    if (!meshRef.current || !isActive.current || !active) return;
-
-    const time = state.clock.elapsedTime;
-    const mesh = meshRef.current;
-
-    // Entrance animation
-    if (entranceProgress.current < 1) {
-      entranceProgress.current = Math.min(entranceProgress.current + 0.015, 1);
-      const easeOut = 1 - Math.pow(1 - entranceProgress.current, 4);
-      mesh.scale.setScalar(baseScale * easeOut);
-    }
-
-    // Update shader time
-    material.uniforms.uTime.value = time;
-
-    // Smooth floating animation (independent of scroll)
-    const floatY = Math.sin(time * 0.5) * 0.15 + Math.sin(time * 0.3) * 0.08;
-    
-    // Smooth mouse parallax with lerp
-    mouseRef.current.x += (targetMouseRef.current.x - mouseRef.current.x) * 0.04;
-    mouseRef.current.y += (targetMouseRef.current.y - mouseRef.current.y) * 0.04;
-
-    // Calculate cursor proximity to sphere for deformation
-    // Sphere is at viewport.width * 0.16, estimate sphere position on screen
-    const sphereScreenX = 0.32; // Approximate normalized screen position (right side)
-    const sphereScreenY = 0;
-    
-    const dx = mouseRef.current.x - sphereScreenX;
-    const dy = mouseRef.current.y - sphereScreenY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // Proximity is high when close (0-1 range, 1 = very close)
-    const targetProximity = Math.max(0, 1 - distance * 2);
-    cursorProximityRef.current += (targetProximity - cursorProximityRef.current) * 0.05;
-    
-    material.uniforms.uCursorProximity.value = cursorProximityRef.current;
-    material.uniforms.uCursorPos.value.set(mouseRef.current.x, mouseRef.current.y);
-
-    // Position calculation - STABLE, not affected by scroll
-    // Use base position plus subtle parallax
-    const parallaxX = mouseRef.current.x * 0.2;
-    const parallaxY = mouseRef.current.y * 0.1 + floatY;
-
-    // Smooth position update
-    mesh.position.x += (basePositionRef.current.x + parallaxX - mesh.position.x) * 0.05;
-    mesh.position.y += (basePositionRef.current.y + parallaxY - mesh.position.y) * 0.05;
-    mesh.position.z = basePositionRef.current.z;
-    
-    // Subtle rotation
-    mesh.rotation.y = Math.sin(time * 0.1) * 0.1 + mouseRef.current.x * 0.05;
-    mesh.rotation.z = Math.cos(time * 0.08) * 0.05;
-  });
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      isActive.current = false;
-      material.dispose();
-    };
-  }, [material]);
-
-  const baseScale = isMobile ? 1.4 : Math.min(viewport.width * 0.24, 2.4);
-  const segments = isMobile || isLowPower ? 48 : 64;
-
-  return (
-    <mesh
-      ref={meshRef}
-      material={material}
-      position={[basePositionRef.current.x, 0, 0]}
-      scale={0}
-    >
-      <sphereGeometry args={[1, segments, segments]} />
-    </mesh>
-  );
 }
 
-// Particles with orbital motion
-function Particles({ count = 48, isMobile, isLowPower, active }: { count?: number; isMobile: boolean; isLowPower: boolean; active: boolean }) {
+// Circular particle texture (generated once, reused by all particle systems)
+function createCircleTexture(): THREE.Texture {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const center = size / 2;
+  const radius = size / 2;
+
+  const gradient = ctx.createRadialGradient(center, center, 0, center, center, radius);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.4, 'rgba(255,255,255,0.8)');
+  gradient.addColorStop(0.7, 'rgba(255,255,255,0.3)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+let _circleTexture: THREE.Texture | null = null;
+function getCircleTexture(): THREE.Texture {
+  if (!_circleTexture) _circleTexture = createCircleTexture();
+  return _circleTexture;
+}
+
+// ── Interactive Particles (Three.js) ───────────────────────────────
+
+function Particles({ count = 400, isMobile, isLowPower, active }: {
+  count?: number; isMobile: boolean; isLowPower: boolean; active: boolean;
+}) {
   const pointsRef = useRef<THREE.Points>(null);
   const entranceProgress = useRef(0);
   const isActive = useRef(true);
@@ -361,35 +109,48 @@ function Particles({ count = 48, isMobile, isLowPower, active }: { count?: numbe
 
   const particleCount = isMobile || isLowPower ? Math.floor(count / 3) : count;
 
-  const { positions, colors, speeds } = useMemo(() => {
+  // Store base positions for mouse interaction
+  const basePositions = useRef<Float32Array | null>(null);
+
+  const { positions, colors, speeds, sizes } = useMemo(() => {
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
     const speeds = new Float32Array(particleCount);
+    const sizes = new Float32Array(particleCount);
 
     const colorCyan = new THREE.Color('#2AE7E4');
+    const colorCyanSoft = new THREE.Color('#5CF0ED');
     const colorPurple = new THREE.Color('#881078');
-    const colorWhite = new THREE.Color('#ffffff');
+    const colorPurpleSoft = new THREE.Color('#B44AA8');
+    const colorWhite = new THREE.Color('#d0f0ff');
 
     for (let i = 0; i < particleCount; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
-      const radius = 1.8 + Math.random() * 2.5;
+      const radius = 1.5 + Math.random() * 5.0;
 
       positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = radius * Math.cos(phi);
+      positions[i * 3 + 2] = radius * Math.cos(phi) * 0.4;
 
+      // More varied liquid-like color palette
       const colorMix = Math.random();
-      const color = colorMix < 0.45 ? colorCyan : colorMix < 0.8 ? colorPurple : colorWhite;
+      const color = colorMix < 0.25 ? colorCyan
+        : colorMix < 0.45 ? colorCyanSoft
+        : colorMix < 0.65 ? colorPurple
+        : colorMix < 0.82 ? colorPurpleSoft
+        : colorWhite;
       colors[i * 3] = color.r;
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
 
-      speeds[i] = Math.random() * 0.5 + 0.2;
+      speeds[i] = Math.random() * 0.4 + 0.1; // slower, more fluid
+      sizes[i] = (Math.random() * 0.8 + 0.2);
     }
 
-    return { positions, colors, speeds };
-  }, [particleCount, isMobile, isLowPower]);
+    basePositions.current = new Float32Array(positions);
+    return { positions, colors, speeds, sizes };
+  }, [particleCount]);
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry();
@@ -408,35 +169,68 @@ function Particles({ count = 48, isMobile, isLowPower, active }: { count?: numbe
       entranceProgress.current = Math.min(entranceProgress.current + 0.012, 1);
       const easeOut = 1 - Math.pow(1 - entranceProgress.current, 2);
       if (pointsRef.current.material) {
-        (pointsRef.current.material as THREE.PointsMaterial).opacity = 0.6 * easeOut;
+        (pointsRef.current.material as THREE.PointsMaterial).opacity = 0.95 * easeOut;
       }
     }
 
-    // Gentle rotation - consistent speed, no scroll dependency
-    rotationRef.current += 0.0003;
-    pointsRef.current.rotation.y = rotationRef.current;
-    pointsRef.current.rotation.z = Math.sin(time * 0.1) * 0.05;
+    // Smooth mouse lerp
+    mouseState.x += (mouseState.targetX - mouseState.x) * 0.05;
+    mouseState.y += (mouseState.targetY - mouseState.y) * 0.05;
 
-    // Subtle particle movement
-    const positions = pointsRef.current.geometry.attributes.position.array as Float32Array;
+    // Gentle base rotation
+    rotationRef.current += 0.0004;
+    pointsRef.current.rotation.y = rotationRef.current;
+    pointsRef.current.rotation.z = Math.sin(time * 0.08) * 0.03;
+
+    // Mouse-influenced position offset
+    const posAttr = pointsRef.current.geometry.attributes.position.array as Float32Array;
+    const base = basePositions.current!;
+
+    // Convert mouse to 3D-ish coordinates for interaction
+    const mx = mouseState.x * 4;
+    const my = mouseState.y * 3;
+
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
       const speed = speeds[i];
-      positions[i3 + 1] += Math.sin(time * speed * 0.5 + i) * 0.001;
+
+      // Base orbital drift
+      const bx = base[i3];
+      const by = base[i3 + 1];
+      const bz = base[i3 + 2];
+
+      // Fluid wave-like oscillation (multiple sine waves for organic feel)
+      const wave1 = Math.sin(time * speed * 0.25 + i * 0.5) * 0.2;
+      const wave2 = Math.cos(time * speed * 0.18 + i * 1.3) * 0.15;
+      const wave3 = Math.sin(time * 0.15 + bx * 0.5 + by * 0.3) * 0.12;
+      const ox = wave1 + wave3;
+      const oy = wave2 + Math.sin(time * 0.12 + i * 0.8) * 0.1;
+
+      // Mouse repulsion — wider, softer radius
+      const dx = bx + ox - mx;
+      const dy = by + oy - my;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const influence = Math.max(0, 1 - dist / 4.0);
+      const pushStrength = influence * influence * 1.0;
+      const pushX = dist > 0.01 ? (dx / dist) * pushStrength : 0;
+      const pushY = dist > 0.01 ? (dy / dist) * pushStrength : 0;
+
+      posAttr[i3] = bx + ox + pushX;
+      posAttr[i3 + 1] = by + oy + pushY;
+      posAttr[i3 + 2] = bz + Math.sin(time * speed * 0.15 + i * 0.6) * 0.08;
     }
     pointsRef.current.geometry.attributes.position.needsUpdate = true;
   });
 
   useEffect(() => {
-    return () => {
-      isActive.current = false;
-    };
+    return () => { isActive.current = false; };
   }, []);
 
   return (
     <points ref={pointsRef} geometry={geometry}>
       <pointsMaterial
-        size={isMobile ? 0.025 : 0.035}
+        map={getCircleTexture()}
+        size={isMobile ? 0.05 : 0.08}
         vertexColors
         transparent
         opacity={0}
@@ -448,135 +242,188 @@ function Particles({ count = 48, isMobile, isLowPower, active }: { count?: numbe
   );
 }
 
-// Orbiting ring
-function OrbitRing({ isMobile, isLowPower, active }: { isMobile: boolean; isLowPower: boolean; active: boolean }) {
-  const ringRef = useRef<THREE.Mesh>(null);
-  const { viewport } = useThree();
-  const rotationRef = useRef(0);
+// Glow particles — larger, fewer, additive for bloom effect
+function GlowParticles({ isMobile, active }: { isMobile: boolean; active: boolean }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  const isActive = useRef(true);
+  const basePositions = useRef<Float32Array | null>(null);
+  const count = isMobile ? 18 : 60;
 
-  const material = useMemo(() => {
-    return new THREE.ShaderMaterial({
-      uniforms: {
-        uColorCyan: { value: new THREE.Color('#2AE7E4') },
-        uColorPurple: { value: new THREE.Color('#881078') },
-        uTime: { value: 0 },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 uColorCyan;
-        uniform vec3 uColorPurple;
-        uniform float uTime;
-        varying vec2 vUv;
-        
-        void main() {
-          float angle = atan(vUv.y - 0.5, vUv.x - 0.5) / (2.0 * 3.14159) + 0.5;
-          float gradient = sin(angle * 6.28 + uTime) * 0.5 + 0.5;
-          vec3 color = mix(uColorCyan, uColorPurple, gradient);
-          float alpha = 0.3 * (1.0 - abs(vUv.y - 0.5) * 2.0);
-          gl_FragColor = vec4(color, alpha * 0.5);
-        }
-      `,
-      transparent: true,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-    });
-  }, []);
+  const { positions, colors } = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const colorCyan = new THREE.Color('#2AE7E4');
+    const colorCyanSoft = new THREE.Color('#5CF0ED');
+    const colorPurple = new THREE.Color('#881078');
+    const colorPurpleSoft = new THREE.Color('#C060B0');
+
+    for (let i = 0; i < count; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(Math.random() * 2 - 1);
+      const radius = 2.0 + Math.random() * 4.0;
+
+      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = radius * Math.cos(phi) * 0.3;
+
+      const mix = Math.random();
+      const color = mix < 0.3 ? colorCyan : mix < 0.55 ? colorCyanSoft : mix < 0.8 ? colorPurple : colorPurpleSoft;
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+    }
+    basePositions.current = new Float32Array(positions);
+    return { positions, colors };
+  }, [count]);
+
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    return geo;
+  }, [positions, colors]);
 
   useFrame((state) => {
-    if (!ringRef.current || !active) return;
-    material.uniforms.uTime.value = state.clock.elapsedTime;
-    
-    // Consistent rotation, no scroll dependency
-    rotationRef.current += 0.002;
-    ringRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2) * 0.3;
-    ringRef.current.rotation.y = rotationRef.current;
-    ringRef.current.rotation.z = Math.cos(state.clock.elapsedTime * 0.15) * 0.2;
+    if (!pointsRef.current || !isActive.current || !active) return;
+    const time = state.clock.elapsedTime;
+
+    // Slow fluid drift for glow particles
+    const posAttr = pointsRef.current.geometry.attributes.position.array as Float32Array;
+    const base = basePositions.current!;
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      posAttr[i3] = base[i3] + Math.sin(time * 0.12 + i * 0.9) * 0.25;
+      posAttr[i3 + 1] = base[i3 + 1] + Math.cos(time * 0.1 + i * 0.7) * 0.2;
+      posAttr[i3 + 2] = base[i3 + 2] + Math.sin(time * 0.08 + i * 1.1) * 0.1;
+    }
+    pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    pointsRef.current.rotation.y = time * 0.03;
   });
 
-  if (isMobile || isLowPower) return null;
+  useEffect(() => {
+    return () => { isActive.current = false; };
+  }, []);
 
   return (
-    <mesh ref={ringRef} material={material} position={[viewport.width * 0.16, 0, 0]}>
-      <torusGeometry args={[2.2, 0.01, 16, 100]} />
-    </mesh>
+    <points ref={pointsRef} geometry={geometry}>
+      <pointsMaterial
+        map={getCircleTexture()}
+        size={isMobile ? 0.25 : 0.45}
+        vertexColors
+        transparent
+        opacity={0.3}
+        sizeAttenuation
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
   );
 }
 
-// Main 3D scene
+// ── Three.js Scene ────────────────────────────────────────────────
+
 function Scene({ active, isMobile, isLowPower }: { active: boolean; isMobile: boolean; isLowPower: boolean }) {
   return (
     <>
-      <ambientLight intensity={0.3} />
-      <GradientSphere isMobile={isMobile} isLowPower={isLowPower} active={active} />
-      <Particles count={48} isMobile={isMobile} isLowPower={isLowPower} active={active} />
-      <OrbitRing isMobile={isMobile} isLowPower={isLowPower} active={active} />
+      <Particles count={500} isMobile={isMobile} isLowPower={isLowPower} active={active} />
+      <GlowParticles isMobile={isMobile} active={active} />
     </>
   );
 }
 
-// CSS fallback
-function FallbackBackground() {
-  const [isReady, setIsReady] = useState(false);
+// ── Video Background Layer ────────────────────────────────────────
+
+function VideoBackground({ active }: { active: boolean }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!videoRef.current) return;
+    if (active) {
+      videoRef.current.play().catch(() => {});
+    } else {
+      videoRef.current.pause();
+    }
+  }, [active]);
 
   return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Video element — brighter with glow */}
+      <video
+        ref={videoRef}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          filter: 'blur(0.3px) brightness(0.9) contrast(1.15) saturate(1.4)',
+        }}
+        src="/hero-bg.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+      />
+
+      {/* Glow effect — soft radial light behind the liquid ball */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 50% 45% at 50% 50%, rgba(42,231,228,0.15) 0%, rgba(136,16,120,0.08) 40%, transparent 70%)',
+          mixBlendMode: 'screen',
+        }}
+      />
+
+      {/* Color overlay with blend mode for brand tinting */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(135deg, rgba(42,231,228,0.1) 0%, rgba(74,74,154,0.12) 40%, rgba(136,16,120,0.1) 100%)',
+          mixBlendMode: 'overlay',
+        }}
+      />
+
+      {/* Radial vignette — hides watermark at edges */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse 80% 70% at 50% 50%, transparent 45%, rgba(10,10,10,0.5) 100%)',
+        }}
+      />
+
+      {/* Extra bottom-edge darkening (watermarks often sit here) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(10,10,10,0.8) 0%, rgba(10,10,10,0.2) 10%, transparent 30%)',
+        }}
+      />
+
+      {/* Top edge darkening */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(10,10,10,0.35) 0%, transparent 18%)',
+        }}
+      />
+    </div>
+  );
+}
+
+// ── Mobile Background (full-screen video, no Three.js) ───────────
+
+function MobileVideoBackground({ active }: { active: boolean }) {
+  return (
     <motion.div
-      className="absolute inset-0 bg-[#0a0a0a]"
+      className="absolute inset-0 w-full h-full"
       initial={{ opacity: 0 }}
-      animate={{ opacity: isReady ? 1 : 0 }}
-      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          className="absolute w-[380px] h-[380px] rounded-full"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{
-            opacity: isReady ? 1 : 0,
-            scale: isReady ? 1 : 0.8
-          }}
-          transition={{
-            duration: 1.2,
-            delay: 0.2,
-            ease: [0.16, 1, 0.3, 1]
-          }}
-          style={{
-            background: 'radial-gradient(circle at 30% 30%, #2AE7E4 0%, #4A4A9A 40%, #881078 70%, #0a0a0a 100%)',
-            boxShadow: '0 0 120px rgba(42,231,228,0.5), inset -30px -30px 80px rgba(0,0,0,0.8)',
-            top: '25%',
-            right: '15%',
-            animation: 'spherePulse 4s ease-in-out infinite, sphereFloat 6s ease-in-out infinite',
-          }}
-        />
-        
-        <motion.div
-          className="absolute w-[300px] h-[300px] rounded-full"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isReady ? 0.6 : 0 }}
-          transition={{ duration: 1.5, delay: 0.5 }}
-          style={{
-            background: 'radial-gradient(circle, rgba(136,16,120,0.6) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-            top: '30%',
-            right: '18%',
-            animation: 'sphereFloat 5s ease-in-out infinite reverse',
-          }}
-        />
-      </div>
+      <VideoBackground active={active} />
     </motion.div>
   );
 }
 
-// Main component
+// ── Main Component ────────────────────────────────────────────────
+
 interface ParticleBackgroundProps {
   active?: boolean;
 }
@@ -589,12 +436,11 @@ export default function ParticleBackground({ active = true }: ParticleBackground
   const { saveData, lowCpu } = usePerformanceHints();
   const [webglFailed, setWebglFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const canvasRef = useRef<HTMLDivElement>(null);
+
+  useGlobalMouse();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsReady(true);
-    }, 100);
+    const timer = setTimeout(() => setIsReady(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
@@ -602,65 +448,48 @@ export default function ParticleBackground({ active = true }: ParticleBackground
     try {
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) {
-        setWebglFailed(true);
-      }
-    } catch (e) {
+      if (!gl) setWebglFailed(true);
+    } catch {
       setWebglFailed(true);
     }
   }, []);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (canvasRef.current) {
-        const canvas = canvasRef.current.querySelector('canvas');
-        if (canvas) {
-          (canvas as HTMLCanvasElement).style.willChange = document.hidden ? 'auto' : 'transform';
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
-
   const shouldUseWebgl = !isMobile && !isLowPower && !prefersReducedMotion && !saveData && !lowCpu && !webglFailed;
   const isActive = active && isVisible;
-  const maxDpr = 1.5;
 
+  // Mobile / low-power → video-only (no Three.js particles)
   if (!shouldUseWebgl) {
-    return <FallbackBackground />;
+    return <MobileVideoBackground active={isActive} />;
   }
 
   return (
     <motion.div
-      ref={canvasRef}
       className="absolute inset-0 w-full h-full"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{
-        opacity: isReady ? 1 : 0,
-        scale: isReady ? 1 : 0.95
-      }}
-      transition={{
-        duration: 1.2,
-        ease: [0.16, 1, 0.3, 1]
-      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isReady ? 1 : 0 }}
+      transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      <Canvas
-        camera={{ position: [0, 0, 7], fov: 45 }}
-        dpr={[1, Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, maxDpr)]}
-        gl={{
-          antialias: false,
-          alpha: true,
-          powerPreference: 'high-performance',
-          stencil: false,
-          depth: true,
-        }}
-        style={{ background: 'transparent' }}
-        frameloop={isActive ? "always" : "demand"}
-      >
-        <Scene active={isActive} isMobile={isMobile} isLowPower={isLowPower} />
-      </Canvas>
+      {/* Layer 1: Looping video background */}
+      <VideoBackground active={isActive} />
+
+      {/* Layer 2: Interactive Three.js particles */}
+      <div className="absolute inset-0">
+        <Canvas
+          camera={{ position: [0, 0, 7], fov: 45 }}
+          dpr={[1, Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.5)]}
+          gl={{
+            antialias: false,
+            alpha: true,
+            powerPreference: 'high-performance',
+            stencil: false,
+            depth: true,
+          }}
+          style={{ background: 'transparent' }}
+          frameloop={isActive ? 'always' : 'demand'}
+        >
+          <Scene active={isActive} isMobile={isMobile} isLowPower={isLowPower} />
+        </Canvas>
+      </div>
     </motion.div>
   );
 }

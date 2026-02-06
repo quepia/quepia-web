@@ -75,16 +75,16 @@ function GlassSphere({ position, color, scale, paused, lowPower }: { position: [
         const spherePos = new THREE.Vector3(currentPos.x, currentPos.y, currentPos.z);
         const dist = spherePos.distanceTo(mouseVec);
 
-        if (dist < 6) {
+        if (dist < 8) {
             const dir = spherePos.sub(mouseVec).normalize();
-            const force = (6 - dist) * 0.5;
+            const force = (8 - dist) * 0.8;
             ref.current.applyImpulse({ x: dir.x * force, y: dir.y * force, z: 0 }, true);
         }
     });
 
     return (
-        <Float speed={paused ? 0 : 1.5} rotationIntensity={paused ? 0 : 1} floatIntensity={paused ? 0 : 2}>
-            <RigidBody ref={ref} position={position} colliders="ball" linearDamping={2} angularDamping={1}>
+        <Float speed={paused ? 0 : 2.5} rotationIntensity={paused ? 0 : 1.8} floatIntensity={paused ? 0 : 3.5}>
+            <RigidBody ref={ref} position={position} colliders="ball" linearDamping={1.2} angularDamping={0.6}>
                 <mesh scale={scale}>
                     <sphereGeometry args={[1, lowPower ? 16 : 24, lowPower ? 16 : 24]} />
                     <MeshTransmissionMaterial
@@ -109,9 +109,9 @@ function DesktopBackground({ paused, lowPower }: { paused: boolean; lowPower: bo
     const sphereCount = lowPower ? 3 : 5;
     const spheres = useMemo(() => Array.from({ length: sphereCount }, (_, i) => ({
         position: [
-            (Math.random() - 0.5) * 20,
-            (Math.random() - 0.5) * 15,
-            (Math.random() - 0.5) * 5
+            (Math.random() - 0.5) * 16,
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 4
         ] as [number, number, number],
         color: i % 2 === 0 ? COLORS.purple : COLORS.cyan,
         scale: 2.5 + Math.random() * 2
@@ -130,9 +130,10 @@ function DesktopBackground({ paused, lowPower }: { paused: boolean; lowPower: bo
             frameloop={paused ? 'demand' : 'always'}
         >
             <Environment preset="city" />
-            <ambientLight intensity={0.6} />
-            <pointLight position={[10, 10, 10]} intensity={1.5} />
-            <pointLight position={[-10, -10, 5]} intensity={0.5} color={COLORS.cyan} />
+            <ambientLight intensity={0.8} />
+            <pointLight position={[10, 10, 10]} intensity={2} />
+            <pointLight position={[-10, -10, 5]} intensity={1} color={COLORS.cyan} />
+            <pointLight position={[0, 5, 8]} intensity={0.8} color={COLORS.purpleNeon} />
 
             <Physics gravity={[0, 0, 0]} paused={paused}>
                 {spheres.map((props, i) => <GlassSphere key={i} {...props} paused={paused} lowPower={lowPower} />)}
@@ -157,8 +158,8 @@ function MobileBackground({ opacity }: { opacity: number }) {
                     top: '-40%',
                     left: '-40%',
                     background: `radial-gradient(circle, ${COLORS.purpleNeon} 0%, ${COLORS.purple} 40%, transparent 70%)`,
-                    filter: 'blur(80px)',
-                    opacity: 0.9,
+                    filter: 'blur(140px)',
+                    opacity: 0.5,
                     willChange: 'transform',
                 }}
             />
@@ -172,8 +173,8 @@ function MobileBackground({ opacity }: { opacity: number }) {
                     top: '20%',
                     right: '-40%',
                     background: `radial-gradient(circle, ${COLORS.cyanNeon} 0%, ${COLORS.cyan} 40%, transparent 70%)`,
-                    filter: 'blur(80px)',
-                    opacity: 0.85,
+                    filter: 'blur(140px)',
+                    opacity: 0.45,
                     willChange: 'transform',
                 }}
             />
@@ -187,8 +188,8 @@ function MobileBackground({ opacity }: { opacity: number }) {
                     bottom: '-30%',
                     left: '-30%',
                     background: `radial-gradient(circle, ${COLORS.purple} 0%, transparent 70%)`,
-                    filter: 'blur(90px)',
-                    opacity: 0.9,
+                    filter: 'blur(160px)',
+                    opacity: 0.5,
                     willChange: 'transform',
                 }}
             />
