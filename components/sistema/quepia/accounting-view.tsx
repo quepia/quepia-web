@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Calculator, CreditCard, Receipt, Tags, BarChart3, Wallet } from "lucide-react"
+import { Calculator, CreditCard, Receipt, Tags, BarChart3, Wallet, Sparkles, History } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useAccounting } from "@/lib/sistema/hooks/useAccounting"
 import { AccountingPaymentsView } from "./accounting-payments-view"
@@ -9,13 +9,15 @@ import { AccountingExpensesView } from "./accounting-expenses-view"
 import { AccountingCategoriesView } from "./accounting-categories-view"
 import { AccountingAccountsView } from "./accounting-accounts-view"
 import { AccountingChartsView } from "./accounting-charts-view"
+import { AccountingInvestmentsView } from "./accounting-investments-view"
+import { AccountingHistoryView } from "./accounting-history-view"
 import type { ProjectWithChildren } from "@/types/sistema"
 
 interface AccountingViewProps {
     projects: ProjectWithChildren[]
 }
 
-type TabType = 'payments' | 'expenses' | 'accounts' | 'categories' | 'charts'
+type TabType = 'payments' | 'expenses' | 'accounts' | 'categories' | 'charts' | 'investments' | 'history'
 
 export function AccountingView({ projects }: AccountingViewProps) {
     const [activeTab, setActiveTab] = useState<TabType>('accounts')
@@ -26,6 +28,8 @@ export function AccountingView({ projects }: AccountingViewProps) {
         { id: 'accounts' as TabType, label: 'Cuentas', icon: Wallet },
         { id: 'payments' as TabType, label: 'Pagos', icon: CreditCard },
         { id: 'expenses' as TabType, label: 'Gastos', icon: Receipt },
+        { id: 'investments' as TabType, label: 'Inversiones', icon: Sparkles },
+        { id: 'history' as TabType, label: 'Historial', icon: History },
         { id: 'categories' as TabType, label: 'Categorías', icon: Tags },
         { id: 'charts' as TabType, label: 'Gráficos', icon: BarChart3 },
     ]
@@ -46,12 +50,33 @@ export function AccountingView({ projects }: AccountingViewProps) {
             expenses: acc.expenses + (d.total_expenses || 0),
         }), { income: 0, expenses: 0 })
 
-        // Total en cuentas ARS
+        // Total en cuentas ARS (balance actual)
         const accountTotalARS = accounting.accounts
             .filter(a => a.currency === 'ARS')
             .reduce((sum, a) => sum + (a.current_balance || 0), 0)
 
-        return yearTotals.income - yearTotals.expenses - accountTotalARS
+        // Transferencias salientes de cuentas ARS del año (incluye conversiones a USD)
+        const arsYearTransfersOut = accounting.accounts
+            .filter(a => a.currency === 'ARS')
+            .reduce((sum, a) => sum + (a.year_transfers_out || 0), 0)
+
+        // Transferencias entrantes a cuentas ARS del año (desde otras cuentas)
+        const arsYearTransfersIn = accounting.accounts
+            .filter(a => a.currency === 'ARS')
+            .reduce((sum, a) => sum + (a.year_transfers_in || 0), 0)
+
+        // Ajustes de balance del año en cuentas ARS (arqueos de caja)
+        const arsYearAdjustments = accounting.accounts
+            .filter(a => a.currency === 'ARS')
+            .reduce((sum, a) => sum + (a.year_adjustments || 0), 0)
+
+        // El dinero "distribuido" en ARS incluye:
+        // - Balance actual en cuentas ARS
+        // - Plus transferencias salientes netas del año (dinero que fue a USD)
+        // - Menos ajustes de balance (ya que no son ingresos reales)
+        const totalDistributed = accountTotalARS + arsYearTransfersOut - arsYearTransfersIn - arsYearAdjustments
+
+        return yearTotals.income - yearTotals.expenses - totalDistributed
     }, [accounting.monthlyChartData, accounting.accounts])
 
     return (
@@ -101,6 +126,7 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         onUpdateAccount={accounting.updateAccount}
                         onDeleteAccount={accounting.deleteAccount}
                         onCreateTransfer={accounting.createTransfer}
+                        onCreateBalanceAdjustment={accounting.createBalanceAdjustment}
                         onFetchMovements={accounting.fetchAccountMovements}
                         onRefresh={() => {
                             accounting.fetchAccounts()
@@ -155,6 +181,27 @@ export function AccountingView({ projects }: AccountingViewProps) {
                             accounting.fetchCategories()
                             accounting.fetchSubcategories()
                         }}
+                    />
+                )}
+                {activeTab === 'investments' && (
+                    <AccountingInvestmentsView
+                        investments={accounting.investments}
+                        loading={accounting.investmentsLoading}
+                        onCreateInvestment={accounting.createInvestment}
+                        onUpdateInvestment={accounting.updateInvestment}
+                        onDeleteInvestment={accounting.deleteInvestment}
+                        onMarkAsPurchased={accounting.markInvestmentAsPurchased}
+                        onRefresh={accounting.fetchInvestments}
+                    />
+                )}
+                {activeTab === 'history' && (
+                    <AccountingHistoryView
+                        history={accounting.history}
+                        loading={accounting.historyLoading}
+                        summary={accounting.historySummary}
+                        accounts={accounting.accounts}
+                        onFetchHistory={accounting.fetchHistory}
+                        onFetchSummary={accounting.fetchHistorySummary}
                     />
                 )}
                 {activeTab === 'charts' && (

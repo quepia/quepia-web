@@ -19,7 +19,7 @@ import {
     ArrowDownRight
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
-import type { Account, AccountInsert, AccountMovement, AccountTransferInsert } from "@/types/accounting"
+import type { Account, AccountInsert, AccountMovement, AccountTransferInsert, BalanceAdjustmentInsert } from "@/types/accounting"
 
 interface AccountsViewProps {
     accounts: Account[]
@@ -29,6 +29,7 @@ interface AccountsViewProps {
     onUpdateAccount: (id: string, updates: Partial<AccountInsert>) => Promise<boolean>
     onDeleteAccount: (id: string) => Promise<boolean>
     onCreateTransfer: (transfer: AccountTransferInsert) => Promise<any>
+    onCreateBalanceAdjustment: (adjustment: BalanceAdjustmentInsert) => Promise<boolean>
     onFetchMovements: (accountId: string, limit?: number) => Promise<AccountMovement[]>
     onRefresh: () => void
 }
@@ -56,6 +57,7 @@ export function AccountingAccountsView({
     onUpdateAccount,
     onDeleteAccount,
     onCreateTransfer,
+    onCreateBalanceAdjustment,
     onFetchMovements,
     onRefresh
 }: AccountsViewProps) {
@@ -63,6 +65,7 @@ export function AccountingAccountsView({
     const [showTransferModal, setShowTransferModal] = useState(false)
     const [showAssignModal, setShowAssignModal] = useState(false)
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
+    const [adjustmentAccount, setAdjustmentAccount] = useState<Account | null>(null)
     const [movements, setMovements] = useState<AccountMovement[]>([])
     const [movementsLoading, setMovementsLoading] = useState(false)
 
@@ -135,7 +138,7 @@ export function AccountingAccountsView({
             {/* Cards de totales */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Saldo sin distribuir */}
-                {unassignedBalance !== 0 && (
+                {Math.abs(unassignedBalance) > 1 && (
                     <div className={cn(
                         "border rounded-xl p-5 relative overflow-hidden",
                         unassignedBalance > 0
@@ -247,12 +250,20 @@ export function AccountingAccountsView({
                         <h3 className="font-semibold text-white">
                             Últimos movimientos de {selectedAccount.name}
                         </h3>
-                        <button
-                            onClick={() => setSelectedAccount(null)}
-                            className="p-1 hover:bg-white/[0.1] rounded"
-                        >
-                            <X className="h-4 w-4 text-white/40" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setAdjustmentAccount(selectedAccount)}
+                                className="px-3 py-1.5 text-sm bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg transition-colors"
+                            >
+                                Arqueo
+                            </button>
+                            <button
+                                onClick={() => setSelectedAccount(null)}
+                                className="p-1 hover:bg-white/[0.1] rounded"
+                            >
+                                <X className="h-4 w-4 text-white/40" />
+                            </button>
+                        </div>
                     </div>
 
                     {movementsLoading ? (
@@ -342,6 +353,21 @@ export function AccountingAccountsView({
                                 initial_balance: (account.initial_balance || 0) + amount
                             })
                             setShowAssignModal(false)
+                            onRefresh()
+                        }
+                    }}
+                />
+            )}
+
+            {/* Modal arqueo de caja */}
+            {adjustmentAccount && (
+                <BalanceAdjustmentModal
+                    account={adjustmentAccount}
+                    onClose={() => setAdjustmentAccount(null)}
+                    onAdjust={async (data) => {
+                        const result = await onCreateBalanceAdjustment(data)
+                        if (result) {
+                            setAdjustmentAccount(null)
                             onRefresh()
                         }
                     }}
@@ -494,22 +520,51 @@ function TransferModal({
     const [fromAccountId, setFromAccountId] = useState('')
     const [toAccountId, setToAccountId] = useState('')
     const [amount, setAmount] = useState('')
+    const [exchangeRate, setExchangeRate] = useState('')
+    const [commission, setCommission] = useState('')
+    const [tax, setTax] = useState('')
     const [notes, setNotes] = useState('')
     const [saving, setSaving] = useState(false)
 
     const fromAccount = accounts.find(a => a.id === fromAccountId)
     const toAccount = accounts.find(a => a.id === toAccountId)
 
+    // Detectar si es transferencia cross-currency
+    const isCrossCurrency = fromAccount && toAccount && fromAccount.currency !== toAccount.currency
+
+    // Parsear exchange rate (permitir comas)
+    const parseNumber = (value: string) => {
+        if (!value) return 0
+        return parseFloat(value.replace(',', '.'))
+    }
+
+    // Calcular monto que recibirá la cuenta destino
+    // exchangeRate siempre es "1 USD = X ARS"
+    const totalFees = parseNumber(commission) + parseNumber(tax)
+    const amountAfterFees = Math.max(0, parseNumber(amount) - totalFees)
+
+    const receivedAmount = isCrossCurrency && amount && exchangeRate
+        ? fromAccount?.currency === 'ARS'
+            ? amountAfterFees / parseNumber(exchangeRate)  // ARS → USD: dividir
+            : amountAfterFees * parseNumber(exchangeRate)  // USD → ARS: multiplicar
+        : amountAfterFees
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) return
+
+        // Validar exchange_rate si es cross-currency
+        if (isCrossCurrency && !exchangeRate) return
 
         setSaving(true)
         await onTransfer({
             from_account_id: fromAccountId,
             to_account_id: toAccountId,
-            amount: parseFloat(amount),
+            amount: parseNumber(amount),
             currency: fromAccount?.currency || 'ARS',
+            exchange_rate: isCrossCurrency ? parseNumber(exchangeRate) : undefined,
+            commission: commission ? parseNumber(commission) : undefined,
+            tax: tax ? parseNumber(tax) : undefined,
             date: new Date().toISOString().split('T')[0],
             notes: notes || undefined
         })
@@ -580,6 +635,16 @@ function TransferModal({
                         </select>
                     </div>
 
+                    {/* Alerta de cambio de moneda */}
+                    {isCrossCurrency && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-amber-400 text-sm">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                <span>Conversión de moneda: {fromAccount?.currency} → {toAccount?.currency}</span>
+                            </div>
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-sm text-white/60 mb-2">
                             Monto {fromAccount && `(${fromAccount.currency})`}
@@ -596,6 +661,70 @@ function TransferModal({
                         />
                     </div>
 
+                    {/* Campo de tipo de cambio (solo para cross-currency) */}
+                    {isCrossCurrency && (
+                        <>
+                            <div>
+                                <label className="block text-sm text-white/60 mb-2">
+                                    Tipo de cambio (1 USD = ? ARS)
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={exchangeRate}
+                                    onChange={(e) => setExchangeRate(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-amber-500"
+                                    placeholder="Ej: 1050"
+                                    required
+                                />
+                            </div>
+
+                            {/* Comisión e impuestos del broker */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm text-white/60 mb-2">
+                                        Comisión
+                                    </label>
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={commission}
+                                        onChange={(e) => setCommission(e.target.value)}
+                                        className="w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-white/60 mb-2">
+                                        Impuestos
+                                    </label>
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={tax}
+                                        onChange={(e) => setTax(e.target.value)}
+                                        className="w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Resumen */}
+                            {amount && exchangeRate && (
+                                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 space-y-1">
+                                    {totalFees > 0 && (
+                                        <p className="text-xs text-white/60">
+                                            Monto - Comisiones: {formatCurrency(parseNumber(amount), fromAccount?.currency || 'ARS')} - {formatCurrency(totalFees, fromAccount?.currency || 'ARS')} = {formatCurrency(amountAfterFees, fromAccount?.currency || 'ARS')}
+                                        </p>
+                                    )}
+                                    <p className="text-sm text-emerald-400 font-medium">
+                                        Recibirá: {formatCurrency(receivedAmount, toAccount?.currency || 'USD')}
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
+
                     <div>
                         <label className="block text-sm text-white/60 mb-2">Notas (opcional)</label>
                         <input
@@ -603,7 +732,7 @@ function TransferModal({
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             className="w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-violet-500"
-                            placeholder="Ej: Retiro de efectivo"
+                            placeholder={isCrossCurrency ? "Ej: Compra de dólares" : "Ej: Retiro de efectivo"}
                         />
                     </div>
 
@@ -617,15 +746,15 @@ function TransferModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={saving || !fromAccountId || !toAccountId || !amount || fromAccountId === toAccountId}
+                            disabled={saving || !fromAccountId || !toAccountId || !amount || fromAccountId === toAccountId || (isCrossCurrency && !exchangeRate)}
                             className="px-4 py-2 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 rounded-lg font-medium transition-colors"
                         >
                             {saving ? 'Transfiriendo...' : 'Transferir'}
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }
 
@@ -736,6 +865,139 @@ function AssignBalanceModal({
                             className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 rounded-lg font-medium transition-colors"
                         >
                             {saving ? 'Asignando...' : 'Asignar saldo'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    )
+}
+
+// Modal para arqueo de caja
+function BalanceAdjustmentModal({
+    account,
+    onClose,
+    onAdjust
+}: {
+    account: Account
+    onClose: () => void
+    onAdjust: (data: BalanceAdjustmentInsert) => Promise<void>
+}) {
+    const [newBalance, setNewBalance] = useState('')
+    const [reason, setReason] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    const parseNumber = (value: string) => {
+        const normalized = value.replace(',', '.')
+        return parseFloat(normalized) || 0
+    }
+
+    const formatCurrency = (amount: number, currency: string = 'ARS') => {
+        const prefix = currency === 'USD' ? 'US$ ' : '$ '
+        return prefix + amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    }
+
+    const adjustmentAmount = newBalance ? parseNumber(newBalance) - account.current_balance : 0
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!newBalance) return
+
+        setSaving(true)
+        try {
+            await onAdjust({
+                account_id: account.id,
+                previous_balance: account.current_balance,
+                new_balance: parseNumber(newBalance),
+                adjustment_amount: adjustmentAmount,
+                reason: reason || undefined
+            })
+            onClose()
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#141414] rounded-xl border border-white/10 w-full max-w-md">
+                <div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
+                    <h3 className="text-lg font-semibold">Arqueo de Caja</h3>
+                    <button onClick={onClose} className="p-1 hover:bg-white/5 rounded">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-4 space-y-4">
+                    <div className="p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                        <div className="text-white/50 text-sm">Cuenta: {account.name}</div>
+                        <div className="text-lg font-medium mt-1">
+                            Balance calculado: {formatCurrency(account.current_balance, account.currency)}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-white/70 mb-1.5">
+                            Balance real ({account.currency}) *
+                        </label>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            value={newBalance}
+                            onChange={(e) => setNewBalance(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-white/[0.02] border border-white/10 rounded-lg focus:border-blue-500/50 focus:outline-none"
+                            required
+                        />
+                    </div>
+
+                    {newBalance && (
+                        <div className={cn(
+                            "p-3 rounded-lg border",
+                            adjustmentAmount > 0
+                                ? "bg-green-500/10 border-green-500/30"
+                                : adjustmentAmount < 0
+                                    ? "bg-red-500/10 border-red-500/30"
+                                    : "bg-white/[0.02] border-white/[0.06]"
+                        )}>
+                            <div className="text-sm text-white/70">Ajuste a registrar:</div>
+                            <div className={cn(
+                                "text-lg font-semibold",
+                                adjustmentAmount > 0 ? "text-green-400" : adjustmentAmount < 0 ? "text-red-400" : ""
+                            )}>
+                                {adjustmentAmount > 0 ? '+' : ''}{formatCurrency(adjustmentAmount, account.currency)}
+                            </div>
+                            <div className="text-xs text-white/50 mt-1">
+                                {adjustmentAmount > 0 ? 'Intereses o ingreso no registrado' : adjustmentAmount < 0 ? 'Discrepancia o gasto no registrado' : 'Sin cambios'}
+                            </div>
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm text-white/70 mb-1.5">Motivo (opcional)</label>
+                        <input
+                            type="text"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            placeholder="Ej: Intereses del mes, ajuste por redondeo..."
+                            className="w-full px-3 py-2 bg-white/[0.02] border border-white/10 rounded-lg focus:border-blue-500/50 focus:outline-none"
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={!newBalance || saving || adjustmentAmount === 0}
+                            className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                            {saving ? 'Guardando...' : 'Aplicar ajuste'}
                         </button>
                     </div>
                 </form>

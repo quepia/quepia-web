@@ -200,6 +200,10 @@ export interface Account {
     month_expenses: number;
     month_transfers_in: number;
     month_transfers_out: number;
+    // Datos del año actual (para saldo sin distribuir)
+    year_transfers_in: number;
+    year_transfers_out: number;
+    year_adjustments: number;
 }
 
 export interface AccountInsert {
@@ -248,8 +252,33 @@ export interface AccountTransferInsert {
     amount: number;
     currency?: Currency;
     exchange_rate?: number;
+    commission?: number;
+    tax?: number;
     date: string;
     notes?: string;
+}
+
+// =====================================================
+// AJUSTES DE BALANCE (ARQUEO DE CAJA)
+// =====================================================
+export interface BalanceAdjustment {
+    id: string;
+    account_id: string;
+    date: string;
+    previous_balance: number;
+    new_balance: number;
+    adjustment_amount: number;
+    reason?: string;
+    created_at: string;
+}
+
+export interface BalanceAdjustmentInsert {
+    account_id: string;
+    date?: string;
+    previous_balance: number;
+    new_balance: number;
+    adjustment_amount: number;
+    reason?: string;
 }
 
 // =====================================================
@@ -280,6 +309,7 @@ export interface AccountMovement {
     is_income: boolean;
     related_entity: string;
     related_color: string;
+    is_future?: boolean;
 }
 
 // =====================================================
@@ -300,4 +330,89 @@ export interface ExpenseDistribution {
     total_amount: number;
     percentage: number;
     expense_count: number;
+}
+
+// =====================================================
+// FUTURAS INVERSIONES
+// =====================================================
+export type InvestmentPriority = 'low' | 'medium' | 'high';
+export type InvestmentCategory = 'equipment' | 'subscription' | 'accessory' | 'software' | 'other';
+
+export interface FutureInvestment {
+    id: string;
+    name: string;
+    url: string | null;
+    estimated_price: number | null;
+    currency: Currency;
+    priority: InvestmentPriority;
+    category: InvestmentCategory;
+    notes: string | null;
+    is_purchased: boolean;
+    purchased_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface FutureInvestmentInsert {
+    name: string;
+    url?: string | null;
+    estimated_price?: number | null;
+    currency?: Currency;
+    priority?: InvestmentPriority;
+    category?: InvestmentCategory;
+    notes?: string | null;
+}
+
+export interface FutureInvestmentUpdate {
+    name?: string;
+    url?: string | null;
+    estimated_price?: number | null;
+    currency?: Currency;
+    priority?: InvestmentPriority;
+    category?: InvestmentCategory;
+    notes?: string | null;
+    is_purchased?: boolean;
+    purchased_at?: string | null;
+}
+
+// =====================================================
+// HISTORIAL UNIFICADO
+// =====================================================
+export type UnifiedMovementType = 'payment' | 'expense' | 'transfer_in' | 'transfer_out' | 'adjustment';
+
+export interface UnifiedMovement {
+    id: string;
+    movement_type: UnifiedMovementType;
+    date: string;
+    description: string;
+    amount: number;
+    currency: Currency;
+    is_income: boolean;
+    account_id: string | null;
+    account_name: string | null;
+    account_color: string | null;
+    related_entity: string;
+    related_color: string;
+    category: string;
+    notes: string | null;
+    created_at: string;
+}
+
+export interface HistoryFilters {
+    start_date?: string;
+    end_date?: string;
+    account_id?: string;
+    movement_type?: UnifiedMovementType | 'transfer';
+    limit?: number;
+    offset?: number;
+}
+
+export interface HistorySummary {
+    total_income_ars: number;
+    total_income_usd: number;
+    total_expenses_ars: number;
+    total_expenses_usd: number;
+    total_transfers: number;
+    total_adjustments: number;
+    movement_count: number;
 }

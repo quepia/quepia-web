@@ -80,9 +80,29 @@ export function AccountingChartsView({
         .filter(a => a.currency === 'USD')
         .reduce((sum, a) => sum + (a.current_balance || 0), 0)
 
-    // Saldo sin distribuir (ingresos - gastos - lo que está en cuentas)
-    // Por ahora asumimos que todos los ingresos/gastos son en ARS
-    const unassignedBalance = yearTotals.income - yearTotals.expenses - accountTotalARS
+    // Saldo sin distribuir (ingresos - gastos - lo que está distribuido)
+    // Transferencias salientes de cuentas ARS del año (incluye conversiones a USD)
+    const arsYearTransfersOut = accounts
+        .filter(a => a.currency === 'ARS')
+        .reduce((sum, a) => sum + (a.year_transfers_out || 0), 0)
+
+    // Transferencias entrantes a cuentas ARS del año (desde otras cuentas)
+    const arsYearTransfersIn = accounts
+        .filter(a => a.currency === 'ARS')
+        .reduce((sum, a) => sum + (a.year_transfers_in || 0), 0)
+
+    // Ajustes de balance del año en cuentas ARS (arqueos de caja)
+    const arsYearAdjustments = accounts
+        .filter(a => a.currency === 'ARS')
+        .reduce((sum, a) => sum + (a.year_adjustments || 0), 0)
+
+    // El dinero "distribuido" en ARS incluye:
+    // - Balance actual en cuentas ARS
+    // - Plus transferencias salientes netas del año (dinero que fue a USD)
+    // - Menos ajustes de balance (ya que no son ingresos reales)
+    const totalDistributed = accountTotalARS + arsYearTransfersOut - arsYearTransfersIn - arsYearAdjustments
+
+    const unassignedBalance = yearTotals.income - yearTotals.expenses - totalDistributed
 
     if (chartLoading) {
         return (
@@ -143,7 +163,7 @@ export function AccountingChartsView({
                 </div>
 
                 {/* Saldo sin distribuir */}
-                {unassignedBalance !== 0 && (
+                {Math.abs(unassignedBalance) > 1 && (
                     <div className={cn(
                         "border rounded-xl p-5",
                         unassignedBalance > 0
@@ -349,14 +369,14 @@ export function AccountingChartsView({
                     </div>
                 </div>
 
-                {accounts.length === 0 && unassignedBalance === 0 ? (
+                {accounts.length === 0 && Math.abs(unassignedBalance) <= 1 ? (
                     <div className="text-center text-white/40 py-8">
                         No hay cuentas registradas
                     </div>
                 ) : (
                     <div className="space-y-3">
                         {/* Saldo sin distribuir primero */}
-                        {unassignedBalance !== 0 && (
+                        {Math.abs(unassignedBalance) > 1 && (
                             <div>
                                 <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">

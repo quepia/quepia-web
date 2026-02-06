@@ -28,6 +28,15 @@ import type {
     AccountMovement,
     MonthlyChartData,
     ExpenseDistribution,
+    BalanceAdjustmentInsert,
+    // Futuras inversiones
+    FutureInvestment,
+    FutureInvestmentInsert,
+    FutureInvestmentUpdate,
+    // Historial unificado
+    UnifiedMovement,
+    HistoryFilters,
+    HistorySummary,
 } from '@/types/accounting';
 
 // =====================================================
@@ -541,6 +550,29 @@ export function useAccounting() {
     };
 
     // =====================================================
+    // AJUSTES DE BALANCE (ARQUEO DE CAJA)
+    // =====================================================
+    const createBalanceAdjustment = async (adjustment: BalanceAdjustmentInsert): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { error: insertError } = await supabase
+                .from('accounting_balance_adjustments')
+                .insert(adjustment);
+
+            if (insertError) throw insertError;
+            await fetchAccounts(); // Actualizar balances
+            return true;
+        } catch (err) {
+            console.error('Error creating balance adjustment:', err);
+            setError(err instanceof Error ? err.message : 'Error creating balance adjustment');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // =====================================================
     // SUBCATEGORÍAS
     // =====================================================
     const [subcategories, setSubcategories] = useState<ExpenseSubcategory[]>([]);
@@ -672,6 +704,150 @@ export function useAccounting() {
         }
     }, []);
 
+    // =====================================================
+    // FUTURAS INVERSIONES
+    // =====================================================
+    const [investments, setInvestments] = useState<FutureInvestment[]>([]);
+    const [investmentsLoading, setInvestmentsLoading] = useState(true);
+
+    const fetchInvestments = useCallback(async (includePurchased: boolean = false) => {
+        try {
+            setInvestmentsLoading(true);
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_future_investments', {
+                p_include_purchased: includePurchased,
+                p_category: null,
+                p_priority: null,
+            });
+
+            if (fetchError) throw fetchError;
+            setInvestments(data || []);
+        } catch (err) {
+            console.error('Error fetching investments:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching investments');
+        } finally {
+            setInvestmentsLoading(false);
+        }
+    }, []);
+
+    const createInvestment = async (investment: FutureInvestmentInsert): Promise<FutureInvestment | null> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { data, error: insertError } = await supabase
+                .from('accounting_future_investments')
+                .insert(investment)
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+            await fetchInvestments();
+            return data;
+        } catch (err) {
+            console.error('Error creating investment:', err);
+            setError(err instanceof Error ? err.message : 'Error creating investment');
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateInvestment = async (id: string, updates: FutureInvestmentUpdate): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { error: updateError } = await supabase
+                .from('accounting_future_investments')
+                .update(updates)
+                .eq('id', id);
+
+            if (updateError) throw updateError;
+            await fetchInvestments();
+            return true;
+        } catch (err) {
+            console.error('Error updating investment:', err);
+            setError(err instanceof Error ? err.message : 'Error updating investment');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const deleteInvestment = async (id: string): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { error: deleteError } = await supabase
+                .from('accounting_future_investments')
+                .delete()
+                .eq('id', id);
+
+            if (deleteError) throw deleteError;
+            await fetchInvestments();
+            return true;
+        } catch (err) {
+            console.error('Error deleting investment:', err);
+            setError(err instanceof Error ? err.message : 'Error deleting investment');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const markInvestmentAsPurchased = async (id: string): Promise<boolean> => {
+        return updateInvestment(id, {
+            is_purchased: true,
+            purchased_at: new Date().toISOString(),
+        });
+    };
+
+    // =====================================================
+    // HISTORIAL UNIFICADO
+    // =====================================================
+    const [history, setHistory] = useState<UnifiedMovement[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historySummary, setHistorySummary] = useState<HistorySummary | null>(null);
+
+    const fetchHistory = useCallback(async (filters?: HistoryFilters) => {
+        try {
+            setHistoryLoading(true);
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_unified_history', {
+                p_start_date: filters?.start_date || null,
+                p_end_date: filters?.end_date || null,
+                p_account_id: filters?.account_id || null,
+                p_movement_type: filters?.movement_type || null,
+                p_limit: filters?.limit || 100,
+                p_offset: filters?.offset || 0,
+            });
+
+            if (fetchError) throw fetchError;
+            setHistory(data || []);
+        } catch (err) {
+            console.error('Error fetching history:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching history');
+        } finally {
+            setHistoryLoading(false);
+        }
+    }, []);
+
+    const fetchHistorySummary = useCallback(async (filters?: Omit<HistoryFilters, 'limit' | 'offset' | 'movement_type'>) => {
+        try {
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_history_summary', {
+                p_start_date: filters?.start_date || null,
+                p_end_date: filters?.end_date || null,
+                p_account_id: filters?.account_id || null,
+            });
+
+            if (fetchError) throw fetchError;
+            setHistorySummary(data);
+        } catch (err) {
+            console.error('Error fetching history summary:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching history summary');
+        }
+    }, []);
+
     // Cargar datos iniciales
     useEffect(() => {
         fetchCategories();
@@ -683,7 +859,8 @@ export function useAccounting() {
         fetchSubcategories();
         fetchMonthlyChartData();
         fetchExpenseDistribution();
-    }, [fetchCategories, fetchPayments, fetchExpenses, fetchSummary, fetchAccounts, fetchTransfers, fetchSubcategories, fetchMonthlyChartData, fetchExpenseDistribution]);
+        fetchInvestments();
+    }, [fetchCategories, fetchPayments, fetchExpenses, fetchSummary, fetchAccounts, fetchTransfers, fetchSubcategories, fetchMonthlyChartData, fetchExpenseDistribution, fetchInvestments]);
 
     return {
         // Estado general
@@ -736,6 +913,9 @@ export function useAccounting() {
         createTransfer,
         deleteTransfer,
 
+        // Ajustes de balance (arqueo de caja)
+        createBalanceAdjustment,
+
         // Subcategorías
         subcategories,
         subcategoriesLoading,
@@ -752,5 +932,21 @@ export function useAccounting() {
         chartLoading,
         fetchMonthlyChartData,
         fetchExpenseDistribution,
+
+        // Futuras inversiones
+        investments,
+        investmentsLoading,
+        fetchInvestments,
+        createInvestment,
+        updateInvestment,
+        deleteInvestment,
+        markInvestmentAsPurchased,
+
+        // Historial unificado
+        history,
+        historyLoading,
+        historySummary,
+        fetchHistory,
+        fetchHistorySummary,
     };
 }

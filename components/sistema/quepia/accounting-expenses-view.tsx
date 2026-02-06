@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useMemo } from "react"
-import { Receipt, Search, Plus, Edit2, Trash2, Download, X, Check, Upload, ExternalLink, Loader2 } from "lucide-react"
+import { Receipt, Search, Plus, Edit2, Trash2, Download, X, Check, Upload, ExternalLink, Loader2, Clock } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { ExpenseWithCategory, ExpenseInsert, ExpenseUpdate, ExpenseCategory, ExpenseSubcategory, Account, Currency } from "@/types/accounting"
 
@@ -277,106 +277,117 @@ export function AccountingExpensesView({
                                 </td>
                             </tr>
                         ) : (
-                            filteredExpenses.map((expense) => (
-                                <tr key={expense.id} className="hover:bg-white/[0.02] transition-colors">
-                                    <td className="px-6 py-4 text-white/60 tabular-nums">
-                                        {new Date(expense.date).toLocaleDateString('es-AR')}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {expense.category_name ? (
-                                            <span
-                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
-                                                style={{
-                                                    backgroundColor: `${expense.category_color}15`,
-                                                    borderColor: `${expense.category_color}30`,
-                                                    color: expense.category_color || '#fff'
-                                                }}
-                                            >
-                                                {expense.category_name}
-                                            </span>
-                                        ) : (
-                                            <span className="text-white/40 text-xs">Sin categoría</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-white/90 max-w-xs truncate">
-                                        {expense.description}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={cn(
-                                            "font-medium",
-                                            expense.currency === 'USD' ? 'text-blue-400' : 'text-red-400'
-                                        )}>
-                                            {formatCurrency(expense.amount, expense.currency)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-white/60">
-                                        {expense.provider || '-'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {expense.receipt_url ? (
-                                            <a
-                                                href={expense.receipt_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-xs"
-                                            >
-                                                <ExternalLink className="h-3 w-3" />
-                                                Ver
-                                            </a>
-                                        ) : (
-                                            <label className="cursor-pointer">
-                                                <input
-                                                    type="file"
-                                                    accept="image/*,.pdf"
-                                                    className="hidden"
-                                                    onChange={(e) => handleFileUpload(e, expense.id)}
-                                                />
-                                                {uploadingId === expense.id ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 text-white/40 hover:text-white/60 text-xs">
-                                                        <Upload className="h-3 w-3" />
-                                                        Subir
+                            filteredExpenses.map((expense) => {
+                                const isFuture = new Date(expense.date + 'T12:00:00') > new Date(new Date().toDateString())
+                                return (
+                                    <tr key={expense.id} className={cn("hover:bg-white/[0.02] transition-colors", isFuture && "opacity-60")}>
+                                        <td className="px-6 py-4 text-white/60 tabular-nums">
+                                            <div className="flex items-center gap-2">
+                                                {new Date(expense.date + 'T12:00:00').toLocaleDateString('es-AR')}
+                                                {isFuture && (
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-amber-400 text-[10px] font-medium">
+                                                        <Clock className="h-2.5 w-2.5" />
+                                                        Futuro
                                                     </span>
                                                 )}
-                                            </label>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <button
-                                                onClick={() => openEditModal(expense)}
-                                                className="p-2 text-white/40 hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors"
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            {deleteConfirm === expense.id ? (
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        onClick={() => handleDelete(expense.id)}
-                                                        className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"
-                                                    >
-                                                        <Check className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setDeleteConfirm(null)}
-                                                        className="p-2 text-white/40 hover:bg-white/[0.05] rounded-lg"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => setDeleteConfirm(expense.id)}
-                                                    className="p-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {expense.category_name ? (
+                                                <span
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
+                                                    style={{
+                                                        backgroundColor: `${expense.category_color}15`,
+                                                        borderColor: `${expense.category_color}30`,
+                                                        color: expense.category_color || '#fff'
+                                                    }}
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
+                                                    {expense.category_name}
+                                                </span>
+                                            ) : (
+                                                <span className="text-white/40 text-xs">Sin categoría</span>
                                             )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
+                                        </td>
+                                        <td className="px-6 py-4 text-white/90 max-w-xs truncate">
+                                            {expense.description}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={cn(
+                                                "font-medium",
+                                                expense.currency === 'USD' ? 'text-blue-400' : 'text-red-400'
+                                            )}>
+                                                {formatCurrency(expense.amount, expense.currency)}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-white/60">
+                                            {expense.provider || '-'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {expense.receipt_url ? (
+                                                <a
+                                                    href={expense.receipt_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 text-xs"
+                                                >
+                                                    <ExternalLink className="h-3 w-3" />
+                                                    Ver
+                                                </a>
+                                            ) : (
+                                                <label className="cursor-pointer">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*,.pdf"
+                                                        className="hidden"
+                                                        onChange={(e) => handleFileUpload(e, expense.id)}
+                                                    />
+                                                    {uploadingId === expense.id ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 text-white/40 hover:text-white/60 text-xs">
+                                                            <Upload className="h-3 w-3" />
+                                                            Subir
+                                                        </span>
+                                                    )}
+                                                </label>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button
+                                                    onClick={() => openEditModal(expense)}
+                                                    className="p-2 text-white/40 hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors"
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </button>
+                                                {deleteConfirm === expense.id ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => handleDelete(expense.id)}
+                                                            className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"
+                                                        >
+                                                            <Check className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeleteConfirm(null)}
+                                                            className="p-2 text-white/40 hover:bg-white/[0.05] rounded-lg"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setDeleteConfirm(expense.id)}
+                                                        className="p-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })
                         )}
                     </tbody>
                 </table>
