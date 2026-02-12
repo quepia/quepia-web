@@ -15,9 +15,12 @@ import {
 } from "lucide-react"
 import Button from "@/components/ui/Button"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/components/ui/toast-provider"
+import { useConfirm } from "@/components/ui/confirm-provider"
 import { cn } from "@/lib/sistema/utils"
 import { submitReviewDecision, postReviewComment } from "@/lib/sistema/actions/reviews"
 import { useRouter } from "next/navigation"
+import { trackExperienceMetric } from "@/lib/sistema/experience-metrics"
 
 // Define types locally since we don't assume Database type availability for nested joins
 interface ReviewComment {
@@ -50,15 +53,25 @@ interface ReviewInterfaceProps {
 
 export function ReviewInterface({ review: initialReview }: ReviewInterfaceProps) {
     const router = useRouter()
+    const { toast } = useToast()
+    const { confirm } = useConfirm()
     const [review, setReview] = useState<ReviewData>(initialReview)
     const [status, setStatus] = useState(initialReview.status)
     const [comment, setComment] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const handleDecision = async (decision: 'approved' | 'changes_requested') => {
-        if (!confirm(decision === 'approved'
-            ? "¿Aprobar este entregable? Esto notificará al equipo."
-            : "¿Solicitar cambios? Asegúrate de dejar comentarios explicativos.")) {
+        const accepted = await confirm({
+            title: decision === 'approved' ? "Confirmar aprobación" : "Solicitar cambios",
+            description: decision === 'approved'
+                ? "Esta acción notificará al equipo de Quepia."
+                : "Recomendamos dejar comentarios claros para acelerar la siguiente versión.",
+            confirmText: decision === 'approved' ? "Aprobar" : "Solicitar cambios",
+            cancelText: "Cancelar",
+            tone: decision === 'approved' ? "success" : "danger"
+        })
+
+        if (!accepted) {
             return
         }
 
@@ -67,11 +80,22 @@ export function ReviewInterface({ review: initialReview }: ReviewInterfaceProps)
             const result = await submitReviewDecision(review.token, decision)
             if (result.success) {
                 setStatus(decision)
+                trackExperienceMetric(decision === "approved" ? "review_approved" : "review_changes_requested")
+                toast({
+                    title: decision === "approved" ? "Entregable aprobado" : "Cambios solicitados",
+                    description: "El equipo fue notificado correctamente.",
+                    variant: decision === "approved" ? "success" : "warning"
+                })
                 router.refresh()
             }
         } catch (error) {
             console.error(error)
-            alert("Error al actualizar el estado")
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se pudo actualizar el estado",
+                description: "Intenta nuevamente en unos segundos.",
+                variant: "error"
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -97,9 +121,21 @@ export function ReviewInterface({ review: initialReview }: ReviewInterfaceProps)
                     ...prev,
                     comments: [...(prev.comments || []), newComment]
                 }))
+                trackExperienceMetric("client_comment_sent")
+                toast({
+                    title: "Comentario enviado",
+                    description: "El equipo verá tu feedback en tiempo real.",
+                    variant: "success"
+                })
             }
         } catch (error) {
             console.error(error)
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se pudo enviar el comentario",
+                description: "Verifica tu conexión e intenta de nuevo.",
+                variant: "error"
+            })
         } finally {
             setIsSubmitting(false)
         }

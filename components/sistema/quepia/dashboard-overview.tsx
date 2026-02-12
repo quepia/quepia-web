@@ -17,6 +17,7 @@ import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { CalendarEvent } from "@/types/sistema"
 import type { ProjectWithChildren } from "@/types/sistema"
 import { PRIORITY_COLORS } from "@/types/sistema"
+import { readExperienceMetrics } from "@/lib/sistema/experience-metrics"
 
 interface DashboardOverviewProps {
   tasks: TaskWithProject[]
@@ -46,6 +47,9 @@ interface PendingAsset {
 
 export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole }: DashboardOverviewProps) {
   const [pendingAssets, setPendingAssets] = useState<PendingAsset[]>([])
+  const [experience, setExperience] = useState(() => readExperienceMetrics())
+  const cardClass = "rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 shadow-sm sm:p-5"
+  const rowActionClass = "min-h-11 w-full rounded-xl px-3 py-2.5 text-left transition-all duration-200 hover:bg-white/[0.06]"
 
   const todayStr = useMemo(() => {
     const d = new Date()
@@ -60,14 +64,33 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
   }, [])
 
   useEffect(() => {
+    let active = true
     const loadPending = async () => {
-      const { getPendingAssets } = await import("@/lib/sistema/actions/assets")
-      const res = await getPendingAssets()
-      if (res.success && res.data) {
-        setPendingAssets(res.data)
+      try {
+        const { getPendingAssets } = await import("@/lib/sistema/actions/assets")
+        const res = await getPendingAssets()
+        if (active && res.success && res.data) {
+          setPendingAssets(res.data)
+        }
+      } catch (error) {
+        console.error("Error loading pending assets:", error)
       }
     }
     loadPending()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const updateExperience = () => setExperience(readExperienceMetrics())
+    updateExperience()
+    window.addEventListener("focus", updateExperience)
+    window.addEventListener("storage", updateExperience)
+    return () => {
+      window.removeEventListener("focus", updateExperience)
+      window.removeEventListener("storage", updateExperience)
+    }
   }, [])
 
   const todayTasks = useMemo(() => {
@@ -141,6 +164,21 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
       .slice(0, 6)
   }, [tasks])
 
+  const completedThisWeek = useMemo(() => {
+    const lastWeek = new Date(today)
+    lastWeek.setDate(lastWeek.getDate() - 7)
+    return tasks.filter((task) => {
+      if (!task.completed_at) return false
+      return new Date(task.completed_at).getTime() >= lastWeek.getTime()
+    }).length
+  }, [tasks, today])
+
+  const activeWorkCount = useMemo(() => tasks.filter(t => !t.completed).length, [tasks])
+  const atRiskCount = useMemo(
+    () => overdueTasks.length + pendingAssets.filter(asset => asset.approval_status === "changes_requested").length,
+    [overdueTasks.length, pendingAssets]
+  )
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -179,9 +217,36 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+    <div className="flex-1 space-y-5 overflow-y-auto p-3 sm:space-y-6 sm:p-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+          <p className="text-[10px] uppercase tracking-wider text-white/35">Trabajo activo</p>
+          <p className="mt-1 text-xl font-semibold text-white">{activeWorkCount}</p>
+        </div>
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-red-300/70">Riesgo</p>
+          <p className="mt-1 text-xl font-semibold text-red-300">{atRiskCount}</p>
+        </div>
+        <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-orange-300/70">En revisión</p>
+          <p className="mt-1 text-xl font-semibold text-orange-300">{pendingAssets.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-emerald-300/70">Completadas (7d)</p>
+          <p className="mt-1 text-xl font-semibold text-emerald-300">{completedThisWeek}</p>
+        </div>
+      </div>
+
+      {userRole === "admin" && (
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs text-white/55">
+          <span className="font-medium text-white/75">Señales UX (semana):</span>
+          <span className="ml-2">Bloqueos de flujo: {experience.counters.task_move_blocked}</span>
+          <span className="ml-4">Errores mostrados: {experience.counters.errors_shown}</span>
+        </div>
+      )}
+
       {/* Quick Access */}
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+      <div className={cardClass}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
             <FolderOpen className="h-4 w-4 text-quepia-cyan" />
@@ -189,7 +254,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
           </h3>
           <button
             onClick={() => onViewChange("portfolio")}
-            className="text-xs text-quepia-cyan hover:underline flex items-center gap-1"
+            className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-quepia-cyan transition-all duration-200 hover:bg-white/[0.04]"
           >
             Ver proyectos <ArrowRight className="h-3 w-3" />
           </button>
@@ -197,7 +262,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
         {mostVisitedProject ? (
           <button
             onClick={() => onProjectOpen(mostVisitedProject.id)}
-            className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors text-left"
+            className="flex w-full items-center gap-3 rounded-xl bg-white/[0.03] p-3 text-left transition-all duration-200 hover:bg-white/[0.06]"
           >
             <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: mostVisitedProject.color }} />
             <div className="min-w-0 flex-1">
@@ -207,33 +272,49 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
             <ArrowRight className="h-4 w-4 text-white/40" />
           </button>
         ) : (
-          <p className="text-sm text-white/30 py-4 text-center">
-            Todavía no hay historial de visitas. Abrí un proyecto y aparecerá acá.
-          </p>
+          <div className="py-3 text-center">
+            <p className="text-sm text-white/30">
+              Todavía no hay historial de visitas.
+            </p>
+            <button
+              onClick={() => onViewChange("portfolio")}
+              className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-white/[0.06] px-3 py-2 text-xs text-white/70 transition-all duration-200 hover:bg-white/[0.1]"
+            >
+              Ir a portafolios
+            </button>
+          </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         {/* Today's Tasks */}
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+        <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Calendar className="h-4 w-4 text-quepia-cyan" />
               Hoy ({todayTasks.length})
             </h3>
-            <button onClick={() => onViewChange("today")} className="text-xs text-quepia-cyan hover:underline flex items-center gap-1">
+            <button onClick={() => onViewChange("today")} className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-quepia-cyan transition-all duration-200 hover:bg-white/[0.04]">
               Ver todo <ArrowRight className="h-3 w-3" />
             </button>
           </div>
           {todayTasks.length === 0 ? (
-            <p className="text-sm text-white/30 py-4 text-center">No hay tareas para hoy</p>
+            <div className="py-3 text-center">
+              <p className="text-sm text-white/30">No hay tareas para hoy</p>
+              <button
+                onClick={() => onViewChange("calendar")}
+                className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-white/[0.06] px-3 py-2 text-xs text-white/70 transition-all duration-200 hover:bg-white/[0.1]"
+              >
+                Ver calendario
+              </button>
+            </div>
           ) : (
             <div className="space-y-2">
               {todayTasks.slice(0, 5).map(task => (
                 <button
                   key={task.id}
                   onClick={() => onTaskClick(task)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/[0.04] transition-colors text-left"
+                  className={cn(rowActionClass, "flex items-center gap-3")}
                 >
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
                   <span className="text-sm text-white/80 truncate flex-1">{task.titulo}</span>
@@ -247,7 +328,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
         </div>
 
         {/* Overdue Tasks */}
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+        <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <AlertTriangle className={cn("h-4 w-4", overdueTasks.length > 0 ? "text-red-400" : "text-white/30")} />
@@ -262,7 +343,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
                 <button
                   key={task.id}
                   onClick={() => onTaskClick(task)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/[0.04] transition-colors text-left"
+                  className={cn(rowActionClass, "flex items-center gap-3")}
                 >
                   <div className="w-2 h-2 rounded-full shrink-0 bg-red-400" />
                   <span className="text-sm text-white/80 truncate flex-1">{task.titulo}</span>
@@ -274,13 +355,13 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
         </div>
 
         {/* Upcoming Tasks */}
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+        <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Clock className="h-4 w-4 text-amber-400" />
               Próximas tareas
             </h3>
-            <button onClick={() => onViewChange("upcoming")} className="text-xs text-quepia-cyan hover:underline flex items-center gap-1">
+            <button onClick={() => onViewChange("upcoming")} className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-xs text-quepia-cyan transition-all duration-200 hover:bg-white/[0.04]">
               Ver todo <ArrowRight className="h-3 w-3" />
             </button>
           </div>
@@ -292,7 +373,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
                 <button
                   key={task.id}
                   onClick={() => onTaskClick(task)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/[0.04] transition-colors text-left"
+                  className={cn(rowActionClass, "flex items-center gap-3")}
                 >
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
                   <span className="text-sm text-white/80 truncate flex-1">{task.titulo}</span>
@@ -304,7 +385,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
         </div>
 
         {/* Upcoming Events */}
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+        <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Calendar className="h-4 w-4 text-blue-400" />
@@ -318,7 +399,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
               {upcomingEvents.map(event => (
                 <div
                   key={event.id}
-                  className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02]"
+                  className="flex min-h-11 items-center gap-3 rounded-xl bg-white/[0.02] px-3 py-2.5"
                 >
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
                   <span className="text-sm text-white/80 truncate flex-1">{event.titulo}</span>
@@ -331,7 +412,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
       </div>
 
       {/* Pending Reviews Section */}
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+      <div className={cardClass}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
             <Eye className="h-4 w-4 text-orange-400" />
@@ -339,11 +420,19 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
           </h3>
         </div>
         {pendingAssets.length === 0 ? (
-          <p className="text-sm text-white/30 py-4 text-center">No hay revisiones pendientes</p>
+          <div className="py-3 text-center">
+            <p className="text-sm text-white/30">No hay revisiones pendientes</p>
+            <button
+              onClick={() => onViewChange("upcoming")}
+              className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-white/[0.06] px-3 py-2 text-xs text-white/70 transition-all duration-200 hover:bg-white/[0.1]"
+            >
+              Ver próximos entregables
+            </button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {pendingAssets.map((asset) => (
-              <div key={asset.id} className="bg-white/[0.02] border border-white/[0.04] rounded-lg p-3 hover:bg-white/[0.04] transition-colors cursor-pointer group"
+              <div key={asset.id} className="group cursor-pointer rounded-xl border border-white/[0.04] bg-white/[0.02] p-3 transition-all duration-200 hover:bg-white/[0.04]"
                 onClick={() => asset.task && onTaskClick(asset.task as unknown as TaskWithProject)}
               >
                 <div className="flex items-center gap-3 mb-2">
@@ -378,7 +467,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
 
       {/* Recent Team Activity (Admin) */}
       {userRole === 'admin' && (
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+        <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-400" />
@@ -392,7 +481,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
               {recentActivity.map(({ task, activityDate, type }) => (
                 <div
                   key={`${task.id}-${activityDate}`}
-                  className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02]"
+                  className="flex min-h-11 items-center gap-3 rounded-xl bg-white/[0.02] px-3 py-2.5"
                 >
                   <span className={cn(
                     "text-[10px] px-1.5 py-0.5 rounded-full shrink-0",
@@ -417,62 +506,62 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
 
       {/* Admin Panel Quick Access */}
       {userRole === 'admin' && (
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+        <div className={cardClass}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
               <FolderOpen className="h-4 w-4 text-pink-400" />
               Panel de Administración
             </h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
             <button
               onClick={() => onViewChange("admin-users")}
-              className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-lg hover:bg-white/[0.06] transition-all flex flex-col items-center gap-2 group"
+              className="group flex min-h-28 flex-col items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] p-4 transition-all duration-200 hover:bg-white/[0.06]"
             >
               <div className="p-2 rounded-full bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform">
                 <FolderOpen className="h-5 w-5" />
               </div>
-              <span className="text-sm text-white/80 font-medium">Usuarios</span>
+              <span className="text-xs font-medium text-white/80 sm:text-sm">Usuarios</span>
             </button>
 
             <button
               onClick={() => onViewChange("admin-projects")}
-              className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-lg hover:bg-white/[0.06] transition-all flex flex-col items-center gap-2 group"
+              className="group flex min-h-28 flex-col items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] p-4 transition-all duration-200 hover:bg-white/[0.06]"
             >
               <div className="p-2 rounded-full bg-purple-500/10 text-purple-400 group-hover:scale-110 transition-transform">
                 <FolderOpen className="h-5 w-5" />
               </div>
-              <span className="text-sm text-white/80 font-medium">Portfolio</span>
+              <span className="text-xs font-medium text-white/80 sm:text-sm">Portfolio</span>
             </button>
 
             <button
               onClick={() => onViewChange("admin-services")}
-              className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-lg hover:bg-white/[0.06] transition-all flex flex-col items-center gap-2 group"
+              className="group flex min-h-28 flex-col items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] p-4 transition-all duration-200 hover:bg-white/[0.06]"
             >
               <div className="p-2 rounded-full bg-green-500/10 text-green-400 group-hover:scale-110 transition-transform">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
-              <span className="text-sm text-white/80 font-medium">Servicios</span>
+              <span className="text-xs font-medium text-white/80 sm:text-sm">Servicios</span>
             </button>
 
             <button
               onClick={() => onViewChange("admin-team")}
-              className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-lg hover:bg-white/[0.06] transition-all flex flex-col items-center gap-2 group"
+              className="group flex min-h-28 flex-col items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] p-4 transition-all duration-200 hover:bg-white/[0.06]"
             >
               <div className="p-2 rounded-full bg-orange-500/10 text-orange-400 group-hover:scale-110 transition-transform">
                 <TrendingUp className="h-5 w-5" />
               </div>
-              <span className="text-sm text-white/80 font-medium">Equipo</span>
+              <span className="text-xs font-medium text-white/80 sm:text-sm">Equipo</span>
             </button>
 
             <button
               onClick={() => onViewChange("admin-config")}
-              className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-lg hover:bg-white/[0.06] transition-all flex flex-col items-center gap-2 group"
+              className="group flex min-h-28 flex-col items-center gap-2 rounded-xl border border-white/[0.04] bg-white/[0.02] p-4 transition-all duration-200 hover:bg-white/[0.06]"
             >
               <div className="p-2 rounded-full bg-gray-500/10 text-gray-400 group-hover:scale-110 transition-transform">
                 <Eye className="h-5 w-5" />
               </div>
-              <span className="text-sm text-white/80 font-medium">Config</span>
+              <span className="text-xs font-medium text-white/80 sm:text-sm">Config</span>
             </button>
           </div>
         </div>

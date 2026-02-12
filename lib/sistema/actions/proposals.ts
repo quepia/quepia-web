@@ -1,8 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/sistema/supabase/server'
+import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import type { ProposalStatus } from '@/types/sistema'
+import type { ProposalStatus, ProposalUpdate } from '@/types/sistema'
 import { sendEmail } from '@/lib/sistema/email-service'
 
 interface ProposalSectionPayload {
@@ -145,7 +146,7 @@ export async function saveProposal(payload: SaveProposalPayload) {
 }
 
 export async function getProposalByToken(token: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   try {
     const { data: proposal, error } = await supabase
@@ -184,14 +185,22 @@ export async function getProposalByToken(token: string) {
   }
 }
 
-export async function postProposalComment(proposalId: string, content: string, authorName: string, isClient = true) {
-  const supabase = await createClient()
+export async function postProposalComment(token: string, content: string, authorName: string, isClient = true) {
+  const supabase = createAdminClient()
 
   try {
+    const { data: proposal, error: proposalError } = await supabase
+      .from('sistema_proposals')
+      .select('id')
+      .eq('public_token', token)
+      .single()
+
+    if (proposalError || !proposal) throw proposalError || new Error('Propuesta no encontrada')
+
     const { data, error } = await supabase
       .from('sistema_proposal_comments')
       .insert({
-        proposal_id: proposalId,
+        proposal_id: proposal.id,
         content,
         author_name: authorName,
         is_client: isClient,
@@ -207,10 +216,10 @@ export async function postProposalComment(proposalId: string, content: string, a
 }
 
 export async function submitProposalDecision(token: string, status: ProposalStatus) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   try {
-    const updates: Record<string, any> = { status }
+    const updates: Pick<ProposalUpdate, 'status' | 'accepted_at' | 'rejected_at' | 'changes_requested_at'> = { status }
     const now = new Date().toISOString()
 
     if (status === 'accepted') updates.accepted_at = now

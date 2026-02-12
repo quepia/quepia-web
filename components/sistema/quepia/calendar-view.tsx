@@ -9,6 +9,8 @@ import type { CalendarEvent } from "@/types/sistema"
 import { PRIORITY_COLORS, EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from "@/types/sistema"
 import AICalendarModal, { type ImportedEvent } from "./ai-calendar-modal"
 import { EventDetailModal } from "./event-detail-modal"
+import { useToast } from "@/components/ui/toast-provider"
+import { trackExperienceMetric } from "@/lib/sistema/experience-metrics"
 
 import { ManualEventModal } from "./manual-event-modal"
 
@@ -36,6 +38,7 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ tasks, events, loading, onTaskClick, userId, projects = [], onRefresh }: CalendarViewProps) {
+  const { toast } = useToast()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showAIModal, setShowAIModal] = useState(false)
@@ -47,16 +50,18 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [bulkDeleteProjectFilter, setBulkDeleteProjectFilter] = useState<string>("all")
+  const headerActionButtonClass = "flex min-h-10 items-center gap-1.5 rounded-xl px-3 py-2 text-xs transition-all duration-200"
+  const selectedEventId = selectedEvent?.id ?? null
 
   // Sync selectedEvent with events prop when it changes (e.g. after adding a comment or refresh)
   useEffect(() => {
-    if (selectedEvent && events) {
-      const updatedEvent = events.find(e => e.id === selectedEvent.id)
-      if (updatedEvent) {
+    if (selectedEventId && events.length > 0) {
+      const updatedEvent = events.find((event) => event.id === selectedEventId)
+      if (updatedEvent && updatedEvent !== selectedEvent) {
         setSelectedEvent(updatedEvent)
       }
     }
-  }, [events, selectedEvent])
+  }, [events, selectedEvent, selectedEventId])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -97,6 +102,17 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   const todayStr = new Date().toISOString().split("T")[0]
 
   const selectedItems = selectedDate ? dateItems.get(selectedDate) : null
+  const monthEvents = useMemo(() => {
+    return events.filter((event) => {
+      const date = new Date(event.fecha_inicio)
+      return date.getFullYear() === year && date.getMonth() === month
+    })
+  }, [events, month, year])
+
+  const filteredMonthEvents = useMemo(() => {
+    if (bulkDeleteProjectFilter === "all") return monthEvents
+    return monthEvents.filter((event) => event.project_id === bulkDeleteProjectFilter)
+  }, [bulkDeleteProjectFilter, monthEvents])
 
   if (loading) {
     return (
@@ -117,44 +133,44 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   }
 
   return (
-    <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row">
+    <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row">
       {/* Calendar Grid */}
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex-1 p-3 sm:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
           <div className="flex items-center gap-3">
             <Calendar className="h-5 w-5 text-quepia-cyan" />
             <h2 className="text-lg font-semibold text-white capitalize">{monthName}</h2>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
             <button
               onClick={() => setShowManualModal(true)}
-              className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-quepia-cyan text-black hover:bg-quepia-cyan/90 transition-colors flex items-center gap-1.5 font-medium"
+              className={cn(headerActionButtonClass, "bg-quepia-cyan font-medium text-black hover:bg-quepia-cyan/90")}
             >
               <Plus className="h-3.5 w-3.5" />
               Crear
             </button>
             <button
               onClick={() => setShowAIModal(true)}
-              className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-quepia-cyan/10 text-quepia-cyan hover:bg-quepia-cyan/20 transition-colors flex items-center gap-1.5"
+              className={cn(headerActionButtonClass, "bg-quepia-cyan/10 text-quepia-cyan hover:bg-quepia-cyan/20")}
             >
               <Sparkles className="h-3.5 w-3.5" />
               IA Calendar
             </button>
             <button
               onClick={() => { setBulkDeleteProjectFilter("all"); setShowBulkDeleteModal(true) }}
-              className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-1.5"
+              className={cn(headerActionButtonClass, "bg-red-500/10 text-red-400 hover:bg-red-500/20")}
             >
               <Trash2 className="h-3.5 w-3.5" />
               Limpiar mes
             </button>
-            <button onClick={goToToday} className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors">
+            <button onClick={goToToday} className={cn(headerActionButtonClass, "bg-white/[0.05] text-white/60 hover:bg-white/[0.08] hover:text-white")}>
               Hoy
             </button>
-            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors">
+            <button onClick={prevMonth} className="min-h-10 rounded-xl p-2 transition-all duration-200 hover:bg-white/[0.06]">
               <ChevronLeft className="h-4 w-4 text-white/40" />
             </button>
-            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors">
+            <button onClick={nextMonth} className="min-h-10 rounded-xl p-2 transition-all duration-200 hover:bg-white/[0.06]">
               <ChevronRight className="h-4 w-4 text-white/40" />
             </button>
           </div>
@@ -293,12 +309,12 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
 
       {/* Side panel for selected date */}
       {selectedDate && (
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/[0.06] p-4 overflow-y-auto">
+        <div className="w-full overflow-y-auto border-t border-white/[0.06] bg-white/[0.01] p-4 lg:w-80 lg:border-l lg:border-t-0">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-white">
               {new Date(selectedDate + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
             </h3>
-            <button onClick={() => setSelectedDate(null)} className="p-1 rounded hover:bg-white/[0.06]">
+            <button onClick={() => setSelectedDate(null)} className="rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06]">
               <X className="h-3.5 w-3.5 text-white/30" />
             </button>
           </div>
@@ -308,7 +324,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
               <p className="text-sm text-white/30 mb-3">Sin actividad para este día</p>
               <button
                 onClick={() => setShowManualModal(true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.05] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors flex items-center gap-1.5"
+                className="flex min-h-10 items-center gap-1.5 rounded-xl bg-white/[0.05] px-3 py-2 text-xs text-white/60 transition-all duration-200 hover:bg-white/[0.08] hover:text-white"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Crear Evento
@@ -326,7 +342,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                       <button
                         key={task.id}
                         onClick={() => onTaskClick(task)}
-                        className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-white/[0.04] transition-colors text-left"
+                        className="flex min-h-10 w-full items-center gap-2 rounded-xl p-2.5 text-left transition-all duration-200 hover:bg-white/[0.04]"
                       >
                         <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
                         <span className="text-xs text-white/70 truncate flex-1">{task.titulo}</span>
@@ -358,7 +374,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                       <button
                         key={event.id}
                         onClick={() => setSelectedEvent(event)}
-                        className="w-full flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] transition-colors text-left"
+                        className="flex min-h-10 w-full items-center gap-2 rounded-xl bg-white/[0.02] p-2.5 text-left transition-all duration-200 hover:bg-white/[0.06]"
                       >
                         <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
                         <div className="flex-1 min-w-0">
@@ -414,7 +430,11 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
             setPendingImport(imported)
             setShowProjectPicker(true)
           } else {
-            alert("No hay clientes disponibles para importar eventos.")
+            toast({
+              title: "No hay clientes disponibles",
+              description: "Crea o habilita un proyecto para importar eventos.",
+              variant: "warning"
+            })
           }
         }}
       />
@@ -435,7 +455,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
       {showProjectPicker && pendingImport && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setShowProjectPicker(false); setPendingImport(null) }} />
-          <div className="relative z-50 w-full h-[100svh] sm:h-auto sm:max-w-sm rounded-t-2xl sm:rounded-xl border-0 sm:border sm:border-white/10 bg-[#1a1a1a] shadow-2xl p-4 sm:p-6">
+          <div className="relative z-50 h-[100svh] w-full overflow-y-auto rounded-t-2xl border-0 bg-[#1a1a1a]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:h-auto sm:max-w-sm sm:rounded-2xl sm:border sm:border-white/10 sm:p-6">
             <h3 className="text-white font-semibold mb-1">Seleccionar cliente</h3>
             <p className="text-xs text-white/40 mb-4">Elegí en qué cliente importar los {pendingImport.length} eventos.</p>
             <div className="space-y-1 max-h-60 overflow-y-auto">
@@ -448,7 +468,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                     setPendingImport(null)
                   }}
                   disabled={importing}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.06] transition-colors text-left"
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 hover:bg-white/[0.06]"
                 >
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                   <span className="text-sm text-white/80">{p.nombre}</span>
@@ -457,7 +477,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
             </div>
             <button
               onClick={() => { setShowProjectPicker(false); setPendingImport(null) }}
-              className="mt-4 w-full text-sm text-white/50 hover:text-white py-2 transition-colors"
+              className="mt-4 min-h-11 w-full rounded-xl py-2 text-sm text-white/50 transition-all duration-200 hover:bg-white/[0.05] hover:text-white"
             >
               Cancelar
             </button>
@@ -469,7 +489,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
       {showBulkDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowBulkDeleteModal(false)} />
-          <div className="relative z-50 w-full h-[100svh] sm:h-auto sm:max-w-sm rounded-t-2xl sm:rounded-xl border-0 sm:border sm:border-white/10 bg-[#1a1a1a] shadow-2xl p-4 sm:p-6">
+          <div className="relative z-50 h-[100svh] w-full overflow-y-auto rounded-t-2xl border-0 bg-[#1a1a1a]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:h-auto sm:max-w-sm sm:rounded-2xl sm:border sm:border-white/10 sm:p-6">
             <h3 className="text-white font-semibold mb-1">Limpiar mes</h3>
             <p className="text-xs text-white/40 mb-4">
               Eliminar eventos del calendario de <span className="text-white/60 capitalize">{monthName}</span>.
@@ -484,7 +504,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                 <select
                   value={bulkDeleteProjectFilter}
                   onChange={(e) => setBulkDeleteProjectFilter(e.target.value)}
-                  className="w-full text-sm bg-white/[0.05] border border-white/10 rounded-lg px-3 py-2 text-white/80 outline-none focus:border-quepia-cyan/30"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-sm text-white/80 outline-none transition-all duration-200 focus:border-quepia-cyan/30"
                 >
                   <option value="all">Todos los clientes</option>
                   {projects.map(p => (
@@ -494,52 +514,39 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
               </div>
             )}
 
-            {(() => {
-              const monthEvents = events.filter(e => {
-                const d = new Date(e.fecha_inicio)
-                return d.getFullYear() === year && d.getMonth() === month
-              })
-              const filtered = bulkDeleteProjectFilter === "all"
-                ? monthEvents
-                : monthEvents.filter(e => e.project_id === bulkDeleteProjectFilter)
-              return (
-                <>
-                  <div className="mb-4 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <span className="text-sm text-white/70">
-                      {filtered.length === 0
-                        ? "No hay eventos para eliminar."
-                        : <>Se eliminarán <span className="text-red-400 font-semibold">{filtered.length}</span> evento{filtered.length !== 1 ? "s" : ""}.</>
-                      }
-                    </span>
-                  </div>
-                  {filtered.length > 0 && (
-                    <p className="text-[10px] text-red-400/60 mb-4">Esta acción no se puede deshacer.</p>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowBulkDeleteModal(false)}
-                      className="flex-1 text-sm text-white/50 hover:text-white py-2 rounded-lg hover:bg-white/[0.05] transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => handleBulkDelete()}
-                      disabled={bulkDeleting || filtered.length === 0}
-                      className="flex-1 text-sm text-white py-2 rounded-lg bg-red-500/80 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                    >
-                      {bulkDeleting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Eliminar
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </>
-              )
-            })()}
+            <div className="mb-4 rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+              <span className="text-sm text-white/70">
+                {filteredMonthEvents.length === 0
+                  ? "No hay eventos para eliminar."
+                  : <>Se eliminarán <span className="font-semibold text-red-400">{filteredMonthEvents.length}</span> evento{filteredMonthEvents.length !== 1 ? "s" : ""}.</>
+                }
+              </span>
+            </div>
+            {filteredMonthEvents.length > 0 && (
+              <p className="mb-4 text-[10px] text-red-400/60">Esta acción no se puede deshacer.</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="min-h-11 flex-1 rounded-xl py-2 text-sm text-white/50 transition-all duration-200 hover:bg-white/[0.05] hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleBulkDelete()}
+                disabled={bulkDeleting || filteredMonthEvents.length === 0}
+                className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-red-500/80 py-2 text-sm text-white transition-all duration-200 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {bulkDeleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Eliminar
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -559,17 +566,9 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   async function handleBulkDelete() {
     setBulkDeleting(true)
     try {
-      const monthEvents = events.filter(e => {
-        const d = new Date(e.fecha_inicio)
-        return d.getFullYear() === year && d.getMonth() === month
-      })
-      const filtered = bulkDeleteProjectFilter === "all"
-        ? monthEvents
-        : monthEvents.filter(e => e.project_id === bulkDeleteProjectFilter)
+      if (filteredMonthEvents.length === 0) return
 
-      if (filtered.length === 0) return
-
-      const ids = filtered.map(e => e.id)
+      const ids = filteredMonthEvents.map((event) => event.id)
       const supabase = createClient()
       const { error } = await supabase
         .from('sistema_calendar_events')
@@ -578,14 +577,29 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
 
       if (error) {
         console.error("Error bulk deleting events:", error)
-        alert(`Error al eliminar eventos: ${error.message}`)
+        trackExperienceMetric("errors_shown")
+        toast({
+          title: "No se pudieron eliminar eventos",
+          description: error.message,
+          variant: "error"
+        })
       } else {
         onRefresh?.()
         setShowBulkDeleteModal(false)
+        toast({
+          title: "Mes limpiado",
+          description: `Se eliminaron ${ids.length} eventos.`,
+          variant: "success"
+        })
       }
     } catch (err) {
       console.error("Error bulk deleting events:", err)
-      alert("Error inesperado al eliminar eventos.")
+      trackExperienceMetric("errors_shown")
+      toast({
+        title: "Error inesperado",
+        description: "No se pudieron eliminar los eventos.",
+        variant: "error"
+      })
     } finally {
       setBulkDeleting(false)
     }
@@ -593,7 +607,12 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
 
   async function handleImportToProject(imported: ImportedEvent[], projectId: string) {
     if (!userId) {
-      alert("Error: usuario no identificado.")
+      trackExperienceMetric("errors_shown")
+      toast({
+        title: "Usuario no identificado",
+        description: "Vuelve a iniciar sesión para importar.",
+        variant: "error"
+      })
       return
     }
 
@@ -623,14 +642,29 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
 
       if (!res.ok) {
         console.error("Error importing events:", result.error)
-        alert(`Error al importar: ${result.error}`)
+        trackExperienceMetric("errors_shown")
+        toast({
+          title: "No se pudieron importar eventos",
+          description: result.error || "Error desconocido",
+          variant: "error"
+        })
       } else {
         console.log("Successfully imported", result.count, "events")
         onRefresh?.()
+        toast({
+          title: "Importación completada",
+          description: `Se importaron ${result.count} eventos.`,
+          variant: "success"
+        })
       }
     } catch (err) {
       console.error("Error importing events:", err)
-      alert("Error inesperado al importar eventos.")
+      trackExperienceMetric("errors_shown")
+      toast({
+        title: "Error inesperado",
+        description: "No se pudieron importar los eventos.",
+        variant: "error"
+      })
     } finally {
       setImporting(false)
     }

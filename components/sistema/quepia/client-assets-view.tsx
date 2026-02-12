@@ -504,6 +504,17 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
             {tasksWithAssets.length === 0 ? (
                 <div className="text-center py-16 border border-dashed border-white/10 rounded-xl">
                     <p className="text-white/40">No se encontraron archivos</p>
+                    {(searchQuery.trim() || filterStatus !== "all") && (
+                        <button
+                            onClick={() => {
+                                setSearchQuery("")
+                                setFilterStatus("all")
+                            }}
+                            className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-white/[0.06] px-3 py-2 text-xs text-white/70 transition-all duration-200 hover:bg-white/[0.1]"
+                        >
+                            Limpiar filtros
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="space-y-8">

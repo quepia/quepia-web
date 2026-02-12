@@ -28,6 +28,9 @@ import { TaskContextMenu } from "@/components/sistema/quepia/task-context-menu"
 import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
 import { ProjectResources } from "@/components/sistema/quepia/project-resources"
 import { uploadAssetFile, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
+import { useToast } from "@/components/ui/toast-provider"
+import { useConfirm } from "@/components/ui/confirm-provider"
+import { trackExperienceMetric } from "@/lib/sistema/experience-metrics"
 
 // Re-export types for backward compatibility
 export type { Task, ColumnWithTasks as ColumnType }
@@ -41,6 +44,8 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef, userId }: KanbanBoardProps) {
+    const { toast } = useToast()
+    const { confirm } = useConfirm()
     const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, silentRefresh } = useTasks(projectId)
 
     // Expose silentRefresh to parent via ref
@@ -65,6 +70,12 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
     const [isAddingColumn, setIsAddingColumn] = useState(false)
     const [newColumnName, setNewColumnName] = useState("")
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+    const [hideCompletedTasks, setHideCompletedTasks] = useState(false)
+
+    const completedTasksCount = useMemo(
+        () => columns.reduce((count, column) => count + column.tasks.filter((task) => task.completed).length, 0),
+        [columns]
+    )
 
     // Review Modal State
     const [reviewTask, setReviewTask] = useState<Task | null>(null)
@@ -89,9 +100,22 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
     }
 
     const handleDeleteTask = async (taskId: string) => {
-        if (confirm("¿Estás seguro de eliminar esta tarea?")) {
-            await deleteTask(taskId)
-        }
+        const accepted = await confirm({
+            title: "Eliminar tarea",
+            description: "Esta acción no se puede deshacer.",
+            confirmText: "Eliminar",
+            cancelText: "Cancelar",
+            tone: "danger"
+        })
+
+        if (!accepted) return
+
+        await deleteTask(taskId)
+        trackExperienceMetric("task_deleted")
+        toast({
+            title: "Tarea eliminada",
+            variant: "success"
+        })
     }
 
     const handleDragStart = (e: React.DragEvent, task: Task) => {
@@ -126,7 +150,12 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
 
         // Enforce WIP limit
         if (targetColumn.wip_limit && targetColumn.tasks.length >= targetColumn.wip_limit) {
-            alert(`La columna "${targetColumn.nombre}" tiene un límite de ${targetColumn.wip_limit} tareas. Mueve una tarea primero.`)
+            trackExperienceMetric("task_move_blocked")
+            toast({
+                title: "Límite WIP alcanzado",
+                description: `La columna "${targetColumn.nombre}" permite hasta ${targetColumn.wip_limit} tareas.`,
+                variant: "warning"
+            })
             setDraggedTask(null)
             return
         }
@@ -144,7 +173,12 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                         .eq("task_id", draggedTask.id)
                     const incomplete = subs?.filter(s => !s.completed) || []
                     if (incomplete.length > 0) {
-                        alert(`No se puede mover "${draggedTask.titulo}" a "${targetColumn.nombre}": tiene ${incomplete.length} subtarea(s) sin completar.`)
+                        trackExperienceMetric("task_move_blocked")
+                        toast({
+                            title: "Movimiento bloqueado por subtareas",
+                            description: `"${draggedTask.titulo}" tiene ${incomplete.length} subtarea(s) sin completar.`,
+                            variant: "warning"
+                        })
                         setDraggedTask(null)
                         return
                     }
@@ -171,7 +205,12 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                     .filter(t => t && t.column_id !== lastColId)
                 if (blockedBy.length > 0) {
                     const names = blockedBy.map(t => `"${t!.titulo}"`).join(", ")
-                    alert(`No se puede mover "${draggedTask.titulo}": depende de ${names} que aún no están completadas.`)
+                    trackExperienceMetric("task_move_blocked")
+                    toast({
+                        title: "Movimiento bloqueado por dependencias",
+                        description: `"${draggedTask.titulo}" depende de ${names}.`,
+                        variant: "warning"
+                    })
                     setDraggedTask(null)
                     return
                 }
@@ -213,13 +252,28 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
     const handleDeleteColumn = async (columnId: string) => {
         const column = columns.find(c => c.id === columnId)
         if (column && column.tasks.length > 0) {
-            alert("No puedes eliminar una columna con tareas. Mueve las tareas primero.")
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se puede eliminar la columna",
+                description: "Mueve o completa sus tareas primero.",
+                variant: "warning"
+            })
             return
         }
-        if (confirm("¿Estás seguro de eliminar esta columna?")) {
-            await deleteColumn(columnId)
-            await silentRefresh()
-        }
+        const accepted = await confirm({
+            title: "Eliminar columna",
+            description: "La columna se eliminará permanentemente.",
+            confirmText: "Eliminar",
+            cancelText: "Cancelar",
+            tone: "danger"
+        })
+        if (!accepted) return
+        await deleteColumn(columnId)
+        await silentRefresh()
+        toast({
+            title: "Columna eliminada",
+            variant: "success"
+        })
     }
 
     const handleAddColumn = async () => {
@@ -271,7 +325,25 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
             {/* Project Header */}
             <div className="px-4 sm:px-6 py-3 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
                 <h1 className="text-lg font-semibold text-white truncate">{projectName}</h1>
-                <div className="w-full sm:w-auto">
+                <div className="w-full sm:w-auto flex items-center gap-2 sm:justify-end">
+                    <button
+                        onClick={() => setHideCompletedTasks((prev) => !prev)}
+                        disabled={completedTasksCount === 0 && !hideCompletedTasks}
+                        className={cn(
+                            "h-9 px-3 rounded-lg text-xs border transition-colors whitespace-nowrap",
+                            hideCompletedTasks
+                                ? "border-quepia-cyan/40 bg-quepia-cyan/10 text-quepia-cyan"
+                                : "border-white/10 text-white/70 hover:bg-white/5",
+                            completedTasksCount === 0 && !hideCompletedTasks && "opacity-40 cursor-not-allowed"
+                        )}
+                    >
+                        {hideCompletedTasks ? "Mostrar completadas" : "Limpiar completadas"}
+                        {completedTasksCount > 0 && (
+                            <span className="ml-2 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">
+                                {completedTasksCount}
+                            </span>
+                        )}
+                    </button>
                     {projectId && <ProjectResources projectId={projectId} />}
                 </div>
             </div>
@@ -320,6 +392,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                             onSetEditingTaskId={setEditingTaskId}
                             userId={userId}
                             onAssetsUploaded={() => silentRefresh()}
+                            hideCompletedTasks={hideCompletedTasks}
                         />
                     ))}
 
@@ -414,6 +487,7 @@ interface KanbanColumnProps {
     onSetEditingTaskId: (taskId: string | null) => void
     userId?: string
     onAssetsUploaded?: () => void
+    hideCompletedTasks: boolean
 }
 
 function KanbanColumn({
@@ -449,17 +523,23 @@ function KanbanColumn({
     onSetEditingTaskId,
     userId,
     onAssetsUploaded: onAssetsUploadedProp,
+    hideCompletedTasks,
 }: KanbanColumnProps) {
     const [showMenu, setShowMenu] = useState(false)
     const [editingWip, setEditingWip] = useState(false)
     const [wipValue, setWipValue] = useState(column.wip_limit?.toString() || "")
+    const visibleTasks = useMemo(
+        () => hideCompletedTasks ? column.tasks.filter((task) => !task.completed) : column.tasks,
+        [column.tasks, hideCompletedTasks]
+    )
+    const hiddenCompletedCount = column.tasks.length - visibleTasks.length
 
     const isAtWipLimit = column.wip_limit !== null && column.wip_limit !== undefined && column.tasks.length >= column.wip_limit
     const isNearWipLimit = column.wip_limit !== null && column.wip_limit !== undefined && column.tasks.length >= column.wip_limit - 1
 
     // Reorganize tasks: group children under their parents
     const organizedTasks = useMemo(() => {
-        const tasks = [...column.tasks]
+        const tasks = [...visibleTasks]
         const taskMap = new Map(tasks.map(t => [t.id, t]))
         const visited = new Set<string>()
         const result: Array<{ task: Task; isChild: boolean; parentTask?: Task }> = []
@@ -497,7 +577,7 @@ function KanbanColumn({
         })
 
         return result
-    }, [column.tasks])
+    }, [visibleTasks])
 
     return (
         <div
@@ -549,11 +629,16 @@ function KanbanColumn({
                                 isAtWipLimit ? "text-red-400 font-semibold" :
                                     isNearWipLimit ? "text-amber-400" : "text-white/40"
                             )}>
-                                {column.tasks.length}
+                                {visibleTasks.length}
                                 {column.wip_limit != null && (
                                     <span className="text-white/25">/{column.wip_limit}</span>
                                 )}
                             </span>
+                            {hideCompletedTasks && hiddenCompletedCount > 0 && (
+                                <span className="text-[10px] text-white/25">
+                                    -{hiddenCompletedCount} ocultas
+                                </span>
+                            )}
                         </div>
                         <div className="relative">
                             <button
@@ -647,7 +732,12 @@ function KanbanColumn({
 
             {/* Tasks */}
             <div className="flex-1 space-y-2 overflow-y-auto pb-4">
-                {organizedTasks.map(({ task, isChild, parentTask }, index) => {
+                {organizedTasks.length === 0 && hideCompletedTasks && hiddenCompletedCount > 0 && (
+                    <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
+                        Esta columna tiene solo tareas completadas.
+                    </div>
+                )}
+                {organizedTasks.map(({ task, isChild, parentTask }) => {
                     // Find siblings to determine if this is the last child
                     const siblings = organizedTasks.filter(t =>
                         t.parentTask?.id === parentTask?.id
@@ -834,13 +924,13 @@ const TaskCard = React.memo(function TaskCard({
                     userId,
                     onProgress: updateUploadQueue,
                 })
-            } catch (err: any) {
+            } catch (err: unknown) {
                 updateUploadQueue({
                     id: `${file.name}-${Date.now()}`,
                     fileName: file.name,
                     percent: 0,
                     stage: "error",
-                    message: err?.message || "Error subiendo archivo",
+                    message: err instanceof Error ? err.message : "Error subiendo archivo",
                 })
             }
         }
@@ -916,7 +1006,7 @@ const TaskCard = React.memo(function TaskCard({
 
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.completed
     const isDueSoon = task.due_date && !isOverdue && !task.completed &&
-        new Date(task.due_date).getTime() - Date.now() < 2 * 24 * 60 * 60 * 1000
+        new Date(task.due_date).getTime() - new Date().getTime() < 2 * 24 * 60 * 60 * 1000
 
     const formatDueDate = (date: string) => {
         const d = new Date(date)
@@ -932,6 +1022,15 @@ const TaskCard = React.memo(function TaskCard({
     // Check if this task has a parent (was converted from subtask)
     const isChildTask = !!task.parent_task_id
     const assetThumbs = (task.assets || []).map(a => a.thumbnail_url).filter(Boolean).slice(0, 3) as string[]
+    const taskTypeMetadata = task.type_metadata && typeof task.type_metadata === "object"
+        ? (task.type_metadata as Record<string, unknown>)
+        : null
+    const youtubeMeta = taskTypeMetadata?.youtube && typeof taskTypeMetadata.youtube === "object"
+        ? (taskTypeMetadata.youtube as Record<string, unknown>)
+        : null
+    const youtubeThumbUrl = youtubeMeta && typeof youtubeMeta.thumbnail_url === "string" ? youtubeMeta.thumbnail_url : null
+    const youtubePublishedUrl = youtubeMeta && typeof youtubeMeta.published_url === "string" ? youtubeMeta.published_url : null
+    const youtubeSourceUrl = youtubeMeta && typeof youtubeMeta.source_url === "string" ? youtubeMeta.source_url : null
 
     return (
         <div
@@ -1040,6 +1139,17 @@ const TaskCard = React.memo(function TaskCard({
                 </button>
 
                 <div className="flex-1 min-w-0">
+                    {youtubeThumbUrl && (
+                        <div className="mb-2 overflow-hidden rounded-md border border-white/10 bg-black/20">
+                            <img
+                                src={youtubeThumbUrl}
+                                alt="YouTube thumbnail"
+                                className="h-24 w-full object-cover"
+                                loading="lazy"
+                            />
+                        </div>
+                    )}
+
                     {/* Title */}
                     <p className={cn(
                         "text-[15px] font-medium leading-snug mb-0.5",
@@ -1125,6 +1235,13 @@ const TaskCard = React.memo(function TaskCard({
                         {/* Link Indicator */}
                         {task.link && (
                             <Link2 className="h-3 w-3 text-quepia-cyan/60 ml-0.5" />
+                        )}
+
+                        {/* YouTube links indicator */}
+                        {(youtubePublishedUrl || youtubeSourceUrl) && (
+                            <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-300 font-medium">
+                                YouTube
+                            </span>
                         )}
 
                         {/* Parent Task Indicator - Shows when task was converted from subtask */}

@@ -8,11 +8,33 @@ const resend = process.env.RESEND_API_KEY
 
 export const dynamic = "force-dynamic"
 
+const PROJECT_IDS_CACHE_TTL_MS = 45_000
+const projectIdsCache = new Map<string, { projectIds: string[]; expiresAt: number }>()
+type ProjectIdRow = { id: string }
+type MemberProjectIdRow = { project_id: string }
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
+}
+
+function getCachedProjectIds(userId: string) {
+  const cached = projectIdsCache.get(userId)
+  if (!cached) return null
+  if (Date.now() > cached.expiresAt) {
+    projectIdsCache.delete(userId)
+    return null
+  }
+  return cached.projectIds
+}
+
+function setCachedProjectIds(userId: string, projectIds: string[]) {
+  projectIdsCache.set(userId, {
+    projectIds,
+    expiresAt: Date.now() + PROJECT_IDS_CACHE_TTL_MS,
+  })
 }
 
 // GET: Fetch tasks, projects, and calendar events for a user (bypasses RLS)
@@ -21,6 +43,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
     const type = searchParams.get("type") // "tasks" | "projects" | "events"
+    const forceRefresh = searchParams.get("force") === "true"
 
     if (!type) {
       return NextResponse.json({ error: "Missing type" }, { status: 400 })
@@ -29,38 +52,57 @@ export async function GET(request: Request) {
     const supabase = getAdminClient()
 
     // Helper to get all project IDs accessible by user (owned + member)
-    const getUserProjectIds = async (userId: string) => {
+    const getUserProjectIds = async (userId: string, bypassCache = false) => {
+      const cachedProjectIds = bypassCache ? null : getCachedProjectIds(userId)
+      if (cachedProjectIds && !bypassCache) {
+        return cachedProjectIds
+      }
+
       // 1. Get user role
-      const { data: user } = await supabase
+      const { data: user, error: userError } = await supabase
         .from("sistema_users")
         .select("role")
         .eq("id", userId)
         .single()
 
+      if (userError && userError.code !== "PGRST116") {
+        throw userError
+      }
+
       // 2. If Admin, get ALL project IDs
       if (user?.role === 'admin') {
-        const { data: allProjects } = await supabase
+        const { data: allProjects, error: allProjectsError } = await supabase
           .from("sistema_projects")
           .select("id")
 
-        return allProjects?.map((p: any) => p.id) || []
+        if (allProjectsError) throw allProjectsError
+
+        const projectIds = (allProjects as ProjectIdRow[] | null)?.map((p) => p.id) || []
+        setCachedProjectIds(userId, projectIds)
+        return projectIds
       }
 
       // 3. If Member/Standard, use existing logic (Owned + Member)
-      const { data: owned } = await supabase
-        .from("sistema_projects")
-        .select("id")
-        .eq("owner_id", userId)
+      const [{ data: owned, error: ownedError }, { data: member, error: memberError }] = await Promise.all([
+        supabase
+          .from("sistema_projects")
+          .select("id")
+          .eq("owner_id", userId),
+        supabase
+          .from("sistema_project_members")
+          .select("project_id")
+          .eq("user_id", userId),
+      ])
 
-      const { data: member } = await supabase
-        .from("sistema_project_members")
-        .select("project_id")
-        .eq("user_id", userId)
+      if (ownedError) throw ownedError
+      if (memberError) throw memberError
 
-      const ownedIds = owned?.map((p: any) => p.id) || []
-      const memberIds = member?.map((m: any) => m.project_id) || []
+      const ownedIds = (owned as ProjectIdRow[] | null)?.map((p) => p.id) || []
+      const memberIds = (member as MemberProjectIdRow[] | null)?.map((m) => m.project_id) || []
 
-      return Array.from(new Set([...ownedIds, ...memberIds]))
+      const projectIds = Array.from(new Set([...ownedIds, ...memberIds]))
+      setCachedProjectIds(userId, projectIds)
+      return projectIds
     }
 
     if (type === "check-tables") {
@@ -93,7 +135,10 @@ export async function GET(request: Request) {
     }
 
     if (type === "tasks") {
-      const projectIds = await getUserProjectIds(userId!)
+      if (!userId) {
+        return NextResponse.json({ error: "Missing userId" }, { status: 400 })
+      }
+      const projectIds = await getUserProjectIds(userId!, forceRefresh)
 
       if (projectIds.length === 0) {
         return NextResponse.json({ data: [] })
@@ -102,7 +147,25 @@ export async function GET(request: Request) {
       const { data, error } = await supabase
         .from("sistema_tasks")
         .select(`
-          *,
+          id,
+          project_id,
+          column_id,
+          titulo,
+          descripcion,
+          link,
+          assignee_id,
+          priority,
+          due_date,
+          deadline,
+          labels,
+          orden,
+          completed,
+          completed_at,
+          created_at,
+          updated_at,
+          estimated_hours,
+          task_type,
+          social_copy,
           project:sistema_projects(id, nombre, color, logo_url),
           assignee:sistema_users(id, nombre, avatar_url),
           column:sistema_columns(id, nombre)
@@ -119,7 +182,10 @@ export async function GET(request: Request) {
     }
 
     if (type === "projects") {
-      const projectIds = await getUserProjectIds(userId!)
+      if (!userId) {
+        return NextResponse.json({ error: "Missing userId" }, { status: 400 })
+      }
+      const projectIds = await getUserProjectIds(userId!, forceRefresh)
 
       if (projectIds.length === 0) {
         return NextResponse.json({ data: [] })
@@ -166,7 +232,10 @@ export async function GET(request: Request) {
     }
 
     if (type === "events") {
-      const projectIds = await getUserProjectIds(userId!)
+      if (!userId) {
+        return NextResponse.json({ error: "Missing userId" }, { status: 400 })
+      }
+      const projectIds = await getUserProjectIds(userId!, forceRefresh)
 
       if (projectIds.length === 0) {
         return NextResponse.json({ data: [] })
@@ -175,9 +244,20 @@ export async function GET(request: Request) {
       const { data, error } = await supabase
         .from("sistema_calendar_events")
         .select(`
-          *,
-          project:sistema_projects(id, nombre, color, logo_url),
-          comments:sistema_calendar_comments(*)
+          id,
+          project_id,
+          titulo,
+          descripcion,
+          tipo,
+          fecha_inicio,
+          fecha_fin,
+          todo_el_dia,
+          color,
+          task_id,
+          created_by,
+          created_at,
+          updated_at,
+          project:sistema_projects(id, nombre, color, logo_url)
         `)
         .in("project_id", projectIds)
         .order("fecha_inicio", { ascending: true })

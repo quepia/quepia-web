@@ -10,6 +10,8 @@ import { createClient } from "@/lib/sistema/supabase/client"
 import { ClientAssetViewer, type ClientAsset } from "@/components/sistema/quepia/client-asset-viewer"
 import { ClientAssetsView } from "@/components/sistema/quepia/client-assets-view"
 import { ClientOnboardingOverlay } from "@/components/sistema/quepia/client-onboarding-overlay"
+import { useToast } from "@/components/ui/toast-provider"
+import { trackExperienceMetric } from "@/lib/sistema/experience-metrics"
 
 interface ClientData {
     project?: {
@@ -887,6 +889,7 @@ function ClientEventModal({
     onCommentAdded: () => void,
     token: string
 }) {
+    const { toast } = useToast()
     const [newComment, setNewComment] = useState("")
     const [sending, setSending] = useState(false)
 
@@ -910,10 +913,20 @@ function ClientEventModal({
 
             onCommentAdded() // Refresh data
             setNewComment("")
-            alert("Comentario enviado correctamente")
+            trackExperienceMetric("client_comment_sent")
+            toast({
+                title: "Comentario enviado",
+                description: "El equipo ya puede verlo.",
+                variant: "success"
+            })
         } catch (error) {
             console.error("Error sending comment", error)
-            alert("Error al enviar comentario")
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se pudo enviar el comentario",
+                description: "Intenta nuevamente en unos segundos.",
+                variant: "error"
+            })
         } finally {
             setSending(false)
         }
@@ -1028,6 +1041,10 @@ function ClientEventModal({
 
 function TasksView({ tasks, token, clientName, onUpdate }: { tasks: ClientData["tasks"], token: string, clientName: string, onUpdate: () => void }) {
     const [selectedTask, setSelectedTask] = useState<Exclude<ClientData["tasks"], undefined>[0] | null>(null)
+    const [hideCompletedTasks, setHideCompletedTasks] = useState(false)
+    const normalizedTasks = tasks || []
+    const completedTasksCount = normalizedTasks.filter((task) => task.completed).length
+    const visibleTasks = hideCompletedTasks ? normalizedTasks.filter((task) => !task.completed) : normalizedTasks
 
     // Sync selectedTask when tasks update
     useEffect(() => {
@@ -1037,7 +1054,7 @@ function TasksView({ tasks, token, clientName, onUpdate }: { tasks: ClientData["
         }
     }, [tasks, selectedTask])
 
-    if (!tasks || tasks.length === 0) {
+    if (normalizedTasks.length === 0) {
         return (
             <div className="text-center py-12">
                 <CheckCircle2 className="h-12 w-12 text-white/20 mx-auto mb-4" />
@@ -1046,72 +1063,107 @@ function TasksView({ tasks, token, clientName, onUpdate }: { tasks: ClientData["
         )
     }
 
-    const groupedTasks = tasks.reduce((acc, task) => {
+    const groupedTasks = visibleTasks.reduce((acc, task) => {
         const column = task.column || "Sin columna"
         if (!acc[column]) {
             acc[column] = []
         }
         acc[column].push(task)
         return acc
-    }, {} as Record<string, typeof tasks>)
+    }, {} as Record<string, typeof normalizedTasks>)
 
     return (
         <div className="space-y-8">
-            {Object.entries(groupedTasks).map(([column, columnTasks]) => (
-                <div key={column}>
-                    <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide mb-4">
-                        {column}
-                        <span className="ml-2 text-white/40">({columnTasks?.length || 0})</span>
-                    </h3>
-                    <div className="space-y-2">
-                        {columnTasks?.map((task) => (
-                            <div
-                                key={task.id}
-                                onClick={() => setSelectedTask(task)}
-                                className={`flex items-start gap-3 p-4 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition-colors ${task.completed ? "opacity-60" : ""
-                                    }`}
-                            >
-                                {task.completed ? (
-                                    <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                                ) : (
-                                    <Circle className="h-5 w-5 text-white/40 shrink-0 mt-0.5" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <p className={`text-white ${task.completed ? "line-through" : ""}`}>
-                                        {task.titulo}
-                                    </p>
-                                    {task.descripcion && (
-                                        <p className="text-sm text-white/40 mt-1 line-clamp-2">{task.descripcion}</p>
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-white/45">
+                    {hideCompletedTasks ? `${visibleTasks.length} pendientes` : `${visibleTasks.length} tareas`}
+                </p>
+                <button
+                    onClick={() => setHideCompletedTasks((prev) => !prev)}
+                    disabled={completedTasksCount === 0 && !hideCompletedTasks}
+                    className={`h-9 px-3 rounded-lg text-xs border transition-colors ${hideCompletedTasks
+                            ? "border-quepia-cyan/40 bg-quepia-cyan/10 text-quepia-cyan"
+                            : "border-white/10 text-white/70 hover:bg-white/5"
+                        } ${completedTasksCount === 0 && !hideCompletedTasks ? "opacity-40 cursor-not-allowed" : ""}`}
+                >
+                    {hideCompletedTasks ? "Mostrar completadas" : "Limpiar completadas"}
+                    {completedTasksCount > 0 && (
+                        <span className="ml-2 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">
+                            {completedTasksCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {hideCompletedTasks && visibleTasks.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-white/10 rounded-xl bg-white/[0.02]">
+                    <CheckCircle2 className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                    <p className="text-white/60 mb-1">No hay tareas pendientes</p>
+                    <p className="text-sm text-white/35 mb-4">Todas tus tareas están completadas.</p>
+                    <button
+                        onClick={() => setHideCompletedTasks(false)}
+                        className="h-9 px-3 rounded-lg text-xs border border-white/10 text-white/70 hover:bg-white/5 transition-colors"
+                    >
+                        Mostrar completadas
+                    </button>
+                </div>
+            ) : (
+                Object.entries(groupedTasks).map(([column, columnTasks]) => (
+                    <div key={column}>
+                        <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wide mb-4">
+                            {column}
+                            <span className="ml-2 text-white/40">({columnTasks?.length || 0})</span>
+                        </h3>
+                        <div className="space-y-2">
+                            {columnTasks?.map((task) => (
+                                <div
+                                    key={task.id}
+                                    onClick={() => setSelectedTask(task)}
+                                    className={`flex items-start gap-3 p-4 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition-colors ${task.completed ? "opacity-60" : ""
+                                        }`}
+                                >
+                                    {task.completed ? (
+                                        <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                                    ) : (
+                                        <Circle className="h-5 w-5 text-white/40 shrink-0 mt-0.5" />
                                     )}
-                                    <div className="flex items-center gap-3 mt-2">
-                                        <span
-                                            className="text-xs px-2 py-0.5 rounded"
-                                            style={{
-                                                backgroundColor: `${PRIORITY_COLORS[task.priority]}20`,
-                                                color: PRIORITY_COLORS[task.priority],
-                                            }}
-                                        >
-                                            {PRIORITY_LABELS[task.priority]}
-                                        </span>
-                                        {task.due_date && (
-                                            <span className="text-xs text-white/40 flex items-center gap-1">
-                                                <Clock className="h-3 w-3" />
-                                                {new Date(task.due_date).toLocaleDateString("es-AR")}
-                                            </span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-white ${task.completed ? "line-through" : ""}`}>
+                                            {task.titulo}
+                                        </p>
+                                        {task.descripcion && (
+                                            <p className="text-sm text-white/40 mt-1 line-clamp-2">{task.descripcion}</p>
                                         )}
-                                        {task.assets && task.assets.length > 0 && (
-                                            <span className="text-xs text-white/40 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded">
-                                                <FileIcon className="h-3 w-3" />
-                                                {task.assets.length}
+                                        <div className="flex items-center gap-3 mt-2">
+                                            <span
+                                                className="text-xs px-2 py-0.5 rounded"
+                                                style={{
+                                                    backgroundColor: `${PRIORITY_COLORS[task.priority]}20`,
+                                                    color: PRIORITY_COLORS[task.priority],
+                                                }}
+                                            >
+                                                {PRIORITY_LABELS[task.priority]}
                                             </span>
-                                        )}
+                                            {task.due_date && (
+                                                <span className="text-xs text-white/40 flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {new Date(task.due_date).toLocaleDateString("es-AR")}
+                                                </span>
+                                            )}
+                                            {task.assets && task.assets.length > 0 && (
+                                                <span className="text-xs text-white/40 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded">
+                                                    <FileIcon className="h-3 w-3" />
+                                                    {task.assets.length}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-            ))}
+                ))
+            )}
 
             {selectedTask && (
                 <ClientTaskDetailModal

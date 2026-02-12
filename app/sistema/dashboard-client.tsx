@@ -245,6 +245,8 @@ function getMostVisitedProjectId(counts: Record<string, number>) {
     return bestId
 }
 
+const NEW_PROJECT_COLORS = ["#dc4a3e", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"] as const
+
 export default function DashboardPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -295,7 +297,7 @@ export default function DashboardPage() {
     const shouldLoadTemplates = showNewProjectModal
     const briefingProjectId = showBriefingForm ? activeProjectId : null
 
-    const { projects, deleteProject, createProject, updateProject, loading: projectsLoading } = useProjects(user?.id)
+    const { projects, deleteProject, createProject, updateProject, refresh: refreshProjects, loading: projectsLoading } = useProjects(user?.id)
     const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id, { enabled: shouldLoadAllTasks })
     const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id, { enabled: shouldLoadAllEvents })
     const { users: sistemaUsers, refresh: refreshUsers } = useSistemaUsers({ enabled: shouldLoadSistemaUsers })
@@ -400,13 +402,16 @@ export default function DashboardPage() {
             setActiveProjectId(null)
             return
         }
+        if (view === activeView && activeProjectId === null) {
+            return
+        }
         setActiveView(view)
         setActiveProjectId(null)
         // Update URL without reloading
         const url = new URL(window.location.href)
         url.searchParams.set("view", view)
         window.history.pushState({}, "", url)
-    }, [sistemaUser])
+    }, [activeProjectId, activeView, sistemaUser])
 
     const handleSetupProfile = async () => {
         if (!setupName.trim()) return
@@ -443,6 +448,71 @@ export default function DashboardPage() {
         setShowNewProjectModal(true)
     }
 
+    const resetNewProjectForm = useCallback(() => {
+        setNewProjectName("")
+        setNewProjectLogo("")
+        setNewProjectParentId(null)
+        setSelectedTemplateId(null)
+        setNewProjectIcon(null)
+    }, [])
+
+    const closeNewProjectModal = useCallback(() => {
+        setShowNewProjectModal(false)
+        setEditingProjectId(null)
+        resetNewProjectForm()
+    }, [resetNewProjectForm])
+
+    const openNewProjectModal = useCallback(() => {
+        setEditingProjectId(null)
+        resetNewProjectForm()
+        setShowNewProjectModal(true)
+    }, [resetNewProjectForm])
+
+    const handleProjectOpen = useCallback((projectId: string) => {
+        setActiveProjectId(projectId)
+        setActiveView("project")
+    }, [])
+
+    const closeMobileSidebar = useCallback(() => {
+        setIsMobileSidebarOpen(false)
+    }, [])
+
+    const openMobileSidebar = useCallback(() => {
+        setIsMobileSidebarOpen(true)
+    }, [])
+
+    const handleSidebarViewChange = useCallback((view: string) => {
+        handleViewChange(view)
+        closeMobileSidebar()
+    }, [closeMobileSidebar, handleViewChange])
+
+    const handleSidebarProjectChange = useCallback((projectId: string) => {
+        handleProjectOpen(projectId)
+        closeMobileSidebar()
+    }, [closeMobileSidebar, handleProjectOpen])
+
+    const handleOpenSettings = useCallback(() => {
+        setShowSettingsModal(true)
+        closeMobileSidebar()
+    }, [closeMobileSidebar])
+
+    const handleAddProjectFromSidebar = useCallback(() => {
+        openNewProjectModal()
+        closeMobileSidebar()
+    }, [closeMobileSidebar, openNewProjectModal])
+
+    const toggleTheme = useCallback(() => {
+        setTheme((prev) => (prev === "light" ? "dark" : "light"))
+    }, [])
+
+    const openClientProfile = useCallback(() => {
+        setShowClientProfile(true)
+    }, [])
+
+    const openBriefingForm = useCallback(() => {
+        setShowBriefingForm(true)
+    }, [])
+
     const handleCreateProject = async () => {
         if (!newProjectName.trim() || !user?.id) return
 
@@ -457,12 +527,7 @@ export default function DashboardPage() {
                     parent_id: newProjectParentId,
                     logo_url: newProjectLogo.trim() || null,
                 })
-                setShowNewProjectModal(false)
-                setNewProjectName("")
-                setNewProjectParentId(null)
-                setSelectedTemplateId(null)
-                setEditingProjectId(null)
-                setNewProjectLogo("")
+                closeNewProjectModal()
             } else if (selectedTemplateId) {
                 const projectId = await createProjectFromTemplate(
                     selectedTemplateId,
@@ -472,11 +537,8 @@ export default function DashboardPage() {
                     newProjectParentId
                 )
                 if (projectId) {
-                    setShowNewProjectModal(false)
-                    setNewProjectName("")
-                    setNewProjectParentId(null)
-                    setSelectedTemplateId(null)
-                    setNewProjectLogo("")
+                    await refreshProjects(true)
+                    closeNewProjectModal()
                 }
             } else {
                 const newProject = await createProject({
@@ -489,11 +551,7 @@ export default function DashboardPage() {
                 })
 
                 if (newProject) {
-                    setShowNewProjectModal(false)
-                    setNewProjectName("")
-                    setNewProjectParentId(null)
-                    setSelectedTemplateId(null)
-                    setNewProjectLogo("")
+                    closeNewProjectModal()
                 }
             }
         } catch (err) {
@@ -517,8 +575,7 @@ export default function DashboardPage() {
         }
     }, [activeView, refreshAllTasks, refreshAllEvents])
 
-    // Render the main content area based on active view
-    const renderContent = () => {
+    const content = useMemo(() => {
         if (isProjectView) {
             return (
                 <KanbanBoard
@@ -625,10 +682,7 @@ export default function DashboardPage() {
                         projects={projects}
                         tasks={allTasks}
                         loading={allTasksLoading || projectsLoading}
-                        onProjectClick={(id) => {
-                            setActiveProjectId(id)
-                            setActiveView("project")
-                        }}
+                        onProjectClick={handleProjectOpen}
                     />
                 )
             case "proposals":
@@ -650,17 +704,38 @@ export default function DashboardPage() {
                         loading={allTasksLoading || allEventsLoading}
                         onTaskClick={handleTaskClick}
                         onViewChange={handleViewChange}
-                        onProjectOpen={(projectId) => {
-                            setActiveProjectId(projectId)
-                            setActiveView("project")
-                        }}
+                        onProjectOpen={handleProjectOpen}
                         projects={projects}
                         mostVisitedProjectId={mostVisitedProjectId}
                         userRole={sistemaUser?.role}
                     />
                 )
         }
-    }
+    }, [
+        activeProject?.nombre,
+        activeProjectId,
+        activeView,
+        allEvents,
+        allEventsLoading,
+        allTasks,
+        allTasksLoading,
+        handleProjectOpen,
+        handleTaskClick,
+        handleViewChange,
+        hashProjects,
+        isAdmin,
+        isProjectView,
+        mostVisitedProjectId,
+        projects,
+        projectsLoading,
+        refreshAllEvents,
+        refreshAllTasks,
+        refreshUsers,
+        sistemaUser?.role,
+        sistemaUsers,
+        user?.id,
+        workloadUsers,
+    ])
 
     // Show loading while checking auth
     if (authLoading) {
@@ -939,12 +1014,12 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="flex min-h-[100svh] h-[100svh] bg-[#0a0a0a] overflow-hidden">
+        <div className="flex h-[100svh] min-h-[100svh] overflow-hidden bg-[#0a0a0a] bg-[radial-gradient(circle_at_top,rgba(42,231,228,0.08),transparent_45%)]">
             {/* Setup Profile Modal */}
             {showSetupModal && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl">
+                    <div className="relative w-full h-[100svh] overflow-y-auto rounded-t-2xl border-0 border-white/10 bg-[#1a1a1a]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:h-auto sm:max-w-md sm:rounded-2xl sm:border sm:p-6">
                         <h2 className="text-xl font-bold text-white mb-2">Bienvenido al Sistema</h2>
                         <p className="text-white/60 mb-6">Configura tu perfil para comenzar</p>
 
@@ -963,7 +1038,7 @@ export default function DashboardPage() {
                                         }
                                     }}
                                     placeholder="Ej: Juan Pérez"
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 outline-none focus:border-quepia-cyan transition-colors"
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all duration-200 placeholder:text-white/40 focus:border-quepia-cyan focus:ring-1 focus:ring-quepia-cyan/30"
                                 />
                             </div>
 
@@ -976,7 +1051,7 @@ export default function DashboardPage() {
                             <button
                                 onClick={handleSetupProfile}
                                 disabled={!setupName.trim() || settingUp}
-                                className="w-full px-4 py-3 bg-gradient-to-r from-quepia-cyan to-quepia-magenta text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                                className="min-h-11 w-full rounded-xl bg-gradient-to-r from-quepia-cyan to-quepia-magenta px-4 py-3 font-medium text-white shadow-sm transition-all duration-200 hover:opacity-90 disabled:opacity-50"
                             >
                                 {settingUp ? (
                                     <Loader2 className="h-5 w-5 animate-spin mx-auto" />
@@ -991,12 +1066,12 @@ export default function DashboardPage() {
 
             {/* Settings Modal */}
             {showSettingsModal && user?.id && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setShowSettingsModal(false)}
                     />
-                    <div className="relative z-10 w-full h-[100svh] sm:h-auto sm:max-w-md">
+                    <div className="relative z-10 h-[100svh] w-full overflow-y-auto rounded-t-2xl sm:h-auto sm:max-w-md sm:rounded-2xl">
                         <NotificationSettings
                             userId={user.id}
                             onClose={() => setShowSettingsModal(false)}
@@ -1007,18 +1082,12 @@ export default function DashboardPage() {
 
             {/* New Project Modal */}
             {showNewProjectModal && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
                     <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={() => {
-                            setShowNewProjectModal(false)
-                            setEditingProjectId(null)
-                            setNewProjectName("")
-                            setNewProjectLogo("")
-                            setNewProjectParentId(null)
-                        }}
+                        onClick={closeNewProjectModal}
                     />
-                    <div className="relative bg-[#1a1a1a] w-full h-[100svh] sm:h-auto sm:max-w-md p-4 sm:p-6 border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl">
+                    <div className="relative h-[100svh] w-full overflow-y-auto rounded-t-2xl border-0 border-white/10 bg-[#1a1a1a]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:h-auto sm:max-w-md sm:rounded-2xl sm:border sm:p-6">
                         <h2 className="text-xl font-bold text-white mb-6">
                             {editingProjectId ? "Editar Proyecto" : "Nuevo Cliente"}
                         </h2>
@@ -1034,7 +1103,7 @@ export default function DashboardPage() {
                                     onChange={(e) => setNewProjectName(e.target.value)}
                                     placeholder="Ej: Cocacola"
                                     autoFocus
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 outline-none focus:border-quepia-cyan transition-colors"
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all duration-200 placeholder:text-white/40 focus:border-quepia-cyan focus:ring-1 focus:ring-quepia-cyan/30"
                                 />
                             </div>
 
@@ -1068,7 +1137,7 @@ export default function DashboardPage() {
                                     <div className="flex flex-wrap gap-2">
                                         <button
                                             onClick={() => setSelectedTemplateId(null)}
-                                            className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${!selectedTemplateId
+                                            className={`min-h-10 rounded-xl border px-3 py-1.5 text-xs transition-all duration-200 ${!selectedTemplateId
                                                 ? "border-quepia-cyan bg-quepia-cyan/10 text-white"
                                                 : "border-white/10 text-white/60 hover:border-white/20"
                                                 }`}
@@ -1081,8 +1150,11 @@ export default function DashboardPage() {
                                                 onClick={() => {
                                                     setSelectedTemplateId(tpl.id)
                                                     setNewProjectType("hash")
+                                                    if (tpl.nombre.toLowerCase().includes("youtube")) {
+                                                        setNewProjectIcon("video")
+                                                    }
                                                 }}
-                                                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${selectedTemplateId === tpl.id
+                                                className={`min-h-10 rounded-xl border px-3 py-1.5 text-xs transition-all duration-200 ${selectedTemplateId === tpl.id
                                                     ? "border-quepia-cyan bg-quepia-cyan/10 text-white"
                                                     : "border-white/10 text-white/60 hover:border-white/20"
                                                     }`}
@@ -1106,7 +1178,7 @@ export default function DashboardPage() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => setNewProjectType("hash")}
-                                        className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${newProjectType === "hash"
+                                        className={`min-h-11 flex-1 rounded-xl border px-4 py-2 transition-all duration-200 ${newProjectType === "hash"
                                             ? "border-quepia-cyan bg-quepia-cyan/10 text-white"
                                             : "border-white/10 text-white/60 hover:border-white/20"
                                             }`}
@@ -1118,7 +1190,7 @@ export default function DashboardPage() {
                                     </button>
                                     <button
                                         onClick={() => setNewProjectType("folder")}
-                                        className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${newProjectType === "folder"
+                                        className={`min-h-11 flex-1 rounded-xl border px-4 py-2 transition-all duration-200 ${newProjectType === "folder"
                                             ? "border-quepia-cyan bg-quepia-cyan/10 text-white"
                                             : "border-white/10 text-white/60 hover:border-white/20"
                                             }`}
@@ -1137,12 +1209,12 @@ export default function DashboardPage() {
                                 Color
                             </label>
                             <div className="flex gap-2 flex-wrap">
-                                {["#dc4a3e", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"].map(
+                                {NEW_PROJECT_COLORS.map(
                                     (color) => (
                                         <button
                                             key={color}
                                             onClick={() => setNewProjectColor(color)}
-                                            className={`w-8 h-8 rounded-full transition-transform ${newProjectColor === color ? "scale-110 ring-2 ring-white" : ""
+                                            className={`h-9 w-9 rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${newProjectColor === color ? "scale-110 ring-2 ring-white" : ""
                                                 }`}
                                             style={{ backgroundColor: color }}
                                         />
@@ -1159,7 +1231,7 @@ export default function DashboardPage() {
                                 <select
                                     value={newProjectParentId || ""}
                                     onChange={(e) => setNewProjectParentId(e.target.value || null)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-quepia-cyan transition-colors"
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all duration-200 focus:border-quepia-cyan focus:ring-1 focus:ring-quepia-cyan/30"
                                 >
                                     <option value="">Sin padre (raíz)</option>
                                     {projects.map((p) => (
@@ -1173,21 +1245,15 @@ export default function DashboardPage() {
 
                         <div className="flex gap-3 pt-2">
                             <button
-                                onClick={() => {
-                                    setShowNewProjectModal(false)
-                                    setEditingProjectId(null)
-                                    setNewProjectName("")
-                                    setNewProjectLogo("")
-                                    setNewProjectParentId(null)
-                                }}
-                                className="flex-1 px-4 py-3 bg-white/5 text-white/80 font-medium rounded-lg hover:bg-white/10 transition-colors"
+                                onClick={closeNewProjectModal}
+                                className="min-h-11 flex-1 rounded-xl bg-white/5 px-4 py-3 font-medium text-white/80 transition-all duration-200 hover:bg-white/10"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleCreateProject}
                                 disabled={!newProjectName.trim() || creatingProject}
-                                className="flex-1 px-4 py-3 bg-gradient-to-r from-quepia-cyan to-quepia-magenta text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                                className="min-h-11 flex-1 rounded-xl bg-gradient-to-r from-quepia-cyan to-quepia-magenta px-4 py-3 font-medium text-white shadow-sm transition-all duration-200 hover:opacity-90 disabled:opacity-50"
                             >
                                 {creatingProject ? (
                                     <Loader2 className="h-5 w-5 animate-spin mx-auto" />
@@ -1205,7 +1271,7 @@ export default function DashboardPage() {
                 isMobileSidebarOpen && (
                     <div
                         className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
-                        onClick={() => setIsMobileSidebarOpen(false)}
+                        onClick={closeMobileSidebar}
                     />
                 )
             }
@@ -1224,36 +1290,18 @@ export default function DashboardPage() {
                 userAvatar={sistemaUser?.avatar_url}
                 userRole={sistemaUser?.role}
                 activeView={activeView}
-                onViewChange={(view) => {
-                    handleViewChange(view)
-                    setIsMobileSidebarOpen(false)
-                }}
+                onViewChange={handleSidebarViewChange}
                 activeProject={activeProjectId || undefined}
-                onProjectChange={(id) => {
-                    // Always switch to project view when clicked from sidebar
-                    setActiveProjectId(id)
-                    setActiveView("project")
-                    setIsMobileSidebarOpen(false)
-                }}
-                onAddProject={() => {
-                    setEditingProjectId(null)
-                    setNewProjectName("")
-                    setNewProjectLogo("")
-                    setNewProjectParentId(null)
-                    setShowNewProjectModal(true)
-                    setIsMobileSidebarOpen(false)
-                }}
+                onProjectChange={handleSidebarProjectChange}
+                onAddProject={handleAddProjectFromSidebar}
                 onEditProject={handleEditProject}
                 onDeleteProject={handleDeleteProject}
                 onManageMembers={(projectId) => setMembersProjectId(projectId)}
                 onSignOut={signOut}
-                onOpenSettings={() => {
-                    setShowSettingsModal(true)
-                    setIsMobileSidebarOpen(false)
-                }}
+                onOpenSettings={handleOpenSettings}
                 projects={projects}
                 projectsLoading={projectsLoading}
-                onClose={() => setIsMobileSidebarOpen(false)}
+                onClose={closeMobileSidebar}
             />
 
             {/* Main Content */}
@@ -1261,15 +1309,15 @@ export default function DashboardPage() {
                 {/* Top Header */}
                 <TopHeader
                     breadcrumb={breadcrumb}
-                    onOpenClientProfile={isProjectView ? () => setShowClientProfile(true) : undefined}
-                    onOpenBriefing={isProjectView ? () => setShowBriefingForm(true) : undefined}
-                    onMenuClick={() => setIsMobileSidebarOpen(true)}
+                    onOpenClientProfile={isProjectView ? openClientProfile : undefined}
+                    onOpenBriefing={isProjectView ? openBriefingForm : undefined}
+                    onMenuClick={openMobileSidebar}
                     theme={theme}
-                    onToggleTheme={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
+                    onToggleTheme={toggleTheme}
                 />
 
                 {/* Content Area */}
-                {renderContent()}
+                {content}
             </div>
 
             {/* Task Detail Modal */}

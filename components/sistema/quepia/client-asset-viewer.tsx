@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import AnnotationCanvasWrapper from "./annotation-canvas-wrapper"
+import { useToast } from "@/components/ui/toast-provider"
 import {
     type Annotation,
     type FeedbackType,
@@ -37,6 +38,7 @@ import {
     type ApprovalStatus
 } from "@/types/sistema"
 import { addPublicAnnotation, updatePublicAssetStatus } from "@/lib/sistema/hooks"
+import { trackExperienceMetric } from "@/lib/sistema/experience-metrics"
 
 export interface ClientAsset {
     id: string
@@ -87,6 +89,7 @@ export function ClientAssetViewer({
     clientName,
     onUpdate
 }: ClientAssetViewerProps) {
+    const { toast } = useToast()
     const activeAsset = assets && assets.length > 0 ? assets[currentIndex] : asset
     const [annotations, setAnnotations] = useState<Annotation[]>(activeAsset.annotations || [])
     const [localStatus, setLocalStatus] = useState<ApprovalStatus>(activeAsset.approval_status)
@@ -176,11 +179,21 @@ export function ClientAssetViewer({
                 setFeedbackType("correction_minor")
             } else {
                 console.error("Error saving annotation:", res.error)
-                alert("Error al guardar la nota: " + (res.error || "Error desconocido"))
+                trackExperienceMetric("errors_shown")
+                toast({
+                    title: "No se pudo guardar la nota",
+                    description: res.error || "Error desconocido",
+                    variant: "error"
+                })
             }
         } catch (e) {
             console.error("Exception saving annotation:", e)
-            alert("Error inesperado al guardar la nota")
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "Error inesperado",
+                description: "No se pudo guardar la nota.",
+                variant: "error"
+            })
         } finally {
             setSubmitting(false)
         }
@@ -195,15 +208,31 @@ export function ClientAssetViewer({
             const res = await updatePublicAssetStatus(token, activeAsset.id, status)
             if (res.success) {
                 onUpdate()
+                if (status === "approved_final") {
+                    trackExperienceMetric("asset_approved")
+                }
+                if (status === "changes_requested") {
+                    trackExperienceMetric("asset_changes_requested")
+                }
             } else {
                 setLocalStatus(previousStatus) // Revert on error
                 console.error("Error updating status:", res.error)
-                alert("Error al actualizar estado: " + (res.error || "Intente nuevamente"))
+                trackExperienceMetric("errors_shown")
+                toast({
+                    title: "No se pudo actualizar el estado",
+                    description: res.error || "Intenta nuevamente",
+                    variant: "error"
+                })
             }
         } catch (e) {
             setLocalStatus(previousStatus) // Revert on error
             console.error("Exception updating status:", e)
-            alert("Error inesperado al actualizar estado")
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "Error inesperado",
+                description: "No se pudo actualizar el estado.",
+                variant: "error"
+            })
         } finally {
             setUpdatingStatus(false)
         }
@@ -221,12 +250,22 @@ export function ClientAssetViewer({
             } else {
                 setLocalRating(previousRating) // Revert on error
                 console.error("Error updating rating:", res.error)
-                alert("Error al enviar calificación: " + (res.error || "Intente nuevamente"))
+                trackExperienceMetric("errors_shown")
+                toast({
+                    title: "No se pudo enviar la calificación",
+                    description: res.error || "Intenta nuevamente",
+                    variant: "error"
+                })
             }
         } catch (e) {
             setLocalRating(previousRating) // Revert on error
             console.error("Exception updating rating:", e)
-            alert("Error inesperado al calificar")
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "Error inesperado",
+                description: "No se pudo guardar tu calificación.",
+                variant: "error"
+            })
         } finally {
             setUpdatingStatus(false)
         }
@@ -328,7 +367,12 @@ export function ClientAssetViewer({
             URL.revokeObjectURL(url)
         } catch (e) {
             console.error("Error downloading carousel:", e)
-            alert("Error al descargar el carrusel. Intenta descargar cada imagen individualmente.")
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se pudo descargar el carrusel",
+                description: "Prueba descargar cada imagen de forma individual.",
+                variant: "error"
+            })
         } finally {
             setDownloadingAll(false)
         }

@@ -110,7 +110,7 @@ export function SearchView({ tasks, loading, onTaskClick, onRefresh }: SearchVie
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              "p-2.5 rounded-xl border transition-colors",
+              "min-h-11 rounded-xl border p-2.5 transition-all duration-200",
               showFilters || hasActiveFilters
                 ? "bg-quepia-cyan/10 border-quepia-cyan/30 text-quepia-cyan"
                 : "bg-white/[0.05] border-white/[0.08] text-white/40 hover:text-white/60"
@@ -139,7 +139,7 @@ export function SearchView({ tasks, loading, onTaskClick, onRefresh }: SearchVie
                   key={p}
                   onClick={() => setFilterPriority(p)}
                   className={cn(
-                    "text-xs px-2.5 py-1 rounded-lg border transition-colors",
+                    "min-h-9 rounded-lg border px-2.5 py-1 text-xs transition-all duration-200",
                     filterPriority === p
                       ? "bg-quepia-cyan/10 border-quepia-cyan/30 text-quepia-cyan"
                       : "border-white/[0.08] text-white/40 hover:text-white/60"
@@ -157,7 +157,7 @@ export function SearchView({ tasks, loading, onTaskClick, onRefresh }: SearchVie
                   key={s}
                   onClick={() => setFilterStatus(s)}
                   className={cn(
-                    "text-xs px-2.5 py-1 rounded-lg border transition-colors",
+                    "min-h-9 rounded-lg border px-2.5 py-1 text-xs transition-all duration-200",
                     filterStatus === s
                       ? "bg-quepia-cyan/10 border-quepia-cyan/30 text-quepia-cyan"
                       : "border-white/[0.08] text-white/40 hover:text-white/60"
@@ -174,7 +174,7 @@ export function SearchView({ tasks, loading, onTaskClick, onRefresh }: SearchVie
                 <button
                   onClick={() => setFilterProject("all")}
                   className={cn(
-                    "text-xs px-2.5 py-1 rounded-lg border transition-colors",
+                    "min-h-9 rounded-lg border px-2.5 py-1 text-xs transition-all duration-200",
                     filterProject === "all"
                       ? "bg-quepia-cyan/10 border-quepia-cyan/30 text-quepia-cyan"
                       : "border-white/[0.08] text-white/40 hover:text-white/60"
@@ -187,7 +187,7 @@ export function SearchView({ tasks, loading, onTaskClick, onRefresh }: SearchVie
                     key={p.id}
                     onClick={() => setFilterProject(p.id)}
                     className={cn(
-                      "text-xs px-2.5 py-1 rounded-lg border transition-colors",
+                      "min-h-9 rounded-lg border px-2.5 py-1 text-xs transition-all duration-200",
                       filterProject === p.id
                         ? "border-quepia-cyan/30 text-quepia-cyan"
                         : "border-white/[0.08] text-white/40 hover:text-white/60"
@@ -220,7 +220,7 @@ export function SearchView({ tasks, loading, onTaskClick, onRefresh }: SearchVie
               <div
                 key={task.id}
                 onClick={() => onTaskClick(task)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0 cursor-pointer"
+                className="flex min-h-12 w-full cursor-pointer items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
               >
                 <button onClick={(e) => toggleComplete(e, task)} className="shrink-0">
                   {task.completed ? (

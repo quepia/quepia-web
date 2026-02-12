@@ -5,34 +5,39 @@ import { createClient } from "@/lib/sistema/supabase/client"
 import {
     X,
     Calendar as CalendarIcon,
-    Clock,
     AlignLeft,
     Tag,
     Trash2,
     Edit2,
-    Save,
     CheckSquare,
     Loader2,
     ArrowRight,
-    Send,
-    MessageSquare
+    Send
 } from "lucide-react"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle
-} from "@/components/ui/dialog"
 import {
     EVENT_TYPE_COLORS,
     EVENT_TYPE_LABELS,
     type CalendarEvent,
     type CalendarEventType
 } from "@/types/sistema"
-import { cn } from "@/lib/sistema/utils"
+
+interface CalendarComment {
+    id: string
+    event_id: string
+    content: string
+    created_at: string
+    author_name: string
+    is_client: boolean
+    user_id?: string | null
+}
+
+type CalendarEventWithDetails = CalendarEvent & {
+    project?: { id: string; nombre: string; color: string }
+    comments?: CalendarComment[]
+}
 
 interface EventDetailModalProps {
-    event: (CalendarEvent & { project?: { id: string; nombre: string; color: string } }) | null
+    event: CalendarEventWithDetails | null
     isOpen: boolean
     onClose: () => void
     onUpdate: () => void
@@ -54,6 +59,23 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
 
     const [newComment, setNewComment] = useState("")
     const [sendingComment, setSendingComment] = useState(false)
+    const [comments, setComments] = useState<CalendarComment[]>([])
+
+    const fetchComments = async (eventId: string) => {
+        try {
+            const supabase = createClient()
+            const { data, error } = await supabase
+                .from('sistema_calendar_comments')
+                .select('*')
+                .eq('event_id', eventId)
+                .order('created_at', { ascending: true })
+
+            if (error) throw error
+            setComments((data as CalendarComment[]) || [])
+        } catch (err) {
+            console.error("Error fetching event comments:", err)
+        }
+    }
 
     useEffect(() => {
         if (event) {
@@ -66,6 +88,9 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
             })
             // Reset comment input when event changes
             setNewComment("")
+            // Keep optimistic initial comments while loading latest
+            setComments(event.comments || [])
+            fetchComments(event.id)
         }
     }, [event])
 
@@ -88,7 +113,7 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
             if (error) throw error
 
             setNewComment("")
-            onUpdate()
+            await fetchComments(event.id)
         } catch (err) {
             console.error("Error sending comment:", err)
             alert("Error al enviar respuesta")
@@ -97,7 +122,7 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
         }
     }
 
-    if (!event) return null
+    if (!isOpen || !event) return null
 
     const handleSave = async () => {
         setLoading(true)
@@ -344,21 +369,17 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
                             <label className="text-xs text-white/40 flex items-center gap-1.5">
                                 <ArrowRight className="h-3.5 w-3.5" /> Comentarios del Cliente
                             </label>
-                            {/* @ts-ignore */}
-                            {event.comments?.length > 0 && (
+                            {comments.length > 0 && (
                                 <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full text-white/60">
-                                    {/* @ts-ignore */}
-                                    {event.comments.length}
+                                    {comments.length}
                                 </span>
                             )}
                         </div>
 
                         {/* Comment List */}
                         <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                            {/* @ts-ignore */}
-                            {event.comments && event.comments.length > 0 ? (
-                                /* @ts-ignore */
-                                event.comments.map((comment: any) => (
+                            {comments.length > 0 ? (
+                                comments.map((comment) => (
                                     <div key={comment.id} className={`flex flex-col ${!comment.is_client ? "items-end" : "items-start"}`}>
                                         <div className={`px-3 py-2 rounded-lg max-w-[85%] text-sm ${!comment.is_client
                                             ? "bg-quepia-cyan/10 text-white border border-quepia-cyan/20"

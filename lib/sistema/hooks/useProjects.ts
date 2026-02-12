@@ -9,12 +9,34 @@ import type {
   ProjectWithChildren,
 } from '@/types/sistema';
 
+type ProjectCountPayload = number | { count: number | null }[] | null | undefined;
+type ProjectApiRow = Project & { task_count?: ProjectCountPayload };
+type FavoriteProjectPayload = ProjectApiRow | ProjectApiRow[] | null;
+type FavoriteProjectRow = { project: FavoriteProjectPayload };
+
+function normalizeTaskCount(taskCount: ProjectCountPayload): number {
+  if (typeof taskCount === 'number') {
+    return taskCount;
+  }
+
+  if (Array.isArray(taskCount) && typeof taskCount[0]?.count === 'number') {
+    return taskCount[0].count;
+  }
+
+  return 0;
+}
+
+function normalizeFavoriteProject(project: FavoriteProjectPayload): ProjectApiRow | null {
+  if (!project) return null;
+  return Array.isArray(project) ? project[0] || null : project;
+}
+
 export function useProjects(userId?: string) {
   const [projects, setProjects] = useState<ProjectWithChildren[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (force = false) => {
     if (!userId) {
       setLoading(false);
       return;
@@ -23,14 +45,14 @@ export function useProjects(userId?: string) {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/sistema-data?userId=${userId}&type=projects`);
+      const res = await fetch(`/api/sistema-data?userId=${userId}&type=projects${force ? '&force=true' : ''}`);
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
 
       // Build tree structure from flat list
-      const projectsWithCounts = (result.data || []).map((p: any) => ({
+      const projectsWithCounts = ((result.data || []) as ProjectApiRow[]).map((p) => ({
         ...p,
-        task_count: p.task_count?.[0]?.count || 0,
+        task_count: normalizeTaskCount(p.task_count),
       }));
 
       const tree = buildProjectTree(projectsWithCounts);
@@ -59,7 +81,7 @@ export function useProjects(userId?: string) {
 
       if (insertError) throw insertError;
 
-      await fetchProjects();
+      await fetchProjects(true);
       return data;
     } catch (err) {
       console.error('Error creating project:', err);
@@ -78,7 +100,7 @@ export function useProjects(userId?: string) {
 
       if (updateError) throw updateError;
 
-      await fetchProjects();
+      await fetchProjects(true);
       return true;
     } catch (err) {
       console.error('Error updating project:', err);
@@ -97,7 +119,7 @@ export function useProjects(userId?: string) {
 
       if (deleteError) throw deleteError;
 
-      await fetchProjects();
+      await fetchProjects(true);
       return true;
     } catch (err) {
       console.error('Error deleting project:', err);
@@ -179,11 +201,15 @@ export function useFavorites(userId?: string) {
       if (error) throw error;
 
       const favProjects = (data || [])
-        .map((f: any) => ({
-          ...f.project,
-          task_count: f.project?.task_count?.[0]?.count || 0,
-        }))
-        .filter(Boolean);
+        .map((f): ProjectWithChildren | null => {
+          const project = normalizeFavoriteProject((f as FavoriteProjectRow).project);
+          if (!project) return null;
+          return {
+            ...project,
+            task_count: normalizeTaskCount(project.task_count),
+          };
+        })
+        .filter((project): project is ProjectWithChildren => project !== null);
 
       setFavorites(favProjects);
     } catch (err) {

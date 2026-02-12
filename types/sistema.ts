@@ -839,6 +839,10 @@ export interface ProjectTemplate {
       type?: TaskType;
       priority?: Priority;
       estimated_hours?: number;
+      description?: string;
+      social_copy?: string;
+      link?: string;
+      type_metadata?: Record<string, unknown> | null;
     }[];
   };
   created_at: string;

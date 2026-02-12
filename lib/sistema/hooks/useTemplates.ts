@@ -137,9 +137,13 @@ export function useProjectTemplates(options?: UseTemplatesOptions) {
           project_id: project.id,
           column_id: newColumns[task.column_index]?.id || newColumns[0].id,
           titulo: task.title,
+          descripcion: task.description || null,
+          social_copy: task.social_copy || null,
+          link: task.link || null,
           task_type: task.type || null,
           priority: task.priority || 'P4',
           estimated_hours: task.estimated_hours || null,
+          type_metadata: task.type_metadata || null,
           orden: i,
         }));
 

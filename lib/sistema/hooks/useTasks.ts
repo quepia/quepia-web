@@ -215,18 +215,40 @@ export function useTasks(projectId?: string) {
 
       // Build thumbnail signing map for latest asset previews
       const thumbPaths: string[] = [];
-      const tasksWithThumbs = (tasksData || []).map((task: any) => {
-        const assets = (task.assets || []).map((asset: any) => {
-          const latest = (asset.versions || []).find((v: any) => v.version_number === asset.current_version) || asset.versions?.[0];
-          const path = latest?.thumbnail_path || latest?.thumbnail_url || latest?.storage_path || latest?.file_url || null;
+      const tasksWithThumbs: Task[] = (tasksData || []).map((task) => {
+        const taskRecord = (task || {}) as Record<string, unknown>;
+        const taskAssets = Array.isArray(taskRecord.assets) ? (taskRecord.assets as Record<string, unknown>[]) : [];
+        const assets = taskAssets.map((asset) => {
+          const versions = Array.isArray(asset.versions) ? (asset.versions as Record<string, unknown>[]) : [];
+          const latest =
+            versions.find((v) => v.version_number === asset.current_version) ||
+            versions[0];
+          const path =
+            (latest && typeof latest.thumbnail_path === "string" ? latest.thumbnail_path : null) ||
+            (latest && typeof latest.thumbnail_url === "string" ? latest.thumbnail_url : null) ||
+            (latest && typeof latest.storage_path === "string" ? latest.storage_path : null) ||
+            (latest && typeof latest.file_url === "string" ? latest.file_url : null);
           if (path) thumbPaths.push(path);
           return {
-            id: asset.id,
-            approval_status: asset.approval_status,
+            id: typeof asset.id === "string" ? asset.id : "",
+            approval_status: typeof asset.approval_status === "string" ? asset.approval_status : "pending",
             thumbnail_url: path || null,
           };
         });
-        return { ...task, assets };
+        const typeMetadata = taskRecord.type_metadata;
+        const youtube =
+          typeMetadata && typeof typeMetadata === "object"
+            ? (typeMetadata as Record<string, unknown>).youtube
+            : null;
+        let youtubeThumbPath: string | null = null;
+        if (youtube && typeof youtube === "object") {
+          const youtubeRecord = youtube as Record<string, unknown>;
+          youtubeThumbPath =
+            (typeof youtubeRecord.thumbnail_path === "string" ? youtubeRecord.thumbnail_path : null) ||
+            (typeof youtubeRecord.thumbnail_url === "string" ? youtubeRecord.thumbnail_url : null);
+        }
+        if (youtubeThumbPath) thumbPaths.push(youtubeThumbPath);
+        return { ...taskRecord, assets } as Task;
       });
 
       let signedMap: Record<string, string | null> = {};
@@ -244,13 +266,36 @@ export function useTasks(projectId?: string) {
         }
       }
 
-      const hydratedTasks = tasksWithThumbs.map((task: any) => ({
-        ...task,
-        assets: (task.assets || []).map((asset: any) => ({
-          ...asset,
-          thumbnail_url: asset.thumbnail_url ? (signedMap[asset.thumbnail_url] || asset.thumbnail_url) : null,
-        })),
-      }));
+      const hydratedTasks: Task[] = tasksWithThumbs.map((task) => {
+        const taskAssets = Array.isArray(task.assets) ? task.assets : [];
+        const typeMetadata = task.type_metadata;
+
+        return {
+          ...task,
+          assets: taskAssets.map((asset) => {
+            const thumbRef = typeof asset.thumbnail_url === "string" ? asset.thumbnail_url : null;
+            return {
+              ...asset,
+              thumbnail_url: thumbRef ? (signedMap[thumbRef] || thumbRef) : null,
+            };
+          }),
+          type_metadata: (() => {
+            if (!typeMetadata || typeof typeMetadata !== "object") return typeMetadata;
+            const next = { ...(typeMetadata as Record<string, unknown>) };
+            const youtube = next.youtube;
+            if (!youtube || typeof youtube !== "object") return next;
+            const youtubeRecord = youtube as Record<string, unknown>;
+            const youtubeThumb =
+              (typeof youtubeRecord.thumbnail_path === "string" ? youtubeRecord.thumbnail_path : null) ||
+              (typeof youtubeRecord.thumbnail_url === "string" ? youtubeRecord.thumbnail_url : null);
+            next.youtube = {
+              ...youtubeRecord,
+              thumbnail_url: youtubeThumb ? (signedMap[youtubeThumb] || youtubeThumb) : null,
+            };
+            return next;
+          })(),
+        } as Task;
+      });
 
       // Combine columns with their tasks
       const columnsWithTasks: ColumnWithTasks[] = (columnsData || []).map((column: Column) => ({

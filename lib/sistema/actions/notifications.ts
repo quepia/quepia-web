@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/sistema/supabase/server'
+import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { notifyUser } from '@/lib/sistema/notifications'
 
 type NotificationType = 'mention' | 'assignment' | 'approval_request' | 'status_change' | 'comment' | 'system'
@@ -12,7 +13,7 @@ interface SendNotificationParams {
     title: string
     content?: string
     link?: string
-    data?: Record<string, any>
+    data?: Record<string, unknown>
 }
 
 export async function sendNotification(params: SendNotificationParams) {
@@ -88,7 +89,7 @@ export async function notifyTaskComment(taskId: string, content: string, authorI
 
 export async function notifyClientFeedback(token: string, assetVersionId: string, content: string, authorName: string) {
     try {
-        const supabase = await createClient()
+        const supabase = createAdminClient()
 
         // 1. Validate token and get project_id (supports V1 access_token and V2 session UUID)
         let clientAccess: { project_id: string } | null = null
@@ -173,7 +174,7 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
 
 export async function notifyClientAssetStatus(token: string, assetId: string, status: string) {
     try {
-        const supabase = await createClient()
+        const supabase = createAdminClient()
 
         // Resolve project from token (V1 or V2)
         let clientAccess: { project_id: string; nombre: string } | null = null

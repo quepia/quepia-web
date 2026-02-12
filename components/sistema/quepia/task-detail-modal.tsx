@@ -43,6 +43,28 @@ interface TaskDetailModalProps {
     userId?: string
 }
 
+type YoutubeSourceType = "youtube" | "drive"
+
+interface YoutubeTaskMetadata {
+    title?: string
+    description?: string
+    source_type?: YoutubeSourceType
+    source_url?: string
+    published_url?: string
+    thumbnail_path?: string | null
+    thumbnail_url?: string | null
+    tags?: string[]
+    playlist?: string
+    scheduled_at?: string | null
+}
+
+function readYoutubeMetadata(typeMetadata: Record<string, unknown> | null | undefined): YoutubeTaskMetadata {
+    if (!typeMetadata || typeof typeMetadata !== "object") return {}
+    const youtube = (typeMetadata as Record<string, unknown>).youtube
+    if (!youtube || typeof youtube !== "object") return {}
+    return youtube as YoutubeTaskMetadata
+}
+
 export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: TaskDetailModalProps) {
     const { task, loading, refresh } = useTaskDetails(taskId)
     const { subtasks, createSubtask, toggleSubtask, deleteSubtask, updateSubtask, convertSubtaskToTask } = useSubtasks(taskId)
@@ -77,6 +99,9 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [showTaskTypeMenu, setShowTaskTypeMenu] = useState(false)
     const [editingHours, setEditingHours] = useState(false)
     const [hoursValue, setHoursValue] = useState("")
+    const [youtubeData, setYoutubeData] = useState<YoutubeTaskMetadata>({})
+    const [youtubeThumbPreviewUrl, setYoutubeThumbPreviewUrl] = useState<string | null>(null)
+    const [uploadingYoutubeThumb, setUploadingYoutubeThumb] = useState(false)
 
     // No separate refresh on open - useTaskDetails already fetches when taskId changes
 
@@ -85,8 +110,44 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
             setTitleValue(task.titulo)
             setDescValue(task.descripcion || "")
             setSocialCopyValue(task.social_copy || "")
+            setYoutubeData(readYoutubeMetadata(task.type_metadata as Record<string, unknown> | null))
         }
     }, [task])
+
+    useEffect(() => {
+        let cancelled = false
+        const hydrateThumb = async () => {
+            const thumbRef = youtubeData.thumbnail_path || youtubeData.thumbnail_url
+            if (!thumbRef) {
+                setYoutubeThumbPreviewUrl(null)
+                return
+            }
+            if (/^https?:\/\//i.test(thumbRef)) {
+                setYoutubeThumbPreviewUrl(thumbRef)
+                return
+            }
+            try {
+                const response = await fetch("/api/assets/sign", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ paths: [thumbRef] }),
+                })
+                const data = await response.json()
+                if (!cancelled) {
+                    setYoutubeThumbPreviewUrl(data?.urls?.[thumbRef] || null)
+                }
+            } catch (error) {
+                console.error("Error signing YouTube thumbnail:", error)
+                if (!cancelled) {
+                    setYoutubeThumbPreviewUrl(null)
+                }
+            }
+        }
+        hydrateThumb()
+        return () => {
+            cancelled = true
+        }
+    }, [youtubeData.thumbnail_path, youtubeData.thumbnail_url])
 
     // Close on escape
     useEffect(() => {
@@ -101,6 +162,14 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
 
     const completedSubtasks = subtasks.filter(st => st.completed)
     const pendingSubtasks = subtasks.filter(st => !st.completed)
+    const showYoutubePanel = task?.task_type === "video" || Boolean(
+        youtubeData.title ||
+        youtubeData.description ||
+        youtubeData.source_url ||
+        youtubeData.published_url ||
+        youtubeData.thumbnail_path ||
+        youtubeData.thumbnail_url
+    )
 
     const formatLocalDate = (date: Date) => {
         const year = date.getFullYear()
@@ -175,6 +244,60 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
             }
         } catch (err) {
             console.error("Error updating task:", err)
+        }
+    }
+
+    const updateYoutubeMetadata = async (updates: Partial<YoutubeTaskMetadata>) => {
+        const nextYoutube = {
+            ...youtubeData,
+            ...updates,
+        }
+        const nextTypeMetadata = {
+            ...((task?.type_metadata as Record<string, unknown>) || {}),
+            youtube: nextYoutube,
+        }
+        setYoutubeData(nextYoutube)
+        await updateTaskField("type_metadata", nextTypeMetadata)
+    }
+
+    const handleYoutubeFieldChange = (field: keyof YoutubeTaskMetadata, value: YoutubeTaskMetadata[keyof YoutubeTaskMetadata]) => {
+        setYoutubeData((prev) => ({ ...prev, [field]: value }))
+    }
+
+    const handleYoutubeFieldBlur = async (field: keyof YoutubeTaskMetadata) => {
+        await updateYoutubeMetadata({ [field]: youtubeData[field] } as Partial<YoutubeTaskMetadata>)
+    }
+
+    const handleUploadYoutubeThumbnail = async (file: File) => {
+        if (!task || !taskId) return
+        setUploadingYoutubeThumb(true)
+        try {
+            const { createClient } = await import("@/lib/sistema/supabase/client")
+            const supabase = createClient()
+            const safeName = file.name
+                .normalize("NFKD")
+                .replace(/[^a-zA-Z0-9._-]/g, "-")
+                .replace(/-+/g, "-")
+                .replace(/^[-.]+|[-.]+$/g, "")
+                .toLowerCase() || `thumbnail-${Date.now()}.jpg`
+            const path = `${task.project_id}/${taskId}/youtube-thumbnail-${Date.now()}-${safeName}`
+
+            const { error } = await supabase.storage
+                .from("sistema-assets")
+                .upload(path, file, {
+                    upsert: true,
+                    contentType: file.type || "image/jpeg",
+                })
+            if (error) throw error
+
+            await updateYoutubeMetadata({
+                thumbnail_path: path,
+                thumbnail_url: path,
+            })
+        } catch (error) {
+            console.error("Error uploading YouTube thumbnail:", error)
+        } finally {
+            setUploadingYoutubeThumb(false)
         }
     }
 
@@ -326,10 +449,10 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                         <Loader2 className="h-8 w-8 animate-spin text-quepia-cyan" />
                     </div>
                 ) : task ? (
-                    <div className="flex-1 overflow-y-auto">
-                        <div className="flex flex-col md:flex-row">
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                        <div className="flex min-w-0 flex-col md:flex-row">
                             {/* Main Content */}
-                            <div className="flex-1 p-4 sm:p-6">
+                            <div className="flex-1 min-w-0 p-4 sm:p-6">
                                 {/* Task Title */}
                                 <div className="flex items-start gap-3 mb-4">
                                     <button
@@ -426,23 +549,185 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                     )}
                                 </div>
 
+                                {showYoutubePanel && (
+                                    <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                                        <h3 className="mb-3 text-sm font-medium text-white">Ficha YouTube</h3>
+
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <div className="sm:col-span-2">
+                                                <label className="mb-1 block text-xs text-white/45">Titulo YouTube</label>
+                                                <input
+                                                    type="text"
+                                                    value={youtubeData.title || ""}
+                                                    onChange={(e) => handleYoutubeFieldChange("title", e.target.value)}
+                                                    onBlur={() => { void handleYoutubeFieldBlur("title") }}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan"
+                                                    placeholder="Titulo final para YouTube"
+                                                />
+                                            </div>
+
+                                            <div className="sm:col-span-2">
+                                                <label className="mb-1 block text-xs text-white/45">Descripcion YouTube</label>
+                                                <textarea
+                                                    value={youtubeData.description || ""}
+                                                    onChange={(e) => handleYoutubeFieldChange("description", e.target.value)}
+                                                    onBlur={() => { void handleYoutubeFieldBlur("description") }}
+                                                    rows={4}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan resize-y"
+                                                    placeholder="Descripcion final, enlaces, creditos y CTA"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="mb-1 block text-xs text-white/45">Origen del video</label>
+                                                <select
+                                                    value={youtubeData.source_type || "youtube"}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value as YoutubeSourceType
+                                                        handleYoutubeFieldChange("source_type", value)
+                                                        void updateYoutubeMetadata({ source_type: value })
+                                                    }}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan [color-scheme:dark]"
+                                                >
+                                                    <option value="youtube">YouTube</option>
+                                                    <option value="drive">Google Drive</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="mb-1 block text-xs text-white/45">Playlist</label>
+                                                <input
+                                                    type="text"
+                                                    value={youtubeData.playlist || ""}
+                                                    onChange={(e) => handleYoutubeFieldChange("playlist", e.target.value)}
+                                                    onBlur={() => { void handleYoutubeFieldBlur("playlist") }}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan"
+                                                    placeholder="Nombre de playlist"
+                                                />
+                                            </div>
+
+                                            <div className="sm:col-span-2">
+                                                <label className="mb-1 block text-xs text-white/45">URL fuente (subida)</label>
+                                                <input
+                                                    type="url"
+                                                    value={youtubeData.source_url || ""}
+                                                    onChange={(e) => handleYoutubeFieldChange("source_url", e.target.value)}
+                                                    onBlur={() => { void handleYoutubeFieldBlur("source_url") }}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan"
+                                                    placeholder="https://drive.google.com/... o https://studio.youtube.com/..."
+                                                />
+                                            </div>
+
+                                            <div className="sm:col-span-2">
+                                                <label className="mb-1 block text-xs text-white/45">URL publicada</label>
+                                                <input
+                                                    type="url"
+                                                    value={youtubeData.published_url || ""}
+                                                    onChange={(e) => handleYoutubeFieldChange("published_url", e.target.value)}
+                                                    onBlur={() => { void handleYoutubeFieldBlur("published_url") }}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan"
+                                                    placeholder="https://www.youtube.com/watch?v=..."
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="mb-1 block text-xs text-white/45">Programado para</label>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={
+                                                        youtubeData.scheduled_at && !Number.isNaN(new Date(youtubeData.scheduled_at).getTime())
+                                                            ? new Date(youtubeData.scheduled_at).toISOString().slice(0, 16)
+                                                            : ""
+                                                    }
+                                                    onChange={(e) => {
+                                                        const value = e.target.value
+                                                        handleYoutubeFieldChange("scheduled_at", value ? new Date(value).toISOString() : null)
+                                                    }}
+                                                    onBlur={() => { void handleYoutubeFieldBlur("scheduled_at") }}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan [color-scheme:dark]"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="mb-1 block text-xs text-white/45">Tags (coma separadas)</label>
+                                                <input
+                                                    type="text"
+                                                    value={Array.isArray(youtubeData.tags) ? youtubeData.tags.join(", ") : ""}
+                                                    onChange={(e) => {
+                                                        const tags = e.target.value
+                                                            .split(",")
+                                                            .map((tag) => tag.trim())
+                                                            .filter(Boolean)
+                                                        handleYoutubeFieldChange("tags", tags)
+                                                    }}
+                                                    onBlur={() => { void handleYoutubeFieldBlur("tags") }}
+                                                    className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan"
+                                                    placeholder="seo, growth, tutorial"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4">
+                                            <p className="mb-2 text-xs text-white/45">Thumbnail</p>
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                {youtubeThumbPreviewUrl ? (
+                                                    <img
+                                                        src={youtubeThumbPreviewUrl}
+                                                        alt="Thumbnail YouTube"
+                                                        className="h-20 w-36 rounded-md border border-white/10 object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="flex h-20 w-36 items-center justify-center rounded-md border border-dashed border-white/20 text-xs text-white/35">
+                                                        Sin thumbnail
+                                                    </div>
+                                                )}
+                                                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/70 hover:bg-white/[0.08]">
+                                                    <Paperclip className="h-3.5 w-3.5" />
+                                                    {uploadingYoutubeThumb ? "Subiendo..." : "Subir thumbnail"}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/png,image/jpeg,image/webp"
+                                                        className="hidden"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0]
+                                                            if (file) handleUploadYoutubeThumbnail(file)
+                                                            e.currentTarget.value = ""
+                                                        }}
+                                                    />
+                                                </label>
+                                                {(youtubeData.thumbnail_path || youtubeData.thumbnail_url) && (
+                                                    <button
+                                                        onClick={() => { void updateYoutubeMetadata({ thumbnail_path: null, thumbnail_url: null }) }}
+                                                        className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/50 hover:bg-white/[0.06] hover:text-white/80"
+                                                    >
+                                                        Quitar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Links */}
                                 {links.length > 0 && (
-                                    <div className="mb-4 space-y-1">
+                                    <div className="mb-4 space-y-1 min-w-0">
                                         {links.map((link) => (
-                                            <div key={link.id} className="flex items-center gap-2 group">
+                                            <div key={link.id} className="group flex min-w-0 items-center gap-2">
                                                 <a
                                                     href={link.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 text-sm text-quepia-cyan hover:underline flex-1 truncate"
+                                                    title={link.url}
+                                                    className="flex min-w-0 flex-1 items-center gap-2 text-sm text-quepia-cyan hover:underline"
                                                 >
                                                     <Link2 className="h-4 w-4 shrink-0" />
-                                                    {link.titulo || link.url}
+                                                    <span className="block min-w-0 truncate">
+                                                        {link.titulo || link.url}
+                                                    </span>
                                                 </a>
                                                 <button
                                                     onClick={() => deleteLink(link.id)}
-                                                    className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/[0.06] rounded transition-all"
+                                                    className="shrink-0 rounded p-1 opacity-0 transition-all hover:bg-white/[0.06] group-hover:opacity-100"
                                                 >
                                                     <Trash2 className="h-3 w-3 text-white/40" />
                                                 </button>

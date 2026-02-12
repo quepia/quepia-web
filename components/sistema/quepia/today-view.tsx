@@ -1,11 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { CheckCircle2, Circle, Calendar } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { createClient } from "@/lib/sistema/supabase/client"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
-import { PRIORITY_COLORS, PRIORITY_LABELS, type Priority } from "@/types/sistema"
+import { PRIORITY_COLORS } from "@/types/sistema"
 
 interface TodayViewProps {
   tasks: TaskWithProject[]
@@ -19,7 +19,7 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
   today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().split("T")[0]
 
-  const { overdue, dueToday, noDueDate } = useMemo(() => {
+  const { overdue, dueToday } = useMemo(() => {
     const incomplete = tasks.filter(t => !t.completed)
     return {
       overdue: incomplete.filter(t => t.due_date && t.due_date < todayStr)
@@ -29,7 +29,6 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
           const pOrder: Record<string, number> = { P1: 0, P2: 1, P3: 2, P4: 3 }
           return (pOrder[a.priority] || 3) - (pOrder[b.priority] || 3)
         }),
-      noDueDate: [] as TaskWithProject[],
     }
   }, [tasks, todayStr])
 
@@ -63,7 +62,7 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
     <div
       key={task.id}
       onClick={() => onTaskClick(task)}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0 cursor-pointer"
+      className="flex min-h-12 w-full cursor-pointer items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
     >
       <button
         onClick={(e) => toggleComplete(e, task)}

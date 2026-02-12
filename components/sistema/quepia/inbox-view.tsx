@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Inbox, CheckCircle2, MessageSquare, AlertCircle } from "lucide-react"
+import { Inbox, CheckCircle2, AlertCircle } from "lucide-react"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { PRIORITY_COLORS } from "@/types/sistema"
 
@@ -66,7 +66,7 @@ export function InboxView({ tasks, loading, onTaskClick }: InboxViewProps) {
               <button
                 key={task.id}
                 onClick={() => onTaskClick(task)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0"
+                className="flex min-h-12 w-full items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
               >
                 <div className="shrink-0">
                   {task.completed ? (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { ChevronLeft, ChevronRight, Users, BarChart3, MessageSquare, MoreHorizontal, Search, UserCircle, FileText, Menu, Sun, Moon } from "lucide-react"
 
 interface TopHeaderProps {
@@ -16,33 +16,47 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
     const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
     const actionsRef = useRef<HTMLDivElement | null>(null)
 
+    const closeMobileActions = useCallback(() => {
+        setMobileActionsOpen(false)
+    }, [])
+
     useEffect(() => {
         if (!mobileActionsOpen) return
         const handleOutside = (event: MouseEvent) => {
             if (!actionsRef.current?.contains(event.target as Node)) {
-                setMobileActionsOpen(false)
+                closeMobileActions()
+            }
+        }
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                closeMobileActions()
             }
         }
         document.addEventListener("mousedown", handleOutside)
-        return () => document.removeEventListener("mousedown", handleOutside)
-    }, [mobileActionsOpen])
+        document.addEventListener("keydown", handleEscape)
+        return () => {
+            document.removeEventListener("mousedown", handleOutside)
+            document.removeEventListener("keydown", handleEscape)
+        }
+    }, [closeMobileActions, mobileActionsOpen])
 
     return (
-        <header className="h-12 sm:h-14 border-b border-white/[0.06] bg-[#0a0a0a] flex items-center justify-between px-3 sm:px-4">
+        <header className="flex h-14 items-center justify-between border-b border-white/[0.06] bg-[#0a0a0a]/95 px-3 backdrop-blur-sm sm:px-4">
             {/* Left: Navigation */}
             <div className="flex items-center gap-2 min-w-0">
                 {/* Mobile Menu Button */}
                 <button
                     onClick={onMenuClick}
-                    className="md:hidden p-1.5 hover:bg-white/[0.06] rounded-md transition-colors mr-1"
+                    className="mr-1 rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06] md:hidden"
+                    aria-label="Abrir menú"
                 >
-                    <Menu className="h-4 w-4 text-white/60" />
+                    <Menu className="h-5 w-5 text-white/60" />
                 </button>
 
-                <button className="hidden md:block p-1.5 hover:bg-white/[0.06] rounded-md transition-colors">
+                <button className="hidden rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06] md:block" aria-label="Anterior">
                     <ChevronLeft className="h-4 w-4 text-white/40" />
                 </button>
-                <button className="hidden sm:inline-flex p-1.5 hover:bg-white/[0.06] rounded-md transition-colors">
+                <button className="hidden rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06] sm:inline-flex" aria-label="Siguiente">
                     <ChevronRight className="h-4 w-4 text-white/40" />
                 </button>
 
@@ -67,13 +81,13 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                 {onToggleTheme && (
                     <button
                         onClick={onToggleTheme}
-                        className="sm:hidden p-2 hover:bg-white/[0.06] rounded-md transition-colors"
+                        className="rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06] sm:hidden"
                         title={theme === "light" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
                     >
                         {theme === "light" ? (
                             <Moon className="h-5 w-5 text-slate-600" />
                         ) : (
-                            <Sun className="h-5 w-4 text-white/60" />
+                            <Sun className="h-5 w-5 text-white/60" />
                         )}
                     </button>
                 )}
@@ -82,7 +96,7 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                     {onToggleTheme && (
                         <button
                             onClick={onToggleTheme}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/50 hover:bg-white/[0.06] rounded-md transition-colors"
+                            className="flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-all duration-200 hover:bg-white/[0.06]"
                             title={theme === "light" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
                         >
                             {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
@@ -92,7 +106,7 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                     {onOpenBriefing && (
                         <button
                             onClick={onOpenBriefing}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/50 hover:bg-white/[0.06] rounded-md transition-colors"
+                            className="flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-all duration-200 hover:bg-white/[0.06]"
                             title="Briefing"
                         >
                             <FileText className="h-4 w-4" />
@@ -102,27 +116,27 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                     {onOpenClientProfile && (
                         <button
                             onClick={onOpenClientProfile}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/50 hover:bg-white/[0.06] rounded-md transition-colors"
+                            className="flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-all duration-200 hover:bg-white/[0.06]"
                             title="Perfil del cliente"
                         >
                             <UserCircle className="h-4 w-4" />
                             <span>Cliente</span>
                         </button>
                     )}
-                    <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-white/50 hover:bg-white/[0.06] rounded-md transition-colors">
+                    <button className="flex min-h-10 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-all duration-200 hover:bg-white/[0.06]">
                         <Search className="h-4 w-4" />
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-1.5 text-sm text-white/50 hover:bg-white/[0.06] rounded-md transition-colors">
+                    <button className="flex min-h-10 items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-all duration-200 hover:bg-white/[0.06]">
                         <Users className="h-4 w-4" />
                         <span>Compartir</span>
                     </button>
-                    <button className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors">
+                    <button className="rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06]">
                         <BarChart3 className="h-4 w-4 text-white/40" />
                     </button>
-                    <button className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors relative">
+                    <button className="relative rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06]">
                         <MessageSquare className="h-4 w-4 text-white/40" />
                     </button>
-                    <button className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors">
+                    <button className="rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06]">
                         <MoreHorizontal className="h-4 w-4 text-white/40" />
                     </button>
                 </div>
@@ -131,17 +145,17 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                 <div className="sm:hidden relative" ref={actionsRef}>
                     <button
                         onClick={() => setMobileActionsOpen((open) => !open)}
-                        className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
+                        className="rounded-lg p-2 transition-all duration-200 hover:bg-white/[0.06]"
                         title="Acciones"
                     >
-                        <MoreHorizontal className="h-4 w-4 text-white/60" />
+                        <MoreHorizontal className="h-5 w-5 text-white/60" />
                     </button>
                     {mobileActionsOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-[#111] border border-white/[0.08] rounded-lg shadow-xl py-1 z-50">
+                        <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-white/[0.08] bg-[#111]/95 py-1 shadow-xl backdrop-blur-sm">
                             {onToggleTheme && (
                                 <button
-                                    onClick={() => { onToggleTheme(); setMobileActionsOpen(false) }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                                    onClick={() => { onToggleTheme(); closeMobileActions() }}
+                                    className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.06]"
                                 >
                                     {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                                     {theme === "light" ? "Modo oscuro" : "Modo claro"}
@@ -149,8 +163,8 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                             )}
                             {onOpenBriefing && (
                                 <button
-                                    onClick={() => { onOpenBriefing(); setMobileActionsOpen(false) }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                                    onClick={() => { onOpenBriefing(); closeMobileActions() }}
+                                    className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.06]"
                                 >
                                     <FileText className="h-4 w-4" />
                                     Brief
@@ -158,26 +172,26 @@ export function TopHeader({ breadcrumb, onOpenClientProfile, onOpenBriefing, onM
                             )}
                             {onOpenClientProfile && (
                                 <button
-                                    onClick={() => { onOpenClientProfile(); setMobileActionsOpen(false) }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors"
+                                    onClick={() => { onOpenClientProfile(); closeMobileActions() }}
+                                    className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.06]"
                                 >
                                     <UserCircle className="h-4 w-4" />
                                     Cliente
                                 </button>
                             )}
-                            <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors">
+                            <button className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.06]">
                                 <Search className="h-4 w-4" />
                                 Buscar
                             </button>
-                            <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors">
+                            <button className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.06]">
                                 <Users className="h-4 w-4" />
                                 Compartir
                             </button>
-                            <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors">
+                            <button className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.06]">
                                 <BarChart3 className="h-4 w-4" />
                                 Reportes
                             </button>
-                            <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] transition-colors">
+                            <button className="flex min-h-10 w-full items-center gap-2 px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.06]">
                                 <MessageSquare className="h-4 w-4" />
                                 Mensajes
                             </button>

@@ -96,7 +96,7 @@ export function CompletedView({ tasks, loading, onTaskClick, onRefresh }: Comple
                     <div
                       key={task.id}
                       onClick={() => onTaskClick(task)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0 group cursor-pointer"
+                      className="group flex min-h-12 w-full cursor-pointer items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
                     >
                       <CheckCircle2 className="h-4.5 w-4.5 text-green-400 shrink-0" />
                       <span className="text-sm text-white/40 line-through truncate flex-1">{task.titulo}</span>
@@ -107,7 +107,7 @@ export function CompletedView({ tasks, loading, onTaskClick, onRefresh }: Comple
                       )}
                       <button
                         onClick={(e) => uncomplete(e, task.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/[0.08] transition-all shrink-0"
+                        className="rounded p-1 opacity-100 transition-all duration-200 hover:bg-white/[0.08] sm:opacity-0 sm:group-hover:opacity-100 shrink-0"
                         title="Marcar como pendiente"
                       >
                         <RotateCcw className="h-3 w-3 text-white/30" />

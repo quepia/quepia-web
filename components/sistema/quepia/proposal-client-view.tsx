@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import {
   CheckCircle2,
   XCircle,
@@ -10,21 +11,32 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { submitProposalDecision, postProposalComment } from "@/lib/sistema/actions/proposals"
+import type {
+  ProposalComment,
+  ProposalItem,
+  ProposalSection,
+  ProposalStatus,
+  ProposalWithDetails,
+} from "@/types/sistema"
+
+type MoodboardLink = { label?: string | null; url: string }
+type ProposalClientSection = Omit<ProposalSection, "moodboard_links"> & { moodboard_links?: MoodboardLink[] | null }
+type ProposalClientData = Omit<ProposalWithDetails, "sections"> & { sections?: ProposalClientSection[] }
 
 interface ProposalClientViewProps {
-  proposal: any
+  proposal: ProposalClientData
 }
 
 export function ProposalClientView({ proposal: initialProposal }: ProposalClientViewProps) {
-  const [proposal, setProposal] = useState(initialProposal)
-  const [status, setStatus] = useState(initialProposal.status)
+  const [proposal, setProposal] = useState<ProposalClientData>(initialProposal)
+  const [status, setStatus] = useState<ProposalStatus>(initialProposal.status)
   const [comment, setComment] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
 
-  const sections = proposal.sections || []
-  const items = proposal.items || []
-  const comments = proposal.comments || []
+  const sections: ProposalClientSection[] = proposal.sections || []
+  const items: ProposalItem[] = proposal.items || []
+  const comments: ProposalComment[] = proposal.comments || []
 
   const handleDecision = async (decision: "accepted" | "rejected") => {
     if (!confirm(decision === "accepted" ? "¿Aceptar esta propuesta?" : "¿Rechazar esta propuesta?")) return
@@ -40,27 +52,30 @@ export function ProposalClientView({ proposal: initialProposal }: ProposalClient
   const handleRequestChanges = async () => {
     if (!comment.trim()) return
     setIsSubmitting(true)
-    await postProposalComment(proposal.id, comment, proposal.client_name || "Cliente", true)
+    await postProposalComment(proposal.public_token, comment, proposal.client_name || "Cliente", true)
     const result = await submitProposalDecision(proposal.public_token, "changes_requested")
     if (result.success) {
       setStatus("changes_requested")
+      const optimisticComment: ProposalComment = {
+        id: crypto.randomUUID(),
+        proposal_id: proposal.id,
+        content: comment,
+        author_name: proposal.client_name || "Cliente",
+        is_client: true,
+        created_at: new Date().toISOString(),
+      }
       setProposal({
         ...proposal,
-        comments: [...comments, {
-          id: crypto.randomUUID(),
-          content: comment,
-          author_name: proposal.client_name || "Cliente",
-          created_at: new Date().toISOString(),
-        }],
+        comments: [...comments, optimisticComment],
       })
       setComment("")
     }
     setIsSubmitting(false)
   }
 
-  const groupedItems = sections.map((section: any) => ({
+  const groupedItems = sections.map((section) => ({
     section,
-    items: items.filter((item: any) => item.section_id === section.id),
+    items: items.filter((item) => item.section_id === section.id),
   }))
 
   const proposalDate = proposal.created_at ? new Date(proposal.created_at) : null
@@ -85,7 +100,7 @@ export function ProposalClientView({ proposal: initialProposal }: ProposalClient
               <div className="flex flex-wrap items-center gap-3 mb-6">
                 <div className="flex items-center gap-2">
                   <div className="h-10 w-10 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center backdrop-blur-2xl overflow-hidden">
-                    <img src="/Logo_Quepia.svg" alt="Quepia" className="h-7 w-7 object-contain" />
+                    <Image src="/Logo_Quepia.svg" alt="Quepia" width={28} height={28} className="h-7 w-7 object-contain" />
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-[0.3em] text-white/40">Quepia Consultora</p>
@@ -147,7 +162,7 @@ export function ProposalClientView({ proposal: initialProposal }: ProposalClient
             </div>
 
             <div className="space-y-6">
-              {groupedItems.map(({ section, items: sectionItems }: any) => (
+              {groupedItems.map(({ section, items: sectionItems }) => (
                 <div key={section.id} className="bg-[#0c0c0c]/75 border border-white/15 rounded-3xl p-6 md:p-8 backdrop-blur-3xl">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg md:text-xl font-semibold text-white">{section.title}</h3>
@@ -160,7 +175,7 @@ export function ProposalClientView({ proposal: initialProposal }: ProposalClient
                     <div className="mb-5">
                       <p className="text-xs uppercase tracking-[0.3em] text-white/40 mb-3">Moodboard / Referencias</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {section.moodboard_links.map((link: any, index: number) => (
+                        {(section.moodboard_links || []).map((link, index) => (
                           <a
                             key={`${section.id}-${index}`}
                             href={link.url}
@@ -178,7 +193,7 @@ export function ProposalClientView({ proposal: initialProposal }: ProposalClient
                   </div>
                 )}
                   <div className="space-y-3">
-                    {sectionItems.map((item: any) => (
+                    {sectionItems.map((item) => (
                       <div key={item.id} className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-3 border border-white/15 rounded-2xl px-4 py-3 bg-black/70 backdrop-blur-2xl">
                         <div>
                           <p className="text-sm text-white/90 font-medium">{item.title}</p>
@@ -266,7 +281,7 @@ export function ProposalClientView({ proposal: initialProposal }: ProposalClient
                   <div className="text-sm text-white/30">Sin comentarios todavía.</div>
                 ) : (
                   <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
-                    {comments.map((c: any) => (
+                    {comments.map((c) => (
                       <div key={c.id} className="bg-white/5 border border-white/10 rounded-lg p-3">
                         <p className="text-xs text-white/50">{c.author_name}</p>
                         <p className="text-sm text-white/80 mt-1 whitespace-pre-wrap">{c.content}</p>

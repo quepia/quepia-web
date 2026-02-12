@@ -2,7 +2,6 @@
 
 import { useMemo } from "react"
 import { CheckCircle2, Circle, CalendarDays } from "lucide-react"
-import { cn } from "@/lib/sistema/utils"
 import { createClient } from "@/lib/sistema/supabase/client"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { PRIORITY_COLORS } from "@/types/sistema"
@@ -15,11 +14,14 @@ interface UpcomingViewProps {
 }
 
 export function UpcomingView({ tasks, loading, onTaskClick, onRefresh }: UpcomingViewProps) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().split("T")[0]
+  const todayStr = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return today.toISOString().split("T")[0]
+  }, [])
 
   const grouped = useMemo(() => {
+    const today = new Date(todayStr + "T12:00:00")
     const upcoming = tasks
       .filter(t => !t.completed && t.due_date && t.due_date >= todayStr)
       .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))
@@ -51,7 +53,7 @@ export function UpcomingView({ tasks, loading, onTaskClick, onRefresh }: Upcomin
     }
 
     return groups
-  }, [tasks, todayStr, today])
+  }, [tasks, todayStr])
 
   const toggleComplete = async (e: React.MouseEvent, task: TaskWithProject) => {
     e.stopPropagation()
@@ -99,7 +101,7 @@ export function UpcomingView({ tasks, loading, onTaskClick, onRefresh }: Upcomin
                     <button
                       key={task.id}
                       onClick={() => onTaskClick(task)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors text-left border-b border-white/[0.04] last:border-0"
+                      className="flex min-h-12 w-full items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
                     >
                       <span onClick={(e) => toggleComplete(e, task)} className="shrink-0 cursor-pointer">
                         {task.completed ? (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import Image from "next/image"
 import {
     Plus,
@@ -40,10 +40,27 @@ import {
     Calculator,
     Shield,
     FileText,
+    type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
-import { useProjects, useFavorites } from "@/lib/sistema/hooks"
+import { useFavorites } from "@/lib/sistema/hooks"
 import type { ProjectWithChildren } from "@/types/sistema"
+
+const PROJECT_ICON_MAP: Record<string, LucideIcon> = {
+    briefcase: Briefcase,
+    "building-2": Building2,
+    store: Store,
+    globe: Globe,
+    laptop: Laptop,
+    megaphone: Megaphone,
+    camera: Camera,
+    "pen-tool": PenTool,
+    music: Music,
+    video: Video,
+    code: Code,
+    type: Type,
+    folder: Folder,
+}
 
 interface AppSidebarProps {
     userId?: string
@@ -88,20 +105,59 @@ export function AppSidebar({
     className,
     onClose
 }: AppSidebarProps) {
-    const { favorites, loading: favoritesLoading, isFavorite, addFavorite, removeFavorite } = useFavorites(userId)
+    const { favorites, isFavorite, addFavorite, removeFavorite } = useFavorites(userId)
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; projectId: string } | null>(null)
+
+    const openContextMenu = useCallback((event: React.MouseEvent, projectId: string) => {
+        event.preventDefault()
+        event.stopPropagation()
+
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight
+        const menuWidth = 180
+        const menuHeight = 176
+        const x = Math.min(event.clientX, viewportWidth - menuWidth - 8)
+        const y = Math.min(event.clientY, viewportHeight - menuHeight - 8)
+
+        setContextMenu({
+            x: Math.max(8, x),
+            y: Math.max(8, y),
+            projectId,
+        })
+    }, [])
+
+    useEffect(() => {
+        if (!contextMenu) return
+
+        const close = () => setContextMenu(null)
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") close()
+        }
+
+        document.addEventListener("click", close)
+        document.addEventListener("keydown", handleEscape)
+        window.addEventListener("resize", close)
+
+        return () => {
+            document.removeEventListener("click", close)
+            document.removeEventListener("keydown", handleEscape)
+            window.removeEventListener("resize", close)
+        }
+    }, [contextMenu])
 
     // Helper to toggle project expansion
     const toggleProjectExpansion = (projectId: string, e?: React.MouseEvent) => {
         if (e) e.stopPropagation()
-        const newExpanded = new Set(expandedProjects)
-        if (newExpanded.has(projectId)) {
-            newExpanded.delete(projectId)
-        } else {
-            newExpanded.add(projectId)
-        }
-        setExpandedProjects(newExpanded)
+        setExpandedProjects((prev) => {
+            const next = new Set(prev)
+            if (next.has(projectId)) {
+                next.delete(projectId)
+            } else {
+                next.add(projectId)
+            }
+            return next
+        })
     }
 
     const handleFavoriteToggle = async (e: React.MouseEvent, projectId: string) => {
@@ -117,25 +173,22 @@ export function AppSidebar({
         const hasChildren = project.children && project.children.length > 0
         const isExpanded = expandedProjects.has(project.id)
         const isSelected = activeProject === project.id
+        const IconComponent = PROJECT_ICON_MAP[project.icon] || Hash
 
         return (
             <div key={project.id}>
                 <div
                     className={cn(
-                        "w-full flex items-center gap-2 py-1.5 text-sm rounded-md transition-colors group relative pr-2",
+                        "group relative flex w-full items-center gap-2 rounded-lg py-2 text-sm transition-all duration-200 pr-2",
                         isSelected ? "bg-white/[0.08] text-white" : "text-white/60 hover:bg-white/[0.04]"
                     )}
                     style={{ paddingLeft: `${(depth * 12) + 8}px` }}
-                    onContextMenu={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setContextMenu({ x: e.clientX, y: e.clientY, projectId: project.id })
-                    }}
+                    onContextMenu={(e) => openContextMenu(e, project.id)}
                 >
                     {hasChildren ? (
                         <button
                             onClick={(e) => toggleProjectExpansion(project.id, e)}
-                            className="p-0.5 hover:bg-white/[0.1] rounded shrink-0"
+                            className="rounded p-1 transition-colors duration-200 hover:bg-white/[0.1] shrink-0"
                         >
                             {isExpanded ? (
                                 <ChevronDown className="h-3 w-3 text-white/40" />
@@ -162,26 +215,7 @@ export function AppSidebar({
                                 className="h-4 w-4 rounded-full object-cover shrink-0"
                             />
                         ) : (
-                            // Render specific icon if match found, otherwise fallback to hash
-                            (() => {
-                                const iconMap: Record<string, any> = {
-                                    "briefcase": Briefcase,
-                                    "building-2": Building2,
-                                    "store": Store,
-                                    "globe": Globe,
-                                    "laptop": Laptop,
-                                    "megaphone": Megaphone,
-                                    "camera": Camera,
-                                    "pen-tool": PenTool,
-                                    "music": Music,
-                                    "video": Video,
-                                    "code": Code,
-                                    "type": Type,
-                                    "folder": Folder
-                                }
-                                const IconComponent = iconMap[project.icon] || Hash
-                                return <IconComponent className="h-3.5 w-3.5 text-white/40 shrink-0" style={{ color: project.color }} />
-                            })()
+                            <IconComponent className="h-3.5 w-3.5 text-white/40 shrink-0" style={{ color: project.color }} />
                         )}
                         <span className="truncate">{project.nombre}</span>
                     </button>
@@ -190,13 +224,14 @@ export function AppSidebar({
                         <span className="text-[11px] text-white/25 shrink-0 tabular-nums">{project.task_count}</span>
                     )}
 
-                    <div className="hidden group-hover:flex items-center ml-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 bg-[#0d0d0d] shadow-sm rounded">
+                    <div className="ml-1 flex items-center">
                         <button
                             onClick={(e) => {
-                                e.stopPropagation();
-                                setContextMenu({ x: e.clientX, y: e.clientY, projectId: project.id });
+                                e.stopPropagation()
+                                openContextMenu(e, project.id)
                             }}
-                            className="p-1 hover:bg-white/[0.1] rounded"
+                            className="rounded p-1 opacity-70 transition-all duration-200 hover:bg-white/[0.1] hover:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                            aria-label={`Más acciones para ${project.nombre}`}
                         >
                             <MoreHorizontal className="h-3 w-3 text-white/40" />
                         </button>
@@ -214,34 +249,38 @@ export function AppSidebar({
 
 
 
-    const menuItems: { id: string; icon: typeof LayoutDashboard; label: string; isAdmin?: boolean }[] = [
-        { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
-        { id: "search", icon: Search, label: "Buscar" },
-        { id: "inbox", icon: Inbox, label: "Inbox" },
-        { id: "today", icon: Calendar, label: "Hoy" },
-        { id: "upcoming", icon: CalendarDays, label: "Próximo" },
-        { id: "calendar", icon: CalendarDays, label: "Calendario" },
-        { id: "workload", icon: Users, label: "Carga" },
-        { id: "filters", icon: LayoutGrid, label: "Filtros" },
-        { id: "completed", icon: CheckCircle2, label: "Completado" },
-        { id: "portfolio", icon: Folder, label: "Portafolios" },
-    ]
+    const menuItems = useMemo(() => {
+        const items: { id: string; icon: typeof LayoutDashboard; label: string; isAdmin?: boolean }[] = [
+            { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+            { id: "search", icon: Search, label: "Buscar" },
+            { id: "inbox", icon: Inbox, label: "Inbox" },
+            { id: "today", icon: Calendar, label: "Hoy" },
+            { id: "upcoming", icon: CalendarDays, label: "Próximo" },
+            { id: "calendar", icon: CalendarDays, label: "Calendario" },
+            { id: "workload", icon: Users, label: "Carga" },
+            { id: "filters", icon: LayoutGrid, label: "Filtros" },
+            { id: "completed", icon: CheckCircle2, label: "Completado" },
+            { id: "portfolio", icon: Folder, label: "Portafolios" },
+        ]
 
-    if (userRole === 'admin') {
-        menuItems.push(
-            { id: "crm", icon: Briefcase, label: "CRM", isAdmin: true },
-            { id: "proposals", icon: FileText, label: "Propuestas", isAdmin: true },
-            { id: "accounting", icon: Calculator, label: "Contabilidad", isAdmin: true },
-            { id: "admin-users", icon: Users, label: "Usuarios", isAdmin: true },
-            { id: "admin-projects", icon: Folder, label: "Portfolio", isAdmin: true },
-            { id: "admin-services", icon: CheckCircle2, label: "Servicios", isAdmin: true },
-            { id: "admin-team", icon: Users, label: "Equipo", isAdmin: true },
-            { id: "admin-config", icon: Settings, label: "Configuración", isAdmin: true }
-        )
-    }
+        if (userRole === "admin") {
+            items.push(
+                { id: "crm", icon: Briefcase, label: "CRM", isAdmin: true },
+                { id: "proposals", icon: FileText, label: "Propuestas", isAdmin: true },
+                { id: "accounting", icon: Calculator, label: "Contabilidad", isAdmin: true },
+                { id: "admin-users", icon: Users, label: "Usuarios", isAdmin: true },
+                { id: "admin-projects", icon: Folder, label: "Portfolio", isAdmin: true },
+                { id: "admin-services", icon: CheckCircle2, label: "Servicios", isAdmin: true },
+                { id: "admin-team", icon: Users, label: "Equipo", isAdmin: true },
+                { id: "admin-config", icon: Settings, label: "Configuración", isAdmin: true }
+            )
+        }
+
+        return items
+    }, [userRole])
 
     return (
-        <aside className={cn("w-[82vw] max-w-[320px] sm:w-[260px] h-[100svh] bg-[#0d0d0d] border-r border-white/[0.06] flex flex-col", className)}>
+        <aside className={cn("flex h-[100svh] w-[84vw] max-w-[340px] flex-col border-r border-white/[0.06] bg-[#0d0d0d]/95 shadow-xl sm:w-[272px]", className)}>
             {/* Header */}
             <div className="p-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -273,7 +312,7 @@ export function AppSidebar({
                 <div className="flex items-center gap-1 shrink-0">
                     <button
                         onClick={onOpenSettings}
-                        className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors"
+                        className="rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]"
                         title="Configuración"
                     >
                         <Settings className="h-4 w-4 text-white/40" />
@@ -281,7 +320,7 @@ export function AppSidebar({
                     <button
                         onClick={() => onViewChange("docs")}
                         className={cn(
-                            "p-1.5 hover:bg-white/[0.06] rounded-md transition-colors",
+                            "rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]",
                             activeView === "docs" ? "bg-white/[0.1] text-quepia-cyan" : ""
                         )}
                         title="Documentación"
@@ -291,14 +330,14 @@ export function AppSidebar({
                     <button
                         onClick={() => onViewChange("inbox")}
                         className={cn(
-                            "p-1.5 hover:bg-white/[0.06] rounded-md transition-colors",
+                            "rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]",
                             activeView === "inbox" ? "bg-white/[0.1] text-quepia-cyan" : ""
                         )}
                     >
                         <Bell className={cn("h-4 w-4", activeView === "inbox" ? "text-quepia-cyan" : "text-white/40")} />
                     </button>
                     {onSignOut && (
-                        <button onClick={onSignOut} className="p-1.5 hover:bg-white/[0.06] rounded-md transition-colors" title="Cerrar sesión">
+                        <button onClick={onSignOut} className="rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]" title="Cerrar sesión">
                             <LogOut className="h-4 w-4 text-white/40" />
                         </button>
                     )}
@@ -316,7 +355,7 @@ export function AppSidebar({
                             key={item.id}
                             onClick={() => onViewChange(item.id)}
                             className={cn(
-                                "w-full flex items-center gap-3 px-3 py-1.5 text-sm rounded-md transition-all duration-200",
+                                "min-h-11 w-full rounded-lg px-3 py-2 text-sm transition-all duration-200 flex items-center gap-3",
                                 activeView === item.id
                                     ? item.isAdmin
                                         ? "bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent text-white shadow-[inset_2px_0_0_0_rgba(251,191,36,0.5)]"
@@ -353,7 +392,7 @@ export function AppSidebar({
                                     type="button"
                                     onClick={() => onProjectChange?.(fav.id)}
                                     className={cn(
-                                        "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-white/[0.04] transition-colors",
+                                        "flex min-h-10 w-full items-center gap-2 rounded-lg px-2 py-2 text-sm transition-all duration-200 hover:bg-white/[0.04]",
                                         activeProject === fav.id ? "bg-white/[0.08] text-white" : "text-white/60"
                                     )}
                                 >
@@ -375,7 +414,7 @@ export function AppSidebar({
                             Proyectos
                         </h3>
                         {onAddProject && (
-                            <button onClick={onAddProject} className="p-0.5 hover:bg-white/[0.06] rounded transition-colors">
+                            <button onClick={onAddProject} className="rounded p-1 transition-all duration-200 hover:bg-white/[0.06]">
                                 <Plus className="h-3.5 w-3.5 text-white/30" />
                             </button>
                         )}

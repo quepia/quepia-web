@@ -7,6 +7,8 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PageTransition from '@/components/layout/PageTransition';
 import { ModalProvider } from '@/context/ModalContext';
+import { ToastProvider } from '@/components/ui/toast-provider';
+import { ConfirmProvider } from '@/components/ui/confirm-provider';
 import type { SiteConfig } from '@/lib/fetchConfig';
 
 const GlassBackground = dynamic(() => import('@/components/ui/GlassBackground'), {
@@ -41,9 +43,13 @@ export default function ClientLayout({
         // Admin/Auth/Sistema pages have their own layout
         return (
             <ConfigContext.Provider value={contextValue}>
-                <ModalProvider>
-                    {children}
-                </ModalProvider>
+                <ToastProvider>
+                    <ConfirmProvider>
+                        <ModalProvider>
+                            {children}
+                        </ModalProvider>
+                    </ConfirmProvider>
+                </ToastProvider>
             </ConfigContext.Provider>
         );
     }
@@ -52,14 +58,18 @@ export default function ClientLayout({
     if (isClienteRoute) {
         return (
             <ConfigContext.Provider value={contextValue}>
-                <ModalProvider>
-                    <div className="relative z-10 flex flex-col min-h-screen">
-                        <Header />
-                        <main className="flex-grow">
-                            {children}
-                        </main>
-                    </div>
-                </ModalProvider>
+                <ToastProvider>
+                    <ConfirmProvider>
+                        <ModalProvider>
+                            <div className="relative z-10 flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    {children}
+                                </main>
+                            </div>
+                        </ModalProvider>
+                    </ConfirmProvider>
+                </ToastProvider>
             </ConfigContext.Provider>
         );
     }
@@ -67,20 +77,24 @@ export default function ClientLayout({
     // Public pages with Header, Footer, and animated background
     return (
         <ConfigContext.Provider value={contextValue}>
-            <ModalProvider>
-                {/* Global animated background */}
-                <GlassBackground />
+            <ToastProvider>
+                <ConfirmProvider>
+                    <ModalProvider>
+                        {/* Global animated background */}
+                        <GlassBackground />
 
-                <div className="relative z-10 flex flex-col min-h-screen">
-                    <Header />
-                    <main className="flex-grow">
-                        <PageTransition>
-                            {children}
-                        </PageTransition>
-                    </main>
-                    <Footer />
-                </div>
-            </ModalProvider>
+                        <div className="relative z-10 flex flex-col min-h-screen">
+                            <Header />
+                            <main className="flex-grow">
+                                <PageTransition>
+                                    {children}
+                                </PageTransition>
+                            </main>
+                            <Footer />
+                        </div>
+                    </ModalProvider>
+                </ConfirmProvider>
+            </ToastProvider>
         </ConfigContext.Provider>
     );
 }
