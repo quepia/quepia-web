@@ -5,11 +5,12 @@ import { CATEGORIES } from '@/types/database';
 export const revalidate = 60;
 
 interface TrabajosPageProps {
-    searchParams?: { category?: string };
+    searchParams?: Promise<{ category?: string }>;
 }
 
 export default async function Page({ searchParams }: TrabajosPageProps) {
-    const requestedCategory = searchParams?.category ?? 'branding';
+    const params = await searchParams;
+    const requestedCategory = params?.category ?? 'branding';
     const validCategory = CATEGORIES.find((category) => category.id === requestedCategory)?.id ?? CATEGORIES[0]?.id ?? 'branding';
 
     const supabase = createPublicClient();

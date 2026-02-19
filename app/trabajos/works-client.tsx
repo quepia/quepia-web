@@ -1,547 +1,485 @@
-'use client';
+"use client"
 
-import { useState, useRef } from 'react';
-import { CATEGORIES } from '@/types/database';
-import Link from 'next/link';
-import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { ArrowRight, ArrowUpRight, X } from 'lucide-react';
-import { Proyecto } from '@/types/database';
-import Image from 'next/image';
-
-// Animated words component
-const AnimatedWords = ({ text, className = "" }: { text: string; className?: string }) => {
-    const words = text.split(" ");
-    return (
-        <span className={className}>
-            {words.map((word, index) => (
-                <motion.span
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                        duration: 0.5,
-                        delay: 0.2 + index * 0.06,
-                        ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="inline-block mr-[0.25em]"
-                >
-                    {word}
-                </motion.span>
-            ))}
-        </span>
-    );
-};
-
-// Featured Project Card - Full width cinematic
-function FeaturedProject({
-    proyecto,
-    index,
-    onClick
-}: {
-    proyecto: Proyecto;
-    index: number;
-    onClick: () => void;
-}) {
-    const ref = useRef<HTMLDivElement>(null);
-    const isInView = useInView(ref, { once: true, margin: "-100px" });
-    const [isHovered, setIsHovered] = useState(false);
-
-    return (
-        <motion.div
-            ref={ref}
-            initial={{ opacity: 0, y: 40 }}
-            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-            transition={{ duration: 0.8, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="group cursor-pointer"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onClick={onClick}
-        >
-            <div className="relative aspect-[16/9] md:aspect-[21/9] rounded-xl overflow-hidden">
-                {/* Background Image */}
-                {proyecto.imagen_url ? (
-                    <Image
-                        src={proyecto.imagen_url}
-                        alt={proyecto.titulo}
-                        fill
-                        className="object-cover transition-transform duration-700 ease-out"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
-                        style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
-                    />
-                ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-quepia-purple/30 to-quepia-cyan/30" />
-                )}
-
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-
-                {/* Subtle border glow on hover */}
-                <motion.div
-                    className="absolute inset-0 rounded-xl border border-white/0 transition-colors duration-500"
-                    animate={{ borderColor: isHovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0)' }}
-                />
-
-                {/* Content */}
-                <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-10 lg:p-14">
-                    {/* Category tag */}
-                    <motion.span
-                        className="text-white/50 text-xs uppercase tracking-[0.2em] mb-3"
-                        animate={{ y: isHovered ? -4 : 0 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        {proyecto.categoria.replace('-', ' ')}
-                    </motion.span>
-
-                    {/* Title */}
-                    <motion.h3
-                        className="font-display text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-light text-white mb-4 max-w-3xl"
-                        animate={{ y: isHovered ? -4 : 0 }}
-                        transition={{ duration: 0.3, delay: 0.05 }}
-                    >
-                        {proyecto.titulo}
-                    </motion.h3>
-
-                    {/* Description */}
-                    {proyecto.descripcion && (
-                        <motion.p
-                            className="text-white/60 text-sm md:text-base max-w-xl mb-6 line-clamp-2"
-                            animate={{ y: isHovered ? -4 : 0, opacity: isHovered ? 1 : 0.8 }}
-                            transition={{ duration: 0.3, delay: 0.1 }}
-                        >
-                            {proyecto.descripcion}
-                        </motion.p>
-                    )}
-
-                    {/* CTA */}
-                    <motion.div
-                        className="inline-flex items-center gap-2 text-white/70 text-sm uppercase tracking-wider"
-                        animate={{ y: isHovered ? -4 : 0 }}
-                        transition={{ duration: 0.3, delay: 0.15 }}
-                    >
-                        <span className="border-b border-white/30 pb-0.5">Ver proyecto</span>
-                        <ArrowUpRight size={14} className="transition-transform duration-300" style={{ transform: isHovered ? 'translate(2px, -2px)' : 'none' }} />
-                    </motion.div>
-                </div>
-
-                {/* View indicator circle */}
-                <motion.div
-                    className="absolute top-6 right-6 w-16 h-16 rounded-full border border-white/20 flex items-center justify-center backdrop-blur-sm"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: isHovered ? 1 : 0, scale: isHovered ? 1 : 0.8 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <span className="text-white text-xs uppercase tracking-wider">Ver</span>
-                </motion.div>
-            </div>
-        </motion.div>
-    );
-}
-
-// Secondary Project Card - Grid layout
-function SecondaryProject({
-    proyecto,
-    index,
-    onClick
-}: {
-    proyecto: Proyecto;
-    index: number;
-    onClick: () => void;
-}) {
-    const ref = useRef<HTMLDivElement>(null);
-    const isInView = useInView(ref, { once: true, margin: "-50px" });
-    const [isHovered, setIsHovered] = useState(false);
-
-    return (
-        <motion.div
-            ref={ref}
-            initial={{ opacity: 0, y: 30 }}
-            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-            transition={{ duration: 0.6, delay: 0.2 + index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="group cursor-pointer"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onClick={onClick}
-        >
-            <div className="relative aspect-[4/5] rounded-xl overflow-hidden">
-                {/* Background Image */}
-                {proyecto.imagen_url ? (
-                    <Image
-                        src={proyecto.imagen_url}
-                        alt={proyecto.titulo}
-                        fill
-                        className="object-cover transition-transform duration-700 ease-out"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 45vw, 600px"
-                        style={{ transform: isHovered ? 'scale(1.05)' : 'scale(1)' }}
-                    />
-                ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-quepia-purple/30 to-quepia-cyan/30" />
-                )}
-
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
-
-                {/* Content */}
-                <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-6">
-                    <motion.span
-                        className="text-white/40 text-xs uppercase tracking-wider mb-2"
-                        animate={{ y: isHovered ? -4 : 0 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        {proyecto.categoria.replace('-', ' ')}
-                    </motion.span>
-                    <motion.h3
-                        className="font-display text-base sm:text-lg md:text-xl font-medium text-white mb-2"
-                        animate={{ y: isHovered ? -4 : 0 }}
-                        transition={{ duration: 0.3, delay: 0.05 }}
-                    >
-                        {proyecto.titulo}
-                    </motion.h3>
-                    <motion.div
-                        className="inline-flex items-center gap-1.5 text-white/50 text-xs uppercase tracking-wider"
-                        animate={{ y: isHovered ? -4 : 0 }}
-                        transition={{ duration: 0.3, delay: 0.1 }}
-                    >
-                        <span>Ver</span>
-                        <ArrowUpRight size={12} />
-                    </motion.div>
-                </div>
-            </div>
-        </motion.div>
-    );
-}
-
-// Lightbox Modal
-function Lightbox({
-    proyecto,
-    onClose
-}: {
-    proyecto: Proyecto;
-    onClose: () => void;
-}) {
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-black/95 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={onClose}
-        >
-            <button
-                onClick={onClose}
-                className="absolute top-4 right-4 md:top-6 md:right-6 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10"
-                aria-label="Cerrar"
-            >
-                <X size={24} strokeWidth={2} />
-            </button>
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="max-w-5xl w-full"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {proyecto.imagen_url ? (
-                    <div className="relative w-full h-[70vh] md:h-[80vh]">
-                        <Image
-                            src={proyecto.imagen_url}
-                            alt={proyecto.titulo}
-                            fill
-                            className="object-contain rounded-2xl"
-                            sizes="100vw"
-                        />
-                    </div>
-                ) : (
-                    <div className="w-full h-[60vh] bg-gradient-to-br from-quepia-purple/20 to-quepia-cyan/20 rounded-2xl flex items-center justify-center">
-                        <span className="text-gray-400 text-xl">Sin imagen</span>
-                    </div>
-                )}
-                <div className="mt-6 text-center">
-                    <span className="text-white/40 text-xs uppercase tracking-wider block mb-2">
-                        {proyecto.categoria.replace('-', ' ')}
-                    </span>
-                    <h3 className="text-white text-xl md:text-2xl font-medium">
-                        {proyecto.titulo}
-                    </h3>
-                    {proyecto.descripcion && (
-                        <p className="text-white/50 mt-2 max-w-2xl mx-auto">
-                            {proyecto.descripcion}
-                        </p>
-                    )}
-                </div>
-            </motion.div>
-        </motion.div>
-    );
-}
+import { useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { motion, AnimatePresence, useInView } from "framer-motion"
+import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, X, Sparkles } from "lucide-react"
+import { CATEGORIES, Proyecto } from "@/types/database"
+import { getProjectCoverImage, getProjectGalleryImages } from "@/lib/project-images"
 
 interface WorksClientProps {
-    proyectos: Proyecto[];
-    activeCategory: string;
+  proyectos: Proyecto[]
+  activeCategory: string
+}
+
+const CATEGORY_LABELS = new Map<string, string>(CATEGORIES.map((category) => [category.id, category.label]))
+
+const CATEGORY_ACCENTS: Record<string, string> = {
+  branding: "from-fuchsia-400/30 to-orange-300/20",
+  "diseno-grafico": "from-cyan-400/30 to-blue-400/20",
+  fotografia: "from-emerald-300/30 to-cyan-300/20",
+  video: "from-rose-300/30 to-fuchsia-300/20",
+  "redes-sociales": "from-orange-300/30 to-rose-300/20",
+  packaging: "from-lime-300/30 to-amber-300/20",
+  carteleria: "from-sky-300/30 to-indigo-300/20",
+  marketing: "from-red-300/30 to-orange-300/20",
+  productos: "from-violet-300/30 to-fuchsia-300/20",
+}
+
+function categoryLabel(category: string): string {
+  return CATEGORY_LABELS.get(category) ?? category.replace(/-/g, " ")
+}
+
+function categoryAccentClass(category: string): string {
+  return CATEGORY_ACCENTS[category] ?? "from-cyan-300/30 to-white/10"
+}
+
+function LeadProject({
+  proyecto,
+  onOpen,
+}: {
+  proyecto: Proyecto
+  onOpen: () => void
+}) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const coverImage = getProjectCoverImage(proyecto)
+  const galleryCount = getProjectGalleryImages(proyecto).length
+
+  return (
+    <motion.button
+      ref={ref}
+      initial={{ opacity: 0, y: 32 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 32 }}
+      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      onClick={onOpen}
+      className="group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-black/30 text-left"
+    >
+      <div className="grid gap-0 lg:grid-cols-[1.25fr_0.9fr]">
+        <div className="relative min-h-[300px] sm:min-h-[420px] lg:min-h-[520px]">
+          {coverImage ? (
+            <Image
+              src={coverImage}
+              alt={proyecto.titulo}
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+              sizes="(max-width: 1024px) 100vw, 65vw"
+            />
+          ) : (
+            <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/5" />
+          <div className="absolute left-5 top-5 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-white/75">
+            {categoryLabel(proyecto.categoria)}
+          </div>
+          {galleryCount > 1 && (
+            <div className="absolute bottom-5 right-5 rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/80">
+              {galleryCount} fotos
+            </div>
+          )}
+        </div>
+
+        <div className="relative flex flex-col justify-between border-t border-white/10 bg-gradient-to-b from-white/[0.08] to-black/35 p-5 sm:p-8 lg:border-l lg:border-t-0">
+          <div className={`absolute inset-0 bg-gradient-to-br opacity-35 ${categoryAccentClass(proyecto.categoria)}`} />
+          <div className="relative">
+            <p className="mb-3 text-xs uppercase tracking-[0.18em] text-white/50">Proyecto destacado</p>
+            <h3 className="font-display text-3xl sm:text-4xl lg:text-5xl font-light leading-[0.95] text-white">
+              {proyecto.titulo}
+            </h3>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Descripción</p>
+              <p className="mt-2 text-sm leading-relaxed text-white/75">
+                {proyecto.descripcion || "Este proyecto todavía no tiene descripción detallada."}
+              </p>
+            </div>
+          </div>
+          <div className="relative mt-6 inline-flex items-center gap-2 text-sm uppercase tracking-[0.14em] text-white/70">
+            Ver proyecto completo
+            <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </div>
+        </div>
+      </div>
+    </motion.button>
+  )
+}
+
+function ProjectCard({
+  proyecto,
+  index,
+  onOpen,
+}: {
+  proyecto: Proyecto
+  index: number
+  onOpen: () => void
+}) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const isInView = useInView(ref, { once: true, margin: "-60px" })
+  const coverImage = getProjectCoverImage(proyecto)
+  const galleryCount = getProjectGalleryImages(proyecto).length
+
+  return (
+    <motion.button
+      ref={ref}
+      initial={{ opacity: 0, y: 20 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+      transition={{ duration: 0.55, delay: Math.min(index * 0.03, 0.2), ease: [0.16, 1, 0.3, 1] }}
+      onClick={onOpen}
+      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] text-left transition-colors hover:border-white/20"
+    >
+      <div className="relative aspect-[16/11] overflow-hidden">
+        {coverImage ? (
+          <Image
+            src={coverImage}
+            alt={proyecto.titulo}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            sizes="(max-width: 768px) 100vw, (max-width: 1440px) 50vw, 33vw"
+          />
+        ) : (
+          <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+        <div className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75">
+          {categoryLabel(proyecto.categoria)}
+        </div>
+        {galleryCount > 1 && (
+          <div className="absolute bottom-3 right-3 rounded-full border border-white/15 bg-black/50 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/80">
+            {galleryCount} fotos
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <h4 className="font-display text-xl font-light leading-tight text-white">{proyecto.titulo}</h4>
+        <div className="mt-3 min-h-[96px] rounded-xl border border-white/10 bg-black/25 p-3">
+          <p className="line-clamp-4 text-sm leading-relaxed text-white/70">
+            {proyecto.descripcion || "Este proyecto todavía no tiene descripción."}
+          </p>
+        </div>
+        <div className="mt-4 inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.16em] text-white/55">
+          Ver detalle <ArrowUpRight className="h-3.5 w-3.5" />
+        </div>
+      </div>
+    </motion.button>
+  )
+}
+
+function Lightbox({
+  proyecto,
+  onClose,
+}: {
+  proyecto: Proyecto
+  onClose: () => void
+}) {
+  const images = useMemo(() => getProjectGalleryImages(proyecto), [proyecto])
+  const [activeIndex, setActiveIndex] = useState(0)
+  const hasMultipleImages = images.length > 1
+  const activeImage = images[activeIndex] ?? null
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [proyecto.id])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose()
+        return
+      }
+      if (!hasMultipleImages) return
+      if (event.key === "ArrowLeft") {
+        setActiveIndex((current) => (current === 0 ? images.length - 1 : current - 1))
+      }
+      if (event.key === "ArrowRight") {
+        setActiveIndex((current) => (current + 1) % images.length)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [hasMultipleImages, images.length, onClose])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[10000] bg-black/90 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute right-4 top-4 z-20 rounded-full border border-white/20 bg-black/55 p-3 text-white/80 transition-colors hover:text-white md:right-7 md:top-7"
+        aria-label="Cerrar"
+      >
+        <X size={20} />
+      </button>
+
+      <div className="mx-auto grid h-full w-full max-w-[1500px] items-center gap-4 p-4 md:grid-cols-[1.5fr_0.8fr] md:gap-6 md:p-7">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          transition={{ duration: 0.28 }}
+          className="relative flex h-[54vh] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101318] md:h-[78vh]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="relative flex-1">
+            {activeImage ? (
+              <Image
+                src={activeImage}
+                alt={`${proyecto.titulo} (${activeIndex + 1}/${images.length})`}
+                fill
+                className="object-contain"
+                sizes="80vw"
+              />
+            ) : (
+              <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
+            )}
+
+            {hasMultipleImages && (
+              <>
+                <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/80">
+                  {activeIndex + 1} / {images.length}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex((current) => (current === 0 ? images.length - 1 : current - 1))}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/60 p-2.5 text-white/80 transition-colors hover:text-white"
+                  aria-label="Imagen anterior"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex((current) => (current + 1) % images.length)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/60 p-2.5 text-white/80 transition-colors hover:text-white"
+                  aria-label="Siguiente imagen"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {hasMultipleImages && (
+            <div className="border-t border-white/10 bg-black/45 p-3">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {images.map((imageUrl, index) => (
+                  <button
+                    type="button"
+                    key={`${imageUrl}-${index}`}
+                    onClick={() => setActiveIndex(index)}
+                    className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border transition-colors ${
+                      index === activeIndex ? "border-white/50" : "border-white/15 hover:border-white/30"
+                    }`}
+                    aria-label={`Ver imagen ${index + 1}`}
+                  >
+                    <Image src={imageUrl} alt={`${proyecto.titulo} miniatura ${index + 1}`} fill className="object-cover" sizes="64px" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
+
+        <motion.aside
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
+          transition={{ duration: 0.32, delay: 0.05 }}
+          className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-black/35 p-5 md:p-7"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-white/70">
+            {categoryLabel(proyecto.categoria)}
+          </span>
+          <h3 className="mt-4 font-display text-2xl md:text-3xl font-light leading-tight text-white">{proyecto.titulo}</h3>
+          <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-4">
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">Descripción del proyecto</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/75">
+              {proyecto.descripcion || "Este proyecto aún no tiene una descripción cargada."}
+            </p>
+          </div>
+          <Link
+            href="/contacto"
+            className="mt-6 inline-flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-white/65 transition-colors hover:text-white"
+          >
+            Quiero un proyecto así
+            <ArrowRight size={14} />
+          </Link>
+        </motion.aside>
+      </div>
+    </motion.div>
+  )
 }
 
 export default function WorksPage({ proyectos, activeCategory }: WorksClientProps) {
-    const [selectedProject, setSelectedProject] = useState<Proyecto | null>(null);
-    const heroRef = useRef<HTMLDivElement>(null);
-    const isHeroInView = useInView(heroRef, { once: true });
+  const [selectedProject, setSelectedProject] = useState<Proyecto | null>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
+  const inView = useInView(heroRef, { once: true })
 
-    // Split projects: first one featured, rest in grid
-    const featuredProject = proyectos[0];
-    const secondaryProjects = proyectos.slice(1, 5);
-    const remainingProjects = proyectos.slice(5, 6);
+  const leadProject = proyectos[0] ?? null
+  const otherProjects = useMemo(() => proyectos.slice(1), [proyectos])
 
-    return (
-        <div className="relative">
-            {/* Hero Section */}
-            <section ref={heroRef} className="relative min-h-[60vh] flex items-center justify-center pt-20 overflow-hidden">
-                {/* Background gradient */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute inset-0 bg-gradient-to-b from-quepia-cyan/5 via-transparent to-transparent" />
-                    <motion.div
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] opacity-15"
-                        animate={{
-                            scale: [1, 1.2, 1],
-                            rotate: [0, -5, 0]
-                        }}
-                        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                        <div
-                            className="absolute inset-0 rounded-full blur-3xl"
-                            style={{
-                                background: 'radial-gradient(circle, rgba(42,231,228,0.2) 0%, rgba(136,16,120,0.15) 50%, transparent 70%)'
-                            }}
-                        />
-                    </motion.div>
-                </div>
+  return (
+    <div className="relative overflow-hidden bg-[#06080b]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)" }} />
+        <div className="absolute left-[-120px] top-20 h-[500px] w-[500px] rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="absolute bottom-[-180px] right-[-120px] h-[500px] w-[500px] rounded-full bg-fuchsia-400/10 blur-3xl" />
+      </div>
 
-                <div className="relative z-10 max-w-[1200px] mx-auto px-6 md:px-12 lg:px-20 text-center">
-                    {/* Label */}
-                    <motion.span
-                        className="text-label text-white/40 block mb-6"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6 }}
-                    >
-                        Portfolio
-                    </motion.span>
+      <section ref={heroRef} className="relative border-b border-white/10 pt-28 md:pt-32">
+        <div className="mx-auto max-w-[1500px] px-6 pb-14 md:px-12 lg:px-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.6 }}
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/65"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+            Portfolio Quepia
+          </motion.div>
 
-                    {/* Main heading */}
-                    <h1 className="font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-light text-white mb-8 tracking-tight">
-                        <AnimatedWords text="Nuestros trabajos" />
-                    </h1>
+          <motion.h1
+            initial={{ opacity: 0, y: 24 }}
+            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+            transition={{ duration: 0.7, delay: 0.08 }}
+            className="mt-5 font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-light tracking-tight text-white"
+          >
+            Nuestros trabajos
+          </motion.h1>
 
-                    {/* Subtitle */}
-                    <motion.p
-                        className="text-white/50 text-lg md:text-xl max-w-[600px] mx-auto"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6, delay: 0.4 }}
-                    >
-                        Explorá nuestra galería de proyectos organizados por categoría.
-                    </motion.p>
-                </div>
-            </section>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.65, delay: 0.2 }}
+            className="mt-5 max-w-[720px] text-lg leading-relaxed text-white/60"
+          >
+            Catálogo curado de proyectos reales, organizado por categoría y con descripción de cada caso para entender qué resolvimos y cómo lo hicimos.
+          </motion.p>
 
-            {/* Category Navigation - Sticky */}
-            <motion.div
-                className="sticky top-16 md:top-[72px] z-40 py-4 border-y border-white/5 backdrop-blur-xl"
-                style={{ background: 'rgba(10, 10, 10, 0.8)' }}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-            >
-                <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20">
-                    <div className="flex gap-2 md:gap-3 overflow-x-auto scrollbar-hide py-1">
-                        {CATEGORIES.map((category, index) => (
-                            <motion.div
-                                key={category.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.3 + index * 0.05 }}
-                            >
-                                <Link
-                                    href={`/trabajos?category=${category.id}`}
-                                    className={`flex-shrink-0 px-5 md:px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${activeCategory === category.id
-                                        ? 'bg-white text-black'
-                                        : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                                        }`}
-                                >
-                                    {category.label}
-                                </Link>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* Gallery Section */}
-            <section className="py-16 md:py-24">
-                <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20">
-                    {/* Category Header */}
-                    <motion.div
-                        className="mb-12 md:mb-16"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
-                        key={activeCategory}
-                    >
-                        <span className="text-label text-white/40 block mb-3">Categoría</span>
-                        <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-white">
-                            {CATEGORIES.find(c => c.id === activeCategory)?.label || activeCategory}
-                        </h2>
-                    </motion.div>
-
-                    {/* Gallery Content */}
-                    {proyectos.length === 0 ? (
-                        <motion.div
-                            className="text-center py-20"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                        >
-                            <p className="text-white/40 text-lg mb-6">
-                                No hay proyectos en esta categoría todavía
-                            </p>
-                            <Link
-                                href="/contacto"
-                                className="group cta-link text-white/60 hover:text-white"
-                            >
-                                Contactanos para tu proyecto
-                                <ArrowRight size={14} className="cta-arrow" />
-                            </Link>
-                        </motion.div>
-                    ) : (
-                        <div className="space-y-6 md:space-y-8">
-                            {/* Featured Project - Full width */}
-                            {featuredProject && (
-                                <FeaturedProject
-                                    proyecto={featuredProject}
-                                    index={0}
-                                    onClick={() => setSelectedProject(featuredProject)}
-                                />
-                            )}
-
-                            {/* Secondary Projects - 2-column grid */}
-                            {secondaryProjects.length > 0 && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                                    {secondaryProjects.map((proyecto, index) => (
-                                        <SecondaryProject
-                                            key={proyecto.id}
-                                            proyecto={proyecto}
-                                            index={index}
-                                            onClick={() => setSelectedProject(proyecto)}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Another Featured if available */}
-                            {remainingProjects.length > 0 && (
-                                <FeaturedProject
-                                    proyecto={remainingProjects[0]}
-                                    index={1}
-                                    onClick={() => setSelectedProject(remainingProjects[0])}
-                                />
-                            )}
-                        </div>
-                    )}
-
-                    {/* View Services CTA */}
-                    {proyectos.length > 0 && (
-                        <motion.div
-                            className="mt-16 text-center"
-                            initial={{ opacity: 0 }}
-                            whileInView={{ opacity: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.6 }}
-                        >
-                            <p className="text-white/40 mb-4">¿Te interesa este servicio?</p>
-                            <Link
-                                href="/servicios"
-                                className="group cta-link text-white/60 hover:text-white"
-                            >
-                                Ver detalles del servicio
-                                <ArrowRight size={14} className="cta-arrow" />
-                            </Link>
-                        </motion.div>
-                    )}
-                </div>
-            </section>
-
-            {/* CTA Section */}
-            <section className="relative py-32 md:py-48 overflow-hidden">
-                {/* Gradient background */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-20">
-                        <div
-                            className="absolute inset-0 rounded-full blur-3xl animate-gradient"
-                            style={{
-                                background: 'radial-gradient(circle, rgba(42,231,228,0.3) 0%, rgba(136,16,120,0.3) 50%, transparent 70%)'
-                            }}
-                        />
-                    </div>
-                </div>
-
-                <div className="relative z-10 max-w-[900px] mx-auto px-6 md:px-12 lg:px-20 text-center">
-                    <motion.h2
-                        className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-white mb-6"
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.7 }}
-                    >
-                        ¿Querés un proyecto así?
-                    </motion.h2>
-
-                    <motion.p
-                        className="text-white/50 text-lg max-w-[500px] mx-auto mb-12"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                    >
-                        Contanos tu idea y creamos algo increíble juntos.
-                    </motion.p>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                    >
-                        <Link
-                            href="/contacto"
-                            className="group inline-flex items-center gap-3 text-xl md:text-2xl text-white hover:text-quepia-cyan transition-colors duration-300"
-                        >
-                            <span className="border-b border-white/30 group-hover:border-quepia-cyan pb-1 transition-colors duration-300">
-                                Hablemos de tu proyecto
-                            </span>
-                            <motion.svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                className="transition-transform duration-300 group-hover:translate-x-1"
-                            >
-                                <path
-                                    d="M1 8H15M15 8L8 1M15 8L8 15"
-                                    stroke="currentColor"
-                                    strokeWidth="1.5"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </motion.svg>
-                        </Link>
-                    </motion.div>
-                </div>
-            </section>
-
-            {/* Lightbox */}
-            <AnimatePresence>
-                {selectedProject && (
-                    <Lightbox
-                        proyecto={selectedProject}
-                        onClose={() => setSelectedProject(null)}
-                    />
-                )}
-            </AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.65, delay: 0.28 }}
+            className="mt-8 grid max-w-[560px] grid-cols-2 gap-3"
+          >
+            <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Categoría activa</p>
+              <p className="mt-1 text-sm text-white/85">{categoryLabel(activeCategory)}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Proyectos</p>
+              <p className="mt-1 text-sm text-white/85">{proyectos.length}</p>
+            </div>
+          </motion.div>
         </div>
-    );
+      </section>
+
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.35 }}
+        className="sticky top-16 z-40 border-y border-white/10 bg-[#07090d]/80 py-4 backdrop-blur-xl md:top-[72px]"
+      >
+        <div className="mx-auto max-w-[1500px] px-6 md:px-12 lg:px-20">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {CATEGORIES.map((category) => (
+              <Link
+                key={category.id}
+                href={`/trabajos?category=${category.id}`}
+                className={`flex-shrink-0 rounded-full border px-4 py-2 text-sm transition-colors ${
+                  activeCategory === category.id
+                    ? "border-white/30 bg-white text-black"
+                    : "border-white/10 bg-black/35 text-white/60 hover:text-white"
+                }`}
+              >
+                {category.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      <section className="relative py-12 md:py-16">
+        <div className="mx-auto max-w-[1500px] space-y-6 px-6 md:space-y-8 md:px-12 lg:px-20">
+          {proyectos.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="rounded-2xl border border-dashed border-white/15 bg-black/25 px-6 py-16 text-center"
+            >
+              <p className="text-lg text-white/60">No hay proyectos en esta categoría todavía.</p>
+              <Link href="/contacto" className="mt-4 inline-flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-white/70 hover:text-white">
+                Contactanos para tu proyecto
+                <ArrowRight size={14} />
+              </Link>
+            </motion.div>
+          ) : (
+            <>
+              {leadProject && <LeadProject proyecto={leadProject} onOpen={() => setSelectedProject(leadProject)} />}
+
+              {otherProjects.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {otherProjects.map((proyecto, index) => (
+                    <ProjectCard
+                      key={proyecto.id}
+                      proyecto={proyecto}
+                      index={index}
+                      onOpen={() => setSelectedProject(proyecto)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="relative border-t border-white/10 py-20 md:py-28">
+        <div className="mx-auto max-w-[1100px] px-6 text-center md:px-12 lg:px-20">
+          <motion.h2
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="font-display text-4xl md:text-5xl font-light text-white"
+          >
+            ¿Querés un proyecto así?
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.08 }}
+            className="mx-auto mt-5 max-w-[620px] text-white/60"
+          >
+            Te ayudamos a traducir una idea en una propuesta visual sólida, ejecutable y con resultados medibles.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.16 }}
+            className="mt-9"
+          >
+            <Link
+              href="/contacto"
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.06] px-6 py-3 text-sm uppercase tracking-[0.16em] text-white/80 transition-colors hover:bg-white hover:text-black"
+            >
+              Hablemos de tu proyecto
+              <ArrowRight size={14} />
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      <AnimatePresence>
+        {selectedProject && <Lightbox proyecto={selectedProject} onClose={() => setSelectedProject(null)} />}
+      </AnimatePresence>
+    </div>
+  )
 }

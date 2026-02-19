@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.proyectos (
   descripcion TEXT,
   categoria TEXT NOT NULL,
   imagen_url TEXT,
+  galeria_urls TEXT[] NOT NULL DEFAULT '{}',
   destacado BOOLEAN DEFAULT false,
   orden INT DEFAULT 0,
   fecha_creacion TIMESTAMPTZ DEFAULT NOW()

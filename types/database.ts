@@ -6,6 +6,7 @@ export interface Proyecto {
   descripcion: string | null;
   categoria: string;
   imagen_url: string | null;
+  galeria_urls: string[] | null;
   destacado: boolean;
   fecha_creacion: string;
   orden: number;
@@ -16,6 +17,7 @@ export interface ProyectoInsert {
   descripcion?: string | null;
   categoria: string;
   imagen_url?: string | null;
+  galeria_urls?: string[] | null;
   destacado?: boolean;
   orden?: number;
 }
@@ -25,6 +27,7 @@ export interface ProyectoUpdate {
   descripcion?: string | null;
   categoria?: string;
   imagen_url?: string | null;
+  galeria_urls?: string[] | null;
   destacado?: boolean;
   orden?: number;
 }

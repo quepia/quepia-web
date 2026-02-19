@@ -6,6 +6,7 @@ import { motion, useInView } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { getProjectCoverImage } from '@/lib/project-images';
 
 interface HomeCarouselProps {
     proyectos: Proyecto[];
@@ -13,6 +14,8 @@ interface HomeCarouselProps {
 
 // Featured Project Card - Full width, cinematic
 function FeaturedProject({ proyecto, index }: { proyecto: Proyecto; index: number }) {
+    const coverImage = getProjectCoverImage(proyecto);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -23,9 +26,9 @@ function FeaturedProject({ proyecto, index }: { proyecto: Proyecto; index: numbe
             <Link href={`/trabajos?category=${proyecto.categoria}`}>
                 <div className="group relative aspect-[16/9] md:aspect-[21/9] rounded-lg overflow-hidden cursor-pointer">
                     {/* Background Image */}
-                    {proyecto.imagen_url ? (
+                    {coverImage ? (
                         <Image
-                            src={proyecto.imagen_url}
+                            src={coverImage}
                             alt={proyecto.titulo}
                             fill
                             className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -71,6 +74,8 @@ function FeaturedProject({ proyecto, index }: { proyecto: Proyecto; index: numbe
 
 // Secondary Project Card - Smaller, grid layout
 function SecondaryProject({ proyecto, index }: { proyecto: Proyecto; index: number }) {
+    const coverImage = getProjectCoverImage(proyecto);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -81,9 +86,9 @@ function SecondaryProject({ proyecto, index }: { proyecto: Proyecto; index: numb
             <Link href={`/trabajos?category=${proyecto.categoria}`}>
                 <div className="group relative aspect-[4/5] rounded-lg overflow-hidden cursor-pointer">
                     {/* Background Image */}
-                    {proyecto.imagen_url ? (
+                    {coverImage ? (
                         <Image
-                            src={proyecto.imagen_url}
+                            src={coverImage}
                             alt={proyecto.titulo}
                             fill
                             className="object-cover transition-transform duration-700 group-hover:scale-105"
