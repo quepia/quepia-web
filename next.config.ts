@@ -18,6 +18,19 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  transpilePackages: ['three', '@react-three/fiber', '@react-three/drei', '@react-three/rapier'],
+  webpack: (config, { isServer }) => {
+    // Handle WASM files (needed by @react-three/rapier)
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+    // Prevent WASM from being processed on server side
+    if (isServer) {
+      config.externals = config.externals || [];
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

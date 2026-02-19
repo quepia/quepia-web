@@ -332,7 +332,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                         className={cn(
                             "h-9 px-3 rounded-lg text-xs border transition-colors whitespace-nowrap",
                             hideCompletedTasks
-                                ? "border-quepia-cyan/40 bg-quepia-cyan/10 text-quepia-cyan"
+                                ? "border-[rgba(42,231,228,0.38)] bg-[rgba(42,231,228,0.1)] text-[#41efec]"
                                 : "border-white/10 text-white/70 hover:bg-white/5",
                             completedTasksCount === 0 && !hideCompletedTasks && "opacity-40 cursor-not-allowed"
                         )}
@@ -582,8 +582,8 @@ function KanbanColumn({
     return (
         <div
             className={cn(
-                "w-[280px] sm:w-[320px] flex flex-col shrink-0 rounded-lg transition-colors snap-start",
-                isDragOver && !isAtWipLimit && "bg-quepia-cyan/10",
+                "w-[280px] sm:w-[320px] flex flex-col shrink-0 rounded-2xl border border-[#1f232b] bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.008))] p-3 sm:p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all snap-start",
+                isDragOver && !isAtWipLimit && "bg-[rgba(42,231,228,0.08)]",
                 isDragOver && isAtWipLimit && "bg-red-500/10"
             )}
             onDragOver={onDragOver}
@@ -731,7 +731,7 @@ function KanbanColumn({
             )}
 
             {/* Tasks */}
-            <div className="flex-1 space-y-2 overflow-y-auto pb-4">
+            <div className="flex-1 space-y-3 overflow-y-auto pb-4 pt-1">
                 {organizedTasks.length === 0 && hideCompletedTasks && hiddenCompletedCount > 0 && (
                     <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
                         Esta columna tiene solo tareas completadas.
@@ -822,7 +822,7 @@ function KanbanColumn({
                 ) : (
                     <button
                         onClick={onAddTaskClick}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-quepia-cyan hover:bg-white/5 rounded-lg transition-colors"
+                        className="w-full flex items-center gap-2 rounded-xl border border-dashed border-[#1f3d42] bg-[#0d1215] px-3 py-2.5 text-sm text-[#39e8e5] transition-colors hover:border-[#2c6a70] hover:bg-[#10181d]"
                     >
                         <Plus className="h-4 w-4" />
                         <span>Agregar tarea</span>
@@ -1058,22 +1058,21 @@ const TaskCard = React.memo(function TaskCard({
                 handleFilesUpload(e.dataTransfer.files)
             }}
             className={cn(
-                "relative text-left bg-[#161616] hover:bg-[#1a1a1a] border border-white/[0.04] hover:border-white/[0.08] rounded-lg p-3 transition-all cursor-pointer group overflow-hidden",
-                isDragging && "opacity-50 scale-95 shadow-xl ring-1 ring-quepia-cyan/50",
+                "relative cursor-pointer overflow-hidden rounded-xl border border-[#252a33] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-3.5 py-3 text-left shadow-[0_10px_24px_rgba(0,0,0,0.24)] transition-all duration-200 group hover:-translate-y-[1px] hover:border-[#3a4350] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] hover:shadow-[0_16px_30px_rgba(0,0,0,0.35)]",
+                isDragging && "opacity-50 scale-95 shadow-xl ring-1 ring-[rgba(42,231,228,0.45)]",
                 task.completed && "opacity-60",
-                // Child task styling: indented with gradient background
+                // Child task styling: compact and connected to parent with a subtle accent rail.
                 isChild && [
-                    "ml-8 w-[calc(100%-32px)]",
-                    "bg-gradient-to-r from-quepia-cyan/10 via-quepia-cyan/5 to-transparent",
-                    "shadow-sm"
+                    "ml-6 w-[calc(100%-24px)] border-[#263841] bg-[linear-gradient(180deg,rgba(24,41,46,0.55),rgba(18,27,33,0.55))] shadow-[0_6px_18px_rgba(0,0,0,0.22)]",
+                    "before:absolute before:bottom-3 before:left-0 before:top-3 before:w-[2px] before:rounded-full before:bg-[rgba(42,231,228,0.3)]"
                 ],
                 // Parent task with children styling
-                !isChild && isChildTask && "border-l-2 border-l-quepia-cyan/30",
-                isFileDragOver && "border-quepia-cyan/60 bg-quepia-cyan/10"
+                !isChild && isChildTask && "border-l border-l-[rgba(42,231,228,0.35)]",
+                isFileDragOver && "border-[#2ae7e4] bg-[rgba(42,231,228,0.12)] before:bg-[#2ae7e4]"
             )}
         >
             {isFileDragOver && (
-                <div className="absolute inset-0 border-2 border-dashed border-quepia-cyan/60 bg-black/40 flex items-center justify-center z-10 pointer-events-none">
+                <div className="absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-[rgba(42,231,228,0.65)] bg-black/40 pointer-events-none">
                     <div className="flex items-center gap-2 text-[11px] text-white/80">
                         <CloudUpload className="h-4 w-4 text-quepia-cyan" />
                         Soltá para subir assets
@@ -1091,25 +1090,6 @@ const TaskCard = React.memo(function TaskCard({
                     if (e.target.files) handleFilesUpload(e.target.files)
                 }}
             />
-            {/* Tree-style connector for child tasks */}
-            {isChild && (
-                <div className="absolute -left-[32px] top-0 bottom-0 w-8 pointer-events-none">
-                    {/* Vertical line coming from above (parent) */}
-                    <div className="absolute left-[11px] top-0 w-[2px] bg-quepia-cyan/40 h-1/2" />
-
-                    {/* If there are more siblings below, extend vertical line further down */}
-                    {hasMoreSiblings && (
-                        <div className="absolute left-[11px] top-1/2 w-[2px] bg-quepia-cyan/40 h-1/2" />
-                    )}
-
-                    {/* Horizontal line to the card */}
-                    <div className="absolute left-[11px] top-1/2 w-[18px] h-[2px] bg-quepia-cyan/50" />
-
-                    {/* Corner/curve at the junction */}
-                    <div className="absolute left-[9px] top-[calc(50%-2px)] w-[6px] h-[6px] rounded-full bg-quepia-cyan border-2 border-[#0a0a0a]" />
-                </div>
-            )}
-
             {/* Parent connector removed to avoid visual artifacts in compact cards */}
             <div className="flex items-start gap-3">
                 {/* Circular Checkbox (Todoist Style) */}
@@ -1169,7 +1149,10 @@ const TaskCard = React.memo(function TaskCard({
 
                     {/* Description */}
                     {task.descripcion && (
-                        <p className="text-xs text-[#808080] line-clamp-2 mb-2.5 font-normal leading-relaxed">
+                        <p className={cn(
+                            "line-clamp-2 mb-2.5 font-normal leading-relaxed text-white/45",
+                            isChild ? "text-[11px]" : "text-xs"
+                        )}>
                             {task.descripcion}
                         </p>
                     )}
@@ -1247,7 +1230,7 @@ const TaskCard = React.memo(function TaskCard({
                         {/* Parent Task Indicator - Shows when task was converted from subtask */}
                         {task.parent_task_id && (
                             <span
-                                className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-md bg-quepia-cyan/15 text-quepia-cyan font-medium border border-quepia-cyan/20"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(42,231,228,0.38)] bg-[rgba(42,231,228,0.1)] px-2 py-0.5 text-[10px] font-medium text-[#5cf5f2]"
                                 title={task.parent_task?.titulo ? `Subtarea de: ${task.parent_task.titulo}` : 'Tarea convertida desde subtarea'}
                             >
                                 <GitBranch className="h-3 w-3" />
@@ -1315,7 +1298,7 @@ const TaskCard = React.memo(function TaskCard({
                                 e.stopPropagation()
                                 fileInputRef.current?.click()
                             }}
-                            className="mt-2 inline-flex items-center gap-1 text-[10px] text-quepia-cyan hover:underline"
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-[rgba(42,231,228,0.32)] bg-[rgba(42,231,228,0.08)] px-2.5 py-1 text-[11px] text-[#41efec] transition-all duration-200 hover:border-[rgba(42,231,228,0.5)] hover:bg-[rgba(42,231,228,0.14)]"
                         >
                             <CloudUpload className="h-3 w-3" />
                             Subir assets
