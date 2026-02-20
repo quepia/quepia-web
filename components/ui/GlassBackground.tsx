@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, MeshTransmissionMaterial, Float } from '@react-three/drei';
+import { MeshTransmissionMaterial, Float } from '@react-three/drei';
 import { Physics, RigidBody, RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
 import { useModal } from '@/context/ModalContext';
@@ -129,7 +129,6 @@ function DesktopBackground({ paused, lowPower }: { paused: boolean; lowPower: bo
             }}
             frameloop={paused ? 'demand' : 'always'}
         >
-            <Environment preset="city" />
             <ambientLight intensity={0.8} />
             <pointLight position={[10, 10, 10]} intensity={2} />
             <pointLight position={[-10, -10, 5]} intensity={1} color={COLORS.cyan} />
