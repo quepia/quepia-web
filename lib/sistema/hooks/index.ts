@@ -25,3 +25,4 @@ export { useTaskDependencies } from './useDependencies';
 export { useProposals, useAllClientAccess } from './useProposals';
 export { useProposalTemplates } from './useProposalTemplates';
 export { useCrmPipeline } from './useCrmPipeline';
+export { useEfemerides, useEfemeridesProyectos } from './useEfemerides';

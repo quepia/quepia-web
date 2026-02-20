@@ -33,6 +33,7 @@ const GLOBAL_VIEWS = new Set([
     "admin-config",
     "admin-team",
     "accounting",
+    "efemerides",
 ])
 
 const TASK_VIEWS = new Set([
@@ -59,6 +60,7 @@ const ADMIN_VIEWS = new Set([
     "accounting",
     "crm",
     "proposals",
+    "efemerides",
 ])
 
 const VIEW_LABELS: Record<string, string> = {
@@ -74,6 +76,7 @@ const VIEW_LABELS: Record<string, string> = {
     portfolio: "Portafolios",
     proposals: "Propuestas",
     crm: "CRM",
+    efemerides: "Efemérides",
 }
 
 const ViewFallback = () => (
@@ -178,6 +181,10 @@ const AccountingView = dynamic(
 )
 const CrmPipelineView = dynamic(
     () => import("@/components/sistema/quepia/crm-pipeline-view").then((mod) => mod.CrmPipelineView),
+    { loading: ViewFallback }
+)
+const EfemeridesView = dynamic(
+    () => import("@/components/sistema/quepia/efemerides-view").then((mod) => mod.EfemeridesView),
     { loading: ViewFallback }
 )
 const ProjectMembersModal = dynamic(
@@ -691,6 +698,9 @@ export default function DashboardPage() {
             case "crm":
                 if (!isAdmin) return null
                 return <CrmPipelineView userId={user?.id} />
+            case "efemerides":
+                if (!isAdmin) return null
+                return <EfemeridesView projects={projects} userId={user?.id} isAdmin={isAdmin} />
             case "accounting":
                 if (!isAdmin) return null
                 return <AccountingView projects={projects} />

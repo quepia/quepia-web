@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/efemerides/check",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

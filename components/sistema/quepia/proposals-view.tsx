@@ -291,8 +291,15 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
 
         if (Array.isArray(section.items)) {
           section.items.forEach((item: any, itemIndex: number) => {
-            const qty = Number(item.quantity || 1)
-            const unit = Number(item.unit_price || 0)
+            const parseNum = (val: any, fallback: number) => {
+              if (typeof val === 'number') return val
+              if (!val) return fallback
+              const stripped = String(val).replace(/[^0-9.-]+/g, '')
+              const n = parseFloat(stripped)
+              return isNaN(n) ? fallback : n
+            }
+            const qty = parseNum(item.quantity, 1)
+            const unit = parseNum(item.unit_price, 0)
             newItems.push({
               temp_id: crypto.randomUUID(),
               section_temp_id: sectionId,
@@ -307,11 +314,16 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
         }
       })
 
+      let finalCurrency = String(parsed.currency || form.currency).toUpperCase().trim()
+      if (!['ARS', 'USD', 'EUR'].includes(finalCurrency)) {
+        finalCurrency = form.currency
+      }
+
       setForm((prev) => ({
         ...prev,
         title: parsed.title || prev.title,
         summary: parsed.summary || prev.summary,
-        currency: parsed.currency || prev.currency,
+        currency: finalCurrency as ProposalCurrency,
       }))
       setSections(newSections)
       setItems(newItems)
@@ -463,6 +475,8 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
         await refresh()
         setIsModalOpen(false)
         resetForm()
+      } else {
+        alert(result.error?.message || "Ocurrió un error al guardar la propuesta. Revisá que todos los campos sean válidos.")
       }
     } finally {
       setIsSaving(false)

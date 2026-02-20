@@ -6,13 +6,14 @@ import MentionEmail from '@/components/emails/MentionEmail';
 import ContactFormEmail from '@/components/emails/ContactFormEmail';
 import GeneralNotificationEmail from '@/components/emails/GeneralNotificationEmail';
 import ProposalEmail from '@/components/emails/ProposalEmail';
+import EfemerideReminderEmail from '@/components/emails/EfemerideReminderEmail';
 // cleaned up imports
 
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
 
-export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification' | 'proposal';
+export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification' | 'proposal' | 'efemeride_reminder';
 
 export interface SendEmailParams {
     type: EmailType;
@@ -53,6 +54,10 @@ export async function sendEmail({ type, to, data }: SendEmailParams) {
             case 'proposal':
                 subject = `Propuesta: ${data.proposalTitle}`;
                 html = await render(ProposalEmail(data as any));
+                break;
+            case 'efemeride_reminder':
+                subject = `Recordatorio: ${data.efemerideName} en ${data.daysLeft} días`;
+                html = await render(EfemerideReminderEmail(data as any));
                 break;
             default:
                 return { success: false, error: `Unsupported email type: ${type}` };

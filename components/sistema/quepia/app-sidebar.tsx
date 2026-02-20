@@ -40,6 +40,7 @@ import {
     Calculator,
     Shield,
     FileText,
+    CalendarHeart,
     type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
@@ -267,6 +268,7 @@ export function AppSidebar({
             items.push(
                 { id: "crm", icon: Briefcase, label: "CRM", isAdmin: true },
                 { id: "proposals", icon: FileText, label: "Propuestas", isAdmin: true },
+                { id: "efemerides", icon: CalendarHeart, label: "Efemérides", isAdmin: true },
                 { id: "accounting", icon: Calculator, label: "Contabilidad", isAdmin: true },
                 { id: "admin-users", icon: Users, label: "Usuarios", isAdmin: true },
                 { id: "admin-projects", icon: Folder, label: "Portfolio", isAdmin: true },

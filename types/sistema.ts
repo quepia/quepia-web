@@ -962,3 +962,127 @@ export interface ClientBriefUpdate {
   content_frequency?: string | null;
   key_messages?: string | null;
 }
+
+// ============ EFEMERIDES ============
+export type EfemerideCategoria = 'patria' | 'comercial' | 'conmemorativa' | 'otro' | 'general';
+export type EfemerideProyectoEstado = 'pendiente' | 'en_progreso' | 'lista' | 'publicada';
+
+export interface Efemeride {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  fecha_mes: number;
+  fecha_dia: number;
+  categoria: EfemerideCategoria;
+  dias_anticipacion: number;
+  recurrente: boolean;
+  activa: boolean;
+  global: boolean;
+  project_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EfemerideInsert {
+  nombre: string;
+  descripcion?: string | null;
+  fecha_mes: number;
+  fecha_dia: number;
+  categoria?: EfemerideCategoria;
+  dias_anticipacion?: number;
+  recurrente?: boolean;
+  activa?: boolean;
+  global?: boolean;
+  project_id?: string | null;
+  created_by?: string | null;
+}
+
+export interface EfemerideUpdate {
+  nombre?: string;
+  descripcion?: string | null;
+  fecha_mes?: number;
+  fecha_dia?: number;
+  categoria?: EfemerideCategoria;
+  dias_anticipacion?: number;
+  recurrente?: boolean;
+  activa?: boolean;
+  global?: boolean;
+  project_id?: string | null;
+}
+
+export interface EfemerideProyecto {
+  id: string;
+  efemeride_id: string;
+  project_id: string;
+  anio: number;
+  estado: EfemerideProyectoEstado;
+  asset_url: string | null;
+  asset_storage_path: string | null;
+  thumbnail_url: string | null;
+  notas: string | null;
+  calendar_event_id: string | null;
+  task_id: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EfemerideProyectoInsert {
+  efemeride_id: string;
+  project_id: string;
+  anio: number;
+  estado?: EfemerideProyectoEstado;
+  asset_url?: string | null;
+  asset_storage_path?: string | null;
+  thumbnail_url?: string | null;
+  notas?: string | null;
+  calendar_event_id?: string | null;
+  task_id?: string | null;
+  uploaded_by?: string | null;
+}
+
+export interface EfemerideProyectoUpdate {
+  estado?: EfemerideProyectoEstado;
+  asset_url?: string | null;
+  asset_storage_path?: string | null;
+  thumbnail_url?: string | null;
+  notas?: string | null;
+  calendar_event_id?: string | null;
+  task_id?: string | null;
+  uploaded_by?: string | null;
+}
+
+export interface EfemerideWithProyectos extends Efemeride {
+  proyectos?: EfemerideProyecto[];
+}
+
+export const EFEMERIDE_CATEGORIA_LABELS: Record<EfemerideCategoria, string> = {
+  patria: 'Patria',
+  comercial: 'Comercial',
+  conmemorativa: 'Conmemorativa',
+  otro: 'Otro',
+  general: 'General',
+};
+
+export const EFEMERIDE_CATEGORIA_COLORS: Record<EfemerideCategoria, string> = {
+  patria: '#3b82f6',
+  comercial: '#22c55e',
+  conmemorativa: '#f97316',
+  otro: '#6b7280',
+  general: '#8b5cf6',
+};
+
+export const EFEMERIDE_ESTADO_LABELS: Record<EfemerideProyectoEstado, string> = {
+  pendiente: 'Pendiente',
+  en_progreso: 'En progreso',
+  lista: 'Lista',
+  publicada: 'Publicada',
+};
+
+export const EFEMERIDE_ESTADO_COLORS: Record<EfemerideProyectoEstado, string> = {
+  pendiente: '#dc2626',
+  en_progreso: '#eab308',
+  lista: '#22c55e',
+  publicada: '#6b7280',
+};
