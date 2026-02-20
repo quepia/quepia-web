@@ -43,7 +43,7 @@ const AnimatedWords = ({ text, className = "" }: { text: string; className?: str
                     }}
                     className="inline-block mr-[0.25em]"
                 >
-                    {word}
+                    {word}{' '}
                 </motion.span>
             ))}
         </span>

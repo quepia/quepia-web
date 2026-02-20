@@ -13,6 +13,7 @@ const Footer: React.FC = () => {
         { name: 'Instagram', url: config.instagram },
         { name: 'LinkedIn', url: config.linkedin },
         { name: 'Behance', url: config.behance },
+        { name: 'Google Maps', url: config.google_maps || config.google_business },
     ].filter(link => link.url);
 
     return (

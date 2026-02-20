@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { createPublicClient } from '@/lib/supabase/public';
 import HomeCarousel from '@/components/home/HomeCarousel';
 import ServicesGrid from '@/components/home/ServicesGrid';
@@ -10,6 +11,26 @@ import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 
 // ISR: Revalidate every 60 seconds
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: 'Quepia - Consultora Creativa | Villa Carlos Paz, Córdoba',
+  description: 'Quepia es una consultora creativa de Villa Carlos Paz, Córdoba. Transformamos marcas con diseño gráfico, branding y marketing digital.',
+  alternates: {
+    canonical: 'https://quepia.com',
+  },
+  openGraph: {
+    title: 'Quepia - (RE)INVENTÁ TU MARCA',
+    description: 'Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico, branding y marketing digital en Córdoba, Argentina.',
+    url: 'https://quepia.com',
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Quepia Creative Agency' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Quepia - (RE)INVENTÁ TU MARCA',
+    description: 'Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico y branding en Córdoba.',
+    images: ['/og-image.jpg'],
+  },
+};
 
 export default async function Home() {
   const supabase = createPublicClient();

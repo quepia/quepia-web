@@ -9,6 +9,12 @@ export interface SiteConfig {
     instagram?: string;
     linkedin?: string;
     behance?: string;
+    facebook?: string;
+    youtube?: string;
+    tiktok?: string;
+    twitter?: string;
+    google_maps?: string;
+    google_business?: string;
     direccion?: string;
     horario_dias?: string;
     horario_horas?: string;

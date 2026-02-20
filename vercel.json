@@ -4,5 +4,13 @@
       "path": "/api/efemerides/check",
       "schedule": "0 9 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.quepia.com" }],
+      "destination": "https://quepia.com/:path*",
+      "permanent": true
+    }
   ]
 }

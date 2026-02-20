@@ -82,9 +82,55 @@ export default async function RootLayout({
 }>) {
   // Fetch site config on the server
   const config = await getSiteConfigServer();
+  const sameAs = [
+    config.instagram,
+    config.linkedin,
+    config.behance,
+    config.facebook,
+    config.youtube,
+    config.tiktok,
+    config.twitter,
+    config.google_maps,
+  ].filter((url): url is string => typeof url === 'string' && /^https?:\/\//.test(url));
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': ['LocalBusiness', 'ProfessionalService'],
+    '@id': 'https://quepia.com/#organization',
+    name: 'Quepia',
+    alternateName: 'Quepia Creative Agency',
+    description: 'Consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Especialistas en diseño gráfico, branding, marketing digital, gestión de redes sociales y producción audiovisual.',
+    url: 'https://quepia.com',
+    logo: 'https://quepia.com/Logo_Quepia.svg',
+    image: 'https://quepia.com/og-image.jpg',
+    email: 'hola@quepia.com',
+    telephone: '+54-351-397-0227',
+    foundingDate: '2020',
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Villa Carlos Paz',
+      addressRegion: 'Córdoba',
+      addressCountry: 'AR',
+    },
+    openingHoursSpecification: {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      opens: '09:00',
+      closes: '18:00',
+    },
+    sameAs: sameAs.length > 0 ? sameAs : ['https://instagram.com/quepiastudio'],
+    areaServed: { '@type': 'Country', name: 'Argentina' },
+    priceRange: '$$',
+  };
 
   return (
     <html lang="es">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased min-h-screen`}>
         <ClientLayout config={config}>
           {children}

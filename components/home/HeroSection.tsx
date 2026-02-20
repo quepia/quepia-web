@@ -77,7 +77,7 @@ const HoverWord = ({ word, delay }: { word: string; delay: number }) => {
           transition: 'text-shadow 0.3s ease',
         }}
       >
-        {word}
+        {word}{' '}
       </motion.span>
     </motion.span>
   );

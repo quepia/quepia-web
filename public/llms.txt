@@ -1,0 +1,40 @@
+# Quepia - Consultora Creativa
+
+> Quepia es una consultora creativa fundada en 2020, con sede en Villa Carlos Paz, Córdoba, Argentina. Nos especializamos en diseño gráfico, branding, marketing digital, gestión de redes sociales, producción de video y fotografía.
+
+## Acerca de Quepia
+
+Quepia nació con el propósito de transformar marcas en experiencias visuales memorables. Trabajamos con empresas y emprendedores de Córdoba y de todo el país, ofreciendo soluciones creativas integrales que combinan estrategia, diseño y comunicación.
+
+**Fundación:** 2020
+**Ubicación:** Villa Carlos Paz, Córdoba, Argentina
+**Proyectos realizados:** 50+
+**Email:** hola@quepia.com
+**Teléfono:** +54 351 397 0227
+**Instagram:** https://instagram.com/quepiastudio
+
+## Equipo
+
+- **Lautaro López Labrin** — Director Creativo
+- **Camila De Angelis** — Diseñadora
+
+## Servicios
+
+- Diseño Gráfico
+- Branding e Identidad Visual
+- Gestión de Redes Sociales
+- Producción de Video
+- Fotografía
+- Marketing Digital
+- Diseño de Packaging
+- Cartelería y Señalética
+
+## Páginas del sitio
+
+- [Inicio](https://quepia.com)
+- [Servicios](https://quepia.com/servicios)
+- [Trabajos / Portfolio](https://quepia.com/trabajos)
+- [Sobre Nosotros](https://quepia.com/sobre-nosotros)
+- [Contacto](https://quepia.com/contacto)
+- [Política de Privacidad](https://quepia.com/privacidad)
+- [Términos y Condiciones](https://quepia.com/terminos)
