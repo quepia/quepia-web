@@ -476,7 +476,7 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
         setIsModalOpen(false)
         resetForm()
       } else {
-        alert(result.error?.message || "Ocurrió un error al guardar la propuesta. Revisá que todos los campos sean válidos.")
+        alert((result.error as any)?.message || result.error || "Ocurrió un error al guardar la propuesta. Revisá que todos los campos sean válidos.")
       }
     } finally {
       setIsSaving(false)
