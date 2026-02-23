@@ -306,7 +306,8 @@ body {
 }
 
 .animate-blob {
-  animation: blob 7s infinite;
+  animation: blob 14s ease-in-out infinite;
+  will-change: transform;
 }
 
 .animation-delay-2000 {
@@ -428,7 +429,136 @@ body {
 
 .animate-gradient {
   background-size: 200% 200%;
-  animation: gradientShift 8s ease infinite;
+  animation: gradientShift 18s ease infinite;
+  will-change: background-position;
+}
+
+/* Subtle branded depth background */
+@keyframes brandDepthCyan {
+  0% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(6%, 3%, 0) scale(1.06);
+  }
+
+  100% {
+    transform: translate3d(2%, -2%, 0) scale(1.02);
+  }
+}
+
+@keyframes brandDepthPurple {
+  0% {
+    transform: translate3d(0%, 0%, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-5%, -3%, 0) scale(1.05);
+  }
+
+  100% {
+    transform: translate3d(-2%, 2%, 0) scale(1.02);
+  }
+}
+
+.brand-depth-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.brand-depth-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.brand-depth-orb-cyan {
+  width: min(78vw, 980px);
+  height: min(78vw, 980px);
+  left: -24%;
+  top: -22%;
+  opacity: 0.12;
+  background: radial-gradient(circle,
+      rgba(42, 231, 228, 0.28) 0%,
+      rgba(42, 231, 228, 0.1) 42%,
+      transparent 74%);
+  animation: brandDepthCyan 28s ease-in-out infinite alternate;
+}
+
+.brand-depth-orb-purple {
+  width: min(74vw, 940px);
+  height: min(74vw, 940px);
+  right: -22%;
+  bottom: -26%;
+  opacity: 0.11;
+  background: radial-gradient(circle,
+      rgba(136, 16, 120, 0.28) 0%,
+      rgba(136, 16, 120, 0.1) 44%,
+      transparent 76%);
+  animation: brandDepthPurple 32s ease-in-out infinite alternate;
+}
+
+.brand-depth-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 10%, rgba(42, 231, 228, 0.03) 0%, transparent 65%),
+    radial-gradient(ellipse 80% 65% at 50% 100%, rgba(136, 16, 120, 0.04) 0%, transparent 68%);
+}
+
+@keyframes marqueeLeft {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes marqueeRight {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.marquee-track {
+  width: max-content;
+  will-change: transform;
+}
+
+.animate-marquee-left {
+  animation: marqueeLeft 36s linear infinite;
+}
+
+.animate-marquee-right {
+  animation: marqueeRight 36s linear infinite;
+}
+
+@media (max-width: 768px) {
+  .animate-blob,
+  .animate-gradient {
+    animation: none !important;
+  }
+
+  .brand-depth-orb {
+    filter: blur(90px);
+  }
+
+  .animate-marquee-left,
+  .animate-marquee-right {
+    animation-duration: 52s;
+  }
 }
 
 /* Liquid Glass Effect Utilities */
@@ -640,6 +770,12 @@ html {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .brand-depth-orb-cyan,
+  .brand-depth-orb-purple {
+    animation: none !important;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 

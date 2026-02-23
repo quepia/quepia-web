@@ -3,16 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import HeroVideoBackground from './HeroVideoBackground';
-
-// Dynamically import the 3D background component (no SSR)
-const ParticleBackground = dynamic(() => import('./ParticleBackground'), {
-  ssr: false,
-  loading: () => (
-    <div className="absolute inset-0 bg-transparent" />
-  ),
-});
 
 interface HeroSectionProps {
   subtitle?: string;
@@ -30,8 +21,8 @@ const AnimatedElement = ({
 }) => (
   <motion.div
     className={className}
-    initial={{ opacity: 0, y: 30, filter: 'blur(8px)' }}
-    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+    initial={{ opacity: 0, y: 30 }}
+    animate={{ opacity: 1, y: 0 }}
     transition={{
       duration: 0.8,
       delay,
@@ -48,8 +39,8 @@ const HoverWord = ({ word, delay }: { word: string; delay: number }) => {
 
   return (
     <motion.span
-      initial={{ opacity: 0, y: 25, filter: 'blur(6px)' }}
-      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      initial={{ opacity: 0, y: 25 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{
         duration: 0.6,
         delay,
@@ -108,8 +99,8 @@ const AnimatedLetters = ({ text, className = "", baseDelay = 0.2 }: {
       {letters.map((letter, index) => (
         <motion.span
           key={index}
-          initial={{ opacity: 0, y: 15, filter: 'blur(4px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{
             duration: 0.4,
             delay: baseDelay + index * 0.03,
@@ -135,7 +126,6 @@ const AnimatedLetters = ({ text, className = "", baseDelay = 0.2 }: {
 export default function HeroSection({ subtitle }: HeroSectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isHeroInView = useInView(containerRef, { margin: "-20% 0px" });
-  const enableHeroWebgl = process.env.NEXT_PUBLIC_ENABLE_HERO_WEBGL === 'true';
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
@@ -148,13 +138,9 @@ export default function HeroSection({ subtitle }: HeroSectionProps) {
       ref={containerRef}
       className="relative min-h-screen w-full flex items-center overflow-hidden"
     >
-      {/* Video + Particles Background — semi-transparent so GlassBackground shows through */}
+      {/* Video background — semi-transparent so GlassBackground shows through */}
       <div className="absolute inset-0 z-0 opacity-80">
-        {enableHeroWebgl ? (
-          <ParticleBackground active={isHeroInView} />
-        ) : (
-          <HeroVideoBackground active={isHeroInView} />
-        )}
+        <HeroVideoBackground active={isHeroInView} />
       </div>
 
       {/* Gradient overlays for text readability */}

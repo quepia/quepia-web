@@ -16,7 +16,10 @@ export default function PageTransition({ children }: PageTransitionProps) {
   const isAdminRoute = pathname?.startsWith('/admin');
   const isAuthRoute = pathname?.startsWith('/auth');
   const isSistemaRoute = pathname?.startsWith('/sistema');
-  const skipAnimation = isAdminRoute || isAuthRoute || isSistemaRoute;
+  const isServicesRoute = pathname?.startsWith('/servicios');
+  const isAboutRoute = pathname?.startsWith('/sobre-nosotros');
+  const isContactRoute = pathname?.startsWith('/contacto');
+  const skipAnimation = isAdminRoute || isAuthRoute || isSistemaRoute || isServicesRoute || isAboutRoute || isContactRoute;
 
   if (skipAnimation || prefersReducedMotion) {
     return <>{children}</>;

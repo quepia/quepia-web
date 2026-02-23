@@ -6,6 +6,7 @@ import { useRef } from 'react';
 import { MapPin, Heart, Sparkles, Users, Instagram, Linkedin, Mail } from 'lucide-react';
 import Image from 'next/image';
 import { Equipo } from '@/types/database';
+import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 
 // Company values
 const values = [
@@ -25,30 +26,6 @@ const values = [
         description: 'Creemos en devolver a la comunidad. Apoyamos proyectos locales y causas que importan.'
     }
 ];
-
-// Animated words component
-const AnimatedWords = ({ text, className = "" }: { text: string; className?: string }) => {
-    const words = text.split(" ");
-    return (
-        <span className={className}>
-            {words.map((word, index) => (
-                <motion.span
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                        duration: 0.5,
-                        delay: 0.2 + index * 0.06,
-                        ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="inline-block mr-[0.25em]"
-                >
-                    {word}{' '}
-                </motion.span>
-            ))}
-        </span>
-    );
-};
 
 // Statement section with large text
 function StatementSection() {
@@ -179,26 +156,21 @@ export default function AboutClient({ team }: AboutClientProps) {
 
     return (
         <div className="relative">
+            <BrandDepthBackground />
+
             {/* Hero Section */}
             <section ref={heroRef} className="relative min-h-[70vh] flex items-center justify-center pt-20 overflow-hidden">
                 {/* Background effects */}
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-0 bg-gradient-to-b from-quepia-purple/5 via-transparent to-transparent" />
-                    <motion.div 
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-15"
-                        animate={{ 
-                            scale: [1, 1.1, 1],
-                            rotate: [0, 5, 0]
-                        }}
-                        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-                    >
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-15">
                         <div 
-                            className="absolute inset-0 rounded-full blur-3xl"
+                            className="absolute inset-0 rounded-full blur-[90px]"
                             style={{
                                 background: 'radial-gradient(circle, rgba(136,16,120,0.2) 0%, rgba(42,231,228,0.1) 50%, transparent 70%)'
                             }}
                         />
-                    </motion.div>
+                    </div>
                 </div>
 
                 <div className="relative z-10 max-w-[1200px] mx-auto px-6 md:px-12 lg:px-20 text-center">
@@ -213,43 +185,42 @@ export default function AboutClient({ team }: AboutClientProps) {
                     </motion.span>
 
                     {/* Main heading */}
-                    <h1 className="font-display text-hero text-white mb-8">
-                        <AnimatedWords text="Más que una agencia," />
+                    <motion.h1
+                        className="font-display text-hero text-white mb-8"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        Más que una agencia,
                         <br />
                         <span className="text-white/80">
-                            <AnimatedWords text="somos tu equipo creativo" />
+                            somos tu equipo creativo
                         </span>
-                    </h1>
+                    </motion.h1>
 
                     {/* Subtitle */}
                     <motion.p
                         className="text-white/50 text-lg md:text-xl max-w-[700px] mx-auto"
                         initial={{ opacity: 0, y: 20 }}
                         animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6, delay: 0.5 }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
                     >
                         Nacimos para transformar ideas en experiencias visuales que conectan, inspiran y generan resultados.
                     </motion.p>
                 </div>
 
                 {/* Scroll indicator */}
-                <motion.div
+                <div
                     className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20"
-                    initial={{ opacity: 0 }}
-                    animate={isHeroInView ? { opacity: 1 } : {}}
-                    transition={{ delay: 0.8, duration: 0.5 }}
                 >
-                    <motion.div
-                        className="flex flex-col items-center gap-2 cursor-pointer group"
-                        animate={{ y: [0, 5, 0] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    >
+                    <div className="flex flex-col items-center gap-2 cursor-pointer group">
                         <span className="text-white/25 text-[10px] uppercase tracking-[0.3em] group-hover:text-white/40 transition-colors">
                             Scroll
                         </span>
                         <div className="w-px h-6 bg-gradient-to-b from-white/25 to-transparent group-hover:from-white/40 transition-colors" />
-                    </motion.div>
-                </motion.div>
+                    </div>
+                </div>
             </section>
 
             {/* Statement Section */}
@@ -268,8 +239,14 @@ export default function AboutClient({ team }: AboutClientProps) {
                             className="relative order-2 lg:order-1"
                         >
                             <div className="relative rounded-2xl overflow-hidden border border-white/5">
-                                <div className="aspect-[4/3] bg-gradient-to-br from-quepia-purple/20 to-quepia-cyan/20 flex items-center justify-center">
-                                    <span className="text-white/20 text-lg">Villa Carlos Paz</span>
+                                <div className="relative aspect-[4/3]">
+                                    <Image
+                                        src="/images/villa-carlos-paz.avif"
+                                        alt="Vista aérea de Villa Carlos Paz, Córdoba"
+                                        fill
+                                        className="object-cover"
+                                        sizes="(max-width: 1024px) 100vw, 50vw"
+                                    />
                                 </div>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                                 <div className="absolute bottom-6 left-6 flex items-center gap-2 text-white">

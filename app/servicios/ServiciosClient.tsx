@@ -6,34 +6,11 @@ import { motion, useInView } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import { Servicio } from '@/types/database';
 import { getServiceIconByName } from '@/lib/service-icons';
+import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 
 interface ServiciosClientProps {
     servicios: Servicio[];
 }
-
-// Animated words component
-const AnimatedWords = ({ text, className = "" }: { text: string; className?: string }) => {
-    const words = text.split(" ");
-    return (
-        <span className={className}>
-            {words.map((word, index) => (
-                <motion.span
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                        duration: 0.5,
-                        delay: 0.2 + index * 0.06,
-                        ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="inline-block mr-[0.25em]"
-                >
-                    {word}{' '}
-                </motion.span>
-            ))}
-        </span>
-    );
-};
 
 // Service Card Component - Asymmetric Grid Style
 function ServiceCard({ 
@@ -121,26 +98,21 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
 
     return (
         <div className="relative">
+            <BrandDepthBackground />
+
             {/* Hero Section */}
             <section ref={heroRef} className="relative min-h-[70vh] flex items-center justify-center pt-20 overflow-hidden">
                 {/* Background gradient */}
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-0 bg-gradient-to-b from-quepia-purple/5 via-transparent to-transparent" />
-                    <motion.div 
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-20"
-                        animate={{ 
-                            scale: [1, 1.1, 1],
-                            rotate: [0, 5, 0]
-                        }}
-                        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-                    >
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-20">
                         <div 
-                            className="absolute inset-0 rounded-full blur-3xl animate-gradient"
+                            className="absolute inset-0 rounded-full blur-[90px]"
                             style={{
                                 background: 'radial-gradient(circle, rgba(42,231,228,0.15) 0%, rgba(136,16,120,0.15) 50%, transparent 70%)'
                             }}
                         />
-                    </motion.div>
+                    </div>
                 </div>
 
                 <div className="relative z-10 max-w-[1200px] mx-auto px-6 md:px-12 lg:px-20 text-center">
@@ -155,43 +127,42 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
                     </motion.span>
 
                     {/* Main heading */}
-                    <h1 className="font-display text-hero text-white mb-8">
-                        <AnimatedWords text="Soluciones creativas" />
+                    <motion.h1
+                        className="font-display text-hero text-white mb-8"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        Soluciones creativas
                         <br />
                         <span className="text-white/80">
-                            <AnimatedWords text="para marcas que destacan" />
+                            para marcas que destacan
                         </span>
-                    </h1>
+                    </motion.h1>
 
                     {/* Subtitle */}
                     <motion.p
                         className="text-white/50 text-lg md:text-xl max-w-[600px] mx-auto"
                         initial={{ opacity: 0, y: 20 }}
                         animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6, delay: 0.5 }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
                     >
                         Diseño, estrategia y ejecución que elevan tu presencia en el mercado.
                     </motion.p>
                 </div>
 
                 {/* Scroll indicator */}
-                <motion.div
+                <div
                     className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20"
-                    initial={{ opacity: 0 }}
-                    animate={isHeroInView ? { opacity: 1 } : {}}
-                    transition={{ delay: 0.8, duration: 0.5 }}
                 >
-                    <motion.div
-                        className="flex flex-col items-center gap-2 cursor-pointer group"
-                        animate={{ y: [0, 5, 0] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    >
+                    <div className="flex flex-col items-center gap-2 cursor-pointer group">
                         <span className="text-white/25 text-[10px] uppercase tracking-[0.3em] group-hover:text-white/40 transition-colors">
                             Scroll
                         </span>
                         <div className="w-px h-6 bg-gradient-to-b from-white/25 to-transparent group-hover:from-white/40 transition-colors" />
-                    </motion.div>
-                </motion.div>
+                    </div>
+                </div>
             </section>
 
             {/* Services Grid Section */}

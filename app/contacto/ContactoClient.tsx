@@ -6,30 +6,7 @@ import { motion, useInView } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Mail, MapPin, Instagram, Clock, Phone, Send, LucideIcon } from 'lucide-react';
 import type { SiteConfig } from '@/lib/fetchConfig';
 import { useConfig } from '@/components/layout/ClientLayout';
-
-// Animated words component
-const AnimatedWords = ({ text, className = "" }: { text: string; className?: string }) => {
-    const words = text.split(" ");
-    return (
-        <span className={className}>
-            {words.map((word, index) => (
-                <motion.span
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                        duration: 0.5,
-                        delay: 0.2 + index * 0.06,
-                        ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="inline-block mr-[0.25em]"
-                >
-                    {word}{' '}
-                </motion.span>
-            ))}
-        </span>
-    );
-};
+import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 
 // Contact info card component
 function ContactCard({
@@ -187,26 +164,22 @@ export default function ContactoClient() {
 
     return (
         <div className="relative">
+            <BrandDepthBackground />
+
             {/* Hero Section */}
             <section ref={heroRef} className="relative min-h-[60vh] flex items-center justify-center pt-20 overflow-hidden">
                 {/* Background effects */}
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-0 bg-gradient-to-b from-quepia-purple/5 via-transparent to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-r from-quepia-cyan/5 via-transparent to-transparent" />
-                    <motion.div
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] opacity-15"
-                        animate={{
-                            scale: [1, 1.2, 1],
-                        }}
-                        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-                    >
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] opacity-15">
                         <div
-                            className="absolute inset-0 rounded-full blur-3xl"
+                            className="absolute inset-0 rounded-full blur-[90px]"
                             style={{
                                 background: 'radial-gradient(circle, rgba(42,231,228,0.2) 0%, rgba(136,16,120,0.15) 50%, transparent 70%)'
                             }}
                         />
-                    </motion.div>
+                    </div>
                 </div>
 
                 <div className="relative z-10 max-w-[1200px] mx-auto px-6 md:px-12 lg:px-20 text-center">
@@ -221,20 +194,26 @@ export default function ContactoClient() {
                     </motion.span>
 
                     {/* Main heading */}
-                    <h1 className="font-display text-hero text-white mb-8">
-                        <AnimatedWords text="Hablemos de" />
+                    <motion.h1
+                        className="font-display text-hero text-white mb-8"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
+                        transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ willChange: 'transform, opacity' }}
+                    >
+                        Hablemos de
                         <br />
                         <span className="text-white/80">
-                            <AnimatedWords text="tu proyecto" />
+                            tu proyecto
                         </span>
-                    </h1>
+                    </motion.h1>
 
                     {/* Subtitle */}
                     <motion.p
                         className="text-white/50 text-lg md:text-xl max-w-[600px] mx-auto"
                         initial={{ opacity: 0, y: 20 }}
                         animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6, delay: 0.4 }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
                     >
                         ¿Tenés una idea en mente? Contanos y hagámosla realidad juntos.
                     </motion.p>
