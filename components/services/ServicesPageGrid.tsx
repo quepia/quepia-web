@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import { Servicio } from '@/types/database';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, CheckCircle, X, Image as ImageIcon } from 'lucide-react';
-import * as Icons from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { getServiceIconByName } from '@/lib/service-icons';
 
 interface ServicesPageGridProps {
     servicios: Servicio[];
@@ -16,8 +16,7 @@ export default function ServicesPageGrid({ servicios }: ServicesPageGridProps) {
     const [selectedService, setSelectedService] = useState<Servicio | null>(null);
 
     const getIcon = (iconName: string) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const IconComponent = (Icons as any)[iconName];
+        const IconComponent = getServiceIconByName(iconName);
         return IconComponent ? <IconComponent size={24} /> : null;
     };
 

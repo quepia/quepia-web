@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import { Servicio } from '@/types/database';
-import * as Icons from 'lucide-react';
+import { getServiceIconByName } from '@/lib/service-icons';
 
 interface ServiciosClientProps {
     servicios: Servicio[];
@@ -49,12 +49,7 @@ function ServiceCard({
     const isInView = useInView(ref, { once: true, margin: "-50px" });
     const [isHovered, setIsHovered] = useState(false);
     
-    // Get icon component
-    const getIcon = (iconName: string) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const IconComponent = (Icons as any)[iconName];
-        return IconComponent ? <IconComponent size={isLarge ? 32 : 24} /> : null;
-    };
+    const IconComponent = getServiceIconByName(service.icono);
 
     return (
         <motion.div
@@ -82,7 +77,7 @@ function ServiceCard({
                     <div className={`rounded-xl bg-gradient-to-br from-quepia-purple/20 to-quepia-cyan/20 flex items-center justify-center text-white/70 mb-6 transition-all duration-500 ${
                         isHovered ? 'scale-110 from-quepia-purple/30 to-quepia-cyan/30 text-white' : ''
                     } ${isLarge ? 'w-16 h-16' : 'w-12 h-12'}`}>
-                        {getIcon(service.icono)}
+                        {IconComponent ? <IconComponent size={isLarge ? 32 : 24} /> : null}
                     </div>
 
                     {/* Title */}

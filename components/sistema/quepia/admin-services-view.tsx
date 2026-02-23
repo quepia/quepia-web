@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Servicio, ServicioInsert, SERVICE_ICONS, CATEGORIES } from '@/types/database';
 import { Plus, Pencil, Trash2, X, Loader2, Briefcase } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import * as Icons from 'lucide-react';
+import { getServiceIconByName } from '@/lib/service-icons';
 
 export function AdminServicesView() {
     const [servicios, setServicios] = useState<Servicio[]>([]);
@@ -142,8 +142,7 @@ export function AdminServicesView() {
     };
 
     const getIcon = (iconName: string) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const IconComponent = (Icons as any)[iconName];
+        const IconComponent = getServiceIconByName(iconName);
         return IconComponent ? <IconComponent size={20} /> : null;
     };
 

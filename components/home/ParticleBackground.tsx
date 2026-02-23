@@ -56,15 +56,16 @@ function usePerformanceHints() {
 // Shared mouse position (normalized -1..1)
 const mouseState = { x: 0, y: 0, targetX: 0, targetY: 0 };
 
-function useGlobalMouse() {
+function useGlobalMouse(enabled: boolean) {
   useEffect(() => {
+    if (!enabled) return;
     const onMove = (e: MouseEvent) => {
       mouseState.targetX = (e.clientX / window.innerWidth) * 2 - 1;
       mouseState.targetY = -(e.clientY / window.innerHeight) * 2 + 1;
     };
     window.addEventListener('mousemove', onMove, { passive: true });
     return () => window.removeEventListener('mousemove', onMove);
-  }, []);
+  }, [enabled]);
 }
 
 // Circular particle texture (generated once, reused by all particle systems)
@@ -359,7 +360,7 @@ function VideoBackground({ active }: { active: boolean }) {
         muted
         loop
         playsInline
-        preload="auto"
+        preload="metadata"
       />
 
       {/* Glow effect — soft radial light behind the liquid ball */}
@@ -429,6 +430,7 @@ interface ParticleBackgroundProps {
 }
 
 export default function ParticleBackground({ active = true }: ParticleBackgroundProps) {
+  const heroWebglEnabled = process.env.NEXT_PUBLIC_ENABLE_HERO_WEBGL === 'true';
   const isMobile = useIsMobile();
   const isLowPower = useIsLowPower();
   const prefersReducedMotion = useReducedMotion();
@@ -436,8 +438,9 @@ export default function ParticleBackground({ active = true }: ParticleBackground
   const { saveData, lowCpu } = usePerformanceHints();
   const [webglFailed, setWebglFailed] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const shouldUseWebgl = heroWebglEnabled && !isMobile && !isLowPower && !prefersReducedMotion && !saveData && !lowCpu && !webglFailed;
 
-  useGlobalMouse();
+  useGlobalMouse(shouldUseWebgl);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsReady(true), 100);
@@ -445,6 +448,9 @@ export default function ParticleBackground({ active = true }: ParticleBackground
   }, []);
 
   useEffect(() => {
+    if (!heroWebglEnabled) {
+      return;
+    }
     try {
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -452,9 +458,8 @@ export default function ParticleBackground({ active = true }: ParticleBackground
     } catch {
       setWebglFailed(true);
     }
-  }, []);
+  }, [heroWebglEnabled]);
 
-  const shouldUseWebgl = !isMobile && !isLowPower && !prefersReducedMotion && !saveData && !lowCpu && !webglFailed;
   const isActive = active && isVisible;
 
   // Mobile / low-power → video-only (no Three.js particles)

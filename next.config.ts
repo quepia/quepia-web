@@ -26,8 +26,32 @@ const nextConfig: NextConfig = {
     ];
 
     const noIndexHeader = { key: 'X-Robots-Tag', value: 'noindex, nofollow' };
+    const mediaCacheHeader = {
+      key: 'Cache-Control',
+      value: 'public, max-age=604800, stale-while-revalidate=2592000',
+    };
 
     return [
+      {
+        source: '/hero-bg.mp4',
+        headers: [mediaCacheHeader],
+      },
+      {
+        source: '/logo.png',
+        headers: [mediaCacheHeader],
+      },
+      {
+        source: '/Logo_Quepia.svg',
+        headers: [mediaCacheHeader],
+      },
+      {
+        source: '/og-image.jpg',
+        headers: [mediaCacheHeader],
+      },
+      {
+        source: '/images/:path*',
+        headers: [mediaCacheHeader],
+      },
       {
         source: '/:path*',
         headers: securityHeaders,

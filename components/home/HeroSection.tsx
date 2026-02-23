@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import HeroVideoBackground from './HeroVideoBackground';
 
 // Dynamically import the 3D background component (no SSR)
 const ParticleBackground = dynamic(() => import('./ParticleBackground'), {
@@ -134,6 +135,7 @@ const AnimatedLetters = ({ text, className = "", baseDelay = 0.2 }: {
 export default function HeroSection({ subtitle }: HeroSectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isHeroInView = useInView(containerRef, { margin: "-20% 0px" });
+  const enableHeroWebgl = process.env.NEXT_PUBLIC_ENABLE_HERO_WEBGL === 'true';
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
@@ -148,7 +150,11 @@ export default function HeroSection({ subtitle }: HeroSectionProps) {
     >
       {/* Video + Particles Background — semi-transparent so GlassBackground shows through */}
       <div className="absolute inset-0 z-0 opacity-80">
-        <ParticleBackground active={isHeroInView} />
+        {enableHeroWebgl ? (
+          <ParticleBackground active={isHeroInView} />
+        ) : (
+          <HeroVideoBackground active={isHeroInView} />
+        )}
       </div>
 
       {/* Gradient overlays for text readability */}

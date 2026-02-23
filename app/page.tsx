@@ -36,19 +36,18 @@ export default async function Home() {
   const supabase = createPublicClient();
   const config = await getSiteConfigServer();
 
-  // Fetch featured projects
-  const { data: proyectos } = await supabase
-    .from('proyectos')
-    .select('*')
-    .eq('destacado', true)
-    .order('orden', { ascending: true })
-    .limit(6);
-
-  // Fetch services
-  const { data: servicios } = await supabase
-    .from('servicios')
-    .select('*')
-    .order('orden', { ascending: true });
+  const [{ data: proyectos }, { data: servicios }] = await Promise.all([
+    supabase
+      .from('proyectos')
+      .select('*')
+      .eq('destacado', true)
+      .order('orden', { ascending: true })
+      .limit(6),
+    supabase
+      .from('servicios')
+      .select('*')
+      .order('orden', { ascending: true }),
+  ]);
 
   return (
     <main className="relative min-h-screen bg-[#0a0a0a]">

@@ -29,6 +29,7 @@ export default function ClientLayout({
     config?: SiteConfig;
 }) {
     const pathname = usePathname();
+    const enableGlassBackground = process.env.NEXT_PUBLIC_ENABLE_GLASS_BACKGROUND === 'true';
 
     // Don't show Header/Footer/Background on admin, auth, and sistema routes
     const isAdminRoute = pathname?.startsWith('/admin');
@@ -38,6 +39,7 @@ export default function ClientLayout({
     const hideLayout = isAdminRoute || isAuthRoute || isSistemaRoute;
 
     const contextValue = config || {};
+    const shouldRenderGlassBackground = enableGlassBackground && pathname === '/';
 
     if (hideLayout) {
         // Admin/Auth/Sistema pages have their own layout
@@ -80,8 +82,11 @@ export default function ClientLayout({
             <ToastProvider>
                 <ConfirmProvider>
                     <ModalProvider>
-                        {/* Global animated background */}
-                        <GlassBackground />
+                        {shouldRenderGlassBackground ? (
+                            <GlassBackground />
+                        ) : (
+                            <div className="fixed inset-0 z-0 bg-[#050505]" aria-hidden="true" />
+                        )}
 
                         <div className="relative z-10 flex flex-col min-h-screen">
                             <Header />
