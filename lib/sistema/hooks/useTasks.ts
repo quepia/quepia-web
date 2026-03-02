@@ -198,15 +198,6 @@ export function useTasks(projectId?: string) {
           *,
           assignee:sistema_users(id, nombre, avatar_url),
           parent_task:sistema_tasks!parent_task_id(id, titulo),
-          subtasks:sistema_subtasks(
-            id,
-            task_id,
-            titulo,
-            completed,
-            assignee_id,
-            orden,
-            created_at
-          ),
           assets:sistema_assets(
             id,
             approval_status,
@@ -222,12 +213,37 @@ export function useTasks(projectId?: string) {
 
       if (tasksError) throw tasksError;
 
+      // Fetch subtasks separately to avoid nested-relation inconsistencies in production.
+      const taskIds = (tasksData || [])
+        .map((task) => (typeof task?.id === 'string' ? task.id : null))
+        .filter((id): id is string => Boolean(id));
+      let subtasksByTaskId: Record<string, Subtask[]> = {};
+      if (taskIds.length > 0) {
+        const { data: subtasksData, error: subtasksError } = await supabase
+          .from('sistema_subtasks')
+          .select('id, task_id, titulo, completed, assignee_id, orden, created_at')
+          .in('task_id', taskIds)
+          .order('orden', { ascending: true });
+
+        if (subtasksError) throw subtasksError;
+
+        subtasksByTaskId = (subtasksData || []).reduce<Record<string, Subtask[]>>((acc, row) => {
+          const subtask = row as Subtask;
+          if (!acc[subtask.task_id]) {
+            acc[subtask.task_id] = [];
+          }
+          acc[subtask.task_id].push(subtask);
+          return acc;
+        }, {});
+      }
+
       // Build thumbnail signing map for latest asset previews
       const thumbPaths: string[] = [];
       const tasksWithThumbs: Task[] = (tasksData || []).map((task) => {
         const taskRecord = (task || {}) as Record<string, unknown>;
         const taskAssets = Array.isArray(taskRecord.assets) ? (taskRecord.assets as Record<string, unknown>[]) : [];
-        const taskSubtasks = Array.isArray(taskRecord.subtasks) ? (taskRecord.subtasks as Record<string, unknown>[]) : [];
+        const taskId = typeof taskRecord.id === "string" ? taskRecord.id : null;
+        const taskSubtasks = taskId ? subtasksByTaskId[taskId] || [] : [];
         const assets = taskAssets.map((asset) => {
           const versions = Array.isArray(asset.versions) ? (asset.versions as Record<string, unknown>[]) : [];
           const latest =
@@ -246,7 +262,7 @@ export function useTasks(projectId?: string) {
           };
         });
         const subtasks = taskSubtasks
-          .map((subtask) => ({
+          .map((subtask: Subtask) => ({
             id: typeof subtask.id === "string" ? subtask.id : "",
             task_id: typeof subtask.task_id === "string" ? subtask.task_id : "",
             titulo: typeof subtask.titulo === "string" ? subtask.titulo : "",
