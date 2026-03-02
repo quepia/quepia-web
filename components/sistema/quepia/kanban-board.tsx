@@ -16,13 +16,12 @@ import {
     Calendar,
     LayoutGrid,
     GitBranch,
-    CornerDownRight,
     CloudUpload,
     Paperclip,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useTasks, useColumns } from "@/lib/sistema/hooks"
-import type { Task, ColumnWithTasks, SistemaUser, TaskType } from "@/types/sistema"
+import type { Task, ColumnWithTasks, SistemaUser, TaskType, Subtask } from "@/types/sistema"
 import { PRIORITY_COLORS, PRIORITY_LABELS, Priority, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
 import { TaskContextMenu } from "@/components/sistema/quepia/task-context-menu"
 import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
@@ -795,6 +794,12 @@ function KanbanColumn({
                     )
                     // Check if this task has children
                     const hasChildren = organizedTasks.some(t => t.parentTask?.id === task.id)
+                    const taskSubtasks = Array.isArray(task.subtasks)
+                        ? [...task.subtasks].sort((a, b) => a.orden - b.orden)
+                        : []
+                    const visibleSubtasks = showCompletedTasks
+                        ? taskSubtasks
+                        : taskSubtasks.filter((subtask) => !subtask.completed)
 
                     return (
                         <div key={task.id} className="relative">
@@ -830,6 +835,19 @@ function KanbanColumn({
                                     onCancelEdit={() => onSetEditingTaskId(null)}
                                 />
                             </TaskContextMenu>
+                            {!isChild && visibleSubtasks.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                    {visibleSubtasks.map((subtask) => (
+                                        <SubtaskPreviewCard
+                                            key={subtask.id}
+                                            subtask={subtask}
+                                            parentTitle={task.titulo}
+                                            parentDescription={task.descripcion}
+                                            onClick={() => onTaskClick?.(task)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )
                 })}
@@ -896,6 +914,64 @@ interface TaskCardProps {
     onCancelEdit?: () => void
     userId?: string
     onAssetsUploaded?: () => void
+}
+
+interface SubtaskPreviewCardProps {
+    subtask: Subtask
+    parentTitle?: string
+    parentDescription?: string | null
+    onClick?: () => void
+}
+
+function SubtaskPreviewCard({ subtask, parentTitle, parentDescription, onClick }: SubtaskPreviewCardProps) {
+    return (
+        <div
+            onClick={onClick}
+            className={cn(
+                "relative cursor-pointer overflow-hidden rounded-xl border border-[#263841] bg-[linear-gradient(180deg,rgba(24,41,46,0.55),rgba(18,27,33,0.55))] px-3.5 py-3 text-left shadow-[0_6px_18px_rgba(0,0,0,0.22)] transition-all duration-200 hover:-translate-y-[1px] hover:border-[#32717a] hover:bg-[linear-gradient(180deg,rgba(24,41,46,0.7),rgba(18,27,33,0.7))] ml-6 w-[calc(100%-24px)] before:absolute before:bottom-3 before:left-0 before:top-3 before:w-[2px] before:rounded-full before:bg-[rgba(42,231,228,0.3)]",
+                subtask.completed && "opacity-70"
+            )}
+        >
+            <div className="flex items-start gap-3">
+                <div className="mt-0.5 shrink-0">
+                    {subtask.completed ? (
+                        <CheckCircle2 className="h-[18px] w-[18px] text-white/45" />
+                    ) : (
+                        <Circle className="h-[18px] w-[18px] text-quepia-cyan/70" />
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className={cn(
+                        "text-[15px] font-medium leading-snug mb-1",
+                        subtask.completed ? "text-white/45 line-through decoration-white/20" : "text-white/85"
+                    )}>
+                        {subtask.titulo}
+                    </p>
+                    {(parentDescription || parentTitle) && (
+                        <p className="text-xs text-white/35 line-clamp-1 mb-2">
+                            {parentDescription || parentTitle}
+                        </p>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(42,231,228,0.38)] bg-[rgba(42,231,228,0.1)] px-2 py-0.5 text-[10px] font-medium text-[#5cf5f2]">
+                            <GitBranch className="h-3 w-3" />
+                            Subtarea
+                        </span>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onClick?.()
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(42,231,228,0.32)] bg-[rgba(42,231,228,0.08)] px-2.5 py-1 text-[11px] text-[#41efec] transition-all duration-200 hover:border-[rgba(42,231,228,0.5)] hover:bg-[rgba(42,231,228,0.14)]"
+                        >
+                            <CloudUpload className="h-3 w-3" />
+                            Subir assets
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
 }
 
 const TaskCard = React.memo(function TaskCard({

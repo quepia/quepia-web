@@ -304,14 +304,22 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const handleAddSubtask = async () => {
         if (!newSubtaskTitle.trim() || !taskId) return
         setSubmitting(true)
-        await createSubtask({ task_id: taskId, titulo: newSubtaskTitle.trim() })
-        setNewSubtaskTitle("")
-        setIsAddingSubtask(false)
-        setSubmitting(false)
+        try {
+            const created = await createSubtask({ task_id: taskId, titulo: newSubtaskTitle.trim() })
+            if (!created) return
+            setNewSubtaskTitle("")
+            setIsAddingSubtask(false)
+            onUpdate?.()
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     const handleAssignSubtask = async (subtaskId: string, assigneeId: string | null, subtaskTitle: string) => {
-        await updateSubtask(subtaskId, { assignee_id: assigneeId })
+        const updated = await updateSubtask(subtaskId, { assignee_id: assigneeId })
+        if (updated) {
+            onUpdate?.()
+        }
         if (assigneeId && userId && assigneeId !== userId && task) {
             await sendNotification({
                 userId: assigneeId,
@@ -349,10 +357,25 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         
         const newTask = await convertSubtaskToTask(subtaskId, firstColumnId)
         if (newTask) {
+            onUpdate?.()
             // Open the new task in a new tab or refresh
             window.open(`/sistema?taskId=${newTask.id}`, '_blank')
         } else {
             alert('Error al convertir la subtarea')
+        }
+    }
+
+    const handleToggleSubtask = async (subtaskId: string) => {
+        const success = await toggleSubtask(subtaskId)
+        if (success) {
+            onUpdate?.()
+        }
+    }
+
+    const handleDeleteSubtask = async (subtaskId: string) => {
+        const success = await deleteSubtask(subtaskId)
+        if (success) {
+            onUpdate?.()
         }
     }
 
@@ -829,8 +852,8 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                             <SubtaskItem 
                                                 key={subtask.id} 
                                                 subtask={subtask} 
-                                                onToggle={() => toggleSubtask(subtask.id)} 
-                                                onDelete={() => deleteSubtask(subtask.id)} 
+                                                onToggle={() => handleToggleSubtask(subtask.id)} 
+                                                onDelete={() => handleDeleteSubtask(subtask.id)} 
                                                 onAssign={(uid) => handleAssignSubtask(subtask.id, uid, subtask.titulo)} 
                                                 onConvert={() => handleConvertSubtaskToTask(subtask.id, subtask.titulo)}
                                                 users={users} 
@@ -840,8 +863,8 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                             <SubtaskItem 
                                                 key={subtask.id} 
                                                 subtask={subtask} 
-                                                onToggle={() => toggleSubtask(subtask.id)} 
-                                                onDelete={() => deleteSubtask(subtask.id)} 
+                                                onToggle={() => handleToggleSubtask(subtask.id)} 
+                                                onDelete={() => handleDeleteSubtask(subtask.id)} 
                                                 onAssign={(uid) => handleAssignSubtask(subtask.id, uid, subtask.titulo)} 
                                                 onConvert={() => handleConvertSubtaskToTask(subtask.id, subtask.titulo)}
                                                 users={users} 

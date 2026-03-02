@@ -141,6 +141,7 @@ export interface Task {
   type_metadata: Record<string, any> | null;
   parent_task_id: string | null;
   parent_task?: { id: string; titulo: string } | null;
+  subtasks?: Subtask[];
   assets?: { id: string; approval_status: ApprovalStatus; asset_type?: AssetType; group_id?: string | null; group_order?: number; thumbnail_url?: string | null }[] | null;
   created_at: string;
   updated_at: string;

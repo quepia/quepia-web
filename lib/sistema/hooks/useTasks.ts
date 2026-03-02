@@ -198,6 +198,15 @@ export function useTasks(projectId?: string) {
           *,
           assignee:sistema_users(id, nombre, avatar_url),
           parent_task:sistema_tasks!parent_task_id(id, titulo),
+          subtasks:sistema_subtasks(
+            id,
+            task_id,
+            titulo,
+            completed,
+            assignee_id,
+            orden,
+            created_at
+          ),
           assets:sistema_assets(
             id,
             approval_status,
@@ -218,6 +227,7 @@ export function useTasks(projectId?: string) {
       const tasksWithThumbs: Task[] = (tasksData || []).map((task) => {
         const taskRecord = (task || {}) as Record<string, unknown>;
         const taskAssets = Array.isArray(taskRecord.assets) ? (taskRecord.assets as Record<string, unknown>[]) : [];
+        const taskSubtasks = Array.isArray(taskRecord.subtasks) ? (taskRecord.subtasks as Record<string, unknown>[]) : [];
         const assets = taskAssets.map((asset) => {
           const versions = Array.isArray(asset.versions) ? (asset.versions as Record<string, unknown>[]) : [];
           const latest =
@@ -235,6 +245,17 @@ export function useTasks(projectId?: string) {
             thumbnail_url: path || null,
           };
         });
+        const subtasks = taskSubtasks
+          .map((subtask) => ({
+            id: typeof subtask.id === "string" ? subtask.id : "",
+            task_id: typeof subtask.task_id === "string" ? subtask.task_id : "",
+            titulo: typeof subtask.titulo === "string" ? subtask.titulo : "",
+            completed: Boolean(subtask.completed),
+            assignee_id: typeof subtask.assignee_id === "string" ? subtask.assignee_id : null,
+            orden: typeof subtask.orden === "number" && Number.isFinite(subtask.orden) ? subtask.orden : 0,
+            created_at: typeof subtask.created_at === "string" ? subtask.created_at : new Date(0).toISOString(),
+          }))
+          .sort((a, b) => a.orden - b.orden);
         const typeMetadata = taskRecord.type_metadata;
         const youtube =
           typeMetadata && typeof typeMetadata === "object"
@@ -248,7 +269,7 @@ export function useTasks(projectId?: string) {
             (typeof youtubeRecord.thumbnail_url === "string" ? youtubeRecord.thumbnail_url : null);
         }
         if (youtubeThumbPath) thumbPaths.push(youtubeThumbPath);
-        return { ...taskRecord, assets } as Task;
+        return { ...taskRecord, assets, subtasks } as Task;
       });
 
       let signedMap: Record<string, string | null> = {};
@@ -799,25 +820,28 @@ export function useSubtasks(taskId?: string) {
     try {
       const supabase = createClient();
 
-      // Get max orden
-      const maxOrden = subtasks.length > 0
-        ? Math.max(...subtasks.map((s) => s.orden))
-        : -1;
+      // Get max orden (guarding against invalid/null legacy data)
+      const ordenValues = subtasks
+        .map((s) => (typeof s.orden === 'number' && Number.isFinite(s.orden) ? s.orden : -1));
+      const maxOrden = ordenValues.length > 0 ? Math.max(...ordenValues) : -1;
 
       const { data, error } = await supabase
         .from('sistema_subtasks')
-        .insert({ ...subtask, orden: maxOrden + 1 })
-        .select(`
-          *,
-          assignee:sistema_users(id, nombre, avatar_url)
-        `)
+        .insert({
+          ...subtask,
+          completed: subtask.completed ?? false,
+          orden: maxOrden + 1,
+        })
+        .select('*')
         .single();
 
       if (error) throw error;
 
       // Optimistic: add to local list
       if (data) {
-        setSubtasks(prev => [...prev, data]);
+        setSubtasks(prev => [...prev, data as Subtask]);
+        // Sync from DB so relation payload/ordering stays consistent.
+        await fetchSubtasks();
       }
 
       // Notify task assignee (fire and forget)
