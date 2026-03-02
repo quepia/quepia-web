@@ -302,11 +302,14 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     }
 
     const handleAddSubtask = async () => {
-        if (!newSubtaskTitle.trim() || !taskId) return
+        if (!newSubtaskTitle.trim() || !taskId || submitting) return
         setSubmitting(true)
         try {
             const created = await createSubtask({ task_id: taskId, titulo: newSubtaskTitle.trim() })
-            if (!created) return
+            if (!created) {
+                alert("No se pudo crear la subtarea. Reintentá y, si sigue fallando, recargá la página.")
+                return
+            }
             setNewSubtaskTitle("")
             setIsAddingSubtask(false)
             onUpdate?.()
@@ -829,7 +832,12 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                                 value={newSubtaskTitle}
                                                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                                                 onKeyDown={(e) => {
-                                                    if (e.key === "Enter") handleAddSubtask()
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault()
+                                                        if (!submitting) {
+                                                            handleAddSubtask()
+                                                        }
+                                                    }
                                                     if (e.key === "Escape") { setIsAddingSubtask(false); setNewSubtaskTitle("") }
                                                 }}
                                                 autoFocus

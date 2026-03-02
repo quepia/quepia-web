@@ -832,7 +832,7 @@ export function useSubtasks(taskId?: string) {
     fetchSubtasks();
   }, [fetchSubtasks]);
 
-  const createSubtask = async (subtask: SubtaskInsert): Promise<Subtask | null> => {
+  const createSubtask = async (subtask: SubtaskInsert): Promise<boolean> => {
     try {
       const supabase = createClient();
 
@@ -841,24 +841,18 @@ export function useSubtasks(taskId?: string) {
         .map((s) => (typeof s.orden === 'number' && Number.isFinite(s.orden) ? s.orden : -1));
       const maxOrden = ordenValues.length > 0 ? Math.max(...ordenValues) : -1;
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('sistema_subtasks')
         .insert({
           ...subtask,
           completed: subtask.completed ?? false,
           orden: maxOrden + 1,
         })
-        .select('*')
-        .single();
 
       if (error) throw error;
 
-      // Optimistic: add to local list
-      if (data) {
-        setSubtasks(prev => [...prev, data as Subtask]);
-        // Sync from DB so relation payload/ordering stays consistent.
-        await fetchSubtasks();
-      }
+      // Sync from DB so ordering/relations stay consistent.
+      await fetchSubtasks();
 
       // Notify task assignee (fire and forget)
       if (taskId) {
@@ -885,10 +879,10 @@ export function useSubtasks(taskId?: string) {
         });
       }
 
-      return data;
+      return true;
     } catch (err) {
       console.error('Error creating subtask:', err);
-      return null;
+      return false;
     }
   };
 
