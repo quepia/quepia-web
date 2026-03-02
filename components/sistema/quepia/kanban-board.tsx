@@ -46,7 +46,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef, userId }: KanbanBoardProps) {
     const { toast } = useToast()
     const { confirm } = useConfirm()
-    const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, silentRefresh } = useTasks(projectId)
+    const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, clearCompletedTasks, silentRefresh } = useTasks(projectId)
 
     // Expose silentRefresh to parent via ref
     useEffect(() => {
@@ -70,7 +70,8 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
     const [isAddingColumn, setIsAddingColumn] = useState(false)
     const [newColumnName, setNewColumnName] = useState("")
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
-    const [hideCompletedTasks, setHideCompletedTasks] = useState(false)
+    const [showCompletedTasks, setShowCompletedTasks] = useState(false)
+    const [isClearingCompleted, setIsClearingCompleted] = useState(false)
 
     const completedTasksCount = useMemo(
         () => columns.reduce((count, column) => count + column.tasks.filter((task) => task.completed).length, 0),
@@ -290,6 +291,40 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
         await updateTask(taskId, { completed: !task.completed })
     }
 
+    const handleClearCompletedTasks = async () => {
+        if (completedTasksCount === 0 || isClearingCompleted) return
+
+        const accepted = await confirm({
+            title: "Limpiar tareas completadas",
+            description: "Esta acción eliminará permanentemente todas las tareas completadas del proyecto.",
+            confirmText: "Eliminar completadas",
+            cancelText: "Cancelar",
+            tone: "danger"
+        })
+        if (!accepted) return
+
+        setIsClearingCompleted(true)
+        const deletedCount = await clearCompletedTasks()
+        setIsClearingCompleted(false)
+
+        if (deletedCount === null) {
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se pudieron limpiar las tareas completadas",
+                variant: "error"
+            })
+            return
+        }
+
+        if (deletedCount > 0) {
+            trackExperienceMetric("task_deleted")
+            toast({
+                title: `${deletedCount} tarea(s) completada(s) eliminada(s)`,
+                variant: "success"
+            })
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex-1 flex items-center justify-center">
@@ -327,17 +362,28 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                 <h1 className="text-lg font-semibold text-white truncate">{projectName}</h1>
                 <div className="w-full sm:w-auto flex items-center gap-2 sm:justify-end">
                     <button
-                        onClick={() => setHideCompletedTasks((prev) => !prev)}
-                        disabled={completedTasksCount === 0 && !hideCompletedTasks}
+                        onClick={() => setShowCompletedTasks((prev) => !prev)}
                         className={cn(
                             "h-9 px-3 rounded-lg text-xs border transition-colors whitespace-nowrap",
-                            hideCompletedTasks
+                            showCompletedTasks
                                 ? "border-[rgba(42,231,228,0.38)] bg-[rgba(42,231,228,0.1)] text-[#41efec]"
-                                : "border-white/10 text-white/70 hover:bg-white/5",
-                            completedTasksCount === 0 && !hideCompletedTasks && "opacity-40 cursor-not-allowed"
+                                : "border-white/10 text-white/70 hover:bg-white/5"
                         )}
                     >
-                        {hideCompletedTasks ? "Mostrar completadas" : "Limpiar completadas"}
+                        {showCompletedTasks ? "Ocultar completadas" : "Mostrar completadas"}
+                    </button>
+                    <button
+                        onClick={handleClearCompletedTasks}
+                        disabled={completedTasksCount === 0 || isClearingCompleted}
+                        className={cn(
+                            "h-9 px-3 rounded-lg text-xs border transition-colors whitespace-nowrap flex items-center",
+                            completedTasksCount === 0 || isClearingCompleted
+                                ? "border-white/10 text-white/40 cursor-not-allowed"
+                                : "border-white/10 text-white/70 hover:bg-white/5"
+                        )}
+                    >
+                        {isClearingCompleted && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                        Limpiar completadas
                         {completedTasksCount > 0 && (
                             <span className="ml-2 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">
                                 {completedTasksCount}
@@ -392,7 +438,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                             onSetEditingTaskId={setEditingTaskId}
                             userId={userId}
                             onAssetsUploaded={() => silentRefresh()}
-                            hideCompletedTasks={hideCompletedTasks}
+                            showCompletedTasks={showCompletedTasks}
                         />
                     ))}
 
@@ -487,7 +533,7 @@ interface KanbanColumnProps {
     onSetEditingTaskId: (taskId: string | null) => void
     userId?: string
     onAssetsUploaded?: () => void
-    hideCompletedTasks: boolean
+    showCompletedTasks: boolean
 }
 
 function KanbanColumn({
@@ -523,14 +569,14 @@ function KanbanColumn({
     onSetEditingTaskId,
     userId,
     onAssetsUploaded: onAssetsUploadedProp,
-    hideCompletedTasks,
+    showCompletedTasks,
 }: KanbanColumnProps) {
     const [showMenu, setShowMenu] = useState(false)
     const [editingWip, setEditingWip] = useState(false)
     const [wipValue, setWipValue] = useState(column.wip_limit?.toString() || "")
     const visibleTasks = useMemo(
-        () => hideCompletedTasks ? column.tasks.filter((task) => !task.completed) : column.tasks,
-        [column.tasks, hideCompletedTasks]
+        () => showCompletedTasks ? column.tasks : column.tasks.filter((task) => !task.completed),
+        [column.tasks, showCompletedTasks]
     )
     const hiddenCompletedCount = column.tasks.length - visibleTasks.length
 
@@ -634,7 +680,7 @@ function KanbanColumn({
                                     <span className="text-white/25">/{column.wip_limit}</span>
                                 )}
                             </span>
-                            {hideCompletedTasks && hiddenCompletedCount > 0 && (
+                            {!showCompletedTasks && hiddenCompletedCount > 0 && (
                                 <span className="text-[10px] text-white/25">
                                     -{hiddenCompletedCount} ocultas
                                 </span>
@@ -732,7 +778,7 @@ function KanbanColumn({
 
             {/* Tasks */}
             <div className="flex-1 space-y-3 overflow-y-auto pb-4 pt-1">
-                {organizedTasks.length === 0 && hideCompletedTasks && hiddenCompletedCount > 0 && (
+                {organizedTasks.length === 0 && !showCompletedTasks && hiddenCompletedCount > 0 && (
                     <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
                         Esta columna tiene solo tareas completadas.
                     </div>

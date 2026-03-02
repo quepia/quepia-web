@@ -145,8 +145,7 @@ export default function HeroSection({ subtitle }: HeroSectionProps) {
 
       {/* Gradient overlays for text readability */}
       <div className="absolute inset-0 pointer-events-none z-[1]">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/70 via-[#0a0a0a]/20 to-transparent hidden md:block" />
-        <div className="absolute inset-0 bg-[#0a0a0a]/15 md:hidden" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/70 via-[#0a0a0a]/25 to-[#0a0a0a]/10" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/60 via-transparent to-[#0a0a0a]/20" />
       </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import Link from 'next/link';
 
 interface CTASectionProps {
@@ -11,81 +11,42 @@ interface CTASectionProps {
 export default function CTASection({ email = 'hola@quepia.com' }: CTASectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: true, margin: "-100px" });
-  
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"]
-  });
-
-  const rotate = useTransform(scrollYProgress, [0, 1], [0, 360]);
-  const scale = useTransform(scrollYProgress, [0, 0.5, 1], [0.8, 1, 0.8]);
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
 
   return (
     <section ref={containerRef} className="relative py-32 md:py-48 lg:py-64 overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Rotating gradient orb */}
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] md:w-[800px] md:h-[800px]"
-          style={{ rotate, scale }}
-        >
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] md:w-[800px] md:h-[800px]">
           <div 
-            className="absolute inset-0 rounded-full blur-[100px] opacity-30"
+            className="absolute inset-0 rounded-full blur-[90px] opacity-25"
             style={{
               background: 'conic-gradient(from 0deg, #2AE7E4, #881078, #2AE7E4)'
             }}
           />
-        </motion.div>
+        </div>
 
         {/* Secondary orbs */}
-        <motion.div
+        <div
           className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full blur-[80px]"
           style={{
             background: 'radial-gradient(circle, rgba(42,231,228,0.15) 0%, transparent 70%)',
-            x: useTransform(scrollYProgress, [0, 1], [0, 50]),
-            y: useTransform(scrollYProgress, [0, 1], [0, -30]),
           }}
         />
-        <motion.div
+        <div
           className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full blur-[80px]"
           style={{
             background: 'radial-gradient(circle, rgba(136,16,120,0.15) 0%, transparent 70%)',
-            x: useTransform(scrollYProgress, [0, 1], [0, -50]),
-            y: useTransform(scrollYProgress, [0, 1], [0, 30]),
           }}
         />
       </div>
 
-      {/* Floating geometric shapes */}
-      <motion.div
-        className="absolute top-20 left-10 w-4 h-4 border border-quepia-cyan/30 rotate-45 hidden md:block"
-        animate={{ 
-          y: [0, -20, 0],
-          rotate: [45, 90, 45]
-        }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-32 right-20 w-6 h-6 border border-quepia-purple/30 rounded-full hidden md:block"
-        animate={{ 
-          y: [0, 20, 0],
-          scale: [1, 1.2, 1]
-        }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute top-1/3 right-10 w-3 h-3 bg-quepia-cyan/20 rotate-12 hidden md:block"
-        animate={{ 
-          rotate: [12, 180, 12],
-          opacity: [0.2, 0.5, 0.2]
-        }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-      />
+      {/* Decorative geometric shapes */}
+      <div className="absolute top-20 left-10 w-4 h-4 border border-quepia-cyan/30 rotate-45 hidden md:block" />
+      <div className="absolute bottom-32 right-20 w-6 h-6 border border-quepia-purple/30 rounded-full hidden md:block" />
+      <div className="absolute top-1/3 right-10 w-3 h-3 bg-quepia-cyan/20 rotate-12 hidden md:block" />
 
       <motion.div 
         className="relative z-10 max-w-[1000px] mx-auto px-6 md:px-12 lg:px-20 text-center"
-        style={{ opacity }}
       >
         {/* Pre-title */}
         <motion.span

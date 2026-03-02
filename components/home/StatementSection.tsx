@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 
 const words = [
   { text: "Creemos", highlight: false },
@@ -23,15 +23,6 @@ const words = [
 export default function StatementSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: true, margin: "-100px" });
-  
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"]
-  });
-
-  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-  const opacity = useTransform(scrollYProgress, [0, 0.3, 0.7, 1], [0, 1, 1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 0.5, 1], [0.9, 1, 0.9]);
 
   return (
     <section 
@@ -39,34 +30,22 @@ export default function StatementSection() {
       className="relative py-32 md:py-48 lg:py-64 overflow-hidden"
     >
       {/* Animated background gradient */}
-      <motion.div 
-        className="absolute inset-0 pointer-events-none"
-        style={{ y: backgroundY }}
-      >
+      <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-30">
           <div 
-            className="absolute inset-0 rounded-full blur-[120px] animate-gradient"
+            className="absolute inset-0 rounded-full blur-[100px]"
             style={{
               background: 'radial-gradient(circle, rgba(42,231,228,0.2) 0%, rgba(136,16,120,0.15) 50%, transparent 70%)'
             }}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Decorative lines */}
-      <motion.div 
-        className="absolute top-0 left-1/4 w-px h-32 bg-gradient-to-b from-transparent via-quepia-cyan/20 to-transparent"
-        style={{ y: useTransform(scrollYProgress, [0, 1], [0, 100]) }}
-      />
-      <motion.div 
-        className="absolute bottom-0 right-1/4 w-px h-32 bg-gradient-to-b from-transparent via-quepia-purple/20 to-transparent"
-        style={{ y: useTransform(scrollYProgress, [0, 1], [0, -100]) }}
-      />
+      <div className="absolute top-0 left-1/4 w-px h-32 bg-gradient-to-b from-transparent via-quepia-cyan/20 to-transparent" />
+      <div className="absolute bottom-0 right-1/4 w-px h-32 bg-gradient-to-b from-transparent via-quepia-purple/20 to-transparent" />
 
-      <motion.div 
-        className="relative z-10 max-w-[1000px] mx-auto px-6 md:px-12 lg:px-20"
-        style={{ opacity, scale }}
-      >
+      <div className="relative z-10 max-w-[1000px] mx-auto px-6 md:px-12 lg:px-20">
         <div className="flex flex-col items-center text-center">
           {/* Animated quote marks */}
           <div className="relative mb-12">
@@ -98,8 +77,8 @@ export default function StatementSection() {
                     ? 'text-transparent bg-clip-text bg-gradient-to-r from-quepia-cyan to-quepia-purple' 
                     : 'text-white/90'
                 }`}
-                initial={{ opacity: 0, y: 40, rotateX: -40 }}
-                animate={isInView ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+                initial={{ opacity: 0, y: 24 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
                 transition={{
                   duration: 0.7,
                   delay: 0.3 + index * 0.05,
@@ -178,7 +157,7 @@ export default function StatementSection() {
             </div>
           </motion.div>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }

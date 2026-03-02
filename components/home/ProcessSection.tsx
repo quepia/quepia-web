@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { motion, useInView, useScroll, useTransform } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { Search, Lightbulb, Palette, Rocket } from 'lucide-react';
 
 const processSteps = [
@@ -122,20 +122,13 @@ function ProcessCard({ step, index }: { step: typeof processSteps[0]; index: num
 export default function ProcessSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(containerRef, { once: true, margin: "-100px" });
-  
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"]
-  });
-
-  const progressHeight = useTransform(scrollYProgress, [0, 0.5], ["0%", "100%"]);
 
   return (
     <section ref={containerRef} className="relative py-24 md:py-32 overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 pointer-events-none">
         <div 
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] opacity-20 blur-[100px]"
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] opacity-20 blur-[80px]"
           style={{
             background: 'radial-gradient(circle, rgba(136,16,120,0.2) 0%, transparent 70%)'
           }}
@@ -179,7 +172,9 @@ export default function ProcessSection() {
           <div className="relative w-1/2 h-px bg-white/10">
             <motion.div
               className="absolute top-0 left-0 h-full bg-gradient-to-r from-quepia-cyan to-quepia-purple"
-              style={{ width: progressHeight }}
+              initial={{ width: '0%' }}
+              animate={isInView ? { width: '100%' } : { width: '0%' }}
+              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
             />
           </div>
         </div>

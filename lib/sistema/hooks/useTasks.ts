@@ -457,6 +457,47 @@ export function useTasks(projectId?: string) {
     }
   };
 
+  const clearCompletedTasks = async (): Promise<number | null> => {
+    if (!projectId) return 0;
+
+    const completedTaskIds = columns
+      .flatMap((column) => column.tasks)
+      .filter((task) => task.completed)
+      .map((task) => task.id);
+
+    if (completedTaskIds.length === 0) return 0;
+
+    const prevColumns = columns;
+
+    try {
+      // Optimistic: remove completed tasks from local state immediately
+      setColumns((prev) =>
+        prev.map((column) => ({
+          ...column,
+          tasks: column.tasks.filter((task) => !task.completed),
+        }))
+      );
+
+      const supabase = createClient();
+      const { error: deleteError } = await supabase
+        .from('sistema_tasks')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('completed', true);
+
+      if (deleteError) {
+        setColumns(prevColumns); // Revert on error
+        throw deleteError;
+      }
+
+      return completedTaskIds.length;
+    } catch (err) {
+      console.error('Error clearing completed tasks:', err);
+      setError(err instanceof Error ? err.message : 'Error clearing completed tasks');
+      return null;
+    }
+  };
+
   const moveTask = async (
     taskId: string,
     newColumnId: string,
@@ -632,6 +673,7 @@ export function useTasks(projectId?: string) {
     createTask,
     updateTask,
     deleteTask,
+    clearCompletedTasks,
     moveTask,
     reorderTasks,
     duplicateTask,

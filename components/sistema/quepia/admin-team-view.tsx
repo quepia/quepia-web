@@ -1,18 +1,11 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { uploadImage, deleteImage } from '@/lib/storage';
 import { Equipo, EquipoInsert } from '@/types/database';
-import { Plus, Pencil, Trash2, X, Loader2, Instagram, Linkedin, Mail, Users, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Loader2, Instagram, Linkedin, Mail, Users } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
-
-function getErrorMessage(error: unknown): string {
-    if (error instanceof Error && error.message.trim()) return error.message;
-    if (typeof error === 'string' && error.trim()) return error;
-    return 'Error desconocido';
-}
 
 export function AdminTeamView() {
     const [equipo, setEquipo] = useState<Equipo[]>([]);
@@ -20,12 +13,7 @@ export function AdminTeamView() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [uploadingImage, setUploadingImage] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-    const imageInputRef = useRef<HTMLInputElement | null>(null);
-    const uploadedInModalRef = useRef<Set<string>>(new Set());
-    const deleteOnSaveRef = useRef<Set<string>>(new Set());
 
     const [form, setForm] = useState<EquipoInsert>({
         nombre: '',
@@ -56,35 +44,6 @@ export function AdminTeamView() {
         setLoading(false);
     }, []);
 
-    const clearImageQueues = useCallback(() => {
-        uploadedInModalRef.current.clear();
-        deleteOnSaveRef.current.clear();
-    }, []);
-
-    const deleteStorageUrl = useCallback(async (url: string) => {
-        const normalized = url.trim();
-        if (!normalized) return;
-
-        try {
-            await deleteImage(normalized);
-        } catch (error) {
-            console.warn('No se pudo eliminar imagen de storage:', normalized, error);
-        }
-    }, []);
-
-    const closeModalAndDiscardUploads = useCallback(() => {
-        if (saving || uploadingImage) return;
-
-        const uploadedInModal = [...uploadedInModalRef.current];
-        clearImageQueues();
-        setUploadError(null);
-        setModalOpen(false);
-
-        if (uploadedInModal.length > 0) {
-            void Promise.all(uploadedInModal.map((url) => deleteStorageUrl(url)));
-        }
-    }, [clearImageQueues, deleteStorageUrl, saving, uploadingImage]);
-
     useEffect(() => {
         fetchEquipo();
     }, [fetchEquipo]);
@@ -101,8 +60,6 @@ export function AdminTeamView() {
             orden: equipo.length,
             activo: true,
         });
-        clearImageQueues();
-        setUploadError(null);
         setEditingId(null);
     };
 
@@ -123,66 +80,12 @@ export function AdminTeamView() {
             orden: member.orden,
             activo: member.activo,
         });
-        clearImageQueues();
-        setUploadError(null);
         setEditingId(member.id);
         setModalOpen(true);
     };
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const previousUrl = (form.imagen_url || '').trim();
-        const previousWasUploadedInModal = previousUrl.length > 0 && uploadedInModalRef.current.has(previousUrl);
-
-        if (!file.type.startsWith('image/')) {
-            alert('Seleccioná un archivo de imagen válido.');
-            e.target.value = '';
-            return;
-        }
-
-        setUploadError(null);
-        setUploadingImage(true);
-
-        try {
-            const uploadedUrl = await uploadImage(file, 'equipo');
-            uploadedInModalRef.current.add(uploadedUrl);
-
-            if (previousUrl && previousUrl !== uploadedUrl && !previousWasUploadedInModal) {
-                deleteOnSaveRef.current.add(previousUrl);
-            }
-
-            setForm(prev => ({ ...prev, imagen_url: uploadedUrl }));
-        } catch (error) {
-            const message = getErrorMessage(error);
-            setUploadError(message);
-            alert(`Error al subir la imagen: ${message}`);
-        } finally {
-            setUploadingImage(false);
-            e.target.value = '';
-        }
-    };
-
-    const handleRemoveImage = () => {
-        const currentUrl = (form.imagen_url || '').trim();
-        if (!currentUrl) return;
-
-        const uploadedInModal = uploadedInModalRef.current.has(currentUrl);
-        if (!uploadedInModal) {
-            deleteOnSaveRef.current.add(currentUrl);
-        }
-
-        setForm(prev => ({ ...prev, imagen_url: '' }));
-        setUploadError(null);
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (uploadingImage) {
-            alert('Esperá a que termine la subida de la imagen.');
-            return;
-        }
-
         setSaving(true);
 
         try {
@@ -199,36 +102,6 @@ export function AdminTeamView() {
                     .from('equipo')
                     .insert([form]);
                 if (error) throw error;
-            }
-
-            const finalImageUrl = (form.imagen_url || '').trim();
-            const uploadedInModal = [...uploadedInModalRef.current].filter((url) => url.trim() && url !== finalImageUrl);
-            uploadedInModalRef.current.clear();
-
-            if (uploadedInModal.length > 0) {
-                await Promise.all(uploadedInModal.map((url) => deleteStorageUrl(url)));
-            }
-
-            const deleteOnSave = [...deleteOnSaveRef.current].filter((url) => url.trim() && url !== finalImageUrl);
-            deleteOnSaveRef.current.clear();
-
-            for (const url of deleteOnSave) {
-                const { data: stillUsedRows, error: checkError } = await supabase
-                    .from('equipo')
-                    .select('id')
-                    .eq('imagen_url', url)
-                    .limit(1);
-
-                if (checkError) {
-                    console.warn('No se pudo verificar referencias de imagen en equipo:', checkError);
-                    continue;
-                }
-
-                if ((stillUsedRows?.length ?? 0) > 0) {
-                    continue;
-                }
-
-                await deleteStorageUrl(url);
             }
 
             setModalOpen(false);
@@ -367,13 +240,13 @@ export function AdminTeamView() {
             {/* Modal */}
             {modalOpen && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeModalAndDiscardUploads} />
+                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
                     <div className="relative w-full h-[100svh] sm:h-auto sm:max-w-lg bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl p-4 sm:p-6 sm:max-h-[90vh] overflow-y-auto shadow-2xl">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-white">
                                 {editingId ? 'Editar Miembro' : 'Nuevo Miembro'}
                             </h2>
-                            <button onClick={closeModalAndDiscardUploads} disabled={saving || uploadingImage} className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-white">
                                 <X size={24} />
                             </button>
                         </div>
@@ -413,73 +286,13 @@ export function AdminTeamView() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Foto del miembro</label>
-                                <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
-                                    {form.imagen_url ? (
-                                        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-white/10 bg-black/30">
-                                            <Image
-                                                src={form.imagen_url}
-                                                alt={form.nombre || 'Preview del miembro'}
-                                                fill
-                                                className="object-cover"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/[0.02] py-8 text-sm text-white/45">
-                                            Sin foto cargada
-                                        </div>
-                                    )}
-
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => imageInputRef.current?.click()}
-                                            disabled={uploadingImage}
-                                            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
-                                        >
-                                            {uploadingImage ? (
-                                                <Loader2 size={16} className="animate-spin" />
-                                            ) : (
-                                                <Upload size={16} />
-                                            )}
-                                            {uploadingImage ? 'Subiendo...' : 'Subir foto'}
-                                        </button>
-                                        {form.imagen_url && (
-                                            <button
-                                                type="button"
-                                                onClick={handleRemoveImage}
-                                                disabled={uploadingImage}
-                                                className="inline-flex items-center rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
-                                            >
-                                                Quitar foto
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <input
-                                        ref={imageInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleImageUpload}
-                                    />
-
-                                    {uploadError && (
-                                        <p className="text-xs text-red-300">
-                                            Error de subida: {uploadError}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">URL de Imagen (opcional)</label>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">URL de Imagen</label>
                                 <input
                                     type="url"
                                     value={form.imagen_url || ''}
                                     onChange={e => setForm({ ...form, imagen_url: e.target.value })}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 outline-none focus:border-quepia-cyan transition-colors"
-                                    placeholder="https://... (o subí un archivo arriba)"
+                                    placeholder="https://..."
                                 />
                             </div>
 
@@ -530,10 +343,10 @@ export function AdminTeamView() {
                             </div>
 
                             <div className="flex gap-3 pt-4">
-                                <Button type="button" variant="outline" onClick={closeModalAndDiscardUploads} disabled={saving || uploadingImage} className="flex-1">
+                                <Button type="button" variant="outline" onClick={() => setModalOpen(false)} className="flex-1">
                                     Cancelar
                                 </Button>
-                                <Button type="submit" disabled={saving || uploadingImage} className="flex-1">
+                                <Button type="submit" disabled={saving} className="flex-1">
                                     {saving ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
                                     {editingId ? 'Guardar cambios' : 'Crear miembro'}
                                 </Button>

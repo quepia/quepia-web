@@ -6,19 +6,16 @@ interface HeroVideoBackgroundProps {
   active?: boolean;
 }
 
+const HERO_LOOP_SRC = '/LOOP%20FONDO%20QUEPIA.prproj.mp4';
+
 export default function HeroVideoBackground({ active = true }: HeroVideoBackgroundProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [shouldUseVideo, setShouldUseVideo] = useState(true);
 
   useEffect(() => {
-    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const saveData = Boolean(connection?.saveData);
-    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
-    const cpuCores = navigator.hardwareConcurrency ?? 8;
-    const lowCpu = cpuCores <= 4 || deviceMemory <= 4;
 
-    if (prefersReducedMotion || saveData || lowCpu) {
+    if (prefersReducedMotion) {
       setShouldUseVideo(false);
     }
   }, []);
@@ -39,16 +36,14 @@ export default function HeroVideoBackground({ active = true }: HeroVideoBackgrou
       {shouldUseVideo ? (
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            filter: 'blur(0.3px) brightness(0.9) contrast(1.15) saturate(1.4)',
-          }}
-          src="/hero-bg.mp4"
+          className="absolute inset-0 h-full w-full object-cover object-center"
+          src={HERO_LOOP_SRC}
           autoPlay
           muted
           loop
           playsInline
           preload="metadata"
+          onError={() => setShouldUseVideo(false)}
         />
       ) : (
         <div

@@ -71,6 +71,13 @@ export async function saveProposal(payload: SaveProposalPayload) {
 
       if (updateError) throw updateError
     } else {
+      const { data: dbAuth, error: dbAuthErr } = await supabase.auth.getUser()
+      if (dbAuthErr || !dbAuth?.user) {
+        throw new Error("No estás autenticado para crear una propuesta.")
+      }
+
+      console.log("[saveProposal] inserting proposal. project_id:", proposal.project_id, "forced created_by:", dbAuth.user.id)
+
       const { data: inserted, error: insertError } = await supabase
         .from('sistema_proposals')
         .insert({
@@ -84,7 +91,7 @@ export async function saveProposal(payload: SaveProposalPayload) {
           status: proposal.status ?? 'draft',
           total_amount: proposal.total_amount ?? 0,
           auto_create_payment: proposal.auto_create_payment ?? false,
-          created_by: proposal.created_by ?? null,
+          created_by: dbAuth.user.id,
         })
         .select('id')
         .single()
@@ -139,8 +146,8 @@ export async function saveProposal(payload: SaveProposalPayload) {
 
     revalidatePath('/sistema')
     return { success: true, id: proposalId }
-  } catch (error) {
-    console.error('Error saving proposal:', error)
+  } catch (error: any) {
+    console.error('Error saving proposal:', error?.message || error)
     return { success: false, error }
   }
 }

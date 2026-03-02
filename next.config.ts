@@ -2,6 +2,12 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   async headers() {
+    // Avoid custom security headers during local development,
+    // they can interfere with Next dev asset delivery/hot reload.
+    if (process.env.NODE_ENV !== 'production') {
+      return [];
+    }
+
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
