@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { Resend } from "resend"
-import { redirect } from "next/navigation"
+import { createClientDirectLink, createClientSessionForAccess } from "@/lib/sistema/auth/client-session"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -123,17 +123,11 @@ export async function verifyClientLoginCode(email: string, code: string) {
     // `sistema_client_sessions` links to `client_access_id` (single).
     // Let's stick to this for V1.
 
-    // Create session token (UUID)
-    const { data: sessionData, error: sessionError } = await supabase
-        .from("sistema_client_sessions")
-        .insert({
-            client_access_id: targetAccessId,
-            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-        })
-        .select("id")
-        .single()
-
-    if (sessionError) {
+    let sessionId: string
+    try {
+        const session = await createClientSessionForAccess({ clientAccessId: targetAccessId, ttlDays: 30 })
+        sessionId = session.sessionId
+    } catch (sessionError) {
         console.error("Error creating session:", sessionError)
         return { error: "Error al iniciar sesión." }
     }
@@ -144,7 +138,7 @@ export async function verifyClientLoginCode(email: string, code: string) {
         .update({ otp_code: null, otp_expires_at: null })
         .eq("email", normalizedEmail)
 
-    return { success: true, token: sessionData.id }
+    return { success: true, token: sessionId }
 }
 
 /**
@@ -166,20 +160,11 @@ export async function generateDirectAccessLink(clientAccessId: string) {
         return { error: "Acceso de cliente no encontrado." }
     }
 
-    // Create a session token (same as OTP verification would)
-    const { data: sessionData, error: sessionError } = await supabase
-        .from("sistema_client_sessions")
-        .insert({
-            client_access_id: clientAccessId,
-            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-        })
-        .select("id")
-        .single()
-
-    if (sessionError) {
+    try {
+        const session = await createClientDirectLink({ clientAccessId, ttlDays: 30 })
+        return { success: true, token: session.sessionId, link: session.link, clientName: client.nombre }
+    } catch (sessionError) {
         console.error("Error creating direct session:", sessionError)
         return { error: "Error al generar la sesión." }
     }
-
-    return { success: true, token: sessionData.id, clientName: client.nombre }
 }

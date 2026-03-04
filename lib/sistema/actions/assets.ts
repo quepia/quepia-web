@@ -276,6 +276,25 @@ export async function getPendingAssets() {
     }
 }
 
+export async function approveAllPendingAssets() {
+    const supabase = await createClient()
+
+    try {
+        const { data, error } = await supabase
+            .from("sistema_assets")
+            .update({ approval_status: "approved_final" })
+            .eq("access_revoked", false)
+            .in("approval_status", ["pending_review", "changes_requested"])
+            .select("id")
+
+        if (error) throw error
+        return { success: true, updated: data?.length || 0 }
+    } catch (error) {
+        console.error("Error approving pending assets:", error)
+        return { success: false, error: extractErrorMessage(error) }
+    }
+}
+
 /**
  * Reorder carousel assets by updating their group_order values.
  * @param assetIds Array of asset IDs in the desired order

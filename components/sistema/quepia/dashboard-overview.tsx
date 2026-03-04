@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import {
   CheckCircle2,
   Clock,
@@ -47,6 +47,7 @@ interface PendingAsset {
 
 export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole }: DashboardOverviewProps) {
   const [pendingAssets, setPendingAssets] = useState<PendingAsset[]>([])
+  const [isApprovingAll, setIsApprovingAll] = useState(false)
   const [experience, setExperience] = useState(() => readExperienceMetrics())
   const cardClass = "rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 shadow-sm sm:p-5"
   const rowActionClass = "min-h-11 w-full rounded-xl px-3 py-2.5 text-left transition-all duration-200 hover:bg-white/[0.06]"
@@ -63,24 +64,21 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
     return d
   }, [])
 
-  useEffect(() => {
-    let active = true
-    const loadPending = async () => {
-      try {
-        const { getPendingAssets } = await import("@/lib/sistema/actions/assets")
-        const res = await getPendingAssets()
-        if (active && res.success && res.data) {
-          setPendingAssets(res.data)
-        }
-      } catch (error) {
-        console.error("Error loading pending assets:", error)
+  const loadPendingAssets = useCallback(async () => {
+    try {
+      const { getPendingAssets } = await import("@/lib/sistema/actions/assets")
+      const res = await getPendingAssets()
+      if (res.success && res.data) {
+        setPendingAssets(res.data)
       }
-    }
-    loadPending()
-    return () => {
-      active = false
+    } catch (error) {
+      console.error("Error loading pending assets:", error)
     }
   }, [])
+
+  useEffect(() => {
+    loadPendingAssets()
+  }, [loadPendingAssets])
 
   useEffect(() => {
     const updateExperience = () => setExperience(readExperienceMetrics())
@@ -141,9 +139,21 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
     return result
   }, [projects])
 
-  const mostVisitedProject = useMemo(() => {
-    if (!mostVisitedProjectId) return null
-    return flatProjects.find(project => project.id === mostVisitedProjectId) || null
+  const quickAccessProjects = useMemo(() => {
+    const actionableProjects = flatProjects.filter(project => project.icon !== "folder")
+    const baseProjects = actionableProjects.length > 0 ? actionableProjects : flatProjects
+    const sortedProjects = [...baseProjects].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+    )
+
+    if (!mostVisitedProjectId) return sortedProjects
+
+    const mostVisitedIndex = sortedProjects.findIndex(project => project.id === mostVisitedProjectId)
+    if (mostVisitedIndex <= 0) return sortedProjects
+
+    const [mostVisited] = sortedProjects.splice(mostVisitedIndex, 1)
+    sortedProjects.unshift(mostVisited)
+    return sortedProjects
   }, [flatProjects, mostVisitedProjectId])
 
   const recentActivity = useMemo(() => {
@@ -216,6 +226,31 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
     return `Hace ${diffDays}d`
   }
 
+  const handleApproveAllPending = async () => {
+    if (isApprovingAll || pendingAssets.length === 0) return
+
+    const accepted = window.confirm(
+      `¿Aprobar ${pendingAssets.length} revision${pendingAssets.length === 1 ? "" : "es"} pendiente${pendingAssets.length === 1 ? "" : "s"}?`
+    )
+
+    if (!accepted) return
+
+    setIsApprovingAll(true)
+    try {
+      const { approveAllPendingAssets } = await import("@/lib/sistema/actions/assets")
+      const result = await approveAllPendingAssets()
+      if (!result.success) {
+        throw new Error(result.error || "No se pudieron aprobar las revisiones pendientes")
+      }
+      await loadPendingAssets()
+    } catch (error) {
+      console.error("Error approving all pending reviews:", error)
+      alert(error instanceof Error ? error.message : "No se pudieron aprobar las revisiones pendientes")
+    } finally {
+      setIsApprovingAll(false)
+    }
+  }
+
   return (
     <div className="flex-1 space-y-5 overflow-y-auto p-3 sm:space-y-6 sm:p-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -259,18 +294,25 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
             Ver proyectos <ArrowRight className="h-3 w-3" />
           </button>
         </div>
-        {mostVisitedProject ? (
-          <button
-            onClick={() => onProjectOpen(mostVisitedProject.id)}
-            className="flex w-full items-center gap-3 rounded-xl bg-white/[0.03] p-3 text-left transition-all duration-200 hover:bg-white/[0.06]"
-          >
-            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: mostVisitedProject.color }} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-white/90 truncate">{mostVisitedProject.nombre}</p>
-              <p className="text-xs text-white/40">Proyecto más visitado</p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-white/40" />
-          </button>
+        {quickAccessProjects.length > 0 ? (
+          <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+            {quickAccessProjects.map((project) => (
+              <button
+                key={project.id}
+                onClick={() => onProjectOpen(project.id)}
+                className="flex w-full items-center gap-3 rounded-xl bg-white/[0.03] p-3 text-left transition-all duration-200 hover:bg-white/[0.06]"
+              >
+                <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: project.color }} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-white/90">{project.nombre}</p>
+                  <p className="text-xs text-white/40">
+                    {project.id === mostVisitedProjectId ? "Más visitado" : "Cliente"}
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-white/40" />
+              </button>
+            ))}
+          </div>
         ) : (
           <div className="py-3 text-center">
             <p className="text-sm text-white/30">
@@ -418,6 +460,16 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
             <Eye className="h-4 w-4 text-orange-400" />
             Revisiones Pendientes
           </h3>
+          {pendingAssets.length > 0 && (
+            <button
+              onClick={handleApproveAllPending}
+              disabled={isApprovingAll}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200 transition-all duration-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {isApprovingAll ? "Aprobando..." : `Aprobar todas (${pendingAssets.length})`}
+            </button>
+          )}
         </div>
         {pendingAssets.length === 0 ? (
           <div className="py-3 text-center">

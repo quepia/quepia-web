@@ -611,6 +611,8 @@ export interface ClientAccess {
   can_view_calendar: boolean;
   can_view_tasks: boolean;
   can_comment: boolean;
+  notify_asset_delivery: boolean;
+  delivery_email: string | null;
   expires_at: string | null;
   last_accessed: string | null;
   created_at: string;
@@ -623,14 +625,19 @@ export interface ClientAccessInsert {
   can_view_calendar?: boolean;
   can_view_tasks?: boolean;
   can_comment?: boolean;
+  notify_asset_delivery?: boolean;
+  delivery_email?: string | null;
   expires_at?: string | null;
 }
 
 export interface ClientAccessUpdate {
   nombre?: string;
+  email?: string;
   can_view_calendar?: boolean;
   can_view_tasks?: boolean;
   can_comment?: boolean;
+  notify_asset_delivery?: boolean;
+  delivery_email?: string | null;
   expires_at?: string | null;
 }
 

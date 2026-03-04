@@ -26,3 +26,4 @@ export { useProposals, useAllClientAccess } from './useProposals';
 export { useProposalTemplates } from './useProposalTemplates';
 export { useCrmPipeline } from './useCrmPipeline';
 export { useEfemerides, useEfemeridesProyectos } from './useEfemerides';
+export { useNotifications } from './useNotifications';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Calendar, CheckCircle2, Circle, Clock, AlertCircle, Loader2, MessageSquare, Send, X, AlignLeft, Tag, FileIcon, Eye, LayoutGrid, ChevronLeft, ChevronRight, List, Briefcase, Building2, Store, Globe, Laptop, Megaphone, Camera, PenTool, Music, Video, Code, Type, Folder, Hash } from "lucide-react"
+import { Calendar, CheckCircle2, Circle, Clock, AlertCircle, Loader2, MessageSquare, Send, X, AlignLeft, Tag, FileIcon, Eye, LayoutGrid, ChevronLeft, ChevronRight, List, Briefcase, Building2, Store, Globe, Laptop, Megaphone, Camera, PenTool, Music, Video, Code, Type, Folder, Hash, Sparkles } from "lucide-react"
 import { getPublicClientData, getPublicClientDataV2 } from "@/lib/sistema/hooks"
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS, PRIORITY_COLORS, PRIORITY_LABELS, APPROVAL_STATUS_COLORS, APPROVAL_STATUS_LABELS } from "@/types/sistema"
 import type { CalendarEventType, Priority, ProjectIcon } from "@/types/sistema"
@@ -60,6 +60,12 @@ interface ClientData {
     error?: string
 }
 
+const CLIENT_ONBOARDING_VERSION = "v2"
+
+function buildOnboardingKey(clientId: string) {
+    return `quepia_onboarding_${CLIENT_ONBOARDING_VERSION}_seen_${clientId}`
+}
+
 export default function ClientViewPage() {
     const params = useParams()
     const token = params?.token as string
@@ -96,7 +102,7 @@ export default function ClientViewPage() {
 
         // Check Onboarding status (only for successful load)
         if (result && !result.error && token.length === 36) {
-            const hasSeen = localStorage.getItem(`quepia_onboarding_seen_${result.client.id}`)
+            const hasSeen = localStorage.getItem(buildOnboardingKey(result.client.id))
             if (!hasSeen) {
                 setShowOnboarding(true)
             }
@@ -105,8 +111,9 @@ export default function ClientViewPage() {
 
     const handleOnboardingComplete = () => {
         if (data?.client?.id) {
-            localStorage.setItem(`quepia_onboarding_seen_${data.client.id}`, "true")
+            localStorage.setItem(buildOnboardingKey(data.client.id), "true")
         }
+        setShowOnboarding(false)
     }
 
     useEffect(() => {
@@ -157,6 +164,8 @@ export default function ClientViewPage() {
             {showOnboarding && client && (
                 <ClientOnboardingOverlay
                     clientName={client.nombre}
+                    activeTab={activeTab}
+                    onNavigateTab={setActiveTab}
                     onComplete={handleOnboardingComplete}
                 />
             )}
@@ -202,8 +211,17 @@ export default function ClientViewPage() {
                                 </p>
                             </div>
                         </div>
-                        <div className="text-sm text-white/40 hidden sm:block">
-                            Powered by <span className="text-quepia-cyan">Quepia</span>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setShowOnboarding(true)}
+                                className="h-9 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors inline-flex items-center gap-1.5"
+                            >
+                                <Sparkles className="h-3.5 w-3.5 text-quepia-cyan" />
+                                Ver guía
+                            </button>
+                            <div className="text-sm text-white/40 hidden sm:block">
+                                Powered by <span className="text-quepia-cyan">Quepia</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -269,6 +287,7 @@ export default function ClientViewPage() {
                     <TasksView
                         tasks={tasks || []}
                         token={token}
+                        clientId={client.id}
                         clientName={client?.nombre || "Cliente"}
                         onUpdate={() => fetchData(true)}
                     />
@@ -1039,12 +1058,25 @@ function ClientEventModal({
     )
 }
 
-function TasksView({ tasks, token, clientName, onUpdate }: { tasks: ClientData["tasks"], token: string, clientName: string, onUpdate: () => void }) {
+function TasksView({ tasks, token, clientName, clientId, onUpdate }: { tasks: ClientData["tasks"], token: string, clientName: string, clientId: string, onUpdate: () => void }) {
     const [selectedTask, setSelectedTask] = useState<Exclude<ClientData["tasks"], undefined>[0] | null>(null)
-    const [hideCompletedTasks, setHideCompletedTasks] = useState(false)
+    const [hideCompletedTasks, setHideCompletedTasks] = useState(true)
     const normalizedTasks = tasks || []
     const completedTasksCount = normalizedTasks.filter((task) => task.completed).length
     const visibleTasks = hideCompletedTasks ? normalizedTasks.filter((task) => !task.completed) : normalizedTasks
+
+    useEffect(() => {
+        const saved = localStorage.getItem(`quepia_tasks_hide_completed_${clientId}`)
+        if (saved === null) {
+            setHideCompletedTasks(true)
+            return
+        }
+        setHideCompletedTasks(saved === "true")
+    }, [clientId])
+
+    useEffect(() => {
+        localStorage.setItem(`quepia_tasks_hide_completed_${clientId}`, String(hideCompletedTasks))
+    }, [clientId, hideCompletedTasks])
 
     // Sync selectedTask when tasks update
     useEffect(() => {
@@ -1080,13 +1112,13 @@ function TasksView({ tasks, token, clientName, onUpdate }: { tasks: ClientData["
                 </p>
                 <button
                     onClick={() => setHideCompletedTasks((prev) => !prev)}
-                    disabled={completedTasksCount === 0 && !hideCompletedTasks}
+                    disabled={completedTasksCount === 0}
                     className={`h-9 px-3 rounded-lg text-xs border transition-colors ${hideCompletedTasks
                             ? "border-quepia-cyan/40 bg-quepia-cyan/10 text-quepia-cyan"
                             : "border-white/10 text-white/70 hover:bg-white/5"
-                        } ${completedTasksCount === 0 && !hideCompletedTasks ? "opacity-40 cursor-not-allowed" : ""}`}
+                        } ${completedTasksCount === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
-                    {hideCompletedTasks ? "Mostrar completadas" : "Limpiar completadas"}
+                    {hideCompletedTasks ? "Mostrar completadas" : "Ocultar completadas"}
                     {completedTasksCount > 0 && (
                         <span className="ml-2 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">
                             {completedTasksCount}

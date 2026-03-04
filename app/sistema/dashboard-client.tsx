@@ -6,9 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { AppSidebar } from "@/components/sistema/quepia/app-sidebar"
 import { TopHeader } from "@/components/sistema/quepia/top-header"
-import { useAuth, useProjects, useAllTasks, useAllCalendarEvents, useSistemaUsers, useProjectTemplates, useClientBrief } from "@/lib/sistema/hooks"
+import { useAuth, useProjects, useAllTasks, useAllCalendarEvents, useSistemaUsers, useProjectTemplates, useClientBrief, useNotifications } from "@/lib/sistema/hooks"
 import type { Task, ProjectWithChildren, ProjectIcon } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
+import type { SistemaNotification } from "@/lib/sistema/hooks/useNotifications"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { LogoPicker } from "@/components/sistema/quepia/logo-picker"
@@ -77,6 +78,29 @@ const VIEW_LABELS: Record<string, string> = {
     proposals: "Propuestas",
     crm: "CRM",
     efemerides: "Efemérides",
+}
+
+const DOCS_SECTION_BY_VIEW: Record<string, string> = {
+    dashboard: "tabs-principales",
+    search: "tabs-principales",
+    inbox: "tabs-principales",
+    today: "tabs-principales",
+    upcoming: "tabs-principales",
+    calendar: "tabs-principales",
+    workload: "tabs-principales",
+    filters: "tabs-principales",
+    completed: "tabs-principales",
+    portfolio: "tabs-principales",
+    crm: "tabs-admin",
+    proposals: "tabs-admin",
+    accounting: "tabs-admin",
+    efemerides: "tabs-admin",
+    "admin-users": "tabs-admin",
+    "admin-projects": "tabs-admin",
+    "admin-services": "tabs-admin",
+    "admin-config": "tabs-admin",
+    "admin-team": "tabs-admin",
+    docs: "inicio",
 }
 
 const ViewFallback = () => (
@@ -191,6 +215,10 @@ const ProjectMembersModal = dynamic(
     () => import("@/components/sistema/quepia/project-members-modal").then((mod) => mod.ProjectMembersModal),
     { loading: ModalFallback }
 )
+const NotificationsPanel = dynamic(
+    () => import("@/components/sistema/quepia/notifications-panel").then((mod) => mod.NotificationsPanel),
+    { loading: ModalFallback }
+)
 
 
 function flattenHashProjects(projects: ProjectWithChildren[]): { id: string; nombre: string; color: string }[] {
@@ -276,6 +304,7 @@ export default function DashboardPage() {
 
     // Settings modal state
     const [showSettingsModal, setShowSettingsModal] = useState(false)
+    const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
 
     // Client profile & briefing state
     const [showClientProfile, setShowClientProfile] = useState(false)
@@ -310,6 +339,13 @@ export default function DashboardPage() {
     const { users: sistemaUsers, refresh: refreshUsers } = useSistemaUsers({ enabled: shouldLoadSistemaUsers })
     const { templates, createProjectFromTemplate } = useProjectTemplates({ enabled: shouldLoadTemplates })
     const { brief, saveBrief } = useClientBrief(briefingProjectId)
+    const {
+        notifications,
+        loading: notificationsLoading,
+        unreadCount: unreadNotificationsCount,
+        markAsRead,
+        markAllAsRead,
+    } = useNotifications(user?.id)
 
     const projectById = useMemo(() => {
         const map = new Map<string, ProjectWithChildren>()
@@ -500,8 +536,35 @@ export default function DashboardPage() {
 
     const handleOpenSettings = useCallback(() => {
         setShowSettingsModal(true)
+        setShowNotificationsPanel(false)
         closeMobileSidebar()
     }, [closeMobileSidebar])
+
+    const openNotificationsPanel = useCallback(() => {
+        setShowNotificationsPanel(true)
+        closeMobileSidebar()
+    }, [closeMobileSidebar])
+
+    const closeNotificationsPanel = useCallback(() => {
+        setShowNotificationsPanel(false)
+    }, [])
+
+    const openSearchView = useCallback(() => {
+        handleViewChange("search")
+    }, [handleViewChange])
+
+    const openInboxView = useCallback(() => {
+        handleViewChange("inbox")
+    }, [handleViewChange])
+
+    const openInsightsView = useCallback(() => {
+        handleViewChange("dashboard")
+    }, [handleViewChange])
+
+    const openShareDialog = useCallback(() => {
+        if (!activeProjectId) return
+        setMembersProjectId(activeProjectId)
+    }, [activeProjectId])
 
     const handleAddProjectFromSidebar = useCallback(() => {
         openNewProjectModal()
@@ -519,6 +582,31 @@ export default function DashboardPage() {
     const openBriefingForm = useCallback(() => {
         setShowBriefingForm(true)
     }, [])
+
+    const handleOpenDocsForCurrentContext = useCallback(() => {
+        const targetSection = isProjectView ? "proyectos" : (DOCS_SECTION_BY_VIEW[activeView] || "inicio")
+        setActiveView("docs")
+        setActiveProjectId(null)
+
+        const url = new URL(window.location.href)
+        url.searchParams.set("view", "docs")
+        url.searchParams.set("docs", targetSection)
+        window.history.pushState({}, "", url)
+    }, [activeView, isProjectView])
+
+    const handleNotificationClick = useCallback((notification: SistemaNotification) => {
+        if (notification.link) {
+            if (notification.link.startsWith("http://") || notification.link.startsWith("https://")) {
+                window.location.href = notification.link
+            } else {
+                const normalizedPath = notification.link.startsWith("/") ? notification.link : `/${notification.link}`
+                router.push(normalizedPath)
+            }
+        } else {
+            handleViewChange("inbox")
+        }
+        setShowNotificationsPanel(false)
+    }, [handleViewChange, router])
 
     const handleCreateProject = async () => {
         if (!newProjectName.trim() || !user?.id) return
@@ -1090,6 +1178,20 @@ export default function DashboardPage() {
                 </div>
             )}
 
+            {user?.id && (
+                <NotificationsPanel
+                    isOpen={showNotificationsPanel}
+                    onClose={closeNotificationsPanel}
+                    notifications={notifications}
+                    loading={notificationsLoading}
+                    unreadCount={unreadNotificationsCount}
+                    onMarkAsRead={markAsRead}
+                    onMarkAllAsRead={markAllAsRead}
+                    onOpenSettings={handleOpenSettings}
+                    onNotificationClick={handleNotificationClick}
+                />
+            )}
+
             {/* New Project Modal */}
             {showNewProjectModal && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
@@ -1309,6 +1411,8 @@ export default function DashboardPage() {
                 onManageMembers={(projectId) => setMembersProjectId(projectId)}
                 onSignOut={signOut}
                 onOpenSettings={handleOpenSettings}
+                onOpenNotifications={openNotificationsPanel}
+                unreadNotifications={unreadNotificationsCount}
                 projects={projects}
                 projectsLoading={projectsLoading}
                 onClose={closeMobileSidebar}
@@ -1321,9 +1425,18 @@ export default function DashboardPage() {
                     breadcrumb={breadcrumb}
                     onOpenClientProfile={isProjectView ? openClientProfile : undefined}
                     onOpenBriefing={isProjectView ? openBriefingForm : undefined}
+                    onOpenDocs={handleOpenDocsForCurrentContext}
+                    onOpenSearch={openSearchView}
+                    onOpenShare={openShareDialog}
+                    onOpenInsights={openInsightsView}
+                    onOpenInbox={openInboxView}
+                    onOpenNotifications={openNotificationsPanel}
+                    onOpenSettings={handleOpenSettings}
                     onMenuClick={openMobileSidebar}
                     theme={theme}
                     onToggleTheme={toggleTheme}
+                    canShare={Boolean(activeProjectId)}
+                    unreadNotifications={unreadNotificationsCount}
                 />
 
                 {/* Content Area */}

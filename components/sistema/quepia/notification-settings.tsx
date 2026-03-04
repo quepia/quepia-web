@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Mail, Clock, Check } from "lucide-react"
+import { Bell, Mail, Check, Settings } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { updatePreferences, getPreferences } from "@/lib/sistema/actions/preferences"
 
@@ -85,8 +85,8 @@ export function NotificationSettings({ userId, onClose }: NotificationSettingsPr
         <div className="bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-none sm:rounded-xl p-6 max-w-none sm:max-w-md w-full h-full sm:h-auto mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-quepia-cyan" />
-                    Notificaciones
+                    <Settings className="h-5 w-5 text-quepia-cyan" />
+                    Ajustes de notificaciones
                 </h2>
             </div>
 

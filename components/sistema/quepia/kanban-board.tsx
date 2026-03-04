@@ -923,6 +923,18 @@ interface SubtaskPreviewCardProps {
     onClick?: () => void
 }
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000
+
+function parseTaskDate(value: string): Date {
+    // Date-only values from Postgres (YYYY-MM-DD) must stay in local day.
+    if (value.includes("T")) return new Date(value)
+    return new Date(`${value}T12:00:00`)
+}
+
+function startOfLocalDay(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
 function SubtaskPreviewCard({ subtask, parentTitle, parentDescription, onClick }: SubtaskPreviewCardProps) {
     return (
         <div
@@ -1126,19 +1138,20 @@ const TaskCard = React.memo(function TaskCard({
         )
     }
 
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !task.completed
-    const isDueSoon = task.due_date && !isOverdue && !task.completed &&
-        new Date(task.due_date).getTime() - new Date().getTime() < 2 * 24 * 60 * 60 * 1000
+    const todayStart = startOfLocalDay(new Date())
+    const dueDayOffset = task.due_date
+        ? Math.round((startOfLocalDay(parseTaskDate(task.due_date)).getTime() - todayStart.getTime()) / DAY_IN_MS)
+        : null
+    const isOverdue = dueDayOffset !== null && dueDayOffset < 0 && !task.completed
+    const isDueSoon = dueDayOffset !== null && dueDayOffset >= 0 && dueDayOffset <= 2 && !task.completed
 
     const formatDueDate = (date: string) => {
-        const d = new Date(date)
-        const today = new Date()
-        const tomorrow = new Date(today)
-        tomorrow.setDate(tomorrow.getDate() + 1)
+        const dueDate = parseTaskDate(date)
+        const offset = Math.round((startOfLocalDay(dueDate).getTime() - startOfLocalDay(new Date()).getTime()) / DAY_IN_MS)
 
-        if (d.toDateString() === today.toDateString()) return "Hoy"
-        if (d.toDateString() === tomorrow.toDateString()) return "Mañana"
-        return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+        if (offset === 0) return "Hoy"
+        if (offset === 1) return "Mañana"
+        return dueDate.toLocaleDateString("es-AR", { day: "numeric", month: "short" })
     }
 
     // Check if this task has a parent (was converted from subtask)

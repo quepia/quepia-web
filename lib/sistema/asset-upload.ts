@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/sistema/supabase/client"
 import { serverCreateAsset, serverAddVersion } from "@/lib/sistema/actions/assets"
 import { ASSET_BUCKET, sanitizeFilename } from "@/lib/sistema/assets-storage"
-import type { AssetType } from "@/types/sistema"
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
@@ -25,6 +24,24 @@ export function getFileCategory(file: File) {
   if (IMAGE_TYPES.includes(file.type)) return "image"
   if (VIDEO_TYPES.includes(file.type)) return "video"
   return "other"
+}
+
+function normalizeExternalUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim()
+  if (!trimmed) throw new Error("Ingresá un link válido")
+
+  let parsed: URL
+  try {
+    parsed = new URL(trimmed)
+  } catch {
+    throw new Error("El link no es válido")
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("El link debe comenzar con http:// o https://")
+  }
+
+  return parsed.toString()
 }
 
 function buildPath(projectId: string, taskId: string, filename: string) {
@@ -334,4 +351,107 @@ export async function uploadReelFile(params: {
     assetType: "reel",
     onProgress,
   })
+}
+
+/**
+ * Create a reel using an external URL (Drive or any public/private URL).
+ * The URL is stored as the current asset version file_url without uploading a file.
+ */
+export async function createReelFromLink(params: {
+  reelUrl: string
+  taskId: string
+  projectId: string
+  userId: string
+  reelName?: string
+  onProgress?: (update: UploadProgressUpdate) => void
+}) {
+  const { reelUrl, taskId, projectId, userId, reelName, onProgress } = params
+  const uploadId = `reel-link-${Date.now()}`
+  let normalizedUrl: string
+  try {
+    normalizedUrl = normalizeExternalUrl(reelUrl)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "El link no es válido"
+    onProgress?.({
+      id: uploadId,
+      fileName: reelName || reelUrl || "Reel por link",
+      percent: 0,
+      stage: "error",
+      message,
+    })
+    throw error instanceof Error ? error : new Error(message)
+  }
+
+  onProgress?.({
+    id: uploadId,
+    fileName: reelName || normalizedUrl,
+    percent: 10,
+    stage: "validating",
+  })
+
+  const created = await serverCreateAsset({
+    task_id: taskId,
+    project_id: projectId,
+    nombre: reelName?.trim() || "Reel (link externo)",
+    asset_type: "reel",
+    created_by: userId,
+  })
+
+  if (!created.success || !created.data) {
+    onProgress?.({
+      id: uploadId,
+      fileName: reelName || normalizedUrl,
+      percent: 0,
+      stage: "error",
+      message: created.error || "Error creando asset",
+    })
+    throw new Error(created.error || "Error creando asset")
+  }
+
+  onProgress?.({
+    id: uploadId,
+    fileName: reelName || normalizedUrl,
+    percent: 80,
+    stage: "saving",
+  })
+
+  const versionResult = await serverAddVersion({
+    asset_id: created.data.id,
+    version_number: 1,
+    file_url: normalizedUrl,
+    storage_path: null,
+    thumbnail_path: null,
+    preview_path: null,
+    original_filename: null,
+    file_type: null,
+    file_size: null,
+    notes: "Reel enlazado desde URL externa",
+    uploaded_by: userId,
+  })
+
+  if (!versionResult.success) {
+    onProgress?.({
+      id: uploadId,
+      fileName: reelName || normalizedUrl,
+      percent: 0,
+      stage: "error",
+      message: versionResult.error || "Error creando versión",
+    })
+    throw new Error(versionResult.error || "Error creando versión")
+  }
+
+  onProgress?.({
+    id: uploadId,
+    fileName: reelName || normalizedUrl,
+    percent: 100,
+    stage: "done",
+  })
+
+  return {
+    assetId: created.data.id,
+    versionId: versionResult.data?.id,
+    storagePath: null,
+    thumbnailPath: null,
+    previewPath: null,
+  }
 }

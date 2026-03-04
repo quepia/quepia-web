@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/sistema/supabase/server'
 import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { notifyUser } from '@/lib/sistema/notifications'
+import { sendEmail } from '@/lib/sistema/email-service'
+import { createClientDirectLink, getClientBaseUrl } from '@/lib/sistema/auth/client-session'
 
 type NotificationType = 'mention' | 'assignment' | 'approval_request' | 'status_change' | 'comment' | 'system'
 
@@ -243,5 +245,156 @@ export async function notifyClientAssetStatus(token: string, assetId: string, st
     } catch (error) {
         console.error('Error notifying asset status:', error)
         return { success: false, error: 'Internal server error' }
+    }
+}
+
+type AssetDeliveryNotificationMode = 'new_asset' | 'new_version' | 'mixed'
+
+interface NotifyClientAssetDeliveryBatchParams {
+    projectId: string
+    taskId: string
+    actorUserId: string
+    uploadedAssetIds: string[]
+    mode: AssetDeliveryNotificationMode
+}
+
+interface NotifyClientAssetDeliveryBatchResult {
+    success: boolean
+    sent: number
+    failed: number
+    skipped: number
+    errors: string[]
+}
+
+function isValidEmail(value: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+export async function notifyClientAssetDeliveryBatch(
+    params: NotifyClientAssetDeliveryBatchParams
+): Promise<NotifyClientAssetDeliveryBatchResult> {
+    const { projectId, taskId, actorUserId, uploadedAssetIds, mode } = params
+    const errors: string[] = []
+    let sent = 0
+    let failed = 0
+    let skipped = 0
+
+    try {
+        const supabase = createAdminClient()
+        const uniqueAssetIds = Array.from(new Set((uploadedAssetIds || []).filter(Boolean)))
+
+        if (!projectId || !taskId || !actorUserId || uniqueAssetIds.length === 0) {
+            return {
+                success: false,
+                sent,
+                failed,
+                skipped,
+                errors: ["Missing required payload for delivery notification batch."],
+            }
+        }
+
+        const [projectResult, taskResult, actorResult, accessesResult] = await Promise.all([
+            supabase.from('sistema_projects').select('nombre').eq('id', projectId).single(),
+            supabase.from('sistema_tasks').select('titulo').eq('id', taskId).single(),
+            supabase.from('sistema_users').select('nombre').eq('id', actorUserId).single(),
+            supabase
+                .from('sistema_client_access')
+                .select('id, nombre, email, delivery_email, notify_asset_delivery, can_view_tasks, expires_at')
+                .eq('project_id', projectId)
+                .eq('notify_asset_delivery', true)
+                .eq('can_view_tasks', true),
+        ])
+
+        const projectName = projectResult.data?.nombre || 'Proyecto'
+        const taskTitle = taskResult.data?.titulo || 'Tarea'
+        const actorName = actorResult.data?.nombre || 'Equipo Quepia'
+
+        const accesses = accessesResult.data || []
+        if (accesses.length === 0) {
+            return { success: true, sent, failed, skipped, errors }
+        }
+
+        const modeLabel = mode === 'new_version'
+            ? 'nueva versión'
+            : mode === 'mixed'
+                ? 'nuevas entregas'
+                : 'nuevos entregables'
+
+        const baseUrl = getClientBaseUrl()
+
+        for (const access of accesses) {
+            const isExpired = Boolean(access.expires_at && new Date(access.expires_at) <= new Date())
+            if (isExpired) {
+                skipped += 1
+                continue
+            }
+
+            const recipientEmail = (access.delivery_email || access.email || '').trim()
+            if (!recipientEmail || !isValidEmail(recipientEmail)) {
+                skipped += 1
+                errors.push(`Access ${access.id} has invalid delivery email.`)
+                continue
+            }
+
+            try {
+                const directLink = await createClientDirectLink({
+                    clientAccessId: access.id,
+                    ttlDays: 30,
+                    baseUrl,
+                })
+
+                const countLabel = `${uniqueAssetIds.length} entregable${uniqueAssetIds.length === 1 ? '' : 's'}`
+                const content = [
+                    `Ya tenés ${countLabel} disponible${uniqueAssetIds.length === 1 ? '' : 's'} en "${taskTitle}".`,
+                    `Proyecto: ${projectName}.`,
+                    `Tipo de carga: ${modeLabel}.`,
+                    `Subido por: ${actorName}.`,
+                    '',
+                    'El acceso directo es válido por 30 días.',
+                ].join('\n')
+
+                const result = await sendEmail({
+                    type: 'general_notification',
+                    to: recipientEmail,
+                    data: {
+                        recipientName: access.nombre || 'Cliente',
+                        title: 'Nuevos entregables disponibles',
+                        content,
+                        actionUrl: directLink.link,
+                        actionText: 'Abrir Entregables',
+                    },
+                })
+
+                if (!result.success) {
+                    failed += 1
+                    errors.push(`Failed to send to ${recipientEmail}: ${result.error || 'unknown error'}`)
+                    continue
+                }
+
+                sent += 1
+            } catch (error) {
+                failed += 1
+                errors.push(`Access ${access.id}: ${error instanceof Error ? error.message : 'unknown error'}`)
+            }
+        }
+
+        return {
+            success: failed === 0,
+            sent,
+            failed,
+            skipped,
+            errors,
+        }
+    } catch (error) {
+        return {
+            success: false,
+            sent,
+            failed: failed + 1,
+            skipped,
+            errors: [
+                ...errors,
+                error instanceof Error ? error.message : 'Unknown error sending delivery notifications.',
+            ],
+        }
     }
 }

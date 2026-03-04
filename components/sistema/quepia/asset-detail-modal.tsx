@@ -16,6 +16,13 @@ import {
     Download,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import {
+    isExternalAssetSource,
+    isGoogleDriveUrl,
+    isLikelyImageAsset,
+    isLikelyVideoAsset,
+    toGoogleDrivePreviewUrl,
+} from "@/lib/sistema/asset-link-utils"
 // Use the wrapper to avoid SSR issues
 import AnnotationCanvasWrapper from "./annotation-canvas-wrapper"
 import VersionComparison from "./version-comparison"
@@ -135,6 +142,19 @@ export function AssetDetailModal({
 
     if (!isOpen || !activeVersion) return null
 
+    const sourcePath = activeVersion.storage_path || activeVersion.file_url
+    const originalUrl = activeVersion.file_url || sourcePath || ""
+    const previewUrl = activeVersion.preview_url || activeVersion.file_url || sourcePath || ""
+    const fileNameOrUrl = activeVersion.original_filename || sourcePath || originalUrl
+    const isImage = isLikelyImageAsset(activeVersion.file_type, fileNameOrUrl)
+    const isGoogleDrive = isGoogleDriveUrl(sourcePath || originalUrl)
+    const isVideo = !isGoogleDrive && isLikelyVideoAsset(activeVersion.file_type, fileNameOrUrl)
+    const isExternalSource = isExternalAssetSource(sourcePath)
+    const shouldUseIframePreview = isGoogleDrive || (asset.asset_type === "reel" && isExternalSource && !isImage && !isVideo)
+    const iframeUrl = isGoogleDrive
+        ? toGoogleDrivePreviewUrl(sourcePath || originalUrl) || originalUrl
+        : (sourcePath || originalUrl)
+
     // Group annotations
     const activeAnnotations = annotations
     const pendingReview = activeAnnotations.filter(a => !a.resolved)
@@ -198,8 +218,15 @@ export function AssetDetailModal({
                             )}
                             <button
                                 onClick={() => {
+                                    if (!originalUrl) return
+
+                                    if (isExternalSource) {
+                                        window.open(sourcePath || originalUrl, "_blank", "noopener,noreferrer")
+                                        return
+                                    }
+
                                     const link = document.createElement("a")
-                                    link.href = activeVersion.file_url
+                                    link.href = originalUrl
                                     link.download = activeVersion.original_filename || asset.nombre
                                     link.target = "_blank"
                                     document.body.appendChild(link)
@@ -223,77 +250,47 @@ export function AssetDetailModal({
                     </div>
 
                     <div className="flex-1 w-full h-full relative bg-black flex items-center justify-center">
-                        {(() => {
-                            const originalUrl = activeVersion.file_url
-                            const previewUrl = activeVersion.preview_url || activeVersion.file_url
-                            const ext = (activeVersion.original_filename || originalUrl).split('.').pop()?.toLowerCase() || ''
-                            const isImage = (activeVersion.file_type || '').startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)
-                            const isVideo = (activeVersion.file_type || '').startsWith('video/') || ['mp4', 'mov', 'webm', 'ogg'].includes(ext)
-                            const isGoogleDrive = originalUrl.includes("drive.google.com") || originalUrl.includes("docs.google.com")
-
-                            if (isImage) {
-                                return (
-                                    <AnnotationCanvasWrapper
-                                        imageUrl={previewUrl}
-                                        annotations={annotations}
-                                        onAddAnnotation={handleAddAnnotationClick}
-                                        onSelectAnnotation={(ann) => {
-                                            setSelectedAnnotationId(ann.id)
-                                            if (!showSidebar) setShowSidebar(true)
-                                        }}
-                                        selectedAnnotationId={selectedAnnotationId}
-                                    />
-                                )
-                            }
-
-                            if (isVideo) {
-                                return (
-                                    <video
-                                        src={previewUrl}
-                                        poster={activeVersion.thumbnail_url || undefined}
-                                        controls
-                                        playsInline
-                                        className="w-full h-full object-contain bg-black"
-                                    />
-                                )
-                            }
-
-                            if (isGoogleDrive) {
-                                // Extract ID and construct preview URL
-                                let embedUrl = originalUrl
-                                const idMatch = originalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)
-                                if (idMatch && idMatch[1]) {
-                                    embedUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview`
-                                } else if (originalUrl.includes("view")) {
-                                    embedUrl = originalUrl.replace(/\/view.*/, "/preview")
-                                }
-
-                                return (
-                                    <div className="w-full h-full">
-                                        <iframe
-                                            src={embedUrl}
-                                            className="w-full h-full border-0"
-                                            allow="autoplay; fullscreen"
-                                            title="Asset Preview"
-                                        />
-                                    </div>
-                                )
-                            }
-
-                            return (
-                                <div className="w-full h-full flex items-center justify-center flex-col gap-4">
-                                    <p className="text-white/50">Vista previa no disponible para este formato</p>
-                                    <a
-                                        href={originalUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-quepia-cyan hover:underline"
-                                    >
-                                        Abrir archivo original
-                                    </a>
-                                </div>
-                            )
-                        })()}
+                        {isImage ? (
+                            <AnnotationCanvasWrapper
+                                imageUrl={previewUrl}
+                                annotations={annotations}
+                                onAddAnnotation={handleAddAnnotationClick}
+                                onSelectAnnotation={(ann) => {
+                                    setSelectedAnnotationId(ann.id)
+                                    if (!showSidebar) setShowSidebar(true)
+                                }}
+                                selectedAnnotationId={selectedAnnotationId}
+                            />
+                        ) : isVideo ? (
+                            <video
+                                src={previewUrl}
+                                poster={activeVersion.thumbnail_url || undefined}
+                                controls
+                                playsInline
+                                className="w-full h-full object-contain bg-black"
+                            />
+                        ) : shouldUseIframePreview && iframeUrl ? (
+                            <div className="w-full h-full">
+                                <iframe
+                                    src={iframeUrl}
+                                    className="w-full h-full border-0"
+                                    allow="autoplay; fullscreen"
+                                    title="Asset Preview"
+                                />
+                            </div>
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center flex-col gap-4">
+                                <p className="text-white/50">Vista previa no disponible para este formato</p>
+                                <a
+                                    href={originalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-quepia-cyan hover:underline"
+                                >
+                                    Abrir archivo original
+                                </a>
+                            </div>
+                        )}
                     </div>
                 </div>
 

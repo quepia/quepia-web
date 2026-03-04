@@ -26,6 +26,13 @@ import {
     Archive,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import {
+    isExternalAssetSource,
+    isGoogleDriveUrl,
+    isLikelyImageAsset,
+    isLikelyVideoAsset,
+    toGoogleDrivePreviewUrl,
+} from "@/lib/sistema/asset-link-utils"
 import AnnotationCanvasWrapper from "./annotation-canvas-wrapper"
 import { useToast } from "@/components/ui/toast-provider"
 import {
@@ -50,6 +57,7 @@ export interface ClientAsset {
     client_rating?: number
     current_version_id: string
     file_url: string
+    storage_path?: string | null
     thumbnail_url?: string | null
     preview_url?: string | null
     file_type: string | null
@@ -58,6 +66,8 @@ export interface ClientAsset {
     version_number: number
     annotations: Annotation[]
     access_revoked?: boolean
+    asset_created_at?: string | null
+    version_created_at?: string | null
 }
 
 interface ClientAssetViewerProps {
@@ -318,6 +328,11 @@ export function ClientAssetViewer({
         })
         const data = await res.json()
         if (data?.url) {
+            if (isExternalSource) {
+                window.open(data.url, "_blank", "noopener,noreferrer")
+                return
+            }
+
             // For videos on iOS Safari, window.open works better than programmatic link click
             const isVideoAsset = isVideo || activeAsset.asset_type === 'reel'
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
@@ -423,22 +438,18 @@ export function ClientAssetViewer({
     if (!isOpen || !mounted) return null
 
     // File Logic
-    const originalUrl = activeAsset.file_url || ""
-    const fileUrl = activeAsset.preview_url || activeAsset.file_url || ""
-    const fileExt = (activeAsset.original_filename || originalUrl).split(".").pop()?.toLowerCase() || ""
-    const isImage = (activeAsset.file_type || "").startsWith("image/") || ["jpg", "jpeg", "png", "webp", "gif"].includes(fileExt)
-    const isVideo = (activeAsset.file_type || "").startsWith("video/") || ["mp4", "mov", "webm", "ogg"].includes(fileExt)
-    const isGoogleDrive = originalUrl.includes("drive.google.com") || originalUrl.includes("docs.google.com")
-
-    let embedUrl = originalUrl
-    if (isGoogleDrive) {
-        const idMatch = fileUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)
-        if (idMatch && idMatch[1]) {
-            embedUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview`
-        } else if (fileUrl.includes("view")) {
-            embedUrl = fileUrl.replace(/\/view.*/, "/preview")
-        }
-    }
+    const sourcePath = activeAsset.storage_path || activeAsset.file_url || ""
+    const originalUrl = activeAsset.file_url || sourcePath
+    const fileUrl = activeAsset.preview_url || activeAsset.file_url || sourcePath
+    const fileNameOrUrl = activeAsset.original_filename || sourcePath || originalUrl
+    const isImage = isLikelyImageAsset(activeAsset.file_type, fileNameOrUrl)
+    const isGoogleDrive = isGoogleDriveUrl(sourcePath || originalUrl)
+    const isVideo = !isGoogleDrive && isLikelyVideoAsset(activeAsset.file_type, fileNameOrUrl)
+    const isExternalSource = isExternalAssetSource(sourcePath)
+    const shouldUseIframePreview = isGoogleDrive || (activeAsset.asset_type === "reel" && isExternalSource && !isImage && !isVideo)
+    const embedUrl = isGoogleDrive
+        ? toGoogleDrivePreviewUrl(sourcePath || originalUrl) || originalUrl
+        : (sourcePath || originalUrl)
 
     const viewerContent = (
         <div
@@ -673,7 +684,7 @@ export function ClientAssetViewer({
                                     )
                                 }
 
-                                if (isGoogleDrive) {
+                                if (shouldUseIframePreview) {
                                     return (
                                         <div className="w-full h-full">
                                             <iframe

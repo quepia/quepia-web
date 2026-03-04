@@ -17,7 +17,6 @@ import { APPROVAL_STATUS_COLORS, APPROVAL_STATUS_LABELS } from "@/types/sistema"
 import type { ApprovalStatus } from "@/types/sistema"
 import { cn } from "@/lib/sistema/utils"
 import { ClientAssetViewer, type ClientAsset } from "./client-asset-viewer"
-import { updatePublicAssetStatus } from "@/lib/sistema/hooks"
 
 interface AssetTask {
     id: string
@@ -37,6 +36,16 @@ type TaskAssetItem = ClientAsset & {
     taskTitle: string
     socialCopy?: string | null
     taskId: string
+}
+
+function toTimestamp(value?: string | null) {
+    if (!value) return 0
+    const parsed = new Date(value).getTime()
+    return Number.isFinite(parsed) ? parsed : 0
+}
+
+function getAssetSortTs(asset: Pick<TaskAssetItem, "version_created_at" | "asset_created_at">) {
+    return toTimestamp(asset.version_created_at) || toTimestamp(asset.asset_created_at)
 }
 
 // ---- Sub-components for asset cards ----
@@ -101,7 +110,7 @@ function SingleAssetCard({
         <div
             onClick={onClick}
             className={cn(
-                "bg-white/[0.03] border border-white/[0.08] rounded-xl overflow-hidden hover:border-quepia-cyan/30 transition-all cursor-pointer group flex flex-col",
+                "bg-[#111721] border border-white/[0.08] rounded-xl overflow-hidden hover:border-quepia-cyan/35 transition-all cursor-pointer group flex flex-col",
                 isReel && "border-l-2 border-l-pink-400/40"
             )}
         >
@@ -165,21 +174,13 @@ function SingleAssetCard({
 
 function CarouselCard({
     items,
-    firstIndex,
     allAssets,
-    taskTitle,
-    socialCopy,
-    taskId,
     selectedIds,
     onToggleSelect,
     onOpenViewer,
 }: {
     items: (ClientAsset & { taskTitle: string; socialCopy?: string | null; taskId: string })[]
-    firstIndex: number
     allAssets: (ClientAsset & { taskTitle: string; socialCopy?: string | null; taskId: string })[]
-    taskTitle: string
-    socialCopy?: string | null
-    taskId: string
     selectedIds: Set<string>
     onToggleSelect: (id: string) => void
     onOpenViewer: (index: number) => void
@@ -200,7 +201,7 @@ function CarouselCard({
     const carouselName = items[0]?.nombre?.replace(/\s*\(\d+\/\d+\)\s*$/, '') || "Carrusel"
 
     return (
-        <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl overflow-hidden hover:border-purple-400/30 transition-all border-l-2 border-l-purple-400/40">
+        <div className="bg-[#111721] border border-white/[0.08] rounded-xl overflow-hidden hover:border-purple-400/35 transition-all border-l-2 border-l-purple-400/40">
             {/* Carousel preview area */}
             <div className="relative aspect-video bg-black/40 overflow-hidden">
                 {/* Horizontal scroll of slides */}
@@ -370,12 +371,19 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
                     }
                     return true
                 })
+                .sort((a, b) => getAssetSortTs(b) - getAssetSortTs(a))
 
             return {
                 ...task,
                 assets
             }
-        }).filter(task => task.assets && task.assets.length > 0)
+        })
+            .filter(task => task.assets && task.assets.length > 0)
+            .sort((a, b) => {
+                const newestA = Math.max(...(a.assets || []).map(getAssetSortTs), 0)
+                const newestB = Math.max(...(b.assets || []).map(getAssetSortTs), 0)
+                return newestB - newestA
+            })
     }, [tasks, searchQuery, filterStatus])
 
     const flatAssets = useMemo(() => tasksWithAssets.flatMap(task => task.assets || []), [tasksWithAssets])
@@ -425,43 +433,22 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
         if (data?.url) window.open(data.url, "_blank")
     }
 
-    const handleDownloadAll = async (taskId: string) => {
-        const res = await fetch("/api/assets/zip", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token, taskId, scope: "all" })
-        })
-        const data = await res.json()
-        if (data?.url) window.open(data.url, "_blank")
-    }
-
-    const handleApproveAll = async (taskId: string) => {
-        const task = tasksWithAssets.find(t => t.id === taskId)
-        if (!task?.assets) return
-        for (const asset of task.assets) {
-            if (asset.approval_status !== "approved_final") {
-                await updatePublicAssetStatus(token, asset.id, "approved_final")
-            }
-        }
-        onUpdate()
-    }
-
     return (
         <div className="space-y-6">
             {/* Controls */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                <div className="relative w-full md:w-64">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                <div className="relative w-full md:w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                     <input
                         type="text"
                         placeholder="Buscar archivo..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-quepia-cyan outline-none"
+                        className="w-full bg-black/25 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-quepia-cyan outline-none"
                     />
                 </div>
 
-                <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
+                <div className="flex bg-black/20 p-1 rounded-lg border border-white/10">
                     {(["all", "pending", "approved"] as const).map((status) => (
                         <button
                             key={status}
@@ -469,8 +456,8 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
                             className={cn(
                                 "px-4 py-1.5 text-xs font-medium rounded-md transition-colors",
                                 filterStatus === status
-                                    ? "bg-white/10 text-white shadow-sm"
-                                    : "text-white/50 hover:text-white/80"
+                                    ? "bg-white/15 text-white shadow-sm"
+                                    : "text-white/50 hover:text-white/85"
                             )}
                         >
                             {status === "all" ? "Todos" : status === "pending" ? "Pendientes" : "Aprobados"}
@@ -523,7 +510,7 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                                 <div>
                                     <h3 className="text-base font-semibold text-white">{task.titulo}</h3>
-                                    <p className="text-xs text-white/40">{task.assets?.length || 0} assets</p>
+                                    <p className="text-xs text-white/45">{task.assets?.length || 0} assets · más recientes primero</p>
                                 </div>
                             </div>
 
@@ -543,17 +530,12 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
                                             const groupItems = taskAssets
                                                 .filter(a => a.group_id === item.group_id)
                                                 .sort((a, b) => (a.group_order ?? 0) - (b.group_order ?? 0))
-                                            const firstIdx = taskAssets.indexOf(groupItems[0])
 
                                             rendered.push(
                                                 <CarouselCard
                                                     key={`carousel-${item.group_id}`}
                                                     items={groupItems}
-                                                    firstIndex={firstIdx}
                                                     allAssets={taskAssets}
-                                                    taskTitle={task.titulo}
-                                                    socialCopy={task.social_copy}
-                                                    taskId={task.id}
                                                     selectedIds={selectedIds}
                                                     onToggleSelect={toggleSelected}
                                                     onOpenViewer={(idx) => setViewer({

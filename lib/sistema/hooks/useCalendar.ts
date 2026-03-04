@@ -161,9 +161,14 @@ export function useClientAccess(projectId?: string) {
   const createClientAccess = async (client: ClientAccessInsert): Promise<ClientAccess | null> => {
     try {
       const supabase = createClient();
+      const payload: ClientAccessInsert = {
+        ...client,
+        notify_asset_delivery: client.notify_asset_delivery ?? true,
+        delivery_email: client.delivery_email ?? client.email,
+      };
       const { data, error: insertError } = await supabase
         .from('sistema_client_access')
-        .insert(client)
+        .insert(payload)
         .select()
         .single();
 

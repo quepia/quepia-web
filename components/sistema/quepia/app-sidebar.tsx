@@ -79,6 +79,8 @@ interface AppSidebarProps {
     onManageMembers?: (projectId: string) => void
     onSignOut?: () => void
     onOpenSettings?: () => void
+    onOpenNotifications?: () => void
+    unreadNotifications?: number
     projects: ProjectWithChildren[]
     projectsLoading: boolean
     className?: string
@@ -101,6 +103,8 @@ export function AppSidebar({
     onManageMembers,
     onSignOut,
     onOpenSettings,
+    onOpenNotifications,
+    unreadNotifications = 0,
     projects,
     projectsLoading,
     className,
@@ -315,7 +319,7 @@ export function AppSidebar({
                     <button
                         onClick={onOpenSettings}
                         className="rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]"
-                        title="Configuración"
+                        title="Ajustes de notificaciones"
                     >
                         <Settings className="h-4 w-4 text-white/40" />
                     </button>
@@ -329,15 +333,24 @@ export function AppSidebar({
                     >
                         <Book className={cn("h-4 w-4", activeView === "docs" ? "text-quepia-cyan" : "text-white/40")} />
                     </button>
-                    <button
-                        onClick={() => onViewChange("inbox")}
-                        className={cn(
-                            "rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]",
-                            activeView === "inbox" ? "bg-white/[0.1] text-quepia-cyan" : ""
+                    <div className="relative">
+                        <button
+                            onClick={onOpenNotifications || (() => onViewChange("inbox"))}
+                            className={cn(
+                                "rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]",
+                                unreadNotifications > 0 ? "bg-quepia-cyan/10" : "",
+                                activeView === "inbox" ? "bg-white/[0.1] text-quepia-cyan" : ""
+                            )}
+                            title="Notificaciones"
+                        >
+                            <Bell className={cn("h-4 w-4", unreadNotifications > 0 || activeView === "inbox" ? "text-quepia-cyan" : "text-white/40")} />
+                        </button>
+                        {unreadNotifications > 0 && (
+                            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-quepia-cyan px-1 text-[10px] font-semibold text-[#042423]">
+                                {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                            </span>
                         )}
-                    >
-                        <Bell className={cn("h-4 w-4", activeView === "inbox" ? "text-quepia-cyan" : "text-white/40")} />
-                    </button>
+                    </div>
                     {onSignOut && (
                         <button onClick={onSignOut} className="rounded-md p-2 transition-all duration-200 hover:bg-white/[0.06]" title="Cerrar sesión">
                             <LogOut className="h-4 w-4 text-white/40" />

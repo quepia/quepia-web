@@ -24,11 +24,12 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useAssets } from "@/lib/sistema/hooks"
-import type { AssetWithVersions, ApprovalStatus, AssetVersion, AssetType } from "@/types/sistema"
-import { APPROVAL_STATUS_LABELS, APPROVAL_STATUS_COLORS, ASSET_TYPE_LABELS } from "@/types/sistema"
+import type { AssetWithVersions, ApprovalStatus } from "@/types/sistema"
+import { APPROVAL_STATUS_LABELS, APPROVAL_STATUS_COLORS } from "@/types/sistema"
 import { AssetDetailModal } from "./asset-detail-modal"
-import { uploadAssetFile, uploadCarouselFiles, uploadReelFile, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
+import { uploadAssetFile, uploadCarouselFiles, uploadReelFile, createReelFromLink, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 import { toggleAssetAccess, reorderCarouselAssets, renameCarouselAssets, deleteCarouselGroup, getNextGroupOrder } from "@/lib/sistema/actions/assets"
+import { notifyClientAssetDeliveryBatch } from "@/lib/sistema/actions/notifications"
 
 interface AssetPanelProps {
   taskId: string
@@ -48,11 +49,14 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
   const [versionNotes, setVersionNotes] = useState("")
   const [uploadQueue, setUploadQueue] = useState<UploadProgressUpdate[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
+  const [reelInputMode, setReelInputMode] = useState<"file" | "link">("file")
+  const [reelExternalUrl, setReelExternalUrl] = useState("")
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
   const [editingCarouselId, setEditingCarouselId] = useState<string | null>(null)
   const [editingCarouselName, setEditingCarouselName] = useState("")
   const [addingSlidesToGroup, setAddingSlidesToGroup] = useState<string | null>(null)
+  const [uploadNotificationWarning, setUploadNotificationWarning] = useState<string | null>(null)
   const carouselFileInputRef = useRef<HTMLInputElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -78,16 +82,48 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     })
   }
 
+  const notifyDeliveryBatch = async (uploadedAssetIds: string[], mode: "new_asset" | "new_version" | "mixed") => {
+    const uniqueAssetIds = Array.from(new Set(uploadedAssetIds.filter(Boolean)))
+    if (!uniqueAssetIds.length) return
+
+    const result = await notifyClientAssetDeliveryBatch({
+      projectId,
+      taskId,
+      actorUserId: userId,
+      uploadedAssetIds: uniqueAssetIds,
+      mode,
+    })
+
+    if (!result.success || result.failed > 0) {
+      setUploadNotificationWarning(
+        `Se subieron los archivos, pero ${result.failed} notificación(es) de entrega fallaron.`
+      )
+      return
+    }
+
+    if (result.skipped > 0) {
+      setUploadNotificationWarning(
+        `Se subieron los archivos. ${result.skipped} acceso(s) no tenían email válido para notificación.`
+      )
+      return
+    }
+
+    setUploadNotificationWarning(null)
+  }
+
   const handleFilesUpload = async (files: FileList | File[]) => {
     const list = Array.from(files || [])
     if (list.length === 0) return
 
     const mode = uploadMode
+    if (mode === 'reel' && reelInputMode === 'link') return
+
+    const uploadedAssetIds: string[] = []
     setIsAdding(false)
 
     if (mode === 'carousel' && list.length >= 2) {
       try {
-        await uploadCarouselFiles({
+        const result = await uploadCarouselFiles({
           files: list,
           taskId,
           projectId,
@@ -95,6 +131,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           carouselName: carouselName.trim() || undefined,
           onProgress: updateUploadQueue,
         })
+        uploadedAssetIds.push(...result.results.map((item) => item.assetId))
       } catch (err: any) {
         updateUploadQueue({
           id: `carousel-${Date.now()}`,
@@ -110,7 +147,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
       const videoFile = list.find(f => f.type.startsWith('video/'))
       if (videoFile) {
         try {
-          await uploadReelFile({
+          const result = await uploadReelFile({
             file: videoFile,
             taskId,
             projectId,
@@ -118,6 +155,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
             reelName: carouselName.trim() || undefined,
             onProgress: updateUploadQueue,
           })
+          uploadedAssetIds.push(result.assetId)
         } catch (err: any) {
           updateUploadQueue({
             id: `reel-${Date.now()}`,
@@ -132,13 +170,14 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     } else {
       for (const file of list) {
         try {
-          await uploadAssetFile({
+          const result = await uploadAssetFile({
             file,
             taskId,
             projectId,
             userId,
             onProgress: updateUploadQueue,
           })
+          uploadedAssetIds.push(result.assetId)
         } catch (err: any) {
           updateUploadQueue({
             id: `${file.name}-${Date.now()}`,
@@ -152,12 +191,49 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     }
 
     await refresh()
+    await notifyDeliveryBatch(uploadedAssetIds, "new_asset")
+  }
+
+  const handleCreateReelFromLink = async () => {
+    const externalUrl = reelExternalUrl.trim()
+    if (!externalUrl) {
+      updateUploadQueue({
+        id: `reel-link-${Date.now()}`,
+        fileName: "Reel por link",
+        percent: 0,
+        stage: "error",
+        message: "Pegá un link para crear el reel",
+      })
+      return
+    }
+
+    setIsAdding(false)
+    const uploadedAssetIds: string[] = []
+
+    try {
+      const result = await createReelFromLink({
+        reelUrl: externalUrl,
+        taskId,
+        projectId,
+        userId,
+        reelName: carouselName.trim() || undefined,
+        onProgress: updateUploadQueue,
+      })
+      uploadedAssetIds.push(result.assetId)
+    } catch {}
+
+    setCarouselName("")
+    setReelExternalUrl("")
+    setReelInputMode("file")
+
+    await refresh()
+    await notifyDeliveryBatch(uploadedAssetIds, "new_asset")
   }
 
   const handleAddVersion = async (assetId: string, currentVersion: number) => {
     const file = versionFileRef.current?.files?.[0]
     if (!file) return
-    await uploadAssetFile({
+    const result = await uploadAssetFile({
       file,
       taskId,
       projectId,
@@ -168,6 +244,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
       onProgress: updateUploadQueue,
     })
     await refresh()
+    await notifyDeliveryBatch([result.assetId], "new_version")
     setVersionNotes("")
     setUploadingVersion(null)
     if (versionFileRef.current) versionFileRef.current.value = ""
@@ -179,11 +256,12 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     if (list.length === 0) return
 
     const startOrder = await getNextGroupOrder(groupId)
+    const uploadedAssetIds: string[] = []
 
     for (let i = 0; i < list.length; i++) {
       const file = list[i]
       try {
-        await uploadAssetFile({
+        const result = await uploadAssetFile({
           file,
           taskId,
           projectId,
@@ -193,6 +271,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           groupOrder: startOrder + i,
           onProgress: updateUploadQueue,
         })
+        uploadedAssetIds.push(result.assetId)
       } catch (err: any) {
         updateUploadQueue({
           id: `${file.name}-${Date.now()}`,
@@ -206,6 +285,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
     setAddingSlidesToGroup(null)
     await refresh()
+    await notifyDeliveryBatch(uploadedAssetIds, "new_asset")
   }
 
   const statusTransitions: Record<ApprovalStatus, ApprovalStatus[]> = {
@@ -215,6 +295,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     approved_final: ['changes_requested', 'published'],
     published: [],
   }
+  const isReelLinkMode = uploadMode === "reel" && reelInputMode === "link"
 
   if (loading) {
     return (
@@ -261,16 +342,18 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
         <div
           className={cn(
             "bg-white/[0.03] border border-dashed rounded-lg p-4 space-y-3 transition-colors",
-            isDragOver ? "border-quepia-cyan/60 bg-quepia-cyan/5" : "border-white/[0.12]"
+            isDragOver && !isReelLinkMode ? "border-quepia-cyan/60 bg-quepia-cyan/5" : "border-white/[0.12]"
           )}
           onDragOver={(e) => {
             e.preventDefault()
+            if (isReelLinkMode) return
             setIsDragOver(true)
           }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={(e) => {
             e.preventDefault()
             setIsDragOver(false)
+            if (isReelLinkMode) return
             handleFilesUpload(e.dataTransfer.files)
           }}
         >
@@ -283,7 +366,9 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
               : "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
             }
             className="hidden"
+            disabled={isReelLinkMode}
             onChange={(e) => {
+              if (isReelLinkMode) return
               if (e.target.files) handleFilesUpload(e.target.files)
             }}
           />
@@ -297,7 +382,13 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
             ]).map(({ key, label, icon }) => (
               <button
                 key={key}
-                onClick={() => setUploadMode(key)}
+                onClick={() => {
+                  setUploadMode(key)
+                  if (key !== 'reel') {
+                    setReelInputMode("file")
+                    setReelExternalUrl("")
+                  }
+                }}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors",
                   uploadMode === key
@@ -311,6 +402,29 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
             ))}
           </div>
 
+          {/* Reel source mode selector */}
+          {uploadMode === "reel" && (
+            <div className="flex gap-1 bg-white/[0.02] p-0.5 rounded-lg border border-white/[0.06]">
+              {([
+                { key: "file" as const, label: "Subir video" },
+                { key: "link" as const, label: "Pegar link" },
+              ]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setReelInputMode(key)}
+                  className={cn(
+                    "flex-1 px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors",
+                    reelInputMode === key
+                      ? "bg-quepia-cyan/20 text-quepia-cyan border border-quepia-cyan/30"
+                      : "text-white/40 hover:text-white/70"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Name input for carousel / reel */}
           {(uploadMode === 'carousel' || uploadMode === 'reel') && (
             <input
@@ -322,37 +436,73 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
             />
           )}
 
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-              <CloudUpload className="h-4 w-4 text-quepia-cyan" />
+          {isReelLinkMode ? (
+            <div className="space-y-2.5">
+              <input
+                type="url"
+                value={reelExternalUrl}
+                onChange={(e) => setReelExternalUrl(e.target.value)}
+                placeholder="https://drive.google.com/file/d/.../view"
+                className="w-full text-xs bg-white/[0.03] border border-white/10 rounded px-2 py-1.5 text-white placeholder:text-white/30 outline-none focus:border-quepia-cyan"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    handleCreateReelFromLink()
+                  }
+                }}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] text-white/40">
+                  Pegá un link de Drive (u otra URL) para crear el reel sin subir archivo.
+                </p>
+                <button
+                  onClick={handleCreateReelFromLink}
+                  className="px-3 py-1 text-xs rounded bg-quepia-cyan text-black font-medium hover:opacity-90 shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={!reelExternalUrl.trim()}
+                >
+                  Crear reel
+                </button>
+              </div>
             </div>
-            <div className="flex-1">
-              <p className="text-sm text-white/80">
-                {uploadMode === 'carousel'
-                  ? "Arrastrá las imágenes del carrusel"
-                  : uploadMode === 'reel'
-                    ? "Arrastrá el video del reel"
-                    : "Arrastrá archivos aquí"}
-              </p>
-              <p className="text-[11px] text-white/40">
-                {uploadMode === 'reel'
-                  ? "MP4, MOV, WEBM (máx 100MB)"
-                  : uploadMode === 'carousel'
-                    ? "2+ imágenes · JPG, PNG, WEBP, GIF (máx 100MB c/u)"
-                    : "JPG, PNG, WEBP, GIF, MP4, MOV, WEBM (máx 100MB)"}
-              </p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <CloudUpload className="h-4 w-4 text-quepia-cyan" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-white/80">
+                  {uploadMode === 'carousel'
+                    ? "Arrastrá las imágenes del carrusel"
+                    : uploadMode === 'reel'
+                      ? "Arrastrá el video del reel"
+                      : "Arrastrá archivos aquí"}
+                </p>
+                <p className="text-[11px] text-white/40">
+                  {uploadMode === 'reel'
+                    ? "MP4, MOV, WEBM (máx 100MB)"
+                    : uploadMode === 'carousel'
+                      ? "2+ imágenes · JPG, PNG, WEBP, GIF (máx 100MB c/u)"
+                      : "JPG, PNG, WEBP, GIF, MP4, MOV, WEBM (máx 100MB)"}
+                </p>
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1 text-xs rounded bg-quepia-cyan text-black font-medium hover:opacity-90"
+              >
+                Seleccionar
+              </button>
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-1 text-xs rounded bg-quepia-cyan text-black font-medium hover:opacity-90"
-            >
-              Seleccionar
-            </button>
-          </div>
+          )}
 
           <div className="flex justify-end">
             <button
-              onClick={() => { setIsAdding(false); setUploadMode('single'); setCarouselName("") }}
+              onClick={() => {
+                setIsAdding(false)
+                setUploadMode('single')
+                setCarouselName("")
+                setReelInputMode("file")
+                setReelExternalUrl("")
+              }}
               className="text-[11px] text-white/40 hover:text-white"
             >
               Cerrar
@@ -383,6 +533,12 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {uploadNotificationWarning && (
+        <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
+          {uploadNotificationWarning}
         </div>
       )}
 
