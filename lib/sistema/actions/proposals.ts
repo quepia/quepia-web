@@ -76,11 +76,14 @@ export async function saveProposal(payload: SaveProposalPayload) {
         throw new Error("No estás autenticado para crear una propuesta.")
       }
 
+      const newProposalId = crypto.randomUUID()
+
       console.log("[saveProposal] inserting proposal. project_id:", proposal.project_id, "forced created_by:", dbAuth.user.id)
 
-      const { data: inserted, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('sistema_proposals')
         .insert({
+          id: newProposalId,
           project_id: proposal.project_id ?? null,
           client_access_id: proposal.client_access_id ?? null,
           client_name: proposal.client_name ?? null,
@@ -93,11 +96,9 @@ export async function saveProposal(payload: SaveProposalPayload) {
           auto_create_payment: proposal.auto_create_payment ?? false,
           created_by: dbAuth.user.id,
         })
-        .select('id')
-        .single()
 
       if (insertError) throw insertError
-      proposalId = inserted?.id
+      proposalId = newProposalId
     }
 
     if (!proposalId) throw new Error('No se pudo guardar la propuesta')
