@@ -278,6 +278,11 @@ export function useAccounting() {
     }, []);
 
     const createExpense = async (expense: ExpenseInsert): Promise<Expense | null> => {
+        if (!expense.account_id) {
+            setError('Debes seleccionar una cuenta para registrar el gasto');
+            return null;
+        }
+
         try {
             setLoading(true);
             const supabase = createClient();
@@ -300,6 +305,11 @@ export function useAccounting() {
     };
 
     const updateExpense = async (id: string, updates: ExpenseUpdate): Promise<boolean> => {
+        if ('account_id' in updates && !updates.account_id) {
+            setError('Un gasto no puede quedar sin cuenta');
+            return false;
+        }
+
         try {
             setLoading(true);
             const supabase = createClient();
@@ -924,6 +934,7 @@ export function useAccounting() {
             await fetchContributions();
             await fetchContributionsTotals();
             await fetchAccounts(); // Actualizar balances de cuenta
+            await fetchMonthlyChartData(); // Mantener sincronizado "sin distribuir"
             return data;
         } catch (err) {
             console.error('Error creating contribution:', err);
@@ -946,6 +957,7 @@ export function useAccounting() {
             if (updateError) throw updateError;
             await fetchContributions();
             await fetchContributionsTotals();
+            await fetchMonthlyChartData(); // Mantener sincronizado "sin distribuir"
             return true;
         } catch (err) {
             console.error('Error updating contribution:', err);
@@ -969,6 +981,7 @@ export function useAccounting() {
             await fetchContributions();
             await fetchContributionsTotals();
             await fetchAccounts();
+            await fetchMonthlyChartData(); // Mantener sincronizado "sin distribuir"
             return true;
         } catch (err) {
             console.error('Error deleting contribution:', err);
@@ -1009,6 +1022,7 @@ export function useAccounting() {
             await fetchContributions();
             await fetchContributionsTotals();
             await fetchAccounts(); // Actualizar balances
+            await fetchMonthlyChartData(); // Mantener sincronizado "sin distribuir"
             return data;
         } catch (err) {
             console.error('Error creating repayment:', err);
@@ -1032,6 +1046,7 @@ export function useAccounting() {
             await fetchContributions();
             await fetchContributionsTotals();
             await fetchAccounts();
+            await fetchMonthlyChartData(); // Mantener sincronizado "sin distribuir"
             return true;
         } catch (err) {
             console.error('Error deleting repayment:', err);

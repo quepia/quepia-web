@@ -106,7 +106,7 @@ export function AccountingExpensesView({
     }
 
     const handleSubmit = async () => {
-        if (!formDescription || !formAmount) return
+        if (!formDescription || !formAmount || !formAccountId) return
 
         setIsSubmitting(true)
         try {
@@ -114,7 +114,7 @@ export function AccountingExpensesView({
                 date: formDate,
                 category_id: formCategoryId || null,
                 subcategory_id: formSubcategoryId || null,
-                account_id: formAccountId || null,
+                account_id: formAccountId,
                 description: formDescription,
                 amount: parseFloat(formAmount),
                 currency: formCurrency,
@@ -524,14 +524,15 @@ export function AccountingExpensesView({
 
                             {/* Cuenta */}
                             <div>
-                                <label className="block text-sm font-medium text-white/80 mb-2">Cuenta de pago</label>
+                                <label className="block text-sm font-medium text-white/80 mb-2">Cuenta de pago *</label>
                                 <select
                                     value={formAccountId}
                                     onChange={(e) => setFormAccountId(e.target.value)}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-red-500 transition-colors"
+                                    required
                                 >
-                                    <option value="" className="bg-[#1a1a1a]">Sin asignar</option>
-                                    {accounts.map(acc => (
+                                    <option value="" className="bg-[#1a1a1a]">Seleccionar cuenta...</option>
+                                    {accounts.filter(acc => acc.currency === formCurrency).map(acc => (
                                         <option key={acc.id} value={acc.id} className="bg-[#1a1a1a]">
                                             {acc.name} ({acc.currency})
                                         </option>
@@ -542,7 +543,7 @@ export function AccountingExpensesView({
                             {/* Submit */}
                             <button
                                 onClick={handleSubmit}
-                                disabled={!formDescription || !formAmount || isSubmitting}
+                                disabled={!formDescription || !formAmount || !formAccountId || isSubmitting}
                                 className="w-full mt-2 px-4 py-3 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (

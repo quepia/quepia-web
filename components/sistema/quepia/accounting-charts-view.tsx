@@ -22,6 +22,7 @@ interface ChartsViewProps {
     accounts: Account[]
     chartLoading: boolean
     selectedYear: number
+    unassignedBalance?: number
     onYearChange: (year: number) => void
 }
 
@@ -31,6 +32,7 @@ export function AccountingChartsView({
     accounts,
     chartLoading,
     selectedYear,
+    unassignedBalance: unassignedBalanceProp,
     onYearChange
 }: ChartsViewProps) {
 
@@ -102,7 +104,8 @@ export function AccountingChartsView({
     // - Menos ajustes de balance (ya que no son ingresos reales)
     const totalDistributed = accountTotalARS + arsYearTransfersOut - arsYearTransfersIn - arsYearAdjustments
 
-    const unassignedBalance = yearTotals.income - yearTotals.expenses - totalDistributed
+    const computedUnassignedBalance = yearTotals.income - yearTotals.expenses - totalDistributed
+    const unassignedBalance = unassignedBalanceProp ?? computedUnassignedBalance
 
     if (chartLoading) {
         return (

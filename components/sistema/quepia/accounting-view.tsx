@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Calculator, CreditCard, Receipt, Tags, BarChart3, Wallet, Sparkles, History, HandCoins } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useAccounting } from "@/lib/sistema/hooks/useAccounting"
@@ -20,10 +20,21 @@ interface AccountingViewProps {
 
 type TabType = 'payments' | 'expenses' | 'accounts' | 'categories' | 'charts' | 'investments' | 'history' | 'contributions'
 
+const getYearRange = (year: number) => {
+    const currentYear = new Date().getFullYear()
+    const startDate = `${year}-01-01`
+    const endDate = year === currentYear
+        ? new Date().toISOString().split('T')[0]
+        : `${year}-12-31`
+
+    return { startDate, endDate }
+}
+
 export function AccountingView({ projects }: AccountingViewProps) {
     const [activeTab, setActiveTab] = useState<TabType>('accounts')
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
     const accounting = useAccounting()
+    const { fetchHistorySummary } = accounting
 
     const tabs = [
         { id: 'accounts' as TabType, label: 'Cuentas', icon: Wallet },
@@ -42,15 +53,34 @@ export function AccountingView({ projects }: AccountingViewProps) {
         accounting.fetchMonthlyChartData(year)
         accounting.fetchExpenseDistribution(year)
         accounting.fetchSummary(year)
+        const { startDate, endDate } = getYearRange(year)
+        fetchHistorySummary({
+            start_date: startDate,
+            end_date: endDate,
+        })
     }
+
+    useEffect(() => {
+        const { startDate, endDate } = getYearRange(selectedYear)
+        fetchHistorySummary({
+            start_date: startDate,
+            end_date: endDate,
+        })
+    }, [selectedYear, fetchHistorySummary])
 
     // Calcular saldo sin distribuir
     const unassignedBalance = useMemo(() => {
-        // Total de ingresos - gastos del año actual
-        const yearTotals = accounting.monthlyChartData.reduce((acc, d) => ({
+        // Usar totales ARS del historial (incluye aportes/devoluciones y evita mezclar USD)
+        const yearNetARSFromHistory = accounting.historySummary
+            ? (accounting.historySummary.total_income_ars || 0) - (accounting.historySummary.total_expenses_ars || 0)
+            : null
+
+        // Fallback mientras carga historySummary
+        const yearTotalsFallback = accounting.monthlyChartData.reduce((acc, d) => ({
             income: acc.income + (d.total_income || 0),
             expenses: acc.expenses + (d.total_expenses || 0),
         }), { income: 0, expenses: 0 })
+        const yearNetFallback = yearTotalsFallback.income - yearTotalsFallback.expenses
 
         // Total en cuentas ARS (balance actual)
         const accountTotalARS = accounting.accounts
@@ -78,8 +108,9 @@ export function AccountingView({ projects }: AccountingViewProps) {
         // - Menos ajustes de balance (ya que no son ingresos reales)
         const totalDistributed = accountTotalARS + arsYearTransfersOut - arsYearTransfersIn - arsYearAdjustments
 
-        return yearTotals.income - yearTotals.expenses - totalDistributed
-    }, [accounting.monthlyChartData, accounting.accounts])
+        const yearNet = yearNetARSFromHistory ?? yearNetFallback
+        return yearNet - totalDistributed
+    }, [accounting.monthlyChartData, accounting.accounts, accounting.historySummary])
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white">
@@ -134,6 +165,11 @@ export function AccountingView({ projects }: AccountingViewProps) {
                             accounting.fetchAccounts()
                             accounting.fetchTransfers()
                             accounting.fetchMonthlyChartData(selectedYear)
+                            const { startDate, endDate } = getYearRange(selectedYear)
+                            fetchHistorySummary({
+                                start_date: startDate,
+                                end_date: endDate,
+                            })
                         }}
                     />
                 )}
@@ -149,6 +185,11 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         onRefresh={() => {
                             accounting.fetchPayments()
                             accounting.fetchAccounts()
+                            const { startDate, endDate } = getYearRange(selectedYear)
+                            fetchHistorySummary({
+                                start_date: startDate,
+                                end_date: endDate,
+                            })
                         }}
                     />
                 )}
@@ -166,6 +207,11 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         onRefresh={() => {
                             accounting.fetchExpenses()
                             accounting.fetchAccounts()
+                            const { startDate, endDate } = getYearRange(selectedYear)
+                            fetchHistorySummary({
+                                start_date: startDate,
+                                end_date: endDate,
+                            })
                         }}
                     />
                 )}
@@ -202,6 +248,12 @@ export function AccountingView({ projects }: AccountingViewProps) {
                             accounting.fetchContributions()
                             accounting.fetchContributionsTotals()
                             accounting.fetchAccounts()
+                            accounting.fetchMonthlyChartData(selectedYear)
+                            const { startDate, endDate } = getYearRange(selectedYear)
+                            fetchHistorySummary({
+                                start_date: startDate,
+                                end_date: endDate,
+                            })
                         }}
                     />
                 )}
@@ -233,6 +285,7 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         accounts={accounting.accounts}
                         chartLoading={accounting.chartLoading}
                         selectedYear={selectedYear}
+                        unassignedBalance={unassignedBalance}
                         onYearChange={handleYearChange}
                     />
                 )}
