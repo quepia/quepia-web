@@ -6,7 +6,8 @@ interface HeroVideoBackgroundProps {
   active?: boolean;
 }
 
-const HERO_LOOP_SRC = '/hero-bg.mp4';
+// Use the newer loop with a distinct URL so production does not keep serving the stale cached asset.
+const HERO_LOOP_SRC = '/LOOP%20FONDO%20QUEPIA.prproj.mp4';
 
 export default function HeroVideoBackground({ active = true }: HeroVideoBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);

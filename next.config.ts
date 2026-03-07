@@ -11,11 +11,11 @@ const nextConfig: NextConfig = {
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
-      "font-src 'self' data:",
+      "font-src 'self' data: https://fonts.gstatic.com https://use.typekit.net https://p.typekit.net",
       "img-src 'self' data: blob: https:",
       "object-src 'none'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
-      "style-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://use.typekit.net",
       "connect-src 'self' https://*.supabase.co https://*.supabase.com https://api.resend.com https://vitals.vercel-insights.com https://*.vercel-insights.com",
       "frame-ancestors 'self'",
       "form-action 'self'",
