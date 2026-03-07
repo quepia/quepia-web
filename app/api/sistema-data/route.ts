@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
+import { syncEfemeridesCalendarioActual } from "@/lib/sistema/actions/efemerides"
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -239,6 +240,16 @@ export async function GET(request: Request) {
 
       if (projectIds.length === 0) {
         return NextResponse.json({ data: [] })
+      }
+
+      const syncResult = await syncEfemeridesCalendarioActual({
+        userId,
+        projectIds,
+        backfillOnly: true,
+      })
+
+      if (!syncResult.success) {
+        console.error("Error syncing efemerides into calendar:", syncResult.error)
       }
 
       const { data, error } = await supabase

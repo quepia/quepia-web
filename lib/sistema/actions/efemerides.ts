@@ -103,14 +103,28 @@ async function requireAdminAccess() {
   return { admin, userId }
 }
 
-async function getTargetProjects(admin: AdminClient, efemeride: EfemerideRow) {
+async function getTargetProjects(
+  admin: AdminClient,
+  efemeride: EfemerideRow,
+  allowedProjectIds?: string[]
+) {
+  if (allowedProjectIds && allowedProjectIds.length === 0) {
+    return []
+  }
+
   let query = admin
     .from('sistema_projects')
     .select('id, nombre, color')
 
   if (efemeride.global || !efemeride.project_id) {
     query = query.neq('icon', 'folder')
+    if (allowedProjectIds?.length) {
+      query = query.in('id', allowedProjectIds)
+    }
   } else {
+    if (allowedProjectIds?.length && !allowedProjectIds.includes(efemeride.project_id)) {
+      return []
+    }
     query = query.eq('id', efemeride.project_id)
   }
 
@@ -172,13 +186,24 @@ async function syncEfemerideCalendarForYear(
   admin: AdminClient,
   efemeride: EfemerideRow,
   anio: number,
-  userId: string
+  userId: string,
+  options?: {
+    projectIds?: string[]
+    pruneMissing?: boolean
+    backfillOnly?: boolean
+  }
 ) {
-  const { data: existingAsignaciones, error: asignacionesError } = await admin
+  let asignacionesQuery = admin
     .from('sistema_efemerides_proyectos')
     .select('id, project_id, calendar_event_id')
     .eq('efemeride_id', efemeride.id)
     .eq('anio', anio)
+
+  if (options?.projectIds?.length) {
+    asignacionesQuery = asignacionesQuery.in('project_id', options.projectIds)
+  }
+
+  const { data: existingAsignaciones, error: asignacionesError } = await asignacionesQuery
 
   if (asignacionesError) {
     throw new Error(`No se pudieron leer las asignaciones de la efeméride: ${asignacionesError.message}`)
@@ -186,12 +211,18 @@ async function syncEfemerideCalendarForYear(
 
   const asignaciones = (existingAsignaciones || []) as EfemerideAsignacionRow[]
   const asignacionByProject = new Map(asignaciones.map((item) => [item.project_id, item]))
-  const targetProjects = efemeride.activa ? await getTargetProjects(admin, efemeride) : []
+  const targetProjects = efemeride.activa
+    ? await getTargetProjects(admin, efemeride, options?.projectIds)
+    : []
   const targetProjectIds = new Set(targetProjects.map((project) => project.id))
+  const pruneMissing = options?.pruneMissing ?? true
+  const backfillOnly = options?.backfillOnly ?? false
 
-  const asignacionesFueraDeScope = asignaciones.filter(
-    (item) => item.calendar_event_id && !targetProjectIds.has(item.project_id)
-  )
+  const asignacionesFueraDeScope = pruneMissing
+    ? asignaciones.filter(
+        (item) => item.calendar_event_id && !targetProjectIds.has(item.project_id)
+      )
+    : []
 
   if (asignacionesFueraDeScope.length > 0) {
     await deleteCalendarEventsByIds(
@@ -213,6 +244,10 @@ async function syncEfemerideCalendarForYear(
     const baseEventPayload = buildCalendarEventPayload(efemeride, project, anio)
     const existingAsignacion = asignacionByProject.get(project.id)
     let calendarEventId = existingAsignacion?.calendar_event_id ?? null
+
+    if (backfillOnly && calendarEventId) {
+      continue
+    }
 
     if (calendarEventId) {
       const { data: updatedEvent, error: updateEventError } = await admin
@@ -301,6 +336,61 @@ async function syncEfemerideCalendarForYear(
 
     if (createAsignacionError) {
       throw new Error(`No se pudo crear la asignación sincronizada: ${createAsignacionError.message}`)
+    }
+  }
+}
+
+export async function syncEfemeridesCalendarioActual(params?: {
+  userId?: string
+  year?: number
+  projectIds?: string[]
+  revalidate?: boolean
+  backfillOnly?: boolean
+}) {
+  try {
+    let admin = createAdminClient()
+    let userId = params?.userId
+
+    if (!userId) {
+      const auth = await requireAdminAccess()
+      admin = auth.admin
+      userId = auth.userId
+    }
+
+    const currentYear = params?.year ?? new Date().getFullYear()
+    const { data: efemerides, error } = await admin
+      .from('sistema_efemerides')
+      .select('*')
+      .eq('activa', true)
+
+    if (error) {
+      throw new Error(`No se pudieron cargar las efemérides activas: ${error.message}`)
+    }
+
+    for (const efemeride of (efemerides || []) as EfemerideRow[]) {
+      await syncEfemerideCalendarForYear(
+        admin,
+        efemeride,
+        currentYear,
+        userId,
+        {
+          projectIds: params?.projectIds,
+          pruneMissing: !params?.projectIds?.length,
+          backfillOnly: params?.backfillOnly,
+        }
+      )
+    }
+
+    if (params?.revalidate ?? false) {
+      revalidatePath('/sistema')
+    }
+
+    return { success: true }
+  } catch (err) {
+    console.error('Error in syncEfemeridesCalendarioActual:', err)
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Error sincronizando efemérides con el calendario',
     }
   }
 }
