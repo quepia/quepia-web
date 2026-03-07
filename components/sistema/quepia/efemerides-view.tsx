@@ -9,12 +9,9 @@ import {
   Upload,
   ChevronRight,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Loader2,
   X,
   Image as ImageIcon,
-  Filter,
   Eye,
   Sparkles,
   FileJson,
@@ -23,13 +20,17 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useEfemerides, useEfemeridesProyectos } from "@/lib/sistema/hooks"
-import { subirAssetEfemeride } from "@/lib/sistema/actions/efemerides"
+import {
+  createEfemerideSincronizada,
+  deleteEfemerideSincronizada,
+  subirAssetEfemeride,
+  updateEfemerideSincronizada,
+} from "@/lib/sistema/actions/efemerides"
 import type {
   ProjectWithChildren,
   Efemeride,
   EfemerideCategoria,
   EfemerideProyectoEstado,
-  EfemerideInsert,
 } from "@/types/sistema"
 import {
   EFEMERIDE_CATEGORIA_LABELS,
@@ -82,12 +83,8 @@ const CATEGORIAS: EfemerideCategoria[] = ["patria", "comercial", "conmemorativa"
 
 export function EfemeridesView({ projects, userId, isAdmin }: EfemeridesViewProps) {
   const {
-    efemerides,
     loading,
     proximasEfemerides,
-    createEfemeride,
-    updateEfemeride,
-    deleteEfemeride,
     fetchEfemerides,
   } = useEfemerides()
 
@@ -130,6 +127,10 @@ export function EfemeridesView({ projects, userId, isAdmin }: EfemeridesViewProp
   })
 
   const currentYear = new Date().getFullYear()
+
+  const refreshEfemeridesData = useCallback(async () => {
+    await Promise.all([fetchEfemerides(), fetchAsignaciones()])
+  }, [fetchAsignaciones, fetchEfemerides])
 
   const filteredEfemerides = useMemo(() => {
     if (filterCategoria === "all") return proximasEfemerides
@@ -189,8 +190,10 @@ export function EfemeridesView({ projects, userId, isAdmin }: EfemeridesViewProp
     if (!formNombre.trim()) return
     setFormSaving(true)
     try {
+      let result: { success: boolean; error?: string }
+
       if (editingEfemeride) {
-        await updateEfemeride(editingEfemeride.id, {
+        result = await updateEfemerideSincronizada(editingEfemeride.id, {
           nombre: formNombre.trim(),
           descripcion: formDescripcion.trim() || null,
           fecha_mes: formMes,
@@ -199,7 +202,7 @@ export function EfemeridesView({ projects, userId, isAdmin }: EfemeridesViewProp
           dias_anticipacion: formDiasAnticipacion,
         })
       } else {
-        await createEfemeride({
+        result = await createEfemerideSincronizada({
           nombre: formNombre.trim(),
           descripcion: formDescripcion.trim() || null,
           fecha_mes: formMes,
@@ -210,17 +213,29 @@ export function EfemeridesView({ projects, userId, isAdmin }: EfemeridesViewProp
           created_by: userId,
         })
       }
+
+      if (!result.success) {
+        throw new Error(result.error || "No se pudo guardar la efeméride.")
+      }
+
+      await refreshEfemeridesData()
       setShowCreateModal(false)
       resetForm()
     } catch (err) {
       console.error("Error saving efemeride:", err)
+      alert(err instanceof Error ? err.message : "Error guardando efeméride")
     }
     setFormSaving(false)
   }
 
   const handleDeleteEfemeride = async (id: string) => {
     if (!confirm("¿Eliminar esta efeméride?")) return
-    await deleteEfemeride(id)
+    const result = await deleteEfemerideSincronizada(id)
+    if (!result.success) {
+      alert(result.error || "No se pudo eliminar la efeméride.")
+      return
+    }
+    await refreshEfemeridesData()
     if (selectedEfemeride === id) setSelectedEfemeride(null)
   }
 
@@ -277,8 +292,7 @@ export function EfemeridesView({ projects, userId, isAdmin }: EfemeridesViewProp
       }
 
       setShowUploadModal(false)
-      await fetchAsignaciones()
-      await fetchEfemerides()
+      await refreshEfemeridesData()
     } catch (err) {
       console.error("Error uploading:", err)
       alert(err instanceof Error ? err.message : "Error subiendo asset")
@@ -356,7 +370,7 @@ Devuelve SOLO JSON válido, sin texto extra. Usar este formato exacto:
         const categoria = validCategorias.includes(item.categoria) ? item.categoria : "otro"
 
         try {
-          await createEfemeride({
+          const result = await createEfemerideSincronizada({
             nombre: item.nombre,
             descripcion: item.descripcion || null,
             fecha_dia: Number(item.fecha_dia),
@@ -366,6 +380,11 @@ Devuelve SOLO JSON válido, sin texto extra. Usar este formato exacto:
             global: true,
             created_by: userId,
           })
+          if (!result.success) {
+            skipped++
+            continue
+          }
+
           created++
         } catch {
           skipped++
@@ -375,7 +394,7 @@ Devuelve SOLO JSON válido, sin texto extra. Usar este formato exacto:
       alert(`Importación completada: ${created} creadas, ${skipped} omitidas.`)
       setShowAIModal(false)
       setAiJson("")
-      await fetchEfemerides()
+      await refreshEfemeridesData()
     } catch {
       alert("No se pudo leer el JSON. Revisá el formato.")
     }
