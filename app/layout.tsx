@@ -1,21 +1,7 @@
 import type { Metadata } from 'next';
-import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import ClientLayout from '@/components/layout/ClientLayout';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-display',
-  display: 'swap',
-  weight: ['300', '400', '500', '600', '700'],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://quepia.com'),
@@ -126,12 +112,19 @@ export default async function RootLayout({
   return (
     <html lang="es">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap"
+        />
+        <link rel="stylesheet" href="https://use.typekit.net/egc1iei.css" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased min-h-screen`}>
+      <body className="font-sans antialiased min-h-screen">
         <ClientLayout config={config}>
           {children}
         </ClientLayout>

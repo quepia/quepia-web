@@ -1,12 +1,14 @@
-"use client"
+'use client'
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { motion, AnimatePresence, useInView } from "framer-motion"
-import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, X, Sparkles } from "lucide-react"
-import { CATEGORIES, Proyecto } from "@/types/database"
-import { getProjectCoverImage, getProjectGalleryImages } from "@/lib/project-images"
+import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { motion, AnimatePresence, useInView } from 'framer-motion'
+import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { CATEGORIES, Proyecto } from '@/types/database'
+import { getProjectCoverImage, getProjectGalleryImages } from '@/lib/project-images'
+import BrandDepthBackground from '@/components/ui/BrandDepthBackground'
+import MarqueeSection from '@/components/home/MarqueeSection'
 
 interface WorksClientProps {
   proyectos: Proyecto[]
@@ -16,23 +18,23 @@ interface WorksClientProps {
 const CATEGORY_LABELS = new Map<string, string>(CATEGORIES.map((category) => [category.id, category.label]))
 
 const CATEGORY_ACCENTS: Record<string, string> = {
-  branding: "from-fuchsia-400/30 to-orange-300/20",
-  "diseno-grafico": "from-cyan-400/30 to-blue-400/20",
-  fotografia: "from-emerald-300/30 to-cyan-300/20",
-  video: "from-rose-300/30 to-fuchsia-300/20",
-  "redes-sociales": "from-orange-300/30 to-rose-300/20",
-  packaging: "from-lime-300/30 to-amber-300/20",
-  carteleria: "from-sky-300/30 to-indigo-300/20",
-  marketing: "from-red-300/30 to-orange-300/20",
-  productos: "from-violet-300/30 to-fuchsia-300/20",
+  branding: 'from-fuchsia-400/30 to-orange-300/20',
+  'diseno-grafico': 'from-cyan-400/30 to-blue-400/20',
+  fotografia: 'from-emerald-300/30 to-cyan-300/20',
+  video: 'from-rose-300/30 to-fuchsia-300/20',
+  'redes-sociales': 'from-orange-300/30 to-rose-300/20',
+  packaging: 'from-lime-300/30 to-amber-300/20',
+  carteleria: 'from-sky-300/30 to-indigo-300/20',
+  marketing: 'from-red-300/30 to-orange-300/20',
+  productos: 'from-violet-300/30 to-fuchsia-300/20',
 }
 
 function categoryLabel(category: string): string {
-  return CATEGORY_LABELS.get(category) ?? category.replace(/-/g, " ")
+  return CATEGORY_LABELS.get(category) ?? category.replace(/-/g, ' ')
 }
 
 function categoryAccentClass(category: string): string {
-  return CATEGORY_ACCENTS[category] ?? "from-cyan-300/30 to-white/10"
+  return CATEGORY_ACCENTS[category] ?? 'from-cyan-300/30 to-zinc-300/20'
 }
 
 function LeadProject({
@@ -43,21 +45,21 @@ function LeadProject({
   onOpen: () => void
 }) {
   const ref = useRef<HTMLButtonElement>(null)
-  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const isInView = useInView(ref, { once: true, margin: '-100px' })
   const coverImage = getProjectCoverImage(proyecto)
   const galleryCount = getProjectGalleryImages(proyecto).length
 
   return (
     <motion.button
       ref={ref}
-      initial={{ opacity: 0, y: 32 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 32 }}
-      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, y: 28 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 28 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       onClick={onOpen}
-      className="group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-black/30 text-left"
+      className="group w-full overflow-hidden rounded-[26px] border border-white/[0.06] bg-[#070707]/90 text-left"
     >
       <div className="grid gap-0 lg:grid-cols-[1.25fr_0.9fr]">
-        <div className="relative min-h-[300px] sm:min-h-[420px] lg:min-h-[520px]">
+        <div className="relative min-h-[300px] overflow-hidden sm:min-h-[420px] lg:min-h-[500px]">
           {coverImage ? (
             <Image
               src={coverImage}
@@ -69,32 +71,36 @@ function LeadProject({
           ) : (
             <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/5" />
-          <div className="absolute left-5 top-5 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-white/75">
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.7)_100%)]" />
+
+          <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75">
             {categoryLabel(proyecto.categoria)}
           </div>
-          {galleryCount > 1 && (
-            <div className="absolute bottom-5 right-5 rounded-full border border-white/15 bg-black/50 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/80">
+
+          {galleryCount > 1 ? (
+            <div className="absolute bottom-4 right-4 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75">
               {galleryCount} fotos
             </div>
-          )}
+          ) : null}
         </div>
 
-        <div className="relative flex flex-col justify-between border-t border-white/10 bg-gradient-to-b from-white/[0.08] to-black/35 p-5 sm:p-8 lg:border-l lg:border-t-0">
-          <div className={`absolute inset-0 bg-gradient-to-br opacity-35 ${categoryAccentClass(proyecto.categoria)}`} />
+        <div className="relative flex flex-col justify-between border-t border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.2))] p-6 md:p-8 lg:border-l lg:border-t-0">
+          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br opacity-25 ${categoryAccentClass(proyecto.categoria)}`} />
           <div className="relative">
-            <p className="mb-3 text-xs uppercase tracking-[0.18em] text-white/50">Proyecto destacado</p>
-            <h3 className="font-display text-3xl sm:text-4xl lg:text-5xl font-light leading-[0.95] text-white">
+            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/45">Proyecto destacado</p>
+            <h3 className="font-display text-[clamp(1.55rem,3vw,2.4rem)] font-medium leading-[1.02] text-white">
               {proyecto.titulo}
             </h3>
-            <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4">
-              <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">Descripción</p>
-              <p className="mt-2 text-sm leading-relaxed text-white/75">
-                {proyecto.descripcion || "Este proyecto todavía no tiene descripción detallada."}
+
+            <div className="mt-5 rounded-xl border border-white/[0.08] bg-black/25 p-4">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-white/40">Descripción</p>
+              <p className="mt-2 text-sm leading-relaxed text-[#9ea0a8]">
+                {proyecto.descripcion || 'Este proyecto todavía no tiene descripción detallada.'}
               </p>
             </div>
           </div>
-          <div className="relative mt-6 inline-flex items-center gap-2 text-sm uppercase tracking-[0.14em] text-white/70">
+
+          <div className="relative mt-6 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/60 transition-colors duration-300 group-hover:text-white/85">
             Ver proyecto completo
             <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </div>
@@ -114,7 +120,7 @@ function ProjectCard({
   onOpen: () => void
 }) {
   const ref = useRef<HTMLButtonElement>(null)
-  const isInView = useInView(ref, { once: true, margin: "-60px" })
+  const isInView = useInView(ref, { once: true, margin: '-60px' })
   const coverImage = getProjectCoverImage(proyecto)
   const galleryCount = getProjectGalleryImages(proyecto).length
 
@@ -123,9 +129,9 @@ function ProjectCard({
       ref={ref}
       initial={{ opacity: 0, y: 20 }}
       animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-      transition={{ duration: 0.55, delay: Math.min(index * 0.03, 0.2), ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.5, delay: Math.min(index * 0.04, 0.2), ease: [0.16, 1, 0.3, 1] }}
       onClick={onOpen}
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] text-left transition-colors hover:border-white/20"
+      className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-white/[0.06] bg-[#070707]/90 text-left transition-all duration-300 hover:border-white/[0.1]"
     >
       <div className="relative aspect-[16/11] overflow-hidden">
         {coverImage ? (
@@ -139,25 +145,30 @@ function ProjectCard({
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
+
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.68)_100%)]" />
+
         <div className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75">
           {categoryLabel(proyecto.categoria)}
         </div>
-        {galleryCount > 1 && (
-          <div className="absolute bottom-3 right-3 rounded-full border border-white/15 bg-black/50 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/80">
+
+        {galleryCount > 1 ? (
+          <div className="absolute bottom-3 right-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/75">
             {galleryCount} fotos
           </div>
-        )}
+        ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <h4 className="font-display text-xl font-light leading-tight text-white">{proyecto.titulo}</h4>
-        <div className="mt-3 min-h-[96px] rounded-xl border border-white/10 bg-black/25 p-3">
-          <p className="line-clamp-4 text-sm leading-relaxed text-white/70">
-            {proyecto.descripcion || "Este proyecto todavía no tiene descripción."}
+      <div className="flex flex-1 flex-col p-5">
+        <h4 className="font-display text-[1.3rem] leading-tight text-white">{proyecto.titulo}</h4>
+
+        <div className="mt-3 min-h-[96px] rounded-xl border border-white/[0.08] bg-black/25 p-3">
+          <p className="line-clamp-4 text-sm leading-relaxed text-[#9ea0a8]">
+            {proyecto.descripcion || 'Este proyecto todavía no tiene descripción.'}
           </p>
         </div>
-        <div className="mt-4 inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.16em] text-white/55">
+
+        <div className="mt-4 inline-flex items-center gap-1.5 text-xs uppercase tracking-[0.16em] text-white/55 transition-colors duration-300 group-hover:text-white/80">
           Ver detalle <ArrowUpRight className="h-3.5 w-3.5" />
         </div>
       </div>
@@ -183,21 +194,21 @@ function Lightbox({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         onClose()
         return
       }
       if (!hasMultipleImages) return
-      if (event.key === "ArrowLeft") {
+      if (event.key === 'ArrowLeft') {
         setActiveIndex((current) => (current === 0 ? images.length - 1 : current - 1))
       }
-      if (event.key === "ArrowRight") {
+      if (event.key === 'ArrowRight') {
         setActiveIndex((current) => (current + 1) % images.length)
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [hasMultipleImages, images.length, onClose])
 
   return (
@@ -238,7 +249,7 @@ function Lightbox({
               <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
             )}
 
-            {hasMultipleImages && (
+            {hasMultipleImages ? (
               <>
                 <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/80">
                   {activeIndex + 1} / {images.length}
@@ -260,10 +271,10 @@ function Lightbox({
                   <ChevronRight size={18} />
                 </button>
               </>
-            )}
+            ) : null}
           </div>
 
-          {hasMultipleImages && (
+          {hasMultipleImages ? (
             <div className="border-t border-white/10 bg-black/45 p-3">
               <div className="flex gap-2 overflow-x-auto pb-1">
                 {images.map((imageUrl, index) => (
@@ -272,7 +283,7 @@ function Lightbox({
                     key={`${imageUrl}-${index}`}
                     onClick={() => setActiveIndex(index)}
                     className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border transition-colors ${
-                      index === activeIndex ? "border-white/50" : "border-white/15 hover:border-white/30"
+                      index === activeIndex ? 'border-white/50' : 'border-white/15 hover:border-white/30'
                     }`}
                     aria-label={`Ver imagen ${index + 1}`}
                   >
@@ -281,7 +292,7 @@ function Lightbox({
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
         </motion.div>
 
         <motion.aside
@@ -299,7 +310,7 @@ function Lightbox({
           <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-4">
             <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">Descripción del proyecto</p>
             <p className="mt-2 text-sm leading-relaxed text-white/75">
-              {proyecto.descripcion || "Este proyecto aún no tiene una descripción cargada."}
+              {proyecto.descripcion || 'Este proyecto aún no tiene una descripción cargada.'}
             </p>
           </div>
           <Link
@@ -324,162 +335,151 @@ export default function WorksPage({ proyectos, activeCategory }: WorksClientProp
   const otherProjects = useMemo(() => proyectos.slice(1), [proyectos])
 
   return (
-    <div className="relative overflow-hidden bg-[#06080b]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)" }} />
-        <div className="absolute left-[-120px] top-20 h-[500px] w-[500px] rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="absolute bottom-[-180px] right-[-120px] h-[500px] w-[500px] rounded-full bg-fuchsia-400/10 blur-3xl" />
-      </div>
+    <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
+      <BrandDepthBackground variant="subtle" />
+      <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(180deg,#0a0a0a_0%,#101010_42%,#0d0d0d_100%)]" />
 
-      <section ref={heroRef} className="relative border-b border-white/10 pt-28 md:pt-32">
-        <div className="mx-auto max-w-[1500px] px-6 pb-14 md:px-12 lg:px-20">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/65"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-            Portfolio Quepia
-          </motion.div>
+      <div className="relative z-10">
+        <section ref={heroRef} className="relative overflow-hidden pb-14 pt-28 md:pb-20 md:pt-32">
+          <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-screen w-screen -translate-x-1/2">
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.14]"
+              src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(95deg,rgba(10,10,10,0.95)_0%,rgba(10,10,10,0.82)_48%,rgba(10,10,10,0.9)_100%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_35%,rgba(42,231,228,0.08),transparent_45%)]" />
+          </div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
-            transition={{ duration: 0.7, delay: 0.08 }}
-            className="mt-5 font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-light tracking-tight text-white"
-          >
-            Nuestros trabajos
-          </motion.h1>
+          <div className="relative z-10 mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="max-w-3xl"
+            >
+              <p className="mb-5 text-xs uppercase tracking-[0.24em] text-white/48">Portfolio</p>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.65, delay: 0.2 }}
-            className="mt-5 max-w-[720px] text-lg leading-relaxed text-white/60"
-          >
-            Catálogo curado de proyectos reales, organizado por categoría y con descripción de cada caso para entender qué resolvimos y cómo lo hicimos.
-          </motion.p>
+              <h1 className="font-display text-[clamp(1.9rem,3.9vw,3.45rem)] font-medium leading-[1.06] tracking-[-0.02em] text-white">
+                Nuestros trabajos por categoría, con foco en resultados reales.
+              </h1>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.65, delay: 0.28 }}
-            className="mt-8 grid max-w-[560px] grid-cols-2 gap-3"
-          >
-            <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Categoría activa</p>
-              <p className="mt-1 text-sm text-white/85">{categoryLabel(activeCategory)}</p>
+              <p className="mt-5 max-w-2xl text-[0.98rem] leading-relaxed text-[#a1a1aa] md:text-[1.05rem]">
+                Explorá casos reales de branding, diseño y estrategia aplicados a desafíos concretos.
+              </p>
+
+              <div className="mt-8 grid max-w-[560px] grid-cols-2 gap-3">
+                <div className="rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Categoría activa</p>
+                  <p className="mt-1 text-sm text-white/85">{categoryLabel(activeCategory)}</p>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Proyectos</p>
+                  <p className="mt-1 text-sm text-white/85">{proyectos.length}</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <MarqueeSection />
+
+        <div className="sticky top-16 z-40 border-y border-white/[0.08] bg-[#07090d]/82 py-4 backdrop-blur-xl md:top-[72px]">
+          <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">
+            <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pb-1">
+              {CATEGORIES.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/trabajos?category=${category.id}`}
+                  className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.07em] transition-colors ${
+                    activeCategory === category.id
+                      ? 'border-[#2ae7e4]/35 bg-[#2ae7e4] text-[#0a0a0a]'
+                      : 'border-white/10 bg-black/35 text-white/60 hover:border-white/20 hover:text-white/85'
+                  }`}
+                >
+                  {category.label}
+                </Link>
+              ))}
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Proyectos</p>
-              <p className="mt-1 text-sm text-white/85">{proyectos.length}</p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.35 }}
-        className="sticky top-16 z-40 border-y border-white/10 bg-[#07090d]/80 py-4 backdrop-blur-xl md:top-[72px]"
-      >
-        <div className="mx-auto max-w-[1500px] px-6 md:px-12 lg:px-20">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {CATEGORIES.map((category) => (
-              <Link
-                key={category.id}
-                href={`/trabajos?category=${category.id}`}
-                className={`flex-shrink-0 rounded-full border px-4 py-2 text-sm transition-colors ${
-                  activeCategory === category.id
-                    ? "border-white/30 bg-white text-black"
-                    : "border-white/10 bg-black/35 text-white/60 hover:text-white"
-                }`}
-              >
-                {category.label}
-              </Link>
-            ))}
           </div>
         </div>
-      </motion.div>
 
-      <section className="relative py-12 md:py-16">
-        <div className="mx-auto max-w-[1500px] space-y-6 px-6 md:space-y-8 md:px-12 lg:px-20">
-          {proyectos.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="rounded-2xl border border-dashed border-white/15 bg-black/25 px-6 py-16 text-center"
-            >
-              <p className="text-lg text-white/60">No hay proyectos en esta categoría todavía.</p>
-              <Link href="/contacto" className="mt-4 inline-flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-white/70 hover:text-white">
-                Contactanos para tu proyecto
+        <section className="py-12 md:py-16">
+          <div className="mx-auto w-full max-w-[1400px] space-y-6 px-6 md:space-y-8 md:px-12 lg:px-20">
+            {proyectos.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="rounded-2xl border border-dashed border-white/15 bg-black/25 px-6 py-16 text-center"
+              >
+                <p className="text-lg text-white/60">No hay proyectos en esta categoría todavía.</p>
+                <Link href="/contacto" className="mt-4 inline-flex items-center gap-2 text-sm uppercase tracking-[0.16em] text-white/70 hover:text-white">
+                  Contactanos para tu proyecto
+                  <ArrowRight size={14} />
+                </Link>
+              </motion.div>
+            ) : (
+              <>
+                {leadProject ? <LeadProject proyecto={leadProject} onOpen={() => setSelectedProject(leadProject)} /> : null}
+
+                {otherProjects.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {otherProjects.map((proyecto, index) => (
+                      <ProjectCard
+                        key={proyecto.id}
+                        proyecto={proyecto}
+                        index={index}
+                        onOpen={() => setSelectedProject(proyecto)}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden py-20 md:py-24">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -left-[12%] top-[-34%] h-[30rem] w-[30rem] rounded-full bg-[#9b2c8a]/26 blur-[140px]" />
+            <div className="absolute -right-[12%] bottom-[-36%] h-[30rem] w-[30rem] rounded-full bg-[#2ae7e4]/22 blur-[140px]" />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="relative mx-auto w-full max-w-[980px] px-6 text-center md:px-12 lg:px-20"
+          >
+            <div className="rounded-[24px] border border-white/[0.07] bg-white/[0.03] px-6 py-12 backdrop-blur-[12px] md:px-12">
+              <h2 className="mx-auto max-w-2xl font-display text-[clamp(1.6rem,3vw,2.4rem)] font-medium leading-[1.1] text-white">
+                ¿Querés un proyecto así para tu marca?
+              </h2>
+
+              <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-[#a1a1aa] md:text-base">
+                Te ayudamos a pasar de una idea a una solución visual sólida, ejecutable y orientada a resultados.
+              </p>
+
+              <Link
+                href="/contacto"
+                className="mt-8 inline-flex items-center gap-2 text-sm uppercase tracking-[0.1em] text-white/68 transition-all duration-300 hover:gap-3 hover:text-white"
+              >
+                Hablemos de tu proyecto
                 <ArrowRight size={14} />
               </Link>
-            </motion.div>
-          ) : (
-            <>
-              {leadProject && <LeadProject proyecto={leadProject} onOpen={() => setSelectedProject(leadProject)} />}
-
-              {otherProjects.length > 0 && (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {otherProjects.map((proyecto, index) => (
-                    <ProjectCard
-                      key={proyecto.id}
-                      proyecto={proyecto}
-                      index={index}
-                      onOpen={() => setSelectedProject(proyecto)}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-
-      <section className="relative border-t border-white/10 py-20 md:py-28">
-        <div className="mx-auto max-w-[1100px] px-6 text-center md:px-12 lg:px-20">
-          <motion.h2
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="font-display text-4xl md:text-5xl font-light text-white"
-          >
-            ¿Querés un proyecto así?
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.08 }}
-            className="mx-auto mt-5 max-w-[620px] text-white/60"
-          >
-            Te ayudamos a traducir una idea en una propuesta visual sólida, ejecutable y con resultados medibles.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.16 }}
-            className="mt-9"
-          >
-            <Link
-              href="/contacto"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.06] px-6 py-3 text-sm uppercase tracking-[0.16em] text-white/80 transition-colors hover:bg-white hover:text-black"
-            >
-              Hablemos de tu proyecto
-              <ArrowRight size={14} />
-            </Link>
+            </div>
           </motion.div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <AnimatePresence>
-        {selectedProject && <Lightbox proyecto={selectedProject} onClose={() => setSelectedProject(null)} />}
+        {selectedProject ? <Lightbox proyecto={selectedProject} onClose={() => setSelectedProject(null)} /> : null}
       </AnimatePresence>
-    </div>
+    </main>
   )
 }

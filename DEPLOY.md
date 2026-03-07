@@ -30,6 +30,8 @@ En la sección **Environment Variables** de la configuración del proyecto en Ve
 | `SUPABASE_SERVICE_ROLE_KEY` | Clave de rol de servicio (Service Role Key) |
 | `SUPABASE_ACCESS_TOKEN` | Token de acceso (si es necesario para scripts de build, opcional si no se usa en runtime) |
 | `RESEND_API_KEY` | API Key de Resend para correos |
+| `CONTACT_FORM_TO` | Email que recibirá los mensajes del formulario de contacto |
+| `EMAIL_FROM` | Remitente validado en Resend (ej. `Quepia <notificaciones@quepia.com>`) |
 
 > **Nota:** Asegúrate de copiar los valores exactos, sin comillas extra si no son necesarias.
 

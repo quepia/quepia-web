@@ -3,16 +3,30 @@ import { sendEmail, type EmailType } from '@/lib/sistema/email-service';
 
 interface SendEmailBody {
   type: EmailType;
-  to: string;
+  to?: string;
   data: Record<string, any>;
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as SendEmailBody;
     const { type, to, data } = body;
 
-    const result = await sendEmail({ type, to, data });
+    const recipientForContact =
+      process.env.CONTACT_FORM_TO ||
+      process.env.ADMIN_EMAIL ||
+      'quepiacomunicacion@gmail.com';
+
+    const resolvedRecipient = type === 'contact_form' ? recipientForContact : to;
+
+    if (!resolvedRecipient) {
+      return NextResponse.json(
+        { error: 'Missing recipient for email type' },
+        { status: 400 }
+      );
+    }
+
+    const result = await sendEmail({ type, to: resolvedRecipient, data });
 
     if (!result.success) {
       return NextResponse.json(

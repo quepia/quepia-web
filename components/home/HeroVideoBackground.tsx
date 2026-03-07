@@ -6,53 +6,49 @@ interface HeroVideoBackgroundProps {
   active?: boolean;
 }
 
-const HERO_LOOP_SRC = '/LOOP%20FONDO%20QUEPIA.prproj.mp4';
+const HERO_LOOP_SRC = '/hero-bg.mp4';
 
 export default function HeroVideoBackground({ active = true }: HeroVideoBackgroundProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [shouldUseVideo, setShouldUseVideo] = useState(true);
+  const [isInView, setIsInView] = useState(true);
 
   useEffect(() => {
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const container = containerRef.current;
+    if (!container || typeof IntersectionObserver === 'undefined') return;
 
-    if (prefersReducedMotion) {
-      setShouldUseVideo(false);
-    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsInView(entry.isIntersecting),
+      { threshold: 0.2 },
+    );
+    observer.observe(container);
+
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!videoRef.current || !shouldUseVideo) return;
+    if (!videoRef.current) return;
 
-    if (active) {
+    if (active && isInView) {
       videoRef.current.play().catch(() => {});
       return;
     }
 
     videoRef.current.pause();
-  }, [active, shouldUseVideo]);
+  }, [active, isInView]);
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      {shouldUseVideo ? (
-        <video
-          ref={videoRef}
-          className="absolute inset-0 h-full w-full object-cover object-center"
-          src={HERO_LOOP_SRC}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          onError={() => setShouldUseVideo(false)}
-        />
-      ) : (
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(circle at 30% 30%, #2AE7E4 0%, #881078 45%, #0a0a0a 75%)',
-          }}
-        />
-      )}
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden">
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover object-center"
+        src={HERO_LOOP_SRC}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+      />
 
       <div
         className="absolute inset-0 pointer-events-none"

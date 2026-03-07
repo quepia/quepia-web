@@ -1,182 +1,109 @@
 'use client';
 
-import React, { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
-import { Search, Lightbulb, Palette, Rocket } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import { motion } from 'framer-motion';
 
-const processSteps = [
+const methodColumns = [
   {
-    number: '01',
     title: 'Descubrimiento',
-    description: 'Sumergimos en tu marca, analizamos tu mercado y definimos objetivos claros para el proyecto.',
-    icon: Search,
-    color: '#2AE7E4',
+    description:
+      'Analizamos tu mercado y entendemos el núcleo de tu negocio.',
   },
   {
-    number: '02',
     title: 'Estrategia',
-    description: 'Desarrollamos un plan creativo sólido que alinee tu visión con las necesidades de tu audiencia.',
-    icon: Lightbulb,
-    color: '#3d7ea8',
+    description:
+      'Diseñamos un plan de acción a medida, alineando creatividad con objetivos comerciales.',
   },
   {
-    number: '03',
-    title: 'Diseño',
-    description: 'Creamos conceptos visuales únicos, refinándolos hasta lograr la perfección.',
-    icon: Palette,
-    color: '#7a3d8a',
-  },
-  {
-    number: '04',
-    title: 'Lanzamiento',
-    description: 'Implementamos y entregamos, asegurando que cada detalle cumpla los más altos estándares.',
-    icon: Rocket,
-    color: '#881078',
+    title: 'Ejecución',
+    description:
+      'Implementamos soluciones visuales y digitales con los más altos estándares de calidad.',
   },
 ];
 
-function ProcessCard({ step, index }: { step: typeof processSteps[0]; index: number }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(cardRef, { once: true, margin: "-50px" });
-  const Icon = step.icon;
+const ambientVideoSrc = '/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4';
 
-  return (
-    <motion.div
-      ref={cardRef}
-      className="relative group"
-      initial={{ opacity: 0, y: 60 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{
-        duration: 0.7,
-        delay: index * 0.15,
-        ease: [0.16, 1, 0.3, 1],
-      }}
-    >
-      {/* Connector line */}
-      {index < processSteps.length - 1 && (
-        <motion.div
-          className="absolute top-16 left-full w-full h-px hidden lg:block"
-          initial={{ scaleX: 0 }}
-          animate={isInView ? { scaleX: 1 } : {}}
-          transition={{ duration: 0.8, delay: 0.5 + index * 0.15 }}
-          style={{ 
-            transformOrigin: 'left',
-            background: 'linear-gradient(90deg, rgba(255,255,255,0.1), transparent)'
-          }}
-        />
-      )}
-
-      {/* Card */}
-      <div className="relative p-8 md:p-10 bg-white/[0.02] border border-white/5 rounded-2xl backdrop-blur-sm overflow-hidden transition-all duration-500 hover:bg-white/[0.04] hover:border-white/10">
-        {/* Glow effect on hover */}
-        <div 
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: `radial-gradient(circle at 50% 0%, ${step.color}10, transparent 70%)`
-          }}
-        />
-
-        {/* Number */}
-        <motion.span
-          className="absolute top-6 right-6 font-display text-5xl md:text-6xl font-light text-white/5 group-hover:text-white/10 transition-colors duration-500"
-          initial={{ opacity: 0, x: 20 }}
-          animate={isInView ? { opacity: 1, x: 0 } : {}}
-          transition={{ delay: 0.3 + index * 0.15 }}
-        >
-          {step.number}
-        </motion.span>
-
-        {/* Icon */}
-        <motion.div
-          className="relative w-14 h-14 mb-6 rounded-xl flex items-center justify-center"
-          style={{ backgroundColor: `${step.color}15` }}
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          transition={{ type: "spring", stiffness: 300 }}
-        >
-          <Icon size={24} style={{ color: step.color }} />
-        </motion.div>
-
-        {/* Content */}
-        <h3 className="font-display text-xl md:text-2xl font-medium text-white mb-3">
-          {step.title}
-        </h3>
-        <p className="text-white/50 text-sm md:text-base leading-relaxed">
-          {step.description}
-        </p>
-
-        {/* Bottom accent line */}
-        <motion.div
-          className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r"
-          style={{ 
-            background: `linear-gradient(90deg, ${step.color}, transparent)`,
-          }}
-          initial={{ width: '0%' }}
-          animate={isInView ? { width: '100%' } : {}}
-          transition={{ duration: 0.8, delay: 0.4 + index * 0.15 }}
-        />
-      </div>
-    </motion.div>
-  );
-}
+const ambientVideoMask: CSSProperties = {
+  WebkitMaskImage:
+    'radial-gradient(128% 110% at 50% 42%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.94) 36%, rgba(255,255,255,0.72) 58%, rgba(255,255,255,0.24) 80%, transparent 100%)',
+  maskImage:
+    'radial-gradient(128% 110% at 50% 42%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.94) 36%, rgba(255,255,255,0.72) 58%, rgba(255,255,255,0.24) 80%, transparent 100%)',
+  WebkitMaskRepeat: 'no-repeat',
+  maskRepeat: 'no-repeat',
+};
 
 export default function ProcessSection() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
-
   return (
-    <section ref={containerRef} className="relative py-24 md:py-32 overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div 
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] opacity-20 blur-[80px]"
-          style={{
-            background: 'radial-gradient(circle, rgba(136,16,120,0.2) 0%, transparent 70%)'
-          }}
-        />
-      </div>
-
-      <div className="relative z-10 max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20">
-        {/* Section header */}
-        <div className="text-center mb-16 md:mb-24">
-          <motion.span
-            className="text-label text-white/40 block mb-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6 }}
-          >
-            Proceso
-          </motion.span>
-          <motion.h2
-            className="font-display text-3xl md:text-5xl lg:text-6xl font-light text-white max-w-3xl mx-auto"
-            initial={{ opacity: 0, y: 30 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
-            Cómo{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-quepia-cyan to-quepia-purple">
-              transformamos
-            </span>{' '}
-            ideas en realidad
-          </motion.h2>
+    <section className="relative overflow-hidden py-20 md:py-28">
+      <motion.div
+        aria-hidden="true"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: '-120px' }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        className="pointer-events-none absolute inset-0"
+      >
+        <div className="absolute inset-x-[-12%] inset-y-[-6%] overflow-hidden" style={ambientVideoMask}>
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            className="absolute inset-0 h-full w-full object-cover opacity-[0.14] blur-[52px]"
+            src={encodeURI(ambientVideoSrc)}
+            style={{ transform: 'scale(1.85)', objectPosition: 'center center' }}
+          />
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            className="absolute inset-0 h-full w-full object-cover opacity-[0.22]"
+            src={encodeURI(ambientVideoSrc)}
+            style={{ transform: 'scale(1.36)', objectPosition: 'center center' }}
+          />
         </div>
 
-        {/* Process grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-          {processSteps.map((step, index) => (
-            <ProcessCard key={step.number} step={step} index={index} />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(42,231,228,0.08)_0%,rgba(155,44,138,0.06)_28%,rgba(5,5,5,0)_56%,rgba(5,5,5,0.62)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,#050505_0%,rgba(5,5,5,0.98)_12%,rgba(5,5,5,0.68)_28%,rgba(5,5,5,0.22)_50%,rgba(5,5,5,0.68)_72%,rgba(5,5,5,0.98)_88%,#050505_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#050505_0%,rgba(5,5,5,0.82)_10%,rgba(5,5,5,0.26)_34%,rgba(5,5,5,0.18)_66%,rgba(5,5,5,0.9)_90%,#050505_100%)]" />
+        <div className="absolute left-1/2 top-[18%] h-[12rem] w-[34rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(42,231,228,0.08)_0%,rgba(155,44,138,0.06)_38%,transparent_72%)] blur-[48px]" />
+      </motion.div>
+
+      <div className="pointer-events-none absolute -left-[16%] top-[6%] h-[28rem] w-[28rem] rounded-full bg-[#9b2c8a]/18 blur-[140px]" />
+      <div className="pointer-events-none absolute -right-[14%] bottom-[0%] h-[28rem] w-[28rem] rounded-full bg-[#2ae7e4]/14 blur-[140px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-[12%] h-[1px] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent)]" />
+
+      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">
+        <div className="mb-10 md:mb-14">
+          <h2 className="max-w-3xl font-display text-[clamp(1.8rem,3.2vw,3rem)] font-medium leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)]">
+            No solo diseñamos, construimos sistemas.
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          {methodColumns.map((column, index) => (
+            <motion.article
+              key={column.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-90px' }}
+              transition={{ duration: 0.45, delay: index * 0.07, ease: 'easeOut' }}
+              className="rounded-[20px] border border-white/10 bg-[#0a0a0a]/50 p-7 backdrop-blur-[16px] transition-all duration-300 hover:-translate-y-1 hover:border-[#2ae7e4]/45 hover:shadow-[0_0_0_1px_rgba(42,231,228,0.22),0_18px_50px_rgba(0,0,0,0.45)] md:p-8"
+            >
+              <p className="mb-3 text-xs uppercase tracking-[0.2em] text-[rgb(var(--text-white-soft-rgb)/0.45)]">
+                {String(index + 1).padStart(2, '0')}
+              </p>
+              <h3 className="mb-4 font-display text-[clamp(1.2rem,2vw,1.6rem)] font-semibold leading-[1.2] text-[color:var(--text-primary)]">
+                {column.title}
+              </h3>
+              <p className="text-base leading-relaxed text-[#a1a1aa]">
+                {column.description}
+              </p>
+            </motion.article>
           ))}
-        </div>
-
-        {/* Progress indicator */}
-        <div className="hidden lg:flex justify-center mt-16">
-          <div className="relative w-1/2 h-px bg-white/10">
-            <motion.div
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-quepia-cyan to-quepia-purple"
-              initial={{ width: '0%' }}
-              animate={isInView ? { width: '100%' } : { width: '0%' }}
-              transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-            />
-          </div>
         </div>
       </div>
     </section>

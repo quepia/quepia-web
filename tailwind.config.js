@@ -17,8 +17,8 @@ module.exports = {
                 'quepia-magenta': 'var(--quepia-magenta)',
             },
             fontFamily: {
-                sans: ["'Inter'", '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-                display: ['var(--font-display)', "'Space Grotesk'", 'sans-serif'],
+                sans: ['var(--font-sans)', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                display: ['var(--font-display)', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             },
         },
     },

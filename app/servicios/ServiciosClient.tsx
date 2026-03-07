@@ -1,318 +1,231 @@
 'use client';
 
-import { useState, useRef } from 'react';
 import Link from 'next/link';
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
-import { Servicio } from '@/types/database';
+import type { Servicio } from '@/types/database';
 import { getServiceIconByName } from '@/lib/service-icons';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
+import MarqueeSection from '@/components/home/MarqueeSection';
 
 interface ServiciosClientProps {
-    servicios: Servicio[];
+  servicios: Servicio[];
 }
 
-// Service Card Component - Asymmetric Grid Style
-function ServiceCard({ 
-    service, 
-    index, 
-    isLarge = false 
-}: { 
-    service: Servicio; 
-    index: number; 
-    isLarge?: boolean;
-}) {
-    const ref = useRef<HTMLDivElement>(null);
-    const isInView = useInView(ref, { once: true, margin: "-50px" });
-    const [isHovered, setIsHovered] = useState(false);
-    
-    const IconComponent = getServiceIconByName(service.icono);
+const processSteps = [
+  { step: '01', title: 'Descubrimiento', desc: 'Entendemos tu marca, objetivos y audiencia.' },
+  { step: '02', title: 'Estrategia', desc: 'Diseñamos un plan creativo a medida.' },
+  { step: '03', title: 'Creación', desc: 'Desarrollamos soluciones visuales impactantes.' },
+  { step: '04', title: 'Entrega', desc: 'Implementamos y acompañamos el crecimiento.' },
+];
 
-    return (
-        <motion.div
-            ref={ref}
-            initial={{ opacity: 0, y: 30 }}
-            animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-            transition={{ duration: 0.6, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className={`group relative ${isLarge ? 'md:col-span-2 md:row-span-2' : ''}`}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+function ServiceCard({ service, index }: { service: Servicio; index: number }) {
+  const IconComponent = getServiceIconByName(service.icono);
+  const relatedHref = service.categoria_trabajo
+    ? `/trabajos?category=${service.categoria_trabajo}`
+    : '/trabajos';
+  const topFeatures = (service.features || []).slice(0, 3);
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-80px' }}
+      transition={{ duration: 0.45, delay: index * 0.05, ease: 'easeOut' }}
+      className="group relative overflow-hidden rounded-[24px] border border-white/[0.05] bg-[#070707]/90 p-6 backdrop-blur-[12px] transition-all duration-300 hover:-translate-y-1 hover:border-white/[0.08] hover:shadow-[0_28px_80px_rgba(0,0,0,0.5)] md:p-7"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),transparent_30%,transparent_100%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100 bg-[radial-gradient(320px_circle_at_85%_8%,rgba(42,231,228,0.12),transparent_55%)]" />
+
+      <div className="relative z-10 flex h-full flex-col">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-white/35">
+            {String(index + 1).padStart(2, '0')}
+          </p>
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 text-white/70">
+            {IconComponent ? <IconComponent size={18} /> : null}
+          </div>
+        </div>
+
+        <h3 className="font-display text-[1.18rem] font-medium leading-[1.15] tracking-[-0.015em] text-white md:text-[1.3rem]">
+          {service.titulo}
+        </h3>
+
+        <p className="mt-3 text-sm leading-relaxed text-[#9ea0a8]">
+          {service.descripcion_corta}
+        </p>
+
+        {topFeatures.length > 0 ? (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {topFeatures.map((feature) => (
+              <span
+                key={`${service.id}-${feature}`}
+                className="rounded-full border border-white/[0.08] bg-white/[0.015] px-2.5 py-1 text-[0.66rem] uppercase tracking-[0.12em] text-white/50"
+              >
+                {feature}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <Link
+          href={relatedHref}
+          className="mt-7 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/58 transition-all duration-300 hover:gap-3 hover:text-white"
         >
-            <div className={`relative h-full glass-card overflow-hidden transition-all duration-500 ${
-                isHovered ? 'bg-white/[0.05] border-white/15' : ''
-            }`}>
-                {/* Number badge */}
-                <div className="absolute top-6 left-6 z-10">
-                    <span className="font-mono text-xs text-white/40">
-                        {String(index + 1).padStart(2, '0')}
-                    </span>
-                </div>
-
-                {/* Content */}
-                <div className={`p-6 md:p-8 flex flex-col h-full ${isLarge ? 'min-h-[300px] md:min-h-[400px]' : 'min-h-[200px]'}`}>
-                    {/* Icon */}
-                    <div className={`rounded-xl bg-gradient-to-br from-quepia-purple/20 to-quepia-cyan/20 flex items-center justify-center text-white/70 mb-6 transition-all duration-500 ${
-                        isHovered ? 'scale-110 from-quepia-purple/30 to-quepia-cyan/30 text-white' : ''
-                    } ${isLarge ? 'w-16 h-16' : 'w-12 h-12'}`}>
-                        {IconComponent ? <IconComponent size={isLarge ? 32 : 24} /> : null}
-                    </div>
-
-                    {/* Title */}
-                    <h3 className={`font-display font-medium text-white mb-3 transition-colors duration-300 ${
-                        isHovered ? 'text-quepia-cyan' : ''
-                    } ${isLarge ? 'text-2xl md:text-3xl' : 'text-lg md:text-xl'}`}>
-                        {service.titulo}
-                    </h3>
-
-                    {/* Description */}
-                    <p className={`text-white/50 leading-relaxed flex-grow ${isLarge ? 'text-base md:text-lg' : 'text-sm md:text-base'}`}>
-                        {service.descripcion_corta}
-                    </p>
-
-                    {/* Arrow indicator */}
-                    <div className="mt-6 flex items-center gap-2 text-white/40 group-hover:text-white transition-colors duration-300">
-                        <span className="text-xs uppercase tracking-wider">Explorar</span>
-                        <motion.div
-                            animate={{ x: isHovered ? 4 : 0 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <ArrowUpRight size={14} />
-                        </motion.div>
-                    </div>
-                </div>
-
-                {/* Hover gradient overlay */}
-                <motion.div 
-                    className="absolute inset-0 bg-gradient-to-t from-quepia-purple/10 via-transparent to-transparent pointer-events-none"
-                    animate={{ opacity: isHovered ? 1 : 0 }}
-                    transition={{ duration: 0.4 }}
-                />
-            </div>
-        </motion.div>
-    );
+          Ver proyectos
+          <ArrowUpRight size={14} />
+        </Link>
+      </div>
+    </motion.article>
+  );
 }
 
 export default function ServiciosClient({ servicios }: ServiciosClientProps) {
-    const heroRef = useRef<HTMLDivElement>(null);
-    const isHeroInView = useInView(heroRef, { once: true });
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
+      <BrandDepthBackground variant="subtle" />
+      <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(180deg,#0a0a0a_0%,#101010_42%,#0d0d0d_100%)]" />
 
-    return (
-        <div className="relative">
-            <BrandDepthBackground />
+      <div className="relative z-10">
+        <section className="relative overflow-hidden pb-14 pt-28 md:pb-20 md:pt-32">
+          <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-screen w-screen -translate-x-1/2">
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.15]"
+              src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(95deg,rgba(10,10,10,0.94)_0%,rgba(10,10,10,0.82)_48%,rgba(10,10,10,0.9)_100%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_35%,rgba(42,231,228,0.08),transparent_45%)]" />
+          </div>
 
-            {/* Hero Section */}
-            <section ref={heroRef} className="relative min-h-[70vh] flex items-center justify-center pt-20 overflow-hidden">
-                {/* Background gradient */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute inset-0 bg-gradient-to-b from-quepia-purple/5 via-transparent to-transparent" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-20">
-                        <div 
-                            className="absolute inset-0 rounded-full blur-[90px]"
-                            style={{
-                                background: 'radial-gradient(circle, rgba(42,231,228,0.15) 0%, rgba(136,16,120,0.15) 50%, transparent 70%)'
-                            }}
-                        />
-                    </div>
-                </div>
+          <div className="relative z-10 mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="max-w-3xl"
+            >
+              <p className="mb-5 text-xs uppercase tracking-[0.24em] text-white/48">
+                Nuestros servicios
+              </p>
 
-                <div className="relative z-10 max-w-[1200px] mx-auto px-6 md:px-12 lg:px-20 text-center">
-                    {/* Label */}
-                    <motion.span
-                        className="text-label text-white/40 block mb-6"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6 }}
-                    >
-                        Nuestros Servicios
-                    </motion.span>
+              <h1 className="font-display text-[clamp(1.9rem,3.9vw,3.45rem)] font-medium leading-[1.06] tracking-[-0.02em] text-white">
+                Soluciones creativas para marcas que quieren destacar.
+              </h1>
 
-                    {/* Main heading */}
-                    <motion.h1
-                        className="font-display text-hero text-white mb-8"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                        style={{ willChange: 'transform, opacity' }}
-                    >
-                        Soluciones creativas
-                        <br />
-                        <span className="text-white/80">
-                            para marcas que destacan
-                        </span>
-                    </motion.h1>
+              <p className="mt-5 max-w-2xl text-[0.98rem] leading-relaxed text-[#a1a1aa] md:text-[1.05rem]">
+                Diseño, estrategia y ejecución que elevan tu presencia en el mercado.
+              </p>
 
-                    {/* Subtitle */}
-                    <motion.p
-                        className="text-white/50 text-lg md:text-xl max-w-[600px] mx-auto"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                    >
-                        Diseño, estrategia y ejecución que elevan tu presencia en el mercado.
-                    </motion.p>
-                </div>
-
-                {/* Scroll indicator */}
-                <div
-                    className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20"
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/contacto"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-[#2ae7e4]/35 bg-gradient-to-br from-[#2ae7e4] to-[#7cf2ef] px-6 text-xs font-semibold uppercase tracking-[0.08em] text-[#0a0a0a] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(42,231,228,0.38),0_12px_36px_rgba(42,231,228,0.4)]"
                 >
-                    <div className="flex flex-col items-center gap-2 cursor-pointer group">
-                        <span className="text-white/25 text-[10px] uppercase tracking-[0.3em] group-hover:text-white/40 transition-colors">
-                            Scroll
-                        </span>
-                        <div className="w-px h-6 bg-gradient-to-b from-white/25 to-transparent group-hover:from-white/40 transition-colors" />
-                    </div>
-                </div>
-            </section>
+                  Hablemos
+                </Link>
+                <span className="text-xs uppercase tracking-[0.14em] text-white/52">
+                  {servicios.length} servicios activos
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        </section>
 
-            {/* Services Grid Section */}
-            <section className="py-16 md:py-24">
-                <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20">
-                    {servicios.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                            {servicios.map((service, index) => (
-                                <ServiceCard 
-                                    key={service.id} 
-                                    service={service} 
-                                    index={index}
-                                    isLarge={index === 0} // First service is featured
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <motion.div
-                            className="text-center py-16"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                        >
-                            <p className="text-white/40 text-lg mb-4">
-                                No hay servicios configurados todavía
-                            </p>
-                        </motion.div>
-                    )}
-                </div>
-            </section>
+        <MarqueeSection servicios={servicios} />
 
-            {/* Process Section - How we work */}
-            <section className="py-24 md:py-32 border-t border-white/5">
-                <div className="max-w-[1400px] mx-auto px-6 md:px-12 lg:px-20">
-                    <motion.div
-                        className="text-center mb-16 md:mb-20"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
-                    >
-                        <span className="text-label text-white/40 block mb-4">Proceso</span>
-                        <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-white">
-                            Cómo trabajamos
-                        </h2>
-                    </motion.div>
+        <section className="py-14 md:py-20">
+          <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">
+            <div className="mb-8 md:mb-10">
+              <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/45">
+                Áreas de trabajo
+              </p>
+              <h2 className="max-w-3xl font-display text-[clamp(1.45rem,2.8vw,2.2rem)] font-medium leading-[1.12] text-white">
+                Servicios diseñados para resolver desafíos reales de marca.
+              </h2>
+            </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-6">
-                        {[
-                            { step: '01', title: 'Descubrimiento', desc: 'Entendemos tu marca, objetivos y audiencia.' },
-                            { step: '02', title: 'Estrategia', desc: 'Diseñamos un plan creativo a medida.' },
-                            { step: '03', title: 'Creación', desc: 'Desarrollamos soluciones visuales impactantes.' },
-                            { step: '04', title: 'Entrega', desc: 'Implementamos y acompañamos el crecimiento.' },
-                        ].map((item, index) => (
-                            <motion.div
-                                key={item.step}
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.6, delay: index * 0.1 }}
-                                className="relative"
-                            >
-                                <span className="font-mono text-4xl md:text-5xl text-white/10 block mb-4">
-                                    {item.step}
-                                </span>
-                                <h3 className="font-display text-xl md:text-2xl font-medium text-white mb-3">
-                                    {item.title}
-                                </h3>
-                                <p className="text-white/50 text-sm leading-relaxed">
-                                    {item.desc}
-                                </p>
-                                
-                                {/* Connector line */}
-                                {index < 3 && (
-                                    <div className="hidden md:block absolute top-8 left-full w-full h-px">
-                                        <div className="w-full h-full bg-gradient-to-r from-white/10 to-transparent" />
-                                    </div>
-                                )}
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+            {servicios.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {servicios.map((service, index) => (
+                  <ServiceCard key={service.id} service={service} index={index} />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-6 py-10 text-center">
+                <p className="text-sm text-white/50">No hay servicios configurados todavía.</p>
+              </div>
+            )}
+          </div>
+        </section>
 
-            {/* CTA Section */}
-            <section className="relative py-32 md:py-48 overflow-hidden">
-                {/* Gradient background */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-20">
-                        <div
-                            className="absolute inset-0 rounded-full blur-3xl animate-gradient"
-                            style={{
-                                background: 'radial-gradient(circle, rgba(42,231,228,0.3) 0%, rgba(136,16,120,0.3) 50%, transparent 70%)'
-                            }}
-                        />
-                    </div>
-                </div>
+        <section className="border-t border-white/6 py-16 md:py-20">
+          <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">
+            <div className="mb-8 md:mb-10">
+              <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/45">Proceso</p>
+              <h2 className="font-display text-[clamp(1.45rem,2.8vw,2.2rem)] font-medium leading-[1.12] text-white">
+                Cómo trabajamos
+              </h2>
+            </div>
 
-                <div className="relative z-10 max-w-[900px] mx-auto px-6 md:px-12 lg:px-20 text-center">
-                    <motion.h2
-                        className="font-display text-3xl md:text-4xl lg:text-5xl font-light text-white mb-6"
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.7 }}
-                    >
-                        ¿Tenés un proyecto en mente?
-                    </motion.h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {processSteps.map((item, index) => (
+                <motion.article
+                  key={item.step}
+                  initial={{ opacity: 0, y: 14 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-80px' }}
+                  transition={{ duration: 0.4, delay: index * 0.06, ease: 'easeOut' }}
+                  className="rounded-[20px] border border-white/[0.06] bg-[#0a0a0a]/55 p-5 backdrop-blur-[10px] transition-all duration-300 hover:border-[#2ae7e4]/20"
+                >
+                  <p className="font-mono text-[0.75rem] text-white/35">{item.step}</p>
+                  <h3 className="mt-3 font-display text-[1.15rem] font-medium leading-[1.2] text-white">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#9ea0a8]">{item.desc}</p>
+                </motion.article>
+              ))}
+            </div>
+          </div>
+        </section>
 
-                    <motion.p
-                        className="text-white/50 text-lg max-w-[500px] mx-auto mb-12"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                    >
-                        Cada proyecto es único. Contanos tu idea y diseñamos una solución a medida.
-                    </motion.p>
+        <section className="relative overflow-hidden py-20 md:py-24">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -left-[12%] top-[-34%] h-[30rem] w-[30rem] rounded-full bg-[#9b2c8a]/26 blur-[140px]" />
+            <div className="absolute -right-[12%] bottom-[-36%] h-[30rem] w-[30rem] rounded-full bg-[#2ae7e4]/22 blur-[140px]" />
+          </div>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                    >
-                        <Link
-                            href="/contacto"
-                            className="group inline-flex items-center gap-3 text-xl md:text-2xl text-white hover:text-quepia-cyan transition-colors duration-300"
-                        >
-                            <span className="border-b border-white/30 group-hover:border-quepia-cyan pb-1 transition-colors duration-300">
-                                Hablemos
-                            </span>
-                            <motion.svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                className="transition-transform duration-300 group-hover:translate-x-1"
-                            >
-                                <path
-                                    d="M1 8H15M15 8L8 1M15 8L8 15"
-                                    stroke="currentColor"
-                                    strokeWidth="1.5"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </motion.svg>
-                        </Link>
-                    </motion.div>
-                </div>
-            </section>
-        </div>
-    );
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-80px' }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="relative mx-auto w-full max-w-[980px] px-6 text-center md:px-12 lg:px-20"
+          >
+            <div className="rounded-[24px] border border-white/[0.07] bg-white/[0.03] px-6 py-12 backdrop-blur-[12px] md:px-12">
+              <h2 className="mx-auto max-w-2xl font-display text-[clamp(1.6rem,3vw,2.4rem)] font-medium leading-[1.1] text-white">
+                ¿Tenés un proyecto en mente?
+              </h2>
+
+              <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-[#a1a1aa] md:text-base">
+                Cada proyecto es único. Contanos tu idea y diseñamos una solución a medida.
+              </p>
+
+              <Link
+                href="/contacto"
+                className="mt-8 inline-flex items-center gap-2 text-sm uppercase tracking-[0.1em] text-white/68 transition-all duration-300 hover:gap-3 hover:text-white"
+              >
+                Empezar conversación
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+          </motion.div>
+        </section>
+      </div>
+    </main>
+  );
 }

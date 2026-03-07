@@ -3,10 +3,10 @@ import { createPublicClient } from '@/lib/supabase/public';
 import HomeCarousel from '@/components/home/HomeCarousel';
 import ServicesGrid from '@/components/home/ServicesGrid';
 import HeroSection from '@/components/home/HeroSection';
-import StatementSection from '@/components/home/StatementSection';
 import CTASection from '@/components/home/CTASection';
 import MarqueeSection from '@/components/home/MarqueeSection';
 import ProcessSection from '@/components/home/ProcessSection';
+import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 
 // ISR: Revalidate every 60 seconds
@@ -41,8 +41,7 @@ export default async function Home() {
       .from('proyectos')
       .select('*')
       .eq('destacado', true)
-      .order('orden', { ascending: true })
-      .limit(6),
+      .order('orden', { ascending: true }),
     supabase
       .from('servicios')
       .select('*')
@@ -50,43 +49,53 @@ export default async function Home() {
   ]);
 
   return (
-    <main className="relative min-h-screen bg-[#0a0a0a]">
-      {/* ═══════════════════════════════════════════════════════════
-          HERO SECTION — Impactful 3D Experience
-          ═══════════════════════════════════════════════════════════ */}
-      <HeroSection />
+    <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-[color:var(--text-primary)]">
+      <BrandDepthBackground variant="subtle" />
+      <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(180deg,#0a0a0a_0%,#101010_42%,#0d0d0d_100%)]" />
 
-      {/* ═══════════════════════════════════════════════════════════
-          MARQUEE SECTION — Dynamic text scroll
-          ═══════════════════════════════════════════════════════════ */}
-      <MarqueeSection />
+      <div className="relative z-10">
+        <section id="hero">
+          <HeroSection />
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          SERVICES SECTION — Interactive expandable list
-          ═══════════════════════════════════════════════════════════ */}
-      <ServicesGrid servicios={servicios || []} />
+        <section
+          id="social-proof"
+          className="pt-4"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '360px' }}
+        >
+          <MarqueeSection servicios={servicios || []} />
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          STATEMENT SECTION — Philosophy with visual impact
-          ═══════════════════════════════════════════════════════════ */}
-      <StatementSection />
+        <section
+          id="expertise"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '1100px' }}
+        >
+          <ServicesGrid servicios={servicios || []} />
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          PROCESS SECTION — How we work
-          ═══════════════════════════════════════════════════════════ */}
-      <ProcessSection />
+        <section
+          id="case-studies"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '1200px' }}
+        >
+          {proyectos && proyectos.length > 0 && (
+            <HomeCarousel proyectos={proyectos} />
+          )}
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          PROJECTS SECTION — Cinematic showcase
-          ═══════════════════════════════════════════════════════════ */}
-      {proyectos && proyectos.length > 0 && (
-        <HomeCarousel proyectos={proyectos} />
-      )}
+        <section
+          id="method"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '900px' }}
+        >
+          <ProcessSection />
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════
-          CTA SECTION — Final call to action
-          ═══════════════════════════════════════════════════════════ */}
-      <CTASection email={config.email_contacto} />
+        <section
+          id="final-cta"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '600px' }}
+        >
+          <CTASection email={config.email_contacto} />
+        </section>
+      </div>
     </main>
   );
 }

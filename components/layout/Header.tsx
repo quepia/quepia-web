@@ -69,11 +69,13 @@ const Header: React.FC = () => {
     if (isClienteRoute) {
         return (
             <header
-                className="relative z-50 py-4 border-b border-white/5"
+                className="relative z-50 py-4"
                 style={{
                     background: 'rgba(10, 10, 10, 0.85)',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
+                    transform: 'translateZ(0)',
+                    backfaceVisibility: 'hidden',
                 }}
             >
                 <div className="container mx-auto px-6 flex items-center">
@@ -97,7 +99,7 @@ const Header: React.FC = () => {
             <header
                 className={`fixed top-0 left-0 right-0 z-[9999] transition-all duration-500 ${shouldBeTransparent
                     ? 'py-4 md:py-6'
-                    : 'py-4 border-b border-white/5'
+                    : 'py-4'
                     }`}
                 style={{
                     background: shouldBeTransparent
@@ -105,6 +107,8 @@ const Header: React.FC = () => {
                         : 'rgba(10, 10, 10, 0.85)',
                     backdropFilter: shouldBeTransparent ? 'none' : 'blur(20px)',
                     WebkitBackdropFilter: shouldBeTransparent ? 'none' : 'blur(20px)',
+                    transform: 'translateZ(0)',
+                    backfaceVisibility: 'hidden',
                 }}
             >
                 <div className="container mx-auto px-6 flex items-center justify-between">
@@ -127,8 +131,8 @@ const Header: React.FC = () => {
                                 key={link.name}
                                 href={link.path}
                                 className={`text-nav transition-colors duration-300 ${pathname === link.path
-                                    ? 'text-white'
-                                    : 'text-white/60 hover:text-white'
+                                    ? 'text-[color:var(--text-primary)]'
+                                    : 'text-[rgb(var(--text-white-soft-rgb)/0.6)] hover:text-[color:var(--text-primary)]'
                                     }`}
                             >
                                 {link.name}
@@ -142,7 +146,7 @@ const Header: React.FC = () => {
                                     href="/sistema"
                                     className={`text-nav transition-colors duration-300 flex items-center gap-1.5 ${pathname?.startsWith('/sistema')
                                         ? 'text-quepia-cyan'
-                                        : 'text-white/60 hover:text-quepia-cyan'
+                                        : 'text-[rgb(var(--text-white-soft-rgb)/0.6)] hover:text-quepia-cyan'
                                         }`}
                                 >
                                     <Settings size={14} />
@@ -155,14 +159,14 @@ const Header: React.FC = () => {
 
                     {/* Mobile Toggle — Circular indicator style */}
                     <button
-                        className="md:hidden relative z-[9999] flex items-center gap-2 text-white/80 hover:text-white transition-colors"
+                        className="md:hidden relative z-[9999] flex items-center gap-2 text-[rgb(var(--text-white-soft-rgb)/0.8)] hover:text-[color:var(--text-primary)] transition-colors"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
                     >
                         <span className="text-nav">
                             {isMobileMenuOpen ? 'Cerrar' : 'Menú'}
                         </span>
-                        <span className={`w-2 h-2 rounded-full transition-colors ${isMobileMenuOpen ? 'bg-quepia-cyan' : 'bg-white'
+                        <span className={`w-2 h-2 rounded-full transition-colors ${isMobileMenuOpen ? 'bg-quepia-cyan' : 'bg-[color:var(--text-primary)]'
                             }`} />
                     </button>
                 </div>
@@ -186,8 +190,8 @@ const Header: React.FC = () => {
                                     <Link
                                         href={link.path}
                                         className={`font-display text-4xl font-light tracking-tight transition-colors ${pathname === link.path
-                                            ? 'text-white'
-                                            : 'text-white/40 hover:text-white'
+                                            ? 'text-[color:var(--text-primary)]'
+                                            : 'text-[rgb(var(--text-white-soft-rgb)/0.4)] hover:text-[color:var(--text-primary)]'
                                             }`}
                                     >
                                         {link.name}
@@ -223,10 +227,10 @@ const Header: React.FC = () => {
                                 exit={{ opacity: 0 }}
                                 transition={{ delay: 0.3, duration: 0.3 }}
                             >
-                                <p className="text-white/40 text-sm mb-2">Contacto</p>
+                                <p className="text-[rgb(var(--text-white-soft-rgb)/0.4)] text-sm mb-2">Contacto</p>
                                 <a
                                     href="mailto:hola@quepia.com"
-                                    className="text-white/60 hover:text-white transition-colors"
+                                    className="text-[rgb(var(--text-white-soft-rgb)/0.6)] hover:text-[color:var(--text-primary)] transition-colors"
                                 >
                                     hola@quepia.com
                                 </a>

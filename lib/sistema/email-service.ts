@@ -12,6 +12,10 @@ import EfemerideReminderEmail from '@/components/emails/EfemerideReminderEmail';
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
+const emailFrom =
+    process.env.EMAIL_FROM ||
+    process.env.RESEND_FROM ||
+    'Quepia <onboarding@resend.dev>';
 
 export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification' | 'proposal' | 'efemeride_reminder';
 
@@ -69,7 +73,7 @@ export async function sendEmail({ type, to, data }: SendEmailParams) {
         }
 
         const { data: result, error } = await resend.emails.send({
-            from: 'Quepia <notificaciones@quepia.com>',
+            from: emailFrom,
             to,
             subject,
             html,

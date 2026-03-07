@@ -1,152 +1,53 @@
 'use client';
 
-import React, { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 interface CTASectionProps {
   email?: string;
 }
 
 export default function CTASection({ email = 'hola@quepia.com' }: CTASectionProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
-
   return (
-    <section ref={containerRef} className="relative py-32 md:py-48 lg:py-64 overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] md:w-[800px] md:h-[800px]">
-          <div 
-            className="absolute inset-0 rounded-full blur-[90px] opacity-25"
-            style={{
-              background: 'conic-gradient(from 0deg, #2AE7E4, #881078, #2AE7E4)'
-            }}
-          />
-        </div>
-
-        {/* Secondary orbs */}
-        <div
-          className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full blur-[80px]"
-          style={{
-            background: 'radial-gradient(circle, rgba(42,231,228,0.15) 0%, transparent 70%)',
-          }}
-        />
-        <div
-          className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full blur-[80px]"
-          style={{
-            background: 'radial-gradient(circle, rgba(136,16,120,0.15) 0%, transparent 70%)',
-          }}
-        />
+    <section className="relative overflow-hidden py-24 md:py-32">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-[10%] top-[-28%] h-[34rem] w-[34rem] rounded-full bg-[#9b2c8a]/34 blur-[150px]" />
+        <div className="absolute -right-[12%] bottom-[-36%] h-[34rem] w-[34rem] rounded-full bg-[#2ae7e4]/32 blur-[150px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,17,17,0.4)_0%,rgba(10,10,10,0.72)_100%)]" />
       </div>
 
-      {/* Decorative geometric shapes */}
-      <div className="absolute top-20 left-10 w-4 h-4 border border-quepia-cyan/30 rotate-45 hidden md:block" />
-      <div className="absolute bottom-32 right-20 w-6 h-6 border border-quepia-purple/30 rounded-full hidden md:block" />
-      <div className="absolute top-1/3 right-10 w-3 h-3 bg-quepia-cyan/20 rotate-12 hidden md:block" />
-
-      <motion.div 
-        className="relative z-10 max-w-[1000px] mx-auto px-6 md:px-12 lg:px-20 text-center"
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-90px' }}
+        transition={{ duration: 0.55, ease: 'easeOut' }}
+        className="relative mx-auto w-full max-w-[1050px] px-6 text-center md:px-12 lg:px-20"
       >
-        {/* Pre-title */}
-        <motion.span
-          className="text-label text-white/40 block mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-        >
-          ¿Listo para empezar?
-        </motion.span>
+        <div className="rounded-[26px] border border-white/12 bg-white/[0.04] px-6 py-12 backdrop-blur-[14px] md:px-12 md:py-16">
+          <h2 className="mx-auto max-w-3xl font-display text-[clamp(2rem,4.1vw,3.6rem)] font-medium leading-[1.08] tracking-[-0.02em] text-[color:var(--text-primary)]">
+            ¿Listo para elevar la presencia de tu marca?
+          </h2>
 
-        {/* Main heading */}
-        <motion.h2
-          className="font-display text-4xl md:text-6xl lg:text-7xl font-light text-white mb-8 leading-tight"
-          initial={{ opacity: 0, y: 40 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.1 }}
-        >
-          Transformemos tu
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-quepia-cyan via-white to-quepia-purple">
-            marca juntos
-          </span>
-        </motion.h2>
+          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-[#a1a1aa] md:text-lg">
+            Te mostramos una ruta concreta para avanzar con claridad estratégica y ejecución premium.
+          </p>
 
-        {/* Subtitle */}
-        <motion.p
-          className="text-white/50 text-lg md:text-xl max-w-lg mx-auto mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          Cada gran marca comienza con una conversación. 
-          Hablemos sobre tu próximo proyecto.
-        </motion.p>
-
-        {/* CTA Button */}
-        <motion.div
-          className="mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          <Link
-            href="/contacto"
-            className="group relative inline-flex items-center gap-4 px-10 py-5 overflow-hidden"
-          >
-            {/* Button background */}
-            <span className="absolute inset-0 bg-gradient-to-r from-quepia-cyan to-quepia-purple transition-transform duration-500 group-hover:scale-105" />
-            <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
-            
-            {/* Button text */}
-            <span className="relative font-medium text-black text-lg uppercase tracking-wider">
-              Iniciar Proyecto
-            </span>
-            
-            {/* Arrow icon */}
-            <motion.svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              className="relative text-black"
-              whileHover={{ x: 5 }}
+          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link
+              href="/contacto"
+              className="inline-flex h-12 items-center justify-center rounded-full border border-[#2ae7e4]/35 bg-gradient-to-br from-[#2ae7e4] to-[#7cf2ef] px-8 text-sm font-semibold uppercase tracking-[0.08em] text-[#0a0a0a] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(42,231,228,0.38),0_14px_42px_rgba(42,231,228,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2ae7e4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
             >
-              <path
-                d="M4 10H16M16 10L10 4M16 10L10 16"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </motion.svg>
-          </Link>
-        </motion.div>
+              Hablemos hoy
+            </Link>
 
-        {/* Contact info */}
-        <motion.div
-          className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12"
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ duration: 0.6, delay: 0.5 }}
-        >
-          <a
-            href={`mailto:${email}`}
-            className="group flex items-center gap-3 text-white/40 hover:text-white/70 transition-colors duration-300"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
-            <span className="text-sm">{email}</span>
-          </a>
-          
-          <span className="hidden md:block w-1 h-1 rounded-full bg-white/20" />
-          
-          <span className="text-white/40 text-sm">
-            Villa Carlos Paz, Argentina
-          </span>
-        </motion.div>
+            <a
+              href={`mailto:${email}`}
+              className="text-sm uppercase tracking-[0.12em] text-[rgb(var(--text-white-soft-rgb)/0.65)] transition-colors duration-300 hover:text-[color:var(--text-primary)]"
+            >
+              {email}
+            </a>
+          </div>
+        </div>
       </motion.div>
     </section>
   );
