@@ -16,6 +16,7 @@ const emailFrom =
     process.env.EMAIL_FROM ||
     process.env.RESEND_FROM ||
     'Quepia <onboarding@resend.dev>';
+const usingDefaultResendSender = !process.env.EMAIL_FROM && !process.env.RESEND_FROM;
 
 export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification' | 'proposal' | 'efemeride_reminder';
 
@@ -81,7 +82,10 @@ export async function sendEmail({ type, to, data }: SendEmailParams) {
 
         if (error) {
             console.error('Error sending email via Resend:', error);
-            return { success: false, error: error.message };
+            const configuredSenderHint = usingDefaultResendSender
+                ? ' EMAIL_FROM/RESEND_FROM no esta configurado con un remitente validado en Resend.'
+                : '';
+            return { success: false, error: `${error.message}${configuredSenderHint}`.trim() };
         }
 
         return { success: true, id: result?.id };

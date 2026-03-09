@@ -31,12 +31,36 @@ import { uploadAssetFile, uploadCarouselFiles, uploadReelFile, createReelFromLin
 import { toggleAssetAccess, reorderCarouselAssets, renameCarouselAssets, deleteCarouselGroup, getNextGroupOrder } from "@/lib/sistema/actions/assets"
 import { notifyClientAssetDeliveryBatch } from "@/lib/sistema/actions/notifications"
 
+interface UploadNotificationWarning {
+  message: string
+  details: string[]
+}
+
 interface AssetPanelProps {
   taskId: string
   projectId: string
   userId: string
   // Optional: keep it if parent wants to know, but we use local state for modal
   onOpenAssetDetail?: (asset: AssetWithVersions, versionId?: string) => void
+}
+
+function formatNotificationError(error: string) {
+  const trimmed = error.trim()
+  const failedMatch = trimmed.match(/^Failed to send to\s+(.+?):\s+(.+)$/i)
+  if (failedMatch) {
+    return `${failedMatch[1]}: ${failedMatch[2]}`
+  }
+
+  if (/has invalid delivery email/i.test(trimmed)) {
+    return "Hay un acceso con email de entrega invalido."
+  }
+
+  const accessMatch = trimmed.match(/^Access\s+([a-f0-9-]+):\s+(.+)$/i)
+  if (accessMatch) {
+    return `Acceso ${accessMatch[1].slice(0, 8)}: ${accessMatch[2]}`
+  }
+
+  return trimmed
 }
 
 export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: AssetPanelProps) {
@@ -56,7 +80,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
   const [editingCarouselId, setEditingCarouselId] = useState<string | null>(null)
   const [editingCarouselName, setEditingCarouselName] = useState("")
   const [addingSlidesToGroup, setAddingSlidesToGroup] = useState<string | null>(null)
-  const [uploadNotificationWarning, setUploadNotificationWarning] = useState<string | null>(null)
+  const [uploadNotificationWarning, setUploadNotificationWarning] = useState<UploadNotificationWarning | null>(null)
   const carouselFileInputRef = useRef<HTMLInputElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -96,14 +120,20 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
     if (!result.success || result.failed > 0) {
       setUploadNotificationWarning(
-        `Se subieron los archivos, pero ${result.failed} notificación(es) de entrega fallaron.`
+        {
+          message: `Los archivos se subieron correctamente, pero falló el envío de ${result.failed} aviso(s) por email.`,
+          details: result.errors.map(formatNotificationError),
+        }
       )
       return
     }
 
     if (result.skipped > 0) {
       setUploadNotificationWarning(
-        `Se subieron los archivos. ${result.skipped} acceso(s) no tenían email válido para notificación.`
+        {
+          message: `Los archivos se subieron correctamente. ${result.skipped} acceso(s) quedaron sin aviso porque no tienen un email válido.`,
+          details: result.errors.map(formatNotificationError),
+        }
       )
       return
     }
@@ -538,7 +568,20 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
       {uploadNotificationWarning && (
         <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-          {uploadNotificationWarning}
+          <p>{uploadNotificationWarning.message}</p>
+          {uploadNotificationWarning.details.length > 0 && (
+            <div className="mt-2 space-y-1 border-t border-amber-200/10 pt-2 text-[10px] text-amber-100/80">
+              {uploadNotificationWarning.details.slice(0, 3).map((detail, index) => (
+                <p key={`${detail}-${index}`}>{detail}</p>
+              ))}
+              {uploadNotificationWarning.details.length > 3 && (
+                <p>+{uploadNotificationWarning.details.length - 3} detalle(s) mas</p>
+              )}
+              <p className="text-amber-100/60">
+                Podés revisar estos accesos en Perfil del cliente y compartir un link directo si hace falta.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
