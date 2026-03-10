@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { syncEfemeridesCalendarioActual } from "@/lib/sistema/actions/efemerides"
+import { getEmailFromAddress } from "@/lib/sistema/email-config"
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -359,7 +360,7 @@ export async function POST(request: Request) {
       // 3. Send email via Resend
       if (resend) {
         const { error: emailError } = await resend.emails.send({
-          from: 'Quepia <notificaciones@quepia.com>',
+          from: getEmailFromAddress(),
           to: email,
           subject: 'Te invitaron a colaborar en Quepia',
           html: `

@@ -7,16 +7,14 @@ import ContactFormEmail from '@/components/emails/ContactFormEmail';
 import GeneralNotificationEmail from '@/components/emails/GeneralNotificationEmail';
 import ProposalEmail from '@/components/emails/ProposalEmail';
 import EfemerideReminderEmail from '@/components/emails/EfemerideReminderEmail';
+import { getEmailFromAddress, isUsingDefaultResendSender } from '@/lib/sistema/email-config';
 // cleaned up imports
 
 const resend = process.env.RESEND_API_KEY
     ? new Resend(process.env.RESEND_API_KEY)
     : null;
-const emailFrom =
-    process.env.EMAIL_FROM ||
-    process.env.RESEND_FROM ||
-    'Quepia <onboarding@resend.dev>';
-const usingDefaultResendSender = !process.env.EMAIL_FROM && !process.env.RESEND_FROM;
+const emailFrom = getEmailFromAddress();
+const usingDefaultResendSender = isUsingDefaultResendSender();
 
 export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification' | 'proposal' | 'efemeride_reminder';
 

@@ -50,8 +50,9 @@ export default function HeroSection() {
             Quepia Consultora Creativa
           </p>
 
-          <h1 className="mb-6 text-balance font-display text-[clamp(1.8rem,3.8vw,3.5rem)] font-medium leading-[1.05] tracking-[-0.02em] text-[color:var(--text-primary)]">
-            Diseñamos la identidad y estrategia de marcas que lideran el mañana.
+          <h1 className="mb-6 font-display text-[clamp(2.5rem,7vw,5.9rem)] font-black uppercase leading-[0.95] tracking-[-0.04em] text-[color:var(--text-primary)]">
+            <span className="block">(RE)INVENTÁ</span>
+            <span className="block">TU MARCA.</span>
           </h1>
 
           <p className="mb-10 max-w-xl text-base leading-relaxed text-[#a1a1aa] md:text-lg">

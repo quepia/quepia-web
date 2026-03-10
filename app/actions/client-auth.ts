@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { Resend } from "resend"
 import { createClientDirectLink, createClientSessionForAccess } from "@/lib/sistema/auth/client-session"
+import { getEmailFromAddress } from "@/lib/sistema/email-config"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -61,7 +62,7 @@ export async function sendClientLoginCode(email: string) {
 
     try {
         await resend.emails.send({
-            from: "Quepia <no-reply@quepia.com>", // Update this if user has custom domain
+            from: getEmailFromAddress(),
             to: normalizedEmail,
             subject: "Tu código de acceso a Quepia",
             html: `
