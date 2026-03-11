@@ -272,7 +272,7 @@ export async function updatePublicAssetStatus(token: string, assetId: string, st
     }
 
     // Notify team members about client status change
-    await notifyClientAssetStatus(token, assetId, status);
+    await notifyClientAssetStatus(token, assetId, status, { mirrorToTask: rating === undefined });
 
     return { success: true, data };
   } catch (err: any) {

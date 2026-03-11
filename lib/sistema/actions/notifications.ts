@@ -18,6 +18,75 @@ interface SendNotificationParams {
     data?: Record<string, unknown>
 }
 
+interface ResolvedClientAccess {
+    project_id: string
+    nombre?: string | null
+}
+
+interface ExternalTaskCommentParams {
+    taskId?: string | null
+    assetId?: string | null
+    assetVersionId?: string | null
+    authorName: string
+    content: string
+    source: 'asset_feedback' | 'asset_status'
+}
+
+async function resolveClientAccessByToken(supabase: ReturnType<typeof createAdminClient>, token: string): Promise<ResolvedClientAccess | null> {
+    const { data: v1Access } = await supabase
+        .from('sistema_client_access')
+        .select('project_id, nombre')
+        .eq('access_token', token)
+        .single()
+
+    if (v1Access) {
+        return v1Access
+    }
+
+    if (token.length !== 36) {
+        return null
+    }
+
+    const { data: session } = await supabase
+        .from('sistema_client_sessions')
+        .select('client_access_id')
+        .eq('id', token)
+        .single()
+
+    if (!session?.client_access_id) {
+        return null
+    }
+
+    const { data: v2Access } = await supabase
+        .from('sistema_client_access')
+        .select('project_id, nombre')
+        .eq('id', session.client_access_id)
+        .single()
+
+    return v2Access || null
+}
+
+async function mirrorExternalCommentIntoTask(supabase: ReturnType<typeof createAdminClient>, params: ExternalTaskCommentParams) {
+    if (!params.taskId) return
+
+    const { error } = await supabase
+        .from('sistema_comments')
+        .insert({
+            task_id: params.taskId,
+            user_id: null,
+            author_name: params.authorName,
+            is_client: true,
+            source: params.source,
+            asset_id: params.assetId || null,
+            asset_version_id: params.assetVersionId || null,
+            contenido: params.content,
+        })
+
+    if (error) {
+        console.error('Error mirroring external comment into task:', error)
+    }
+}
+
 export async function sendNotification(params: SendNotificationParams) {
     try {
         const supabase = await createClient()
@@ -93,36 +162,7 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
     try {
         const supabase = createAdminClient()
 
-        // 1. Validate token and get project_id (supports V1 access_token and V2 session UUID)
-        let clientAccess: { project_id: string } | null = null
-
-        // Try V1: direct access_token lookup
-        const { data: v1Access } = await supabase
-            .from('sistema_client_access')
-            .select('project_id')
-            .eq('access_token', token)
-            .single()
-
-        if (v1Access) {
-            clientAccess = v1Access
-        } else if (token.length === 36) {
-            // Try V2: session token -> client_access
-            const { data: session } = await supabase
-                .from('sistema_client_sessions')
-                .select('client_access_id')
-                .eq('id', token)
-                .single()
-
-            if (session) {
-                const { data: v2Access } = await supabase
-                    .from('sistema_client_access')
-                    .select('project_id')
-                    .eq('id', session.client_access_id)
-                    .single()
-
-                if (v2Access) clientAccess = v2Access
-            }
-        }
+        const clientAccess = await resolveClientAccessByToken(supabase, token)
 
         if (!clientAccess) return { success: false, error: 'Invalid token' }
 
@@ -131,12 +171,22 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
             .from('sistema_asset_versions')
             .select(`
             *,
-            asset:sistema_assets(nombre, id)
+            asset:sistema_assets(nombre, id, task_id)
         `)
             .eq('id', assetVersionId)
             .single()
 
         if (!version) return { success: false, error: 'Asset not found' }
+
+        const taskCommentContent = `Feedback en "${version.asset?.nombre || 'Asset'}": ${content}`
+        await mirrorExternalCommentIntoTask(supabase, {
+            taskId: version.asset?.task_id,
+            assetId: version.asset?.id,
+            assetVersionId,
+            authorName,
+            content: taskCommentContent,
+            source: 'asset_feedback',
+        })
 
         // 3. Get Project Members
         const { data: members } = await supabase
@@ -162,8 +212,13 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
                 type: 'comment',
                 title: `Feedback del Cliente: ${authorName}`,
                 content: `Nuevo comentario en "${version.asset?.nombre || 'Asset'}": ${content}`,
-                link: `/sistema?projectId=${clientAccess.project_id}&assetId=${version.asset?.id}`,
-                data: { projectId: clientAccess.project_id, assetId: version.asset?.id }
+                link: version.asset?.task_id ? `/sistema?taskId=${version.asset.task_id}` : `/sistema`,
+                data: {
+                    projectId: clientAccess.project_id,
+                    assetId: version.asset?.id,
+                    assetVersionId,
+                    taskId: version.asset?.task_id,
+                }
             })
         ))
 
@@ -174,38 +229,16 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
     }
 }
 
-export async function notifyClientAssetStatus(token: string, assetId: string, status: string) {
+export async function notifyClientAssetStatus(
+    token: string,
+    assetId: string,
+    status: string,
+    options?: { mirrorToTask?: boolean }
+) {
     try {
         const supabase = createAdminClient()
 
-        // Resolve project from token (V1 or V2)
-        let clientAccess: { project_id: string; nombre: string } | null = null
-
-        const { data: v1Access } = await supabase
-            .from('sistema_client_access')
-            .select('project_id, nombre')
-            .eq('access_token', token)
-            .single()
-
-        if (v1Access) {
-            clientAccess = v1Access
-        } else if (token.length === 36) {
-            const { data: session } = await supabase
-                .from('sistema_client_sessions')
-                .select('client_access_id')
-                .eq('id', token)
-                .single()
-
-            if (session?.client_access_id) {
-                const { data: v2Access } = await supabase
-                    .from('sistema_client_access')
-                    .select('project_id, nombre')
-                    .eq('id', session.client_access_id)
-                    .single()
-
-                if (v2Access) clientAccess = v2Access
-            }
-        }
+        const clientAccess = await resolveClientAccessByToken(supabase, token)
 
         if (!clientAccess) return { success: false, error: 'Invalid token' }
 
@@ -230,6 +263,16 @@ export async function notifyClientAssetStatus(token: string, assetId: string, st
                 ? 'Cambios solicitados'
                 : 'Estado actualizado'
 
+        if (options?.mirrorToTask && asset.task_id) {
+            await mirrorExternalCommentIntoTask(supabase, {
+                taskId: asset.task_id,
+                assetId: asset.id,
+                authorName: clientAccess.nombre || 'Cliente',
+                content: `Marcó el asset "${asset.nombre}" como ${statusLabel.toLowerCase()}.`,
+                source: 'asset_status',
+            })
+        }
+
         await Promise.all(recipientIds.map(userId =>
             notifyUser({
                 userId,
@@ -237,7 +280,7 @@ export async function notifyClientAssetStatus(token: string, assetId: string, st
                 title: `Cliente: ${statusLabel}`,
                 content: `${clientAccess?.nombre || 'Cliente'} marcó "${asset.nombre}" como ${statusLabel.toLowerCase()}.`,
                 link: `/sistema?taskId=${asset.task_id}`,
-                data: { projectId: clientAccess.project_id, assetId: asset.id, status }
+                data: { projectId: clientAccess.project_id, assetId: asset.id, taskId: asset.task_id, status }
             })
         ))
 

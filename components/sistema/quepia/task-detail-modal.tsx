@@ -30,7 +30,7 @@ import {
 import { cn } from "@/lib/sistema/utils"
 import { useTaskDetails, useSubtasks, useComments, useTaskLinks, useSistemaUsers, useTaskDependencies } from "@/lib/sistema/hooks"
 import { sendNotification } from "@/lib/sistema/actions/notifications"
-import type { Task, TaskWithDetails, Subtask, Comment, TaskLink, Priority, SistemaUser, TaskType, AssetWithVersions } from "@/types/sistema"
+import type { CommentSource, CommentWithUser, Priority, SistemaUser, Task, TaskLink, TaskType, TaskWithDetails, Subtask } from "@/types/sistema"
 import { PRIORITY_COLORS, PRIORITY_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
 import { AssetPanel } from "./asset-panel"
 import { AssetDetailModal } from "./asset-detail-modal"
@@ -170,6 +170,24 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         youtubeData.thumbnail_path ||
         youtubeData.thumbnail_url
     )
+
+    const getCommentAuthorName = (commentItem: CommentWithUser) =>
+        commentItem.user?.nombre || commentItem.author_name || "Usuario"
+
+    const getCommentInitials = (commentItem: CommentWithUser) =>
+        getCommentAuthorName(commentItem)
+            .split(" ")
+            .filter(Boolean)
+            .map((name) => name[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase() || "?"
+
+    const getCommentSourceLabel = (source?: CommentSource | null) => {
+        if (source === "asset_feedback") return "Feedback de asset"
+        if (source === "asset_status") return "Estado de asset"
+        return null
+    }
 
     const formatLocalDate = (date: Date) => {
         const year = date.getFullYear()
@@ -949,19 +967,36 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                         <div className="space-y-3 mb-4">
                                             {comments.map((c) => (
                                                 <div key={c.id} className="flex items-start gap-3 group">
-                                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-quepia-cyan/70 to-quepia-magenta/70 flex items-center justify-center text-[10px] text-white font-medium shrink-0">
-                                                        {c.user?.nombre?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "?"}
+                                                    <div
+                                                        className={cn(
+                                                            "w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-white font-medium shrink-0",
+                                                            c.is_client
+                                                                ? "bg-gradient-to-br from-amber-400/80 to-orange-500/80"
+                                                                : "bg-gradient-to-br from-quepia-cyan/70 to-quepia-magenta/70"
+                                                        )}
+                                                    >
+                                                        {getCommentInitials(c)}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-medium text-white/80">{c.user?.nombre || "Usuario"}</span>
+                                                            <span className="text-sm font-medium text-white/80">{getCommentAuthorName(c)}</span>
+                                                            {c.is_client && (
+                                                                <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                                                                    Cliente
+                                                                </span>
+                                                            )}
+                                                            {getCommentSourceLabel(c.source) && (
+                                                                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-white/45">
+                                                                    {getCommentSourceLabel(c.source)}
+                                                                </span>
+                                                            )}
                                                             <span className="text-xs text-white/25">
                                                                 {new Date(c.created_at).toLocaleDateString("es-AR")}
                                                             </span>
                                                         </div>
                                                         <p className="text-sm text-white/65 mt-0.5">{c.contenido}</p>
                                                     </div>
-                                                    {c.user_id === userId && (
+                                                    {c.user_id && c.user_id === userId && (
                                                         <button onClick={() => deleteComment(c.id)} className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/[0.06] rounded transition-all">
                                                             <Trash2 className="h-3 w-3 text-white/30" />
                                                         </button>

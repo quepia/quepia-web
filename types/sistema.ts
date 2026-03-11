@@ -192,7 +192,7 @@ export interface TaskWithDetails extends Task {
   project?: Project;
   column?: Column;
   subtasks?: Subtask[];
-  comments?: Comment[];
+  comments?: CommentWithUser[];
   links?: TaskLink[];
 }
 
@@ -245,15 +245,27 @@ export interface TaskLinkInsert {
 export interface Comment {
   id: string;
   task_id: string;
-  user_id: string;
+  user_id: string | null;
+  author_name?: string | null;
+  is_client?: boolean;
+  source?: CommentSource | null;
+  asset_id?: string | null;
+  asset_version_id?: string | null;
   contenido: string;
   created_at: string;
   updated_at: string;
 }
 
+export type CommentSource = 'task_comment' | 'asset_feedback' | 'asset_status';
+
 export interface CommentInsert {
   task_id: string;
-  user_id: string;
+  user_id?: string | null;
+  author_name?: string | null;
+  is_client?: boolean;
+  source?: CommentSource;
+  asset_id?: string | null;
+  asset_version_id?: string | null;
   contenido: string;
 }
 
@@ -262,7 +274,7 @@ export interface CommentUpdate {
 }
 
 export interface CommentWithUser extends Comment {
-  user: SistemaUser;
+  user?: SistemaUser | null;
 }
 
 // ============ FAVORITES ============

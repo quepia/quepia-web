@@ -428,6 +428,9 @@ export default function DashboardPage() {
     const handleTaskClick = useCallback((task: Task | TaskWithProject) => {
         setSelectedTaskId(task.id)
         setIsModalOpen(true)
+        const url = new URL(window.location.href)
+        url.searchParams.set("taskId", task.id)
+        window.history.pushState({}, "", url)
     }, [])
 
     // Sync activeView with URL param if it changes externally or initially
@@ -437,6 +440,18 @@ export default function DashboardPage() {
             setActiveView(view)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams])
+
+    useEffect(() => {
+        const taskId = searchParams.get("taskId")
+        if (taskId) {
+            setSelectedTaskId(taskId)
+            setIsModalOpen(true)
+            return
+        }
+
+        setIsModalOpen(false)
+        setSelectedTaskId(null)
     }, [searchParams])
 
     const handleViewChange = useCallback((view: string) => {
@@ -658,6 +673,9 @@ export default function DashboardPage() {
     const handleCloseModal = () => {
         setIsModalOpen(false)
         setSelectedTaskId(null)
+        const url = new URL(window.location.href)
+        url.searchParams.delete("taskId")
+        window.history.pushState({}, "", url)
     }
 
     const handleModalUpdate = useCallback(() => {
