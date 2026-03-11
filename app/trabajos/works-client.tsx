@@ -1,18 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, X } from 'lucide-react'
-import { CATEGORIES, Proyecto } from '@/types/database'
+import { CATEGORIES, Proyecto, WorkCategory } from '@/types/database'
 import { getProjectCoverImage, getProjectGalleryImages } from '@/lib/project-images'
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground'
 import MarqueeSection from '@/components/home/MarqueeSection'
 
 interface WorksClientProps {
   proyectos: Proyecto[]
-  activeCategory: string
+  initialCategory: WorkCategory
 }
 
 const CATEGORY_LABELS = new Map<string, string>(CATEGORIES.map((category) => [category.id, category.label]))
@@ -326,13 +326,41 @@ function Lightbox({
   )
 }
 
-export default function WorksPage({ proyectos, activeCategory }: WorksClientProps) {
+export default function WorksPage({ proyectos, initialCategory }: WorksClientProps) {
+  const [activeCategory, setActiveCategory] = useState<WorkCategory>(initialCategory)
   const [selectedProject, setSelectedProject] = useState<Proyecto | null>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const inView = useInView(heroRef, { once: true })
+  const filteredProjects = useMemo(
+    () => proyectos.filter((proyecto) => proyecto.categoria === activeCategory),
+    [activeCategory, proyectos]
+  )
 
-  const leadProject = proyectos[0] ?? null
-  const otherProjects = useMemo(() => proyectos.slice(1), [proyectos])
+  useEffect(() => {
+    setActiveCategory(initialCategory)
+  }, [initialCategory])
+
+  useEffect(() => {
+    if (!selectedProject || selectedProject.categoria === activeCategory) return
+    setSelectedProject(null)
+  }, [activeCategory, selectedProject])
+
+  const leadProject = filteredProjects[0] ?? null
+  const otherProjects = useMemo(() => filteredProjects.slice(1), [filteredProjects])
+
+  const handleCategoryChange = (category: WorkCategory) => {
+    if (category === activeCategory) return
+
+    startTransition(() => {
+      setActiveCategory(category)
+    })
+
+    const params = new URLSearchParams(window.location.search)
+    params.set('category', category)
+    const nextQuery = params.toString()
+    const nextUrl = nextQuery ? `${window.location.pathname}?${nextQuery}` : window.location.pathname
+    window.history.replaceState(window.history.state, '', nextUrl)
+  }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
@@ -379,7 +407,7 @@ export default function WorksPage({ proyectos, activeCategory }: WorksClientProp
                 </div>
                 <div className="rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Proyectos</p>
-                  <p className="mt-1 text-sm text-white/85">{proyectos.length}</p>
+                  <p className="mt-1 text-sm text-white/85">{filteredProjects.length}</p>
                 </div>
               </div>
             </motion.div>
@@ -392,9 +420,11 @@ export default function WorksPage({ proyectos, activeCategory }: WorksClientProp
           <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">
             <div className="scrollbar-hide flex gap-1.5 overflow-x-auto pb-1">
               {CATEGORIES.map((category) => (
-                <Link
+                <button
+                  type="button"
                   key={category.id}
-                  href={`/trabajos?category=${category.id}`}
+                  onClick={() => handleCategoryChange(category.id)}
+                  aria-pressed={activeCategory === category.id}
                   className={`flex-shrink-0 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.07em] transition-colors ${
                     activeCategory === category.id
                       ? 'border-[#2ae7e4]/35 bg-[#2ae7e4] text-[#0a0a0a]'
@@ -402,7 +432,7 @@ export default function WorksPage({ proyectos, activeCategory }: WorksClientProp
                   }`}
                 >
                   {category.label}
-                </Link>
+                </button>
               ))}
             </div>
           </div>
@@ -410,7 +440,7 @@ export default function WorksPage({ proyectos, activeCategory }: WorksClientProp
 
         <section className="py-12 md:py-16">
           <div className="mx-auto w-full max-w-[1400px] space-y-6 px-6 md:space-y-8 md:px-12 lg:px-20">
-            {proyectos.length === 0 ? (
+            {filteredProjects.length === 0 ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

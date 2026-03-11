@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import ClientLayout from '@/components/layout/ClientLayout';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
+import { DEFAULT_INSTAGRAM_URL, getInstagramUrl } from '@/lib/instagram';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://quepia.com'),
@@ -69,7 +70,7 @@ export default async function RootLayout({
   // Fetch site config on the server
   const config = await getSiteConfigServer();
   const sameAs = [
-    config.instagram,
+    config.instagram ? getInstagramUrl(config.instagram) : DEFAULT_INSTAGRAM_URL,
     config.linkedin,
     config.behance,
     config.facebook,
@@ -104,7 +105,7 @@ export default async function RootLayout({
       opens: '09:00',
       closes: '18:00',
     },
-    sameAs: sameAs.length > 0 ? sameAs : ['https://instagram.com/quepiastudio'],
+    sameAs: sameAs.length > 0 ? sameAs : [DEFAULT_INSTAGRAM_URL],
     areaServed: { '@type': 'Country', name: 'Argentina' },
     priceRange: '$$',
   };

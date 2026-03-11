@@ -71,7 +71,7 @@ INSERT INTO public.configuracion (clave, valor, descripcion, tipo, categoria, or
 
 -- REDES SOCIALES
 INSERT INTO public.configuracion (clave, valor, descripcion, tipo, categoria, orden) VALUES
-('instagram', 'https://instagram.com/quepia', 'Link a Instagram', 'url', 'redes', 1),
+('instagram', 'https://instagram.com/quepia.studio', 'Link a Instagram', 'url', 'redes', 1),
 ('facebook', '', 'Link a Facebook (dejar vacío si no aplica)', 'url', 'redes', 2),
 ('linkedin', '', 'Link a LinkedIn', 'url', 'redes', 3),
 ('twitter', '', 'Link a Twitter/X', 'url', 'redes', 4),

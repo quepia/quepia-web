@@ -7,6 +7,7 @@ import type { SiteConfig } from '@/lib/fetchConfig';
 import { useConfig } from '@/components/layout/ClientLayout';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import MarqueeSection from '@/components/home/MarqueeSection';
+import { getInstagramLabel, getInstagramUrl } from '@/lib/instagram';
 
 const faqItems = [
   {
@@ -51,8 +52,8 @@ export default function ContactoClient() {
     {
       icon: Instagram,
       label: 'Instagram',
-      value: '@quepia.ok',
-      href: config?.instagram || '#',
+      value: getInstagramLabel(config?.instagram),
+      href: config?.instagram ? getInstagramUrl(config.instagram) : '#',
     },
     {
       icon: MapPin,

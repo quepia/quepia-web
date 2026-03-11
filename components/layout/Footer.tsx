@@ -4,13 +4,14 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useConfig } from './ClientLayout';
+import { getInstagramUrl } from '@/lib/instagram';
 
 const Footer: React.FC = () => {
     const config = useConfig();
     const currentYear = new Date().getFullYear();
 
     const socialLinks = [
-        { name: 'Instagram', url: config.instagram },
+        { name: 'Instagram', url: config.instagram ? getInstagramUrl(config.instagram) : undefined },
         { name: 'LinkedIn', url: config.linkedin },
         { name: 'Behance', url: config.behance },
         { name: 'Google Maps', url: config.google_maps || config.google_business },

@@ -51,7 +51,7 @@ const expertiseCards: ExpertiseCardConfig[] = [
       'Capturamos la esencia de tu proyecto con fotografía de alto nivel y edición de video dinámica.',
     label: 'Foto, video, edición',
     hoverGlow: 'rgba(255, 138, 91, 0.12)',
-    videoSrc: '/VIDEOS CARDS/Producción Audiovisual.mp4',
+    videoSrc: '/VIDEOS CARDS/produccion-audiovisual.mp4',
     videoScale: 1.52,
     videoPosition: 'center center',
   },

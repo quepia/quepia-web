@@ -51,7 +51,6 @@ export default async function Page({ searchParams }: TrabajosPageProps) {
     const { data: proyectos } = await supabase
         .from('proyectos')
         .select('*')
-        .eq('categoria', validCategory)
         .order('orden', { ascending: true })
         .order('fecha_creacion', { ascending: false });
 
@@ -63,7 +62,7 @@ export default async function Page({ searchParams }: TrabajosPageProps) {
             />
             <WorksClient
                 proyectos={proyectos || []}
-                activeCategory={validCategory}
+                initialCategory={validCategory}
             />
         </>
     );
