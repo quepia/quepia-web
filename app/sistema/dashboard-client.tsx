@@ -285,11 +285,12 @@ const NEW_PROJECT_COLORS = ["#dc4a3e", "#f97316", "#eab308", "#22c55e", "#14b8a6
 export default function DashboardPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const initialView = searchParams.get("view") || "dashboard"
+    const initialProjectId = searchParams.get("project")
+    const initialView = initialProjectId ? "project" : searchParams.get("view") || "dashboard"
     const { user, sistemaUser, loading: authLoading, isAuthenticated, tablesExist, setupError, createSistemaUser, signOut } = useAuth()
 
     const [activeView, setActiveView] = useState(initialView)
-    const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+    const [activeProjectId, setActiveProjectId] = useState<string | null>(initialProjectId)
     const [mostVisitedProjectId, setMostVisitedProjectId] = useState<string | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -425,22 +426,52 @@ export default function DashboardPage() {
         }
     }, [activeView, sistemaUser])
 
-    const handleTaskClick = useCallback((task: Task | TaskWithProject) => {
-        setSelectedTaskId(task.id)
-        setIsModalOpen(true)
+    const updateDashboardUrl = useCallback((mutate: (params: URLSearchParams) => void) => {
         const url = new URL(window.location.href)
-        url.searchParams.set("taskId", task.id)
+        mutate(url.searchParams)
         window.history.pushState({}, "", url)
     }, [])
 
-    // Sync activeView with URL param if it changes externally or initially
+    const handleTaskClick = useCallback((task: Task | TaskWithProject) => {
+        setSelectedTaskId(task.id)
+        setIsModalOpen(true)
+        updateDashboardUrl((params) => {
+            params.set("taskId", task.id)
+            if (activeProjectId) {
+                params.set("project", activeProjectId)
+                params.delete("view")
+                params.delete("docs")
+                return
+            }
+            params.delete("project")
+            params.set("view", activeView)
+            if (activeView !== "docs") {
+                params.delete("docs")
+            }
+        })
+    }, [activeProjectId, activeView, updateDashboardUrl])
+
+    // Sync project/view state with URL if it changes externally or initially
     useEffect(() => {
+        const projectId = searchParams.get("project")
         const view = searchParams.get("view")
-        if (view && view !== activeView) {
-            setActiveView(view)
+        if (projectId) {
+            if (projectId !== activeProjectId) {
+                setActiveProjectId(projectId)
+            }
+            if (activeView !== "project") {
+                setActiveView("project")
+            }
+            return
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchParams])
+        if (activeProjectId !== null) {
+            setActiveProjectId(null)
+        }
+        const nextView = view || "dashboard"
+        if (nextView !== activeView) {
+            setActiveView(nextView)
+        }
+    }, [activeProjectId, activeView, searchParams])
 
     useEffect(() => {
         const taskId = searchParams.get("taskId")
@@ -465,11 +496,14 @@ export default function DashboardPage() {
         }
         setActiveView(view)
         setActiveProjectId(null)
-        // Update URL without reloading
-        const url = new URL(window.location.href)
-        url.searchParams.set("view", view)
-        window.history.pushState({}, "", url)
-    }, [activeProjectId, activeView, sistemaUser])
+        updateDashboardUrl((params) => {
+            params.set("view", view)
+            params.delete("project")
+            if (view !== "docs") {
+                params.delete("docs")
+            }
+        })
+    }, [activeProjectId, activeView, sistemaUser, updateDashboardUrl])
 
     const handleSetupProfile = async () => {
         if (!setupName.trim()) return
@@ -488,6 +522,11 @@ export default function DashboardPage() {
         if (activeProjectId === projectId) {
             setActiveProjectId(null)
             setActiveView("dashboard")
+            updateDashboardUrl((params) => {
+                params.delete("project")
+                params.set("view", "dashboard")
+                params.delete("docs")
+            })
         }
     }
 
@@ -529,7 +568,12 @@ export default function DashboardPage() {
     const handleProjectOpen = useCallback((projectId: string) => {
         setActiveProjectId(projectId)
         setActiveView("project")
-    }, [])
+        updateDashboardUrl((params) => {
+            params.set("project", projectId)
+            params.delete("view")
+            params.delete("docs")
+        })
+    }, [updateDashboardUrl])
 
     const closeMobileSidebar = useCallback(() => {
         setIsMobileSidebarOpen(false)
@@ -602,12 +646,12 @@ export default function DashboardPage() {
         const targetSection = isProjectView ? "proyectos" : (DOCS_SECTION_BY_VIEW[activeView] || "inicio")
         setActiveView("docs")
         setActiveProjectId(null)
-
-        const url = new URL(window.location.href)
-        url.searchParams.set("view", "docs")
-        url.searchParams.set("docs", targetSection)
-        window.history.pushState({}, "", url)
-    }, [activeView, isProjectView])
+        updateDashboardUrl((params) => {
+            params.set("view", "docs")
+            params.set("docs", targetSection)
+            params.delete("project")
+        })
+    }, [activeView, isProjectView, updateDashboardUrl])
 
     const handleNotificationClick = useCallback((notification: SistemaNotification) => {
         if (notification.link) {
@@ -673,9 +717,9 @@ export default function DashboardPage() {
     const handleCloseModal = () => {
         setIsModalOpen(false)
         setSelectedTaskId(null)
-        const url = new URL(window.location.href)
-        url.searchParams.delete("taskId")
-        window.history.pushState({}, "", url)
+        updateDashboardUrl((params) => {
+            params.delete("taskId")
+        })
     }
 
     const handleModalUpdate = useCallback(() => {

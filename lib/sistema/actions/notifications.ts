@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { notifyUser } from '@/lib/sistema/notifications'
 import { sendEmail } from '@/lib/sistema/email-service'
 import { createClientDirectLink, getClientBaseUrl } from '@/lib/sistema/auth/client-session'
+import { sendTelegramAssetDelivery } from '@/lib/sistema/telegram-service'
 
 type NotificationType = 'mention' | 'assignment' | 'approval_request' | 'status_change' | 'comment' | 'system'
 
@@ -291,7 +292,7 @@ export async function notifyClientAssetStatus(
     }
 }
 
-type AssetDeliveryNotificationMode = 'new_asset' | 'new_version' | 'mixed'
+type AssetDeliveryNotificationMode = 'new_asset' | 'new_version' | 'mixed' | 'manual'
 
 interface NotifyClientAssetDeliveryBatchParams {
     projectId: string
@@ -306,6 +307,26 @@ interface NotifyClientAssetDeliveryBatchResult {
     sent: number
     failed: number
     skipped: number
+    pending_assets: number
+    telegram_sent: number
+    telegram_link_fallbacks: number
+    telegram_failed: number
+    errors: string[]
+}
+
+interface SendTaskAssetsToTelegramParams {
+    projectId: string
+    taskId: string
+    actorUserId: string
+    assetIds: string[]
+}
+
+interface SendTaskAssetsToTelegramResult {
+    success: boolean
+    total: number
+    sent: number
+    link_fallbacks: number
+    failed: number
     errors: string[]
 }
 
@@ -321,6 +342,10 @@ export async function notifyClientAssetDeliveryBatch(
     let sent = 0
     let failed = 0
     let skipped = 0
+    let pendingAssets = 0
+    let telegramSent = 0
+    let telegramLinkFallbacks = 0
+    let telegramFailed = 0
 
     try {
         const supabase = createAdminClient()
@@ -332,11 +357,15 @@ export async function notifyClientAssetDeliveryBatch(
                 sent,
                 failed,
                 skipped,
+                pending_assets: pendingAssets,
+                telegram_sent: telegramSent,
+                telegram_link_fallbacks: telegramLinkFallbacks,
+                telegram_failed: telegramFailed,
                 errors: ["Missing required payload for delivery notification batch."],
             }
         }
 
-        const [projectResult, taskResult, actorResult, accessesResult] = await Promise.all([
+        const [projectResult, taskResult, actorResult, accessesResult, assetsResult, versionsResult] = await Promise.all([
             supabase.from('sistema_projects').select('nombre').eq('id', projectId).single(),
             supabase.from('sistema_tasks').select('titulo').eq('id', taskId).single(),
             supabase.from('sistema_users').select('nombre').eq('id', actorUserId).single(),
@@ -346,20 +375,88 @@ export async function notifyClientAssetDeliveryBatch(
                 .eq('project_id', projectId)
                 .eq('notify_asset_delivery', true)
                 .eq('can_view_tasks', true),
+            supabase
+                .from('sistema_assets')
+                .select('id, nombre, asset_type, access_revoked')
+                .in('id', uniqueAssetIds),
+            supabase
+                .from('sistema_asset_versions')
+                .select('id, asset_id, version_number, file_url, storage_path, file_size, original_filename, created_at, notified_at')
+                .in('asset_id', uniqueAssetIds)
+                .order('version_number', { ascending: false })
+                .order('created_at', { ascending: false }),
         ])
 
         const projectName = projectResult.data?.nombre || 'Proyecto'
         const taskTitle = taskResult.data?.titulo || 'Tarea'
         const actorName = actorResult.data?.nombre || 'Equipo Quepia'
+        const assets = assetsResult.data || []
+        const versions = versionsResult.data || []
 
         const accesses = accessesResult.data || []
+        const latestVersionByAssetId = new Map<string, typeof versions[number]>()
+
+        for (const version of versions) {
+            if (!version?.asset_id || latestVersionByAssetId.has(version.asset_id)) continue
+            latestVersionByAssetId.set(version.asset_id, version)
+        }
+
+        const pendingAssetsForDelivery = assets
+            .filter((asset) => !asset.access_revoked)
+            .map((asset) => {
+                const latestVersion = latestVersionByAssetId.get(asset.id)
+                if (!latestVersion) return null
+                if (latestVersion.notified_at) return null
+
+                return {
+                    assetId: asset.id,
+                    assetName: asset.nombre,
+                    assetType: asset.asset_type,
+                    versionId: latestVersion.id,
+                    versionNumber: latestVersion.version_number,
+                    fileUrl: latestVersion.file_url,
+                    storagePath: latestVersion.storage_path || null,
+                    fileSize: latestVersion.file_size || null,
+                    originalFilename: latestVersion.original_filename || null,
+                }
+            })
+            .filter((asset): asset is NonNullable<typeof asset> => Boolean(asset))
+
+        pendingAssets = pendingAssetsForDelivery.length
+
+        if (pendingAssets === 0) {
+            return {
+                success: true,
+                sent,
+                failed,
+                skipped,
+                pending_assets: pendingAssets,
+                telegram_sent: telegramSent,
+                telegram_link_fallbacks: telegramLinkFallbacks,
+                telegram_failed: telegramFailed,
+                errors,
+            }
+        }
+
         if (accesses.length === 0) {
-            return { success: true, sent, failed, skipped, errors }
+            return {
+                success: true,
+                sent,
+                failed,
+                skipped,
+                pending_assets: pendingAssets,
+                telegram_sent: telegramSent,
+                telegram_link_fallbacks: telegramLinkFallbacks,
+                telegram_failed: telegramFailed,
+                errors,
+            }
         }
 
         const modeLabel = mode === 'new_version'
             ? 'nueva versión'
-            : mode === 'mixed'
+            : mode === 'manual'
+                ? 'entregables listos para revisar'
+                : mode === 'mixed'
                 ? 'nuevas entregas'
                 : 'nuevos entregables'
 
@@ -386,22 +483,30 @@ export async function notifyClientAssetDeliveryBatch(
                     baseUrl,
                 })
 
-                const countLabel = `${uniqueAssetIds.length} entregable${uniqueAssetIds.length === 1 ? '' : 's'}`
-                const content = [
-                    `Ya tenés ${countLabel} disponible${uniqueAssetIds.length === 1 ? '' : 's'} en "${taskTitle}".`,
+                const countLabel = `${pendingAssets} entregable${pendingAssets === 1 ? '' : 's'}`
+                const contentLines = [
+                    `Ya tenés ${countLabel} disponible${pendingAssets === 1 ? '' : 's'} en "${taskTitle}".`,
                     `Proyecto: ${projectName}.`,
-                    `Tipo de carga: ${modeLabel}.`,
-                    `Subido por: ${actorName}.`,
-                    '',
-                    'El acceso directo es válido por 30 días.',
-                ].join('\n')
+                ]
+
+                if (mode === 'manual') {
+                    contentLines.push(`Estado: ${modeLabel}.`)
+                    contentLines.push(`Notificado por: ${actorName}.`)
+                } else {
+                    contentLines.push(`Tipo de carga: ${modeLabel}.`)
+                    contentLines.push(`Subido por: ${actorName}.`)
+                }
+
+                contentLines.push('', 'El acceso directo es válido por 30 días.')
+
+                const content = contentLines.join('\n')
 
                 const result = await sendEmail({
                     type: 'general_notification',
                     to: recipientEmail,
                     data: {
                         recipientName: access.nombre || 'Cliente',
-                        title: 'Nuevos entregables disponibles',
+                        title: mode === 'manual' ? 'Entregables listos para revisar' : 'Nuevos entregables disponibles',
                         content,
                         actionUrl: directLink.link,
                         actionText: 'Abrir Entregables',
@@ -421,11 +526,62 @@ export async function notifyClientAssetDeliveryBatch(
             }
         }
 
+        if (sent > 0) {
+            const telegramResult = await sendTelegramAssetDelivery({
+                projectName,
+                taskTitle,
+                actorName,
+                assets: pendingAssetsForDelivery.map((asset) => ({
+                    assetId: asset.assetId,
+                    assetName: asset.assetName,
+                    assetType: asset.assetType,
+                    versionNumber: asset.versionNumber,
+                    fileUrl: asset.fileUrl,
+                    storagePath: asset.storagePath,
+                    fileSize: asset.fileSize,
+                    originalFilename: asset.originalFilename,
+                })),
+            })
+
+            telegramSent += telegramResult.sent
+            telegramLinkFallbacks += telegramResult.linkFallbacks
+            telegramFailed += telegramResult.failed
+            errors.push(...telegramResult.errors)
+
+            const now = new Date().toISOString()
+            const versionIdsToMark = pendingAssetsForDelivery.map((asset) => asset.versionId)
+
+            const { error: markError } = await supabase
+                .from('sistema_asset_versions')
+                .update({ notified_at: now, notified_by: actorUserId })
+                .in('id', versionIdsToMark)
+                .is('notified_at', null)
+
+            if (markError) {
+                errors.push(`No se pudo registrar notified_at para los assets enviados: ${markError.message}`)
+                return {
+                    success: false,
+                    sent,
+                    failed,
+                    skipped,
+                    pending_assets: pendingAssets,
+                    telegram_sent: telegramSent,
+                    telegram_link_fallbacks: telegramLinkFallbacks,
+                    telegram_failed: telegramFailed,
+                    errors,
+                }
+            }
+        }
+
         return {
-            success: failed === 0,
+            success: failed === 0 && telegramFailed === 0,
             sent,
             failed,
             skipped,
+            pending_assets: pendingAssets,
+            telegram_sent: telegramSent,
+            telegram_link_fallbacks: telegramLinkFallbacks,
+            telegram_failed: telegramFailed,
             errors,
         }
     } catch (error) {
@@ -434,9 +590,136 @@ export async function notifyClientAssetDeliveryBatch(
             sent,
             failed: failed + 1,
             skipped,
+            pending_assets: pendingAssets,
+            telegram_sent: telegramSent,
+            telegram_link_fallbacks: telegramLinkFallbacks,
+            telegram_failed: telegramFailed,
             errors: [
                 ...errors,
                 error instanceof Error ? error.message : 'Unknown error sending delivery notifications.',
+            ],
+        }
+    }
+}
+
+export async function sendTaskAssetsToTelegram(
+    params: SendTaskAssetsToTelegramParams
+): Promise<SendTaskAssetsToTelegramResult> {
+    const { projectId, taskId, actorUserId, assetIds } = params
+    const errors: string[] = []
+    let sent = 0
+    let linkFallbacks = 0
+    let failed = 0
+
+    try {
+        const supabase = createAdminClient()
+        const uniqueAssetIds = Array.from(new Set((assetIds || []).filter(Boolean)))
+
+        if (!projectId || !taskId || !actorUserId || uniqueAssetIds.length === 0) {
+            return {
+                success: false,
+                total: 0,
+                sent,
+                link_fallbacks: linkFallbacks,
+                failed,
+                errors: ['Missing required payload for Telegram asset delivery.'],
+            }
+        }
+
+        const [projectResult, taskResult, actorResult, assetsResult, versionsResult] = await Promise.all([
+            supabase.from('sistema_projects').select('nombre').eq('id', projectId).single(),
+            supabase.from('sistema_tasks').select('titulo').eq('id', taskId).single(),
+            supabase.from('sistema_users').select('nombre').eq('id', actorUserId).single(),
+            supabase
+                .from('sistema_assets')
+                .select('id, nombre, asset_type')
+                .in('id', uniqueAssetIds),
+            supabase
+                .from('sistema_asset_versions')
+                .select('id, asset_id, version_number, file_url, storage_path, file_size, original_filename, created_at')
+                .in('asset_id', uniqueAssetIds)
+                .order('version_number', { ascending: false })
+                .order('created_at', { ascending: false }),
+        ])
+
+        const projectName = projectResult.data?.nombre || 'Proyecto'
+        const taskTitle = taskResult.data?.titulo || 'Tarea'
+        const actorName = actorResult.data?.nombre || 'Equipo Quepia'
+        const assets = assetsResult.data || []
+        const versions = versionsResult.data || []
+
+        const latestVersionByAssetId = new Map<string, typeof versions[number]>()
+        for (const version of versions) {
+            if (!version?.asset_id || latestVersionByAssetId.has(version.asset_id)) continue
+            latestVersionByAssetId.set(version.asset_id, version)
+        }
+
+        const telegramAssets = assets
+            .map((asset) => {
+                const latestVersion = latestVersionByAssetId.get(asset.id)
+                if (!latestVersion) {
+                    failed += 1
+                    errors.push(`Telegram: no se encontró la última versión de "${asset.nombre}".`)
+                    return null
+                }
+
+                return {
+                    assetId: asset.id,
+                    assetName: asset.nombre,
+                    assetType: asset.asset_type,
+                    versionNumber: latestVersion.version_number,
+                    fileUrl: latestVersion.file_url,
+                    storagePath: latestVersion.storage_path || null,
+                    fileSize: latestVersion.file_size || null,
+                    originalFilename: latestVersion.original_filename || null,
+                }
+            })
+            .filter((asset): asset is NonNullable<typeof asset> => Boolean(asset))
+
+        if (telegramAssets.length === 0) {
+            return {
+                success: false,
+                total: 0,
+                sent,
+                link_fallbacks: linkFallbacks,
+                failed,
+                errors: errors.length > 0 ? errors : ['No hay assets con versión disponible para enviar a Telegram.'],
+            }
+        }
+
+        const telegramResult = await sendTelegramAssetDelivery({
+            projectName,
+            taskTitle,
+            actorName,
+            assets: telegramAssets,
+            headline: 'Quepia · Assets enviados a Telegram',
+            actorLabel: 'Enviado por',
+            fallbackLabel: 'Envio por link',
+        })
+
+        sent += telegramResult.sent
+        linkFallbacks += telegramResult.linkFallbacks
+        failed += telegramResult.failed
+        errors.push(...telegramResult.errors)
+
+        return {
+            success: failed === 0,
+            total: telegramAssets.length,
+            sent,
+            link_fallbacks: linkFallbacks,
+            failed,
+            errors,
+        }
+    } catch (error) {
+        return {
+            success: false,
+            total: Array.from(new Set((assetIds || []).filter(Boolean))).length,
+            sent,
+            link_fallbacks: linkFallbacks,
+            failed: failed + 1,
+            errors: [
+                ...errors,
+                error instanceof Error ? error.message : 'Unknown error sending assets to Telegram.',
             ],
         }
     }

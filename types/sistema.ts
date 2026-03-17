@@ -722,6 +722,8 @@ export interface AssetVersion {
   thumbnail_path?: string | null;
   preview_path?: string | null;
   original_filename?: string | null;
+  notified_at?: string | null;
+  notified_by?: string | null;
   notes: string | null;
   uploaded_by: string;
   created_at: string;
@@ -739,6 +741,8 @@ export interface AssetVersionInsert {
   thumbnail_path?: string | null;
   preview_path?: string | null;
   original_filename?: string | null;
+  notified_at?: string | null;
+  notified_by?: string | null;
   notes?: string | null;
   uploaded_by: string;
 }

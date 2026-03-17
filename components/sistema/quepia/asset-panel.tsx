@@ -21,6 +21,8 @@ import {
   PlusCircle,
   Check,
   X,
+  Mail,
+  Send,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useAssets } from "@/lib/sistema/hooks"
@@ -29,12 +31,16 @@ import { APPROVAL_STATUS_LABELS, APPROVAL_STATUS_COLORS } from "@/types/sistema"
 import { AssetDetailModal } from "./asset-detail-modal"
 import { uploadAssetFile, uploadCarouselFiles, uploadReelFile, createReelFromLink, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 import { toggleAssetAccess, reorderCarouselAssets, renameCarouselAssets, deleteCarouselGroup, getNextGroupOrder } from "@/lib/sistema/actions/assets"
-import { notifyClientAssetDeliveryBatch } from "@/lib/sistema/actions/notifications"
+import { notifyClientAssetDeliveryBatch, sendTaskAssetsToTelegram } from "@/lib/sistema/actions/notifications"
+import { useToast } from "@/components/ui/toast-provider"
 
-interface UploadNotificationWarning {
+interface DeliveryNotificationWarning {
   message: string
   details: string[]
 }
+
+type DeliveryBatchResult = Awaited<ReturnType<typeof notifyClientAssetDeliveryBatch>>
+type TelegramBatchResult = Awaited<ReturnType<typeof sendTaskAssetsToTelegram>>
 
 interface AssetPanelProps {
   taskId: string
@@ -63,7 +69,91 @@ function formatNotificationError(error: string) {
   return trimmed
 }
 
+function buildDeliveryFailureMessage(result: DeliveryBatchResult) {
+  const parts: string[] = []
+
+  if (result.failed > 0) {
+    parts.push(`${result.failed} aviso(s) por email fallaron`)
+  }
+
+  if (result.telegram_failed > 0) {
+    parts.push(`${result.telegram_failed} asset(s) no pudieron enviarse a Telegram`)
+  }
+
+  return parts.length > 0 ? `${parts.join(" y ")}.` : "La notificación no se pudo completar."
+}
+
+function buildDeliveryWarningMessage(result: DeliveryBatchResult) {
+  const parts: string[] = []
+
+  if (result.skipped > 0) {
+    parts.push(`${result.skipped} acceso(s) quedaron sin aviso porque no tienen un email válido o ya expiraron`)
+  }
+
+  if (result.telegram_link_fallbacks > 0) {
+    parts.push(`${result.telegram_link_fallbacks} asset(s) se enviaron a Telegram como link directo`)
+  }
+
+  return parts.length > 0 ? `${parts.join(". ")}.` : "La notificación se envió con advertencias."
+}
+
+function buildDeliverySuccessDescription(result: DeliveryBatchResult) {
+  const parts: string[] = []
+
+  if (result.sent > 0) {
+    parts.push(`${result.sent} email(s)`)
+  }
+
+  if (result.telegram_sent > 0) {
+    parts.push(`${result.telegram_sent} archivo(s) completos en Telegram`)
+  }
+
+  if (result.telegram_link_fallbacks > 0) {
+    parts.push(`${result.telegram_link_fallbacks} link(s) en Telegram`)
+  }
+
+  return parts.length > 0
+    ? `Se enviaron ${parts.join(", ")}.`
+    : "La notificación se procesó correctamente."
+}
+
+function buildTelegramFailureMessage(result: TelegramBatchResult) {
+  return result.failed > 0
+    ? `${result.failed} asset(s) no pudieron enviarse a Telegram.`
+    : "No se pudieron enviar los assets a Telegram."
+}
+
+function buildTelegramWarningMessage(result: TelegramBatchResult) {
+  return result.link_fallbacks > 0
+    ? `${result.link_fallbacks} asset(s) se enviaron a Telegram como link directo.`
+    : "El envío a Telegram se completó con advertencias."
+}
+
+function buildTelegramSuccessDescription(result: TelegramBatchResult) {
+  const parts: string[] = []
+
+  if (result.sent > 0) {
+    parts.push(`${result.sent} archivo(s) completos`)
+  }
+
+  if (result.link_fallbacks > 0) {
+    parts.push(`${result.link_fallbacks} link(s)`)
+  }
+
+  return parts.length > 0
+    ? `Se enviaron ${parts.join(", ")} a Telegram.`
+    : "Los assets se enviaron a Telegram."
+}
+
+function hasPendingLatestVersion(asset: AssetWithVersions) {
+  const latestVersion = asset.versions?.[0]
+  if (!latestVersion) return false
+  if (asset.access_revoked) return false
+  return !latestVersion.notified_at
+}
+
 export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: AssetPanelProps) {
+  const { toast } = useToast()
   const { assets, loading, updateApprovalStatus, deleteAsset, refresh, optimisticReorder } = useAssets(taskId)
   const [isAdding, setIsAdding] = useState(false)
   const [uploadMode, setUploadMode] = useState<'single' | 'carousel' | 'reel'>('single')
@@ -80,7 +170,9 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
   const [editingCarouselId, setEditingCarouselId] = useState<string | null>(null)
   const [editingCarouselName, setEditingCarouselName] = useState("")
   const [addingSlidesToGroup, setAddingSlidesToGroup] = useState<string | null>(null)
-  const [uploadNotificationWarning, setUploadNotificationWarning] = useState<UploadNotificationWarning | null>(null)
+  const [deliveryNotificationWarning, setDeliveryNotificationWarning] = useState<DeliveryNotificationWarning | null>(null)
+  const [isSendingDeliveryNotification, setIsSendingDeliveryNotification] = useState(false)
+  const [isSendingTelegramAssets, setIsSendingTelegramAssets] = useState(false)
   const carouselFileInputRef = useRef<HTMLInputElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -106,9 +198,21 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     })
   }
 
-  const notifyDeliveryBatch = async (uploadedAssetIds: string[], mode: "new_asset" | "new_version" | "mixed") => {
+  const notifyDeliveryBatch = async (uploadedAssetIds: string[], mode: "new_asset" | "new_version" | "mixed" | "manual") => {
     const uniqueAssetIds = Array.from(new Set(uploadedAssetIds.filter(Boolean)))
-    if (!uniqueAssetIds.length) return
+    if (!uniqueAssetIds.length) {
+      return {
+        success: false,
+        sent: 0,
+        failed: 0,
+        skipped: 0,
+        pending_assets: 0,
+        telegram_sent: 0,
+        telegram_link_fallbacks: 0,
+        telegram_failed: 0,
+        errors: ["No assets available to notify."],
+      }
+    }
 
     const result = await notifyClientAssetDeliveryBatch({
       projectId,
@@ -118,27 +222,174 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
       mode,
     })
 
-    if (!result.success || result.failed > 0) {
-      setUploadNotificationWarning(
+    if (!result.success || result.failed > 0 || result.telegram_failed > 0) {
+      setDeliveryNotificationWarning(
         {
-          message: `Los archivos se subieron correctamente, pero falló el envío de ${result.failed} aviso(s) por email.`,
+          message: buildDeliveryFailureMessage(result),
           details: result.errors.map(formatNotificationError),
         }
       )
-      return
+      return result
     }
 
-    if (result.skipped > 0) {
-      setUploadNotificationWarning(
+    if (result.skipped > 0 || result.telegram_link_fallbacks > 0) {
+      setDeliveryNotificationWarning(
         {
-          message: `Los archivos se subieron correctamente. ${result.skipped} acceso(s) quedaron sin aviso porque no tienen un email válido.`,
+          message: buildDeliveryWarningMessage(result),
           details: result.errors.map(formatNotificationError),
         }
       )
+      return result
+    }
+
+    setDeliveryNotificationWarning(null)
+    return result
+  }
+
+  const handleNotifyClient = async () => {
+    const notifiableAssetIds = Array.from(new Set(assets.filter(hasPendingLatestVersion).map((asset) => asset.id)))
+
+    if (notifiableAssetIds.length === 0) {
+      toast({
+        title: "No hay assets pendientes de notificar",
+        description: "La última versión de los assets vigentes de esta tarea ya fue avisada al cliente.",
+        variant: "warning",
+      })
       return
     }
 
-    setUploadNotificationWarning(null)
+    setIsSendingDeliveryNotification(true)
+    setDeliveryNotificationWarning(null)
+
+    try {
+      const result = await notifyDeliveryBatch(notifiableAssetIds, "manual")
+
+      if (result.sent > 0) {
+        await refresh()
+      }
+
+      if (!result.success || result.failed > 0 || result.telegram_failed > 0) {
+        toast({
+          title: "Hubo errores al notificar",
+          description: buildDeliveryFailureMessage(result),
+          variant: "error",
+        })
+        return
+      }
+
+      if (result.pending_assets === 0) {
+        toast({
+          title: "No hay assets pendientes de notificar",
+          description: "La última versión de los assets vigentes de esta tarea ya fue avisada al cliente.",
+          variant: "warning",
+        })
+        return
+      }
+
+      if (result.skipped > 0 || result.telegram_link_fallbacks > 0) {
+        toast({
+          title: "Notificación enviada con advertencias",
+          description: buildDeliveryWarningMessage(result),
+          variant: "warning",
+        })
+        return
+      }
+
+      if (result.sent === 0) {
+        toast({
+          title: "No hay accesos habilitados para notificar",
+          description: "Revisá el Perfil del cliente y activá al menos un acceso con email válido.",
+          variant: "warning",
+        })
+        return
+      }
+
+      toast({
+        title: "Cliente notificado",
+        description: buildDeliverySuccessDescription(result),
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("Error notifying client delivery:", error)
+      toast({
+        title: "No se pudo notificar al cliente",
+        description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
+        variant: "error",
+      })
+    } finally {
+      setIsSendingDeliveryNotification(false)
+    }
+  }
+
+  const handleSendAssetsToTelegram = async () => {
+    const assetIds = Array.from(new Set(
+      assets
+        .filter((asset) => (asset.versions?.length || 0) > 0)
+        .map((asset) => asset.id)
+    ))
+
+    if (assetIds.length === 0) {
+      toast({
+        title: "No hay assets para enviar",
+        description: "Subí al menos un asset con una versión disponible en esta tarea.",
+        variant: "warning",
+      })
+      return
+    }
+
+    setIsSendingTelegramAssets(true)
+    setDeliveryNotificationWarning(null)
+
+    try {
+      const result = await sendTaskAssetsToTelegram({
+        projectId,
+        taskId,
+        actorUserId: userId,
+        assetIds,
+      })
+
+      if (!result.success || result.failed > 0) {
+        setDeliveryNotificationWarning({
+          message: buildTelegramFailureMessage(result),
+          details: result.errors.map(formatNotificationError),
+        })
+        toast({
+          title: "Hubo errores al enviar a Telegram",
+          description: buildTelegramFailureMessage(result),
+          variant: "error",
+        })
+        return
+      }
+
+      if (result.link_fallbacks > 0) {
+        setDeliveryNotificationWarning({
+          message: buildTelegramWarningMessage(result),
+          details: result.errors.map(formatNotificationError),
+        })
+        toast({
+          title: "Assets enviados con advertencias",
+          description: buildTelegramWarningMessage(result),
+          variant: "warning",
+        })
+        return
+      }
+
+      setDeliveryNotificationWarning(null)
+      toast({
+        title: "Assets enviados a Telegram",
+        description: buildTelegramSuccessDescription(result),
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("Error sending task assets to Telegram:", error)
+      toast({
+        title: "No se pudieron enviar los assets a Telegram",
+        description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
+        variant: "error",
+      })
+    } finally {
+      setIsSendingTelegramAssets(false)
+    }
   }
 
   const handleFilesUpload = async (files: FileList | File[]) => {
@@ -148,12 +399,11 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     const mode = uploadMode
     if (mode === 'reel' && reelInputMode === 'link') return
 
-    const uploadedAssetIds: string[] = []
     setIsAdding(false)
 
     if (mode === 'carousel' && list.length >= 2) {
       try {
-        const result = await uploadCarouselFiles({
+        await uploadCarouselFiles({
           files: list,
           taskId,
           projectId,
@@ -161,14 +411,13 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           carouselName: carouselName.trim() || undefined,
           onProgress: updateUploadQueue,
         })
-        uploadedAssetIds.push(...result.results.map((item) => item.assetId))
-      } catch (err: any) {
+      } catch (error: unknown) {
         updateUploadQueue({
           id: `carousel-${Date.now()}`,
           fileName: "Carrusel",
           percent: 0,
           stage: "error",
-          message: err?.message || "Error subiendo carrusel",
+          message: error instanceof Error ? error.message : "Error subiendo carrusel",
         })
       }
       setCarouselName("")
@@ -177,7 +426,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
       const videoFile = list.find(f => f.type.startsWith('video/'))
       if (videoFile) {
         try {
-          const result = await uploadReelFile({
+          await uploadReelFile({
             file: videoFile,
             taskId,
             projectId,
@@ -185,14 +434,13 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
             reelName: carouselName.trim() || undefined,
             onProgress: updateUploadQueue,
           })
-          uploadedAssetIds.push(result.assetId)
-        } catch (err: any) {
+        } catch (error: unknown) {
           updateUploadQueue({
             id: `reel-${Date.now()}`,
             fileName: videoFile.name,
             percent: 0,
             stage: "error",
-            message: err?.message || "Error subiendo reel",
+            message: error instanceof Error ? error.message : "Error subiendo reel",
           })
         }
       }
@@ -200,28 +448,26 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     } else {
       for (const file of list) {
         try {
-          const result = await uploadAssetFile({
+          await uploadAssetFile({
             file,
             taskId,
             projectId,
             userId,
             onProgress: updateUploadQueue,
           })
-          uploadedAssetIds.push(result.assetId)
-        } catch (err: any) {
+        } catch (error: unknown) {
           updateUploadQueue({
             id: `${file.name}-${Date.now()}`,
             fileName: file.name,
             percent: 0,
             stage: "error",
-            message: err?.message || "Error subiendo archivo",
+            message: error instanceof Error ? error.message : "Error subiendo archivo",
           })
         }
       }
     }
 
     await refresh()
-    await notifyDeliveryBatch(uploadedAssetIds, "new_asset")
   }
 
   const handleCreateReelFromLink = async () => {
@@ -238,10 +484,9 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     }
 
     setIsAdding(false)
-    const uploadedAssetIds: string[] = []
 
     try {
-      const result = await createReelFromLink({
+      await createReelFromLink({
         reelUrl: externalUrl,
         taskId,
         projectId,
@@ -249,7 +494,6 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
         reelName: carouselName.trim() || undefined,
         onProgress: updateUploadQueue,
       })
-      uploadedAssetIds.push(result.assetId)
     } catch {}
 
     setCarouselName("")
@@ -257,13 +501,12 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     setReelInputMode("file")
 
     await refresh()
-    await notifyDeliveryBatch(uploadedAssetIds, "new_asset")
   }
 
   const handleAddVersion = async (assetId: string, currentVersion: number) => {
     const file = versionFileRef.current?.files?.[0]
     if (!file) return
-    const result = await uploadAssetFile({
+    await uploadAssetFile({
       file,
       taskId,
       projectId,
@@ -274,7 +517,6 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
       onProgress: updateUploadQueue,
     })
     await refresh()
-    await notifyDeliveryBatch([result.assetId], "new_version")
     setVersionNotes("")
     setUploadingVersion(null)
     if (versionFileRef.current) versionFileRef.current.value = ""
@@ -286,12 +528,10 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     if (list.length === 0) return
 
     const startOrder = await getNextGroupOrder(groupId)
-    const uploadedAssetIds: string[] = []
-
     for (let i = 0; i < list.length; i++) {
       const file = list[i]
       try {
-        const result = await uploadAssetFile({
+        await uploadAssetFile({
           file,
           taskId,
           projectId,
@@ -301,21 +541,19 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           groupOrder: startOrder + i,
           onProgress: updateUploadQueue,
         })
-        uploadedAssetIds.push(result.assetId)
-      } catch (err: any) {
+      } catch (error: unknown) {
         updateUploadQueue({
           id: `${file.name}-${Date.now()}`,
           fileName: file.name,
           percent: 0,
           stage: "error",
-          message: err?.message || "Error subiendo archivo",
+          message: error instanceof Error ? error.message : "Error subiendo archivo",
         })
       }
     }
 
     setAddingSlidesToGroup(null)
     await refresh()
-    await notifyDeliveryBatch(uploadedAssetIds, "new_asset")
   }
 
   const statusTransitions: Record<ApprovalStatus, ApprovalStatus[]> = {
@@ -326,6 +564,8 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     published: [],
   }
   const isReelLinkMode = uploadMode === "reel" && reelInputMode === "link"
+  const notifiableAssetCount = assets.filter(hasPendingLatestVersion).length
+  const telegramEligibleAssetCount = assets.filter((asset) => (asset.versions?.length || 0) > 0).length
 
   if (loading) {
     return (
@@ -341,15 +581,51 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
         <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider">
           Assets ({assets.length})
         </h3>
-        <button
-          onClick={() => {
-            setIsAdding(true)
-            fileInputRef.current?.click()
-          }}
-          className="text-xs text-quepia-cyan hover:underline flex items-center gap-1"
-        >
-          <Plus className="h-3 w-3" /> Agregar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSendAssetsToTelegram}
+            disabled={isSendingTelegramAssets || telegramEligibleAssetCount === 0}
+            className={cn(
+              "text-xs flex items-center gap-1 rounded-md border px-2.5 py-1 transition-colors",
+              isSendingTelegramAssets || telegramEligibleAssetCount === 0
+                ? "border-white/10 text-white/25 cursor-not-allowed"
+                : "border-cyan-400/30 bg-cyan-400/10 text-cyan-200 hover:bg-cyan-400/15"
+            )}
+          >
+            {isSendingTelegramAssets ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Send className="h-3 w-3" />
+            )}
+            {isSendingTelegramAssets ? "Enviando..." : "Enviar a Telegram"}
+          </button>
+          <button
+            onClick={handleNotifyClient}
+            disabled={isSendingDeliveryNotification || notifiableAssetCount === 0}
+            className={cn(
+              "text-xs flex items-center gap-1 rounded-md border px-2.5 py-1 transition-colors",
+              isSendingDeliveryNotification || notifiableAssetCount === 0
+                ? "border-white/10 text-white/25 cursor-not-allowed"
+                : "border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
+            )}
+          >
+            {isSendingDeliveryNotification ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Mail className="h-3 w-3" />
+            )}
+            {isSendingDeliveryNotification ? "Notificando..." : "Notificar cliente"}
+          </button>
+          <button
+            onClick={() => {
+              setIsAdding(true)
+              fileInputRef.current?.click()
+            }}
+            className="text-xs text-quepia-cyan hover:underline flex items-center gap-1"
+          >
+            <Plus className="h-3 w-3" /> Agregar
+          </button>
+        </div>
       </div>
 
       {/* Hidden input for adding slides to existing carousel */}
@@ -566,16 +842,16 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
         </div>
       )}
 
-      {uploadNotificationWarning && (
+      {deliveryNotificationWarning && (
         <div className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-200">
-          <p>{uploadNotificationWarning.message}</p>
-          {uploadNotificationWarning.details.length > 0 && (
+          <p>{deliveryNotificationWarning.message}</p>
+          {deliveryNotificationWarning.details.length > 0 && (
             <div className="mt-2 space-y-1 border-t border-amber-200/10 pt-2 text-[10px] text-amber-100/80">
-              {uploadNotificationWarning.details.slice(0, 3).map((detail, index) => (
+              {deliveryNotificationWarning.details.slice(0, 3).map((detail, index) => (
                 <p key={`${detail}-${index}`}>{detail}</p>
               ))}
-              {uploadNotificationWarning.details.length > 3 && (
-                <p>+{uploadNotificationWarning.details.length - 3} detalle(s) mas</p>
+              {deliveryNotificationWarning.details.length > 3 && (
+                <p>+{deliveryNotificationWarning.details.length - 3} detalle(s) mas</p>
               )}
               <p className="text-amber-100/60">
                 Podés revisar estos accesos en Perfil del cliente y compartir un link directo si hace falta.
