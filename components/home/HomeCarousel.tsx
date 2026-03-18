@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Proyecto } from '@/types/database';
@@ -17,9 +19,11 @@ const impactFallbacks = [
 function ProjectMockup({
   coverImage,
   title,
+  priority = false,
 }: {
   coverImage: string | null;
   title: string;
+  priority?: boolean;
 }) {
   const browserControls = [
     { name: 'close', className: 'bg-[#ff5f57] shadow-[0_0_0_1px_rgba(0,0,0,0.25)]' },
@@ -50,6 +54,7 @@ function ProjectMockup({
             className="object-cover"
             sizes="(max-width: 768px) 92vw, (max-width: 1280px) 58vw, 800px"
             quality={72}
+            priority={priority}
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#9b2c8a]/35 to-[#2ae7e4]/30" />
@@ -77,6 +82,7 @@ function CaseStudyCard({ proyecto, index }: { proyecto: Proyecto; index: number 
           <ProjectMockup
             coverImage={coverImage}
             title={proyecto.titulo}
+            priority={index === 0}
           />
         </div>
 

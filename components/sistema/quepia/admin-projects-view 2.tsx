@@ -1,12 +1,14 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { uploadImage, deleteImage } from '@/lib/storage';
-import { Proyecto, ProyectoInsert, CATEGORIES } from '@/types/database';
+import { Proyecto, ProyectoInsert, CATEGORIES, WorkCategory } from '@/types/database';
 import { Plus, Pencil, Trash2, X, Upload, Star, StarOff, Loader2, FolderOpen } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
+
+const DEFAULT_PROJECT_CATEGORY: WorkCategory = CATEGORIES[0]?.id ?? 'branding';
 
 export function AdminProjectsView() {
     const [proyectos, setProyectos] = useState<Proyecto[]>([]);
@@ -20,7 +22,7 @@ export function AdminProjectsView() {
     const [form, setForm] = useState<ProyectoInsert>({
         titulo: '',
         descripcion: '',
-        categoria: 'branding',
+        categoria: DEFAULT_PROJECT_CATEGORY,
         imagen_url: '',
         destacado: false,
         orden: 0,
@@ -52,7 +54,7 @@ export function AdminProjectsView() {
         setForm({
             titulo: '',
             descripcion: '',
-            categoria: 'branding',
+            categoria: DEFAULT_PROJECT_CATEGORY,
             imagen_url: '',
             destacado: false,
             orden: 0,
@@ -323,7 +325,7 @@ export function AdminProjectsView() {
                                 <select
                                     required
                                     value={form.categoria}
-                                    onChange={(e) => setForm({ ...form, categoria: e.target.value as ProyectoInsert['categoria'] })}
+                                    onChange={(e) => setForm({ ...form, categoria: e.target.value as WorkCategory })}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-quepia-cyan transition-colors"
                                 >
                                     {CATEGORIES.map((cat) => (

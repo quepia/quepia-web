@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import { Settings } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Menu, X, Settings } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 const navLinks = [
     { name: 'Servicios', path: '/servicios' },
@@ -14,67 +16,28 @@ const navLinks = [
 ];
 
 const Header: React.FC = () => {
-    const pathname = usePathname();
-    const isHomePage = pathname === '/';
-    const isClienteRoute = pathname?.startsWith('/cliente');
-    const shouldCheckSession = !isClienteRoute && !pathname?.startsWith('/admin') && !pathname?.startsWith('/auth') && !pathname?.startsWith('/sistema');
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const pathname = usePathname();
+    const supabase = useMemo(() => createClient(), []);
+
+    const isHomePage = pathname === '/';
+    const isClienteRoute = pathname?.startsWith('/cliente');
 
     useEffect(() => {
-        if (!shouldCheckSession) {
-            setIsLoggedIn(false);
-            return;
-        }
-
-        let cancelled = false;
-        let unsubscribe: (() => void) | undefined;
-        let idleId: number | undefined;
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-        const startSessionCheck = async () => {
-            const { createClient } = await import('@/lib/supabase/client');
-            if (cancelled) return;
-
-            const supabase = createClient();
+        const checkAuth = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!cancelled) {
-                setIsLoggedIn(Boolean(session));
-            }
-
-            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-                if (!cancelled) {
-                    setIsLoggedIn(Boolean(nextSession));
-                }
-            });
-
-            unsubscribe = () => subscription.unsubscribe();
+            setIsLoggedIn(!!session);
         };
+        checkAuth();
 
-        const supportsIdleCallback = typeof window.requestIdleCallback === 'function';
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            setIsLoggedIn(!!session);
+        });
 
-        if (supportsIdleCallback) {
-            idleId = window.requestIdleCallback(() => {
-                void startSessionCheck();
-            }, { timeout: 1500 });
-        } else {
-            timeoutId = globalThis.setTimeout(() => {
-                void startSessionCheck();
-            }, 350);
-        }
-
-        return () => {
-            cancelled = true;
-            unsubscribe?.();
-            if (idleId !== undefined && 'cancelIdleCallback' in window) {
-                window.cancelIdleCallback(idleId);
-            }
-            if (timeoutId !== undefined) {
-                globalThis.clearTimeout(timeoutId);
-            }
-        };
-    }, [shouldCheckSession]);
+        return () => subscription.unsubscribe();
+    }, [supabase]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -123,7 +86,7 @@ const Header: React.FC = () => {
                             width={110}
                             height={32}
                             className="h-7 md:h-8 w-auto object-contain"
-                            priority={false}
+                            priority
                         />
                     </Link>
                 </div>
@@ -157,7 +120,7 @@ const Header: React.FC = () => {
                             width={110}
                             height={32}
                             className="h-7 md:h-8 w-auto object-contain"
-                            priority={isHomePage}
+                            priority
                         />
                     </Link>
 
@@ -199,7 +162,6 @@ const Header: React.FC = () => {
                         className="md:hidden relative z-[9999] flex items-center gap-2 text-[rgb(var(--text-white-soft-rgb)/0.8)] hover:text-[color:var(--text-primary)] transition-colors"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         aria-label={isMobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
-                        aria-expanded={isMobileMenuOpen}
                     >
                         <span className="text-nav">
                             {isMobileMenuOpen ? 'Cerrar' : 'Menú'}
@@ -211,62 +173,72 @@ const Header: React.FC = () => {
             </header>
 
             {/* Mobile Menu — Fullscreen Overlay (OUTSIDE header to avoid stacking context trap) */}
-            <div
-                className={`fixed inset-0 z-[9998] bg-[#0a0a0a] transition-[opacity,visibility] duration-300 md:hidden ${isMobileMenuOpen ? 'visible opacity-100' : 'invisible opacity-0 pointer-events-none'
-                    }`}
-                aria-hidden={!isMobileMenuOpen}
-            >
-                <nav className="relative h-full flex flex-col items-start justify-center px-8 gap-6">
-                    {navLinks.map((link, index) => (
-                        <div
-                            key={link.name}
-                            className={`transition-all duration-300 ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
-                                }`}
-                            style={{ transitionDelay: isMobileMenuOpen ? `${index * 60}ms` : '0ms' }}
-                        >
-                            <Link
-                                href={link.path}
-                                className={`font-display text-4xl font-light tracking-tight transition-colors ${pathname === link.path
-                                    ? 'text-[color:var(--text-primary)]'
-                                    : 'text-[rgb(var(--text-white-soft-rgb)/0.4)] hover:text-[color:var(--text-primary)]'
-                                    }`}
-                            >
-                                {link.name}
-                            </Link>
-                        </div>
-                    ))}
-
-                    {isLoggedIn ? (
-                        <div
-                            className={`flex flex-col gap-4 transition-all duration-300 ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
-                                }`}
-                            style={{ transitionDelay: isMobileMenuOpen ? `${navLinks.length * 60}ms` : '0ms' }}
-                        >
-                            <Link
-                                href="/sistema"
-                                className="font-display text-4xl font-light tracking-tight text-quepia-cyan/70 hover:text-quepia-cyan transition-colors flex items-center gap-3"
-                            >
-                                <Settings size={28} strokeWidth={1.5} />
-                                Sistema
-                            </Link>
-                        </div>
-                    ) : null}
-
+            <AnimatePresence>
+                {isMobileMenuOpen && (
                     <div
-                        className={`absolute bottom-12 left-8 right-8 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0'
-                            }`}
-                        style={{ transitionDelay: isMobileMenuOpen ? '180ms' : '0ms' }}
+                        className="md:hidden fixed inset-0 z-[9998] bg-[#0a0a0a]"
                     >
-                        <p className="text-[rgb(var(--text-white-soft-rgb)/0.4)] text-sm mb-2">Contacto</p>
-                        <a
-                            href="mailto:hola@quepia.com"
-                            className="text-[rgb(var(--text-white-soft-rgb)/0.6)] hover:text-[color:var(--text-primary)] transition-colors"
-                        >
-                            hola@quepia.com
-                        </a>
+                        <nav className="h-full flex flex-col items-start justify-center px-8 gap-6">
+                            {navLinks.map((link, index) => (
+                                <motion.div
+                                    key={link.name}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    transition={{ delay: index * 0.08, duration: 0.3 }}
+                                >
+                                    <Link
+                                        href={link.path}
+                                        className={`font-display text-4xl font-light tracking-tight transition-colors ${pathname === link.path
+                                            ? 'text-[color:var(--text-primary)]'
+                                            : 'text-[rgb(var(--text-white-soft-rgb)/0.4)] hover:text-[color:var(--text-primary)]'
+                                            }`}
+                                    >
+                                        {link.name}
+                                    </Link>
+                                </motion.div>
+                            ))}
+
+                            {isLoggedIn && (
+                                <div className="flex flex-col gap-4">
+                                    <motion.div
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        transition={{ delay: navLinks.length * 0.08, duration: 0.3 }}
+                                    >
+                                        <Link
+                                            href="/sistema"
+                                            className="font-display text-4xl font-light tracking-tight text-quepia-cyan/70 hover:text-quepia-cyan transition-colors flex items-center gap-3"
+                                        >
+                                            <Settings size={28} strokeWidth={1.5} />
+                                            Sistema
+                                        </Link>
+                                    </motion.div>
+
+                                </div>
+                            )}
+
+                            {/* Contact info at bottom */}
+                            <motion.div
+                                className="absolute bottom-12 left-8 right-8"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ delay: 0.3, duration: 0.3 }}
+                            >
+                                <p className="text-[rgb(var(--text-white-soft-rgb)/0.4)] text-sm mb-2">Contacto</p>
+                                <a
+                                    href="mailto:hola@quepia.com"
+                                    className="text-[rgb(var(--text-white-soft-rgb)/0.6)] hover:text-[color:var(--text-primary)] transition-colors"
+                                >
+                                    hola@quepia.com
+                                </a>
+                            </motion.div>
+                        </nav>
                     </div>
-                </nav>
-            </div>
+                )}
+            </AnimatePresence>
         </>
     );
 };

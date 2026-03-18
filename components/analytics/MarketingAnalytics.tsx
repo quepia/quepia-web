@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -16,7 +16,7 @@ function getGoogleTagBootstrap(tagId: string) {
     function gtag(){dataLayer.push(arguments);}
     window.gtag = gtag;
     gtag('js', new Date());
-    gtag('config', '${tagId}', { send_page_view: false });
+    gtag('config', '${tagId}', { send_page_view: true });
   `;
 }
 
@@ -31,17 +31,24 @@ function getMetaPixelBootstrap(pixelId: string) {
       s.parentNode.insertBefore(t,s)
     }(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '${pixelId}');
+    fbq('track', 'PageView');
   `;
 }
 
-export default function MarketingAnalytics() {
+function MarketingAnalyticsInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const hasTrackedInitialView = useRef(false);
   const search = searchParams?.toString() ?? '';
   const isPublicRoute = isTrackableRoute(pathname);
 
   useEffect(() => {
     if (!pathname || !isPublicRoute) {
+      return;
+    }
+
+    if (!hasTrackedInitialView.current) {
+      hasTrackedInitialView.current = true;
       return;
     }
 
@@ -85,5 +92,13 @@ export default function MarketingAnalytics() {
         </>
       ) : null}
     </>
+  );
+}
+
+export default function MarketingAnalytics() {
+  return (
+    <Suspense fallback={null}>
+      <MarketingAnalyticsInner />
+    </Suspense>
   );
 }

@@ -1,25 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { Space_Grotesk, Work_Sans } from 'next/font/google';
 import './globals.css';
 import MarketingAnalytics from '@/components/analytics/MarketingAnalytics';
 import ClientLayout from '@/components/layout/ClientLayout';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 import { DEFAULT_INSTAGRAM_URL, getInstagramUrl } from '@/lib/instagram';
-
-const workSans = Work_Sans({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-work-sans',
-  weight: ['400', '500', '600', '700', '800'],
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-space-grotesk',
-  weight: ['500', '700'],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://quepia.com'),
@@ -128,9 +113,15 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="es" className={`${workSans.variable} ${spaceGrotesk.variable}`}>
+    <html lang="es">
       <head>
-        <meta name="theme-color" content="#0a0a0a" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap"
+        />
+        <link rel="stylesheet" href="https://use.typekit.net/egc1iei.css" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { unstable_cache } from 'next/cache';
 import { createPublicClient } from '@/lib/supabase/public';
 import HomeCarousel from '@/components/home/HomeCarousel';
 import ServicesGrid from '@/components/home/ServicesGrid';
@@ -10,31 +9,8 @@ import ProcessSection from '@/components/home/ProcessSection';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 
-const getHomePageData = unstable_cache(
-  async () => {
-    const supabase = createPublicClient();
-    const [{ data: proyectos }, { data: servicios }] = await Promise.all([
-      supabase
-        .from('proyectos')
-        .select('*')
-        .eq('destacado', true)
-        .order('orden', { ascending: true }),
-      supabase
-        .from('servicios')
-        .select('*')
-        .order('orden', { ascending: true }),
-    ]);
-
-    return {
-      proyectos: proyectos || [],
-      servicios: servicios || [],
-    };
-  },
-  ['home-page-data'],
-  { revalidate: 900 },
-);
-
-export const revalidate = 900;
+// ISR: Revalidate every 60 seconds
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: 'Quepia - Consultora Creativa | Villa Carlos Paz, Córdoba',
@@ -57,9 +33,19 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [config, { proyectos, servicios }] = await Promise.all([
-    getSiteConfigServer(),
-    getHomePageData(),
+  const supabase = createPublicClient();
+  const config = await getSiteConfigServer();
+
+  const [{ data: proyectos }, { data: servicios }] = await Promise.all([
+    supabase
+      .from('proyectos')
+      .select('*')
+      .eq('destacado', true)
+      .order('orden', { ascending: true }),
+    supabase
+      .from('servicios')
+      .select('*')
+      .order('orden', { ascending: true }),
   ]);
 
   return (
@@ -77,21 +63,21 @@ export default async function Home() {
           className="pt-4"
           style={{ contentVisibility: 'auto', containIntrinsicSize: '360px' }}
         >
-          <MarqueeSection servicios={servicios} />
+          <MarqueeSection servicios={servicios || []} />
         </section>
 
         <section
           id="expertise"
           style={{ contentVisibility: 'auto', containIntrinsicSize: '1100px' }}
         >
-          <ServicesGrid servicios={servicios} />
+          <ServicesGrid servicios={servicios || []} />
         </section>
 
         <section
           id="case-studies"
           style={{ contentVisibility: 'auto', containIntrinsicSize: '1200px' }}
         >
-          {proyectos.length > 0 && (
+          {proyectos && proyectos.length > 0 && (
             <HomeCarousel proyectos={proyectos} />
           )}
         </section>

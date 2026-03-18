@@ -1,3 +1,5 @@
+'use client';
+
 import { cn } from '@/lib/sistema/utils';
 
 interface BrandDepthBackgroundProps {

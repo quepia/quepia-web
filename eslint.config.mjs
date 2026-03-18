@@ -11,13 +11,6 @@ const compat = new FlatCompat({
 });
 
 export default defineConfig([
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  {
-    rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-empty-object-type": "warn",
-    },
-  },
   {
     ignores: [
       ".next/**",
@@ -32,7 +25,18 @@ export default defineConfig([
       "node_modules 2/**",
       "**/node_modules 2/**",
       " sistema de gestion de proyectos/**",
+      "**/ sistema de gestion de proyectos/**",
       "nextjs-app/**",
+      "**/nextjs-app/**",
+      "test-*.js",
+      "**/test-*.js",
     ],
+  },
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+    },
   },
 ]);

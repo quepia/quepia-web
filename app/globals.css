@@ -8,9 +8,9 @@
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  --font-sans: var(--font-work-sans), "Helvetica Neue", Arial, sans-serif;
-  --font-display: var(--font-space-grotesk), var(--font-work-sans), "Helvetica Neue", Arial, sans-serif;
-  --font-editorial: var(--font-space-grotesk), var(--font-work-sans), "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Work Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "eurostile-extended", "Helvetica Neue", Arial, sans-serif;
+  --font-editorial: "eurostile-extended", "Helvetica Neue", Arial, sans-serif;
 
   /* ─── Backgrounds ─── */
   --bg-primary: #0a0a0a;
