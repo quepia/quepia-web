@@ -4,7 +4,8 @@ export interface Proyecto {
   id: string;
   titulo: string;
   descripcion: string | null;
-  categoria: string;
+  categoria: WorkCategory;
+  categorias?: WorkCategory[] | null;
   imagen_url: string | null;
   galeria_urls: string[] | null;
   destacado: boolean;
@@ -15,7 +16,8 @@ export interface Proyecto {
 export interface ProyectoInsert {
   titulo: string;
   descripcion?: string | null;
-  categoria: string;
+  categoria: WorkCategory;
+  categorias?: WorkCategory[] | null;
   imagen_url?: string | null;
   galeria_urls?: string[] | null;
   destacado?: boolean;
@@ -25,7 +27,8 @@ export interface ProyectoInsert {
 export interface ProyectoUpdate {
   titulo?: string;
   descripcion?: string | null;
-  categoria?: string;
+  categoria?: WorkCategory;
+  categorias?: WorkCategory[] | null;
   imagen_url?: string | null;
   galeria_urls?: string[] | null;
   destacado?: boolean;

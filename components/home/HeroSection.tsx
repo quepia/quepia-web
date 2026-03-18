@@ -1,39 +1,15 @@
-'use client';
-
-import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import HeroVideoBackground from './HeroVideoBackground';
 
 export default function HeroSection() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const [isHeroInView, setIsHeroInView] = useState(true);
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section || typeof IntersectionObserver === 'undefined') return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsHeroInView(entry.isIntersecting);
-      },
-      { threshold: 0.2 },
-    );
-
-    observer.observe(section);
-
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <section
-      ref={sectionRef}
       className="relative isolate flex min-h-[100svh] items-center overflow-hidden pb-20 pt-28 md:pb-24 md:pt-32"
     >
-      <div className="absolute inset-0 -z-30">
-        <HeroVideoBackground active={isHeroInView} />
-      </div>
+      <div className="absolute inset-0 -z-30 bg-[radial-gradient(circle_at_20%_18%,rgba(42,231,228,0.16),transparent_26%),radial-gradient(circle_at_78%_24%,rgba(136,16,120,0.18),transparent_30%),radial-gradient(circle_at_50%_58%,rgba(255,255,255,0.04),transparent_22%),linear-gradient(140deg,#070707_0%,#0a0a0a_42%,#050505_100%)]" />
+      <div className="absolute left-[-12%] top-[8%] -z-20 h-[26rem] w-[26rem] rounded-full bg-[#2ae7e4]/12 blur-[120px]" />
+      <div className="absolute right-[-14%] top-[4%] -z-20 h-[28rem] w-[28rem] rounded-full bg-[#881078]/16 blur-[130px]" />
+      <div className="absolute left-[24%] bottom-[-8%] -z-20 h-[22rem] w-[38rem] rounded-full bg-[linear-gradient(90deg,rgba(42,231,228,0.06),rgba(136,16,120,0.1),rgba(42,231,228,0.04))] blur-[90px]" />
 
-      {/* Dark layers tuned so the background orb stays visible */}
       <div className="absolute inset-0 -z-20 bg-[#0a0a0a]/52" />
       <div className="absolute inset-0 -z-10 bg-[linear-gradient(112deg,rgba(10,10,10,0.92)_0%,rgba(10,10,10,0.76)_42%,rgba(10,10,10,0.58)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent" />

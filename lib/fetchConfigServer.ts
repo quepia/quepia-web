@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { createPublicClient } from '@/lib/supabase/public';
 import { Configuracion, Equipo } from '@/types/database';
 
@@ -10,42 +11,54 @@ export const formatConfig = (config: Configuracion[]) => {
     return formatted;
 };
 
-export const getSiteConfigServer = async () => {
-    try {
-        const supabase = createPublicClient();
-        const { data, error } = await supabase
-            .from('configuracion')
-            .select('*');
+const getCachedSiteConfig = unstable_cache(
+    async () => {
+        try {
+            const supabase = createPublicClient();
+            const { data, error } = await supabase
+                .from('configuracion')
+                .select('*');
 
-        if (error) {
-            console.error('Error fetching config (server):', error);
+            if (error) {
+                console.error('Error fetching config (server):', error);
+                return {};
+            }
+
+            return formatConfig(data || []);
+        } catch (error) {
+            console.error('Error in getSiteConfigServer:', error);
             return {};
         }
+    },
+    ['site-config'],
+    { revalidate: 3600 }
+);
 
-        return formatConfig(data || []);
-    } catch (error) {
-        console.error('Error in getSiteConfigServer:', error);
-        return {};
-    }
-};
+const getCachedTeamMembers = unstable_cache(
+    async () => {
+        try {
+            const supabase = createPublicClient();
+            const { data, error } = await supabase
+                .from('equipo')
+                .select('*')
+                .eq('activo', true)
+                .order('orden', { ascending: true });
 
-export const getTeamMembersServer = async () => {
-    try {
-        const supabase = createPublicClient();
-        const { data, error } = await supabase
-            .from('equipo')
-            .select('*')
-            .eq('activo', true)
-            .order('orden', { ascending: true });
+            if (error) {
+                console.error('Error fetching team (server):', error);
+                return [];
+            }
 
-        if (error) {
-            console.error('Error fetching team (server):', error);
+            return data as Equipo[];
+        } catch (error) {
+            console.error('Error in getTeamMembersServer:', error);
             return [];
         }
+    },
+    ['team-members'],
+    { revalidate: 3600 }
+);
 
-        return data as Equipo[];
-    } catch (error) {
-        console.error('Error in getTeamMembersServer:', error);
-        return [];
-    }
-};
+export const getSiteConfigServer = async () => getCachedSiteConfig();
+
+export const getTeamMembersServer = async () => getCachedTeamMembers();

@@ -1,7 +1,4 @@
-'use client';
-
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 
 interface CTASectionProps {
   email?: string;
@@ -16,13 +13,7 @@ export default function CTASection({ email = 'hola@quepia.com' }: CTASectionProp
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(17,17,17,0.4)_0%,rgba(10,10,10,0.72)_100%)]" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-90px' }}
-        transition={{ duration: 0.55, ease: 'easeOut' }}
-        className="relative mx-auto w-full max-w-[1050px] px-6 text-center md:px-12 lg:px-20"
-      >
+      <div className="relative mx-auto w-full max-w-[1050px] px-6 text-center md:px-12 lg:px-20">
         <div className="rounded-[26px] border border-white/12 bg-white/[0.04] px-6 py-12 backdrop-blur-[14px] md:px-12 md:py-16">
           <h2 className="mx-auto max-w-3xl font-display text-[clamp(2rem,4.1vw,3.6rem)] font-medium leading-[1.08] tracking-[-0.02em] text-[color:var(--text-primary)]">
             ¿Listo para elevar la presencia de tu marca?
@@ -48,7 +39,7 @@ export default function CTASection({ email = 'hola@quepia.com' }: CTASectionProp
             </a>
           </div>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }

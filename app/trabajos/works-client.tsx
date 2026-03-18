@@ -7,6 +7,12 @@ import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { CATEGORIES, Proyecto, WorkCategory } from '@/types/database'
 import { getProjectCoverImage, getProjectGalleryImages } from '@/lib/project-images'
+import {
+  getCategoryLabel,
+  getPrimaryProjectCategory,
+  getProjectCategories,
+  projectMatchesCategory,
+} from '@/lib/project-categories'
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground'
 import MarqueeSection from '@/components/home/MarqueeSection'
 
@@ -14,8 +20,6 @@ interface WorksClientProps {
   proyectos: Proyecto[]
   initialCategory: WorkCategory
 }
-
-const CATEGORY_LABELS = new Map<string, string>(CATEGORIES.map((category) => [category.id, category.label]))
 
 const CATEGORY_ACCENTS: Record<string, string> = {
   branding: 'from-fuchsia-400/30 to-orange-300/20',
@@ -29,12 +33,31 @@ const CATEGORY_ACCENTS: Record<string, string> = {
   productos: 'from-violet-300/30 to-fuchsia-300/20',
 }
 
-function categoryLabel(category: string): string {
-  return CATEGORY_LABELS.get(category) ?? category.replace(/-/g, ' ')
-}
-
 function categoryAccentClass(category: string): string {
   return CATEGORY_ACCENTS[category] ?? 'from-cyan-300/30 to-zinc-300/20'
+}
+
+function ProjectCategoryBadges({
+  proyecto,
+  className,
+}: {
+  proyecto: Proyecto
+  className: string
+}) {
+  const categories = getProjectCategories(proyecto)
+
+  return (
+    <div className={className}>
+      {categories.map((category) => (
+        <span
+          key={`${proyecto.id}-${category}`}
+          className="rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75"
+        >
+          {getCategoryLabel(category)}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 function LeadProject({
@@ -48,6 +71,7 @@ function LeadProject({
   const isInView = useInView(ref, { once: true, margin: '-100px' })
   const coverImage = getProjectCoverImage(proyecto)
   const galleryCount = getProjectGalleryImages(proyecto).length
+  const primaryCategory = getPrimaryProjectCategory(proyecto)
 
   return (
     <motion.button
@@ -69,13 +93,11 @@ function LeadProject({
               sizes="(max-width: 1024px) 100vw, 65vw"
             />
           ) : (
-            <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(primaryCategory)}`} />
           )}
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.7)_100%)]" />
 
-          <div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75">
-            {categoryLabel(proyecto.categoria)}
-          </div>
+          <ProjectCategoryBadges proyecto={proyecto} className="absolute left-4 top-4 flex max-w-[calc(100%-2rem)] flex-wrap gap-2" />
 
           {galleryCount > 1 ? (
             <div className="absolute bottom-4 right-4 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75">
@@ -85,7 +107,7 @@ function LeadProject({
         </div>
 
         <div className="relative flex flex-col justify-between border-t border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.2))] p-6 md:p-8 lg:border-l lg:border-t-0">
-          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br opacity-25 ${categoryAccentClass(proyecto.categoria)}`} />
+          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br opacity-25 ${categoryAccentClass(primaryCategory)}`} />
           <div className="relative">
             <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/45">Proyecto destacado</p>
             <h3 className="font-display text-[clamp(1.55rem,3vw,2.4rem)] font-medium leading-[1.02] text-white">
@@ -123,6 +145,7 @@ function ProjectCard({
   const isInView = useInView(ref, { once: true, margin: '-60px' })
   const coverImage = getProjectCoverImage(proyecto)
   const galleryCount = getProjectGalleryImages(proyecto).length
+  const primaryCategory = getPrimaryProjectCategory(proyecto)
 
   return (
     <motion.button
@@ -143,14 +166,12 @@ function ProjectCard({
             sizes="(max-width: 768px) 100vw, (max-width: 1440px) 50vw, 33vw"
           />
         ) : (
-          <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
+          <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(primaryCategory)}`} />
         )}
 
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.68)_100%)]" />
 
-        <div className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-white/75">
-          {categoryLabel(proyecto.categoria)}
-        </div>
+        <ProjectCategoryBadges proyecto={proyecto} className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-2" />
 
         {galleryCount > 1 ? (
           <div className="absolute bottom-3 right-3 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/75">
@@ -187,6 +208,7 @@ function Lightbox({
   const [activeIndex, setActiveIndex] = useState(0)
   const hasMultipleImages = images.length > 1
   const activeImage = images[activeIndex] ?? null
+  const primaryCategory = getPrimaryProjectCategory(proyecto)
 
   useEffect(() => {
     setActiveIndex(0)
@@ -246,7 +268,7 @@ function Lightbox({
                 sizes="80vw"
               />
             ) : (
-              <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(proyecto.categoria)}`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${categoryAccentClass(primaryCategory)}`} />
             )}
 
             {hasMultipleImages ? (
@@ -303,9 +325,16 @@ function Lightbox({
           className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-black/35 p-5 md:p-7"
           onClick={(event) => event.stopPropagation()}
         >
-          <span className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-white/70">
-            {categoryLabel(proyecto.categoria)}
-          </span>
+          <div className="flex flex-wrap gap-2">
+            {getProjectCategories(proyecto).map((category) => (
+              <span
+                key={`${proyecto.id}-lightbox-${category}`}
+                className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-white/70"
+              >
+                {getCategoryLabel(category)}
+              </span>
+            ))}
+          </div>
           <h3 className="mt-4 font-display text-2xl md:text-3xl font-light leading-tight text-white">{proyecto.titulo}</h3>
           <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-4">
             <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">Descripción del proyecto</p>
@@ -332,7 +361,7 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
   const heroRef = useRef<HTMLDivElement>(null)
   const inView = useInView(heroRef, { once: true })
   const filteredProjects = useMemo(
-    () => proyectos.filter((proyecto) => proyecto.categoria === activeCategory),
+    () => proyectos.filter((proyecto) => projectMatchesCategory(proyecto, activeCategory)),
     [activeCategory, proyectos]
   )
 
@@ -341,7 +370,7 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
   }, [initialCategory])
 
   useEffect(() => {
-    if (!selectedProject || selectedProject.categoria === activeCategory) return
+    if (!selectedProject || projectMatchesCategory(selectedProject, activeCategory)) return
     setSelectedProject(null)
   }, [activeCategory, selectedProject])
 
@@ -403,7 +432,7 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
               <div className="mt-8 grid max-w-[560px] grid-cols-2 gap-3">
                 <div className="rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Categoría activa</p>
-                  <p className="mt-1 text-sm text-white/85">{categoryLabel(activeCategory)}</p>
+                  <p className="mt-1 text-sm text-white/85">{getCategoryLabel(activeCategory)}</p>
                 </div>
                 <div className="rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-white/45">Proyectos</p>

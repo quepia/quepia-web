@@ -8,6 +8,7 @@ import { useConfig } from '@/components/layout/ClientLayout';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import MarqueeSection from '@/components/home/MarqueeSection';
 import { getInstagramLabel, getInstagramUrl } from '@/lib/instagram';
+import { trackLead } from '@/lib/marketing-analytics';
 
 const faqItems = [
   {
@@ -93,6 +94,11 @@ export default function ContactoClient() {
         throw new Error('Error al enviar el mensaje');
       }
 
+      trackLead({
+        email: formState.email,
+        service: formState.servicio || 'contacto',
+        source: 'contact_form',
+      });
       setIsSubmitted(true);
     } catch (error) {
       console.error('Error sending contact form:', error);

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.proyectos (
   titulo TEXT NOT NULL,
   descripcion TEXT,
   categoria TEXT NOT NULL,
+  categorias TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
   imagen_url TEXT,
   galeria_urls TEXT[] NOT NULL DEFAULT '{}',
   destacado BOOLEAN DEFAULT false,
@@ -202,6 +203,11 @@ INSERT INTO public.proyectos (titulo, descripcion, categoria, imagen_url, destac
 ('Cartel Luminoso', 'Diseño de cartel frontlight', 'carteleria', 'https://placehold.co/800x600/1a1a1a/2AE7E4/png?text=Cartel+4', false, 4),
 ('Rotulación Vehicular', 'Ploteo de flota de vehículos', 'carteleria', 'https://placehold.co/800x600/1a1a1a/881078/png?text=Cartel+5', false, 5),
 ('Fachada Restaurante', 'Diseño integral de fachada comercial', 'carteleria', 'https://placehold.co/800x600/1a1a1a/2AE7E4/png?text=Cartel+6', false, 6);
+
+UPDATE public.proyectos
+SET categorias = ARRAY[categoria]
+WHERE COALESCE(array_length(categorias, 1), 0) = 0
+  AND categoria IS NOT NULL;
 
 -- ============================================
 -- ¡LISTO! Datos insertados correctamente

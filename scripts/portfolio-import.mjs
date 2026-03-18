@@ -953,6 +953,7 @@ async function upsertProject(supabase, entry, overwrite, keepRemoteUrls, maxGall
     titulo: entry.title,
     descripcion: entry.description,
     categoria: entry.category,
+    categorias: [entry.category],
     imagen_url: limitedGalleryUrls[0] ?? null,
     galeria_urls: limitedGalleryUrls,
     destacado: entry.destacado,

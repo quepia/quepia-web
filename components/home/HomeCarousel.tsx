@@ -1,9 +1,8 @@
-'use client';
-
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Proyecto } from '@/types/database';
 import { getProjectCoverImage } from '@/lib/project-images';
+import { getCategoryLabel, getPrimaryProjectCategory, getProjectCategories } from '@/lib/project-categories';
 
 interface HomeCarouselProps {
   proyectos: Proyecto[];
@@ -15,18 +14,12 @@ const impactFallbacks = [
   'Mayor claridad de posicionamiento con mejor conversión digital.',
 ];
 
-function formatCategory(category: string) {
-  return category.replace(/-/g, ' ');
-}
-
 function ProjectMockup({
   coverImage,
   title,
-  priority = false,
 }: {
   coverImage: string | null;
   title: string;
-  priority?: boolean;
 }) {
   const browserControls = [
     { name: 'close', className: 'bg-[#ff5f57] shadow-[0_0_0_1px_rgba(0,0,0,0.25)]' },
@@ -57,7 +50,6 @@ function ProjectMockup({
             className="object-cover"
             sizes="(max-width: 768px) 92vw, (max-width: 1280px) 58vw, 800px"
             quality={72}
-            priority={priority}
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#9b2c8a]/35 to-[#2ae7e4]/30" />
@@ -70,12 +62,13 @@ function ProjectMockup({
 function CaseStudyCard({ proyecto, index }: { proyecto: Proyecto; index: number }) {
   const coverImage = getProjectCoverImage(proyecto);
   const services = [
-    formatCategory(proyecto.categoria),
+    ...getProjectCategories(proyecto).map(getCategoryLabel),
     'Estrategia',
     'Producción',
   ];
   const impact = proyecto.descripcion?.trim() || impactFallbacks[index % impactFallbacks.length];
   const isOdd = index % 2 === 1;
+  const primaryCategory = getPrimaryProjectCategory(proyecto);
 
   return (
     <article className="rounded-[26px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-[12px] md:p-8">
@@ -84,7 +77,6 @@ function CaseStudyCard({ proyecto, index }: { proyecto: Proyecto; index: number 
           <ProjectMockup
             coverImage={coverImage}
             title={proyecto.titulo}
-            priority={index === 0}
           />
         </div>
 
@@ -114,7 +106,7 @@ function CaseStudyCard({ proyecto, index }: { proyecto: Proyecto; index: number 
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href={`/trabajos?category=${proyecto.categoria}`}
+              href={`/trabajos?category=${primaryCategory}`}
               className="inline-flex items-center gap-2 text-sm uppercase tracking-[0.12em] text-[rgb(var(--text-white-soft-rgb)/0.65)] transition-all duration-300 hover:gap-3 hover:text-[#2ae7e4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2ae7e4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
             >
               Ver caso completo

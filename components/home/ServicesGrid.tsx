@@ -1,7 +1,4 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
 import type { Servicio } from '@/types/database';
 
 interface ServicesGridProps {
@@ -13,9 +10,8 @@ interface ExpertiseCardConfig {
   description: string;
   label: string;
   hoverGlow: string;
-  videoSrc: string;
-  videoScale: number;
-  videoPosition?: string;
+  accent: string;
+  gridTint: string;
 }
 
 interface ExpertiseCardProps {
@@ -31,9 +27,8 @@ const expertiseCards: ExpertiseCardConfig[] = [
       'Construimos marcas sólidas, memorables y con propósito que conectan genuinamente con tu audiencia.',
     label: 'Sistema de marca',
     hoverGlow: 'rgba(244, 106, 210, 0.12)',
-    videoSrc: '/VIDEOS CARDS/Identidad y Branding.mp4',
-    videoScale: 1.5,
-    videoPosition: 'center center',
+    accent: 'linear-gradient(135deg, rgba(244,106,210,0.28) 0%, rgba(136,16,120,0.14) 100%)',
+    gridTint: 'rgba(244, 106, 210, 0.08)',
   },
   {
     title: 'Social Media & Estrategia',
@@ -41,9 +36,8 @@ const expertiseCards: ExpertiseCardConfig[] = [
       'No solo publicamos. Creamos comunidades activas y estrategias digitales orientadas a la conversión.',
     label: 'Comunidad & performance',
     hoverGlow: 'rgba(42, 231, 228, 0.12)',
-    videoSrc: '/VIDEOS CARDS/Social Media & Estrategia.mp4',
-    videoScale: 1.46,
-    videoPosition: 'center center',
+    accent: 'linear-gradient(135deg, rgba(42,231,228,0.24) 0%, rgba(11,37,43,0.1) 100%)',
+    gridTint: 'rgba(42, 231, 228, 0.08)',
   },
   {
     title: 'Producción Audiovisual',
@@ -51,9 +45,8 @@ const expertiseCards: ExpertiseCardConfig[] = [
       'Capturamos la esencia de tu proyecto con fotografía de alto nivel y edición de video dinámica.',
     label: 'Foto, video, edición',
     hoverGlow: 'rgba(255, 138, 91, 0.12)',
-    videoSrc: '/VIDEOS CARDS/produccion-audiovisual.mp4',
-    videoScale: 1.52,
-    videoPosition: 'center center',
+    accent: 'linear-gradient(135deg, rgba(255,138,91,0.26) 0%, rgba(56,24,18,0.1) 100%)',
+    gridTint: 'rgba(255, 138, 91, 0.08)',
   },
   {
     title: 'Diseño de Productos y Packaging',
@@ -61,9 +54,8 @@ const expertiseCards: ExpertiseCardConfig[] = [
       'Diseñamos piezas, envases y experiencias de producto con criterio estratégico para destacar en góndola, comunicar valor y reforzar la identidad de marca.',
     label: 'Producto & empaque',
     hoverGlow: 'rgba(141, 255, 182, 0.12)',
-    videoSrc: '/VIDEOS CARDS/PRODUCTOS.mp4',
-    videoScale: 1.56,
-    videoPosition: 'center center',
+    accent: 'linear-gradient(135deg, rgba(141,255,182,0.24) 0%, rgba(26,44,33,0.12) 100%)',
+    gridTint: 'rgba(141, 255, 182, 0.08)',
   },
 ];
 
@@ -117,7 +109,21 @@ function ExpertiseCard({ card, index, relatedHref }: ExpertiseCardProps) {
         style={{ transitionDelay: `${index * 30}ms` }}
       >
         <div aria-hidden="true" className="absolute inset-0">
-          <BackgroundVideo card={card} />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_24%,rgba(255,255,255,0.06),transparent_24%),linear-gradient(145deg,rgba(255,255,255,0.03),transparent_42%,rgba(255,255,255,0.02)_100%)]" />
+          <div
+            className="absolute -right-10 top-[-6%] h-56 w-56 rounded-full blur-[92px]"
+            style={{ background: card.hoverGlow }}
+          />
+          <div
+            className="absolute bottom-10 right-8 h-36 w-36 rounded-[28px] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+            style={{ background: card.accent }}
+          />
+          <div
+            className="absolute inset-[18%_8%_14%_50%] rounded-[30px] border border-white/6 opacity-80"
+            style={{
+              background: `linear-gradient(180deg, rgba(255,255,255,0.035), transparent 38%, rgba(255,255,255,0.01) 100%), linear-gradient(90deg, ${card.gridTint} 0%, transparent 100%)`,
+            }}
+          />
         </div>
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.045),transparent_24%,transparent_100%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,2,2,0.9)_0%,rgba(2,2,2,0.82)_42%,rgba(2,2,2,0.58)_66%,rgba(2,2,2,0.76)_100%)]" />
@@ -131,6 +137,10 @@ function ExpertiseCard({ card, index, relatedHref }: ExpertiseCardProps) {
           }}
         />
         <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.1),transparent)] opacity-45" />
+        <div
+          aria-hidden="true"
+          className="absolute inset-[12%_7%_12%_48%] rounded-[34px] border border-dashed border-white/8"
+        />
 
         <div className="relative z-10 flex h-full flex-col">
           <div className="flex items-start justify-between gap-4">
@@ -163,54 +173,6 @@ function ExpertiseCard({ card, index, relatedHref }: ExpertiseCardProps) {
           </Link>
         </div>
       </article>
-    </div>
-  );
-}
-
-function BackgroundVideo({ card }: { card: ExpertiseCardConfig }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isInView, setIsInView] = useState(false);
-
-  useEffect(() => {
-    const element = cardRef.current;
-    if (!element || typeof IntersectionObserver === 'undefined') return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsInView(entry.isIntersecting),
-      { threshold: 0.35 },
-    );
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!videoRef.current) return;
-    if (isInView) {
-      videoRef.current.play().catch(() => {});
-      return;
-    }
-    videoRef.current.pause();
-  }, [isInView]);
-
-  return (
-    <div ref={cardRef} className="absolute inset-0 overflow-hidden">
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        className="absolute inset-0 h-full w-full object-cover brightness-[0.9] contrast-[1.1] saturate-[1.02] opacity-[0.34] transition-opacity duration-500 group-hover:opacity-[0.5]"
-        src={encodeURI(card.videoSrc)}
-        style={{
-          transform: `scale(${card.videoScale})`,
-          objectPosition: card.videoPosition ?? 'center center',
-        }}
-      />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_50%,rgba(255,255,255,0.025),transparent_34%)] opacity-35" />
     </div>
   );
 }

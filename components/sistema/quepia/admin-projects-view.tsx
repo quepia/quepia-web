@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { uploadImage, deleteImage } from '@/lib/storage';
-import { Proyecto, ProyectoInsert, CATEGORIES } from '@/types/database';
+import { Proyecto, ProyectoInsert, CATEGORIES, WorkCategory } from '@/types/database';
 import { Plus, Pencil, Trash2, X, Star, StarOff, Loader2, FolderOpen, ImagePlus } from 'lucide-react';
 import { getProjectCoverImage, getProjectGalleryImages } from '@/lib/project-images';
+import { getCategoryLabel, getProjectCategories, normalizeWorkCategories } from '@/lib/project-categories';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
 
@@ -15,10 +16,13 @@ interface PendingImage {
     previewUrl: string;
 }
 
+const DEFAULT_PROJECT_CATEGORY: WorkCategory = CATEGORIES[0]?.id ?? 'branding';
+
 const INITIAL_FORM: ProyectoInsert = {
     titulo: '',
     descripcion: '',
-    categoria: 'branding',
+    categoria: DEFAULT_PROJECT_CATEGORY,
+    categorias: [DEFAULT_PROJECT_CATEGORY],
     imagen_url: '',
     galeria_urls: [],
     destacado: false,
@@ -29,6 +33,11 @@ const MAX_PARALLEL_UPLOADS = 4;
 
 function dedupeUrls(values: Array<string | null | undefined>): string[] {
     return [...new Set(values.map((value) => value?.trim() ?? '').filter((value) => value.length > 0))];
+}
+
+function ensureProjectCategories(values: Array<string | null | undefined>): WorkCategory[] {
+    const normalized = normalizeWorkCategories(values);
+    return normalized.length > 0 ? normalized : [DEFAULT_PROJECT_CATEGORY];
 }
 
 function getErrorMessage(error: unknown): string {
@@ -112,14 +121,15 @@ export function AdminProjectsView() {
     }, [fetchProyectos]);
 
     useEffect(() => {
+        const previewUrls = previewUrlsRef.current;
         return () => {
-            previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-            previewUrlsRef.current.clear();
+            previewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+            previewUrls.clear();
         };
     }, []);
 
     const resetForm = useCallback(() => {
-        setForm(INITIAL_FORM);
+        setForm({ ...INITIAL_FORM, categorias: [...(INITIAL_FORM.categorias ?? [])] });
         clearPendingImages();
         setEditingId(null);
     }, [clearPendingImages]);
@@ -131,10 +141,12 @@ export function AdminProjectsView() {
 
     const openEditModal = (proyecto: Proyecto) => {
         const gallery = getProjectGalleryImages(proyecto);
+        const selectedCategories = ensureProjectCategories([proyecto.categoria, ...(proyecto.categorias ?? [])]);
         setForm({
             titulo: proyecto.titulo,
             descripcion: proyecto.descripcion || '',
-            categoria: proyecto.categoria,
+            categoria: selectedCategories[0],
+            categorias: selectedCategories,
             imagen_url: gallery[0] ?? proyecto.imagen_url ?? '',
             galeria_urls: gallery,
             destacado: proyecto.destacado,
@@ -154,6 +166,43 @@ export function AdminProjectsView() {
     }, []);
 
     const existingGallery = useMemo(() => dedupeUrls(form.galeria_urls ?? []), [form.galeria_urls]);
+    const selectedFormCategories = useMemo(
+        () => ensureProjectCategories([form.categoria, ...(form.categorias ?? [])]),
+        [form.categoria, form.categorias]
+    );
+
+    const toggleCategorySelection = useCallback((categoryId: WorkCategory) => {
+        setForm((current) => {
+            const currentCategories = ensureProjectCategories([current.categoria, ...(current.categorias ?? [])]);
+            const nextCategories = currentCategories.includes(categoryId)
+                ? (currentCategories.length === 1
+                    ? currentCategories
+                    : currentCategories.filter((currentCategory) => currentCategory !== categoryId))
+                : [...currentCategories, categoryId];
+
+            return {
+                ...current,
+                categoria: nextCategories[0],
+                categorias: nextCategories,
+            };
+        });
+    }, []);
+
+    const setPrimaryCategory = useCallback((categoryId: WorkCategory) => {
+        setForm((current) => {
+            const currentCategories = ensureProjectCategories([current.categoria, ...(current.categorias ?? [])]);
+            if (!currentCategories.includes(categoryId)) {
+                return current;
+            }
+
+            const nextCategories = [categoryId, ...currentCategories.filter((currentCategory) => currentCategory !== categoryId)];
+            return {
+                ...current,
+                categoria: nextCategories[0],
+                categorias: nextCategories,
+            };
+        });
+    }, []);
 
     const removeExistingGalleryImage = (indexToRemove: number) => {
         updateExistingGallery(existingGallery.filter((_, index) => index !== indexToRemove));
@@ -230,6 +279,8 @@ export function AdminProjectsView() {
 
             const data = {
                 ...form,
+                categoria: selectedFormCategories[0],
+                categorias: selectedFormCategories,
                 descripcion: (form.descripcion || '').trim() || null,
                 imagen_url: coverImage,
                 galeria_urls: limitedGallery,
@@ -329,7 +380,7 @@ export function AdminProjectsView() {
                         <p className="text-white/40 text-sm">Gestiona los proyectos visibles en la web pública y sus galerías</p>
                     </div>
                 </div>
-                <Button onClick={openNewModal} className="flex items-center gap-2">
+                    <Button onClick={openNewModal} className="flex items-center gap-2">
                     <Plus size={20} />
                     Nuevo Proyecto
                 </Button>
@@ -345,12 +396,12 @@ export function AdminProjectsView() {
                 </div>
             ) : (
                 <div className="admin-card overflow-x-auto border border-white/[0.06] rounded-xl">
-                    <table className="w-full min-w-[760px] text-left text-sm">
+                    <table className="w-full min-w-[860px] text-left text-sm">
                         <thead className="bg-white/[0.02] border-b border-white/[0.06]">
                             <tr>
                                 <th className="px-6 py-4 font-medium text-white/40">Imagen</th>
                                 <th className="px-6 py-4 font-medium text-white/40">Título</th>
-                                <th className="px-6 py-4 font-medium text-white/40">Categoría</th>
+                                <th className="px-6 py-4 font-medium text-white/40">Categorías</th>
                                 <th className="px-6 py-4 font-medium text-white/40">Fotos</th>
                                 <th className="px-6 py-4 font-medium text-white/40">Destacado</th>
                                 <th className="px-6 py-4 font-medium text-white/40">Acciones</th>
@@ -360,6 +411,7 @@ export function AdminProjectsView() {
                             {proyectos.map((proyecto) => {
                                 const coverImage = getProjectCoverImage(proyecto);
                                 const galleryCount = getProjectGalleryImages(proyecto).length;
+                                const projectCategories = getProjectCategories(proyecto);
 
                                 return (
                                     <tr key={proyecto.id} className="hover:bg-white/[0.02] transition-colors">
@@ -381,9 +433,19 @@ export function AdminProjectsView() {
                                         </td>
                                         <td className="px-6 py-4 text-white font-medium">{proyecto.titulo}</td>
                                         <td className="px-6 py-4">
-                                            <span className="px-3 py-1 rounded-full bg-white/10 text-xs text-gray-300">
-                                                {CATEGORIES.find((c) => c.id === proyecto.categoria)?.label || proyecto.categoria}
-                                            </span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {projectCategories.map((categoryId, index) => (
+                                                    <span
+                                                        key={`${proyecto.id}-${categoryId}`}
+                                                        className={`px-3 py-1 rounded-full text-xs ${index === 0
+                                                            ? 'bg-quepia-cyan/15 text-quepia-cyan'
+                                                            : 'bg-white/10 text-gray-300'
+                                                            }`}
+                                                    >
+                                                        {getCategoryLabel(categoryId)}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-white/70">{galleryCount || 0}</td>
                                         <td className="px-6 py-4">
@@ -454,23 +516,56 @@ export function AdminProjectsView() {
                                 />
                             </div>
 
-                            {/* Categoría */}
+                            {/* Categorías */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Categoría *
+                                    Categorías *
                                 </label>
-                                <select
-                                    required
-                                    value={form.categoria}
-                                    onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-quepia-cyan transition-colors"
-                                >
-                                    {CATEGORIES.map((cat) => (
-                                        <option key={cat.id} value={cat.id} className="bg-[#1a1a1a]">
-                                            {cat.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        {CATEGORIES.map((cat) => {
+                                            const isSelected = selectedFormCategories.includes(cat.id);
+
+                                            return (
+                                                <label
+                                                    key={cat.id}
+                                                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors ${isSelected
+                                                        ? 'border-quepia-cyan/40 bg-quepia-cyan/10 text-white'
+                                                        : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleCategorySelection(cat.id)}
+                                                        className="h-4 w-4 rounded border-white/20 bg-black text-quepia-cyan focus:ring-quepia-cyan"
+                                                    />
+                                                    <span className="text-sm">{cat.label}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedFormCategories.map((categoryId, index) => (
+                                            <button
+                                                key={`selected-${categoryId}`}
+                                                type="button"
+                                                onClick={() => setPrimaryCategory(categoryId)}
+                                                className={`rounded-full border px-3 py-1 text-xs transition-colors ${index === 0
+                                                    ? 'border-quepia-cyan/40 bg-quepia-cyan/15 text-quepia-cyan'
+                                                    : 'border-white/10 bg-black/25 text-white/70 hover:border-white/20 hover:text-white'
+                                                    }`}
+                                            >
+                                                {getCategoryLabel(categoryId)}{index === 0 ? ' · Principal' : ''}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <p className="text-xs text-white/45">
+                                        Podés asignar varias. La categoría principal se usa para destacados, enlaces y acentos visuales.
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Descripción */}
@@ -543,6 +638,7 @@ export function AdminProjectsView() {
                                                 {pendingImages.map((item) => (
                                                     <div key={item.id} className="relative rounded-lg overflow-hidden border border-white/10 bg-black/30">
                                                         <div className="relative aspect-[4/3]">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
                                                                 src={item.previewUrl}
                                                                 alt={item.file.name}

@@ -323,7 +323,7 @@ export function AdminProjectsView() {
                                 <select
                                     required
                                     value={form.categoria}
-                                    onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                                    onChange={(e) => setForm({ ...form, categoria: e.target.value as ProyectoInsert['categoria'] })}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-quepia-cyan transition-colors"
                                 >
                                     {CATEGORIES.map((cat) => (
