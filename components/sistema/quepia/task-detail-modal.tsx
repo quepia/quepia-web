@@ -186,7 +186,16 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const getCommentSourceLabel = (source?: CommentSource | null) => {
         if (source === "asset_feedback") return "Feedback de asset"
         if (source === "asset_status") return "Estado de asset"
+        if (source === "telegram_feedback") return "Telegram"
         return null
+    }
+
+    const getCommentAssetLabel = (commentItem: CommentWithUser) => {
+        if (!commentItem.asset?.nombre) return null
+        const versionSuffix = commentItem.asset_version?.version_number
+            ? ` · v${commentItem.asset_version.version_number}`
+            : ""
+        return `${commentItem.asset.nombre}${versionSuffix}`
     }
 
     const formatLocalDate = (date: Date) => {
@@ -988,6 +997,11 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                                             {getCommentSourceLabel(c.source) && (
                                                                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-white/45">
                                                                     {getCommentSourceLabel(c.source)}
+                                                                </span>
+                                                            )}
+                                                            {getCommentAssetLabel(c) && (
+                                                                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-100/85">
+                                                                    {getCommentAssetLabel(c)}
                                                                 </span>
                                                             )}
                                                             <span className="text-xs text-white/25">

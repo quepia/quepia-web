@@ -256,7 +256,7 @@ export interface Comment {
   updated_at: string;
 }
 
-export type CommentSource = 'task_comment' | 'asset_feedback' | 'asset_status';
+export type CommentSource = 'task_comment' | 'asset_feedback' | 'asset_status' | 'telegram_feedback';
 
 export interface CommentInsert {
   task_id: string;
@@ -275,6 +275,8 @@ export interface CommentUpdate {
 
 export interface CommentWithUser extends Comment {
   user?: SistemaUser | null;
+  asset?: { id: string; nombre: string } | null;
+  asset_version?: { id: string; version_number: number } | null;
 }
 
 // ============ FAVORITES ============

@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { notifyUser } from '@/lib/sistema/notifications'
 import { sendEmail } from '@/lib/sistema/email-service'
 import { createClientDirectLink, getClientBaseUrl } from '@/lib/sistema/auth/client-session'
-import { sendTelegramAssetDelivery } from '@/lib/sistema/telegram-service'
+import { sendTelegramAssetDelivery, type TelegramSentMessageRecord } from '@/lib/sistema/telegram-service'
 
 type NotificationType = 'mention' | 'assignment' | 'approval_request' | 'status_change' | 'comment' | 'system'
 
@@ -30,7 +30,16 @@ interface ExternalTaskCommentParams {
     assetVersionId?: string | null
     authorName: string
     content: string
-    source: 'asset_feedback' | 'asset_status'
+    source: 'asset_feedback' | 'asset_status' | 'telegram_feedback'
+    isClient?: boolean
+}
+
+interface PersistTelegramMessageLinksParams {
+    projectId: string
+    taskId: string
+    actorUserId: string
+    headline?: string
+    messages: TelegramSentMessageRecord[]
 }
 
 async function resolveClientAccessByToken(supabase: ReturnType<typeof createAdminClient>, token: string): Promise<ResolvedClientAccess | null> {
@@ -67,25 +76,97 @@ async function resolveClientAccessByToken(supabase: ReturnType<typeof createAdmi
     return v2Access || null
 }
 
-async function mirrorExternalCommentIntoTask(supabase: ReturnType<typeof createAdminClient>, params: ExternalTaskCommentParams) {
-    if (!params.taskId) return
+async function mirrorExternalCommentIntoTask(
+    supabase: ReturnType<typeof createAdminClient>,
+    params: ExternalTaskCommentParams
+): Promise<string | null> {
+    if (!params.taskId) return null
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('sistema_comments')
         .insert({
             task_id: params.taskId,
             user_id: null,
             author_name: params.authorName,
-            is_client: true,
+            is_client: params.isClient ?? true,
             source: params.source,
             asset_id: params.assetId || null,
             asset_version_id: params.assetVersionId || null,
             contenido: params.content,
         })
+        .select('id')
+        .single()
 
     if (error) {
         console.error('Error mirroring external comment into task:', error)
+        return null
     }
+
+    return data?.id || null
+}
+
+async function getProjectNotificationRecipients(
+    supabase: ReturnType<typeof createAdminClient>,
+    projectId: string
+) {
+    const { data: members } = await supabase
+        .from('sistema_project_members')
+        .select('user_id')
+        .eq('project_id', projectId)
+
+    const { data: admins } = await supabase
+        .from('sistema_users')
+        .select('id')
+        .eq('role', 'admin')
+
+    return Array.from(
+        new Set([
+            ...(members?.map((member) => member.user_id) || []),
+            ...(admins?.map((admin) => admin.id) || []),
+        ].filter((value): value is string => Boolean(value)))
+    )
+}
+
+async function persistTelegramMessageLinks(
+    supabase: ReturnType<typeof createAdminClient>,
+    params: PersistTelegramMessageLinksParams
+) {
+    const uniqueMessages = Array.from(
+        new Map(
+            (params.messages || []).map((message) => [
+                `${message.chatId}:${message.messageId}`,
+                message,
+            ])
+        ).values()
+    )
+
+    if (uniqueMessages.length === 0) {
+        return { success: true as const }
+    }
+
+    const { error } = await supabase
+        .from('sistema_telegram_message_links')
+        .upsert(
+            uniqueMessages.map((message) => ({
+                chat_id: message.chatId,
+                message_id: message.messageId,
+                telegram_method: message.method,
+                project_id: params.projectId,
+                task_id: params.taskId,
+                asset_id: message.assetId,
+                asset_version_id: message.assetVersionId,
+                actor_user_id: params.actorUserId,
+                headline: params.headline || null,
+            })),
+            { onConflict: 'chat_id,message_id' }
+        )
+
+    if (error) {
+        console.error('Error persisting Telegram message links:', error)
+        return { success: false as const, error: error.message }
+    }
+
+    return { success: true as const }
 }
 
 export async function sendNotification(params: SendNotificationParams) {
@@ -189,22 +270,7 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
             source: 'asset_feedback',
         })
 
-        // 3. Get Project Members
-        const { data: members } = await supabase
-            .from('sistema_project_members')
-            .select('user_id')
-            .eq('project_id', clientAccess.project_id)
-
-        const recipientIds = members?.map(m => m.user_id) || []
-
-        // Also notify any admin
-        const { data: admins } = await supabase
-            .from('sistema_users')
-            .select('id')
-            .eq('role', 'admin') // Assuming role column
-
-        const adminIds = admins?.map(a => a.id) || []
-        const uniqueRecipients = Array.from(new Set([...recipientIds, ...adminIds]))
+        const uniqueRecipients = await getProjectNotificationRecipients(supabase, clientAccess.project_id)
 
         // Send notifications
         await Promise.all(uniqueRecipients.map(userId =>
@@ -226,6 +292,97 @@ export async function notifyClientFeedback(token: string, assetVersionId: string
         return { success: true }
     } catch (error) {
         console.error('Error notifying client feedback:', error)
+        return { success: false, error: 'Internal server error' }
+    }
+}
+
+export async function notifyTelegramReplyFeedback(params: {
+    chatId: string
+    replyToMessageId: string
+    authorName: string
+    content: string
+}) {
+    try {
+        const trimmedContent = params.content.trim()
+        if (!trimmedContent) {
+            return { success: false, ignored: true, error: 'Empty Telegram reply content.' }
+        }
+
+        const supabase = createAdminClient()
+
+        const { data: telegramMessage, error: telegramMessageError } = await supabase
+            .from('sistema_telegram_message_links')
+            .select('id, project_id, task_id, asset_id, asset_version_id')
+            .eq('chat_id', params.chatId)
+            .eq('message_id', params.replyToMessageId)
+            .single()
+
+        if (telegramMessageError || !telegramMessage) {
+            return { success: false, ignored: true, error: 'Telegram reply is not linked to a known asset.' }
+        }
+
+        const { data: version, error: versionError } = await supabase
+            .from('sistema_asset_versions')
+            .select(`
+                id,
+                version_number,
+                asset:sistema_assets(id, nombre, task_id)
+            `)
+            .eq('id', telegramMessage.asset_version_id)
+            .single()
+
+        if (versionError || !version) {
+            return { success: false, error: 'Asset version not found for Telegram reply.' }
+        }
+
+        const linkedAsset = Array.isArray(version.asset)
+            ? version.asset[0]
+            : version.asset
+
+        const commentId = await mirrorExternalCommentIntoTask(supabase, {
+            taskId: telegramMessage.task_id || linkedAsset?.task_id,
+            assetId: telegramMessage.asset_id || linkedAsset?.id,
+            assetVersionId: telegramMessage.asset_version_id,
+            authorName: params.authorName,
+            content: trimmedContent,
+            source: 'telegram_feedback',
+            isClient: false,
+        })
+
+        if (!commentId) {
+            return { success: false, error: 'Could not persist Telegram feedback comment.' }
+        }
+
+        const uniqueRecipients = await getProjectNotificationRecipients(supabase, telegramMessage.project_id)
+        const assetLabel = `${linkedAsset?.nombre || 'Asset'} · v${version.version_number}`
+        const taskLink = telegramMessage.task_id ? `/sistema?taskId=${telegramMessage.task_id}` : '/sistema'
+
+        await Promise.all(uniqueRecipients.map((userId) =>
+            notifyUser({
+                userId,
+                type: 'comment',
+                title: `Feedback por Telegram: ${assetLabel}`,
+                content: `${params.authorName} respondio por Telegram: ${trimmedContent}`,
+                link: taskLink,
+                data: {
+                    projectId: telegramMessage.project_id,
+                    assetId: telegramMessage.asset_id,
+                    assetVersionId: telegramMessage.asset_version_id,
+                    taskId: telegramMessage.task_id,
+                    source: 'telegram_feedback',
+                    channel: 'telegram',
+                }
+            })
+        ))
+
+        return {
+            success: true,
+            commentId,
+            linkedMessageId: telegramMessage.id,
+            taskId: telegramMessage.task_id,
+        }
+    } catch (error) {
+        console.error('Error notifying Telegram reply feedback:', error)
         return { success: false, error: 'Internal server error' }
     }
 }
@@ -410,6 +567,7 @@ export async function notifyClientAssetDeliveryBatch(
 
                 return {
                     assetId: asset.id,
+                    assetVersionId: latestVersion.id,
                     assetName: asset.nombre,
                     assetType: asset.asset_type,
                     versionId: latestVersion.id,
@@ -533,6 +691,7 @@ export async function notifyClientAssetDeliveryBatch(
                 actorName,
                 assets: pendingAssetsForDelivery.map((asset) => ({
                     assetId: asset.assetId,
+                    assetVersionId: asset.assetVersionId,
                     assetName: asset.assetName,
                     assetType: asset.assetType,
                     versionNumber: asset.versionNumber,
@@ -547,6 +706,18 @@ export async function notifyClientAssetDeliveryBatch(
             telegramLinkFallbacks += telegramResult.linkFallbacks
             telegramFailed += telegramResult.failed
             errors.push(...telegramResult.errors)
+
+            const persistLinksResult = await persistTelegramMessageLinks(supabase, {
+                projectId,
+                taskId,
+                actorUserId,
+                messages: telegramResult.messages,
+            })
+
+            if (!persistLinksResult.success) {
+                telegramFailed += 1
+                errors.push(`No se pudo registrar el contexto de reply de Telegram: ${persistLinksResult.error}`)
+            }
 
             const now = new Date().toISOString()
             const versionIdsToMark = pendingAssetsForDelivery.map((asset) => asset.versionId)
@@ -665,6 +836,7 @@ export async function sendTaskAssetsToTelegram(
 
                 return {
                     assetId: asset.id,
+                    assetVersionId: latestVersion.id,
                     assetName: asset.nombre,
                     assetType: asset.asset_type,
                     versionNumber: latestVersion.version_number,
@@ -701,6 +873,19 @@ export async function sendTaskAssetsToTelegram(
         linkFallbacks += telegramResult.linkFallbacks
         failed += telegramResult.failed
         errors.push(...telegramResult.errors)
+
+        const persistLinksResult = await persistTelegramMessageLinks(supabase, {
+            projectId,
+            taskId,
+            actorUserId,
+            headline: 'Quepia · Assets enviados a Telegram',
+            messages: telegramResult.messages,
+        })
+
+        if (!persistLinksResult.success) {
+            failed += 1
+            errors.push(`No se pudo registrar el contexto de reply de Telegram: ${persistLinksResult.error}`)
+        }
 
         return {
             success: failed === 0,

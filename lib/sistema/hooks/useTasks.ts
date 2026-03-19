@@ -1097,7 +1097,9 @@ export function useComments(taskId?: string) {
         .from('sistema_comments')
         .select(`
           *,
-          user:sistema_users(id, nombre, avatar_url)
+          user:sistema_users(id, nombre, avatar_url),
+          asset:sistema_assets(id, nombre),
+          asset_version:sistema_asset_versions(id, version_number)
         `)
         .eq('task_id', taskId)
         .order('created_at', { ascending: false });
@@ -1126,7 +1128,9 @@ export function useComments(taskId?: string) {
         .insert(comment)
         .select(`
           *,
-          user:sistema_users(id, nombre, avatar_url)
+          user:sistema_users(id, nombre, avatar_url),
+          asset:sistema_assets(id, nombre),
+          asset_version:sistema_asset_versions(id, version_number)
         `)
         .single();
 
