@@ -77,7 +77,7 @@ function buildDeliveryFailureMessage(result: DeliveryBatchResult) {
   }
 
   if (result.telegram_failed > 0) {
-    parts.push(`${result.telegram_failed} asset(s) no pudieron enviarse a Telegram`)
+    parts.push(`${result.telegram_failed} aviso(s) por Telegram fallaron`)
   }
 
   return parts.length > 0 ? `${parts.join(" y ")}.` : "La notificación no se pudo completar."
@@ -88,10 +88,6 @@ function buildDeliveryWarningMessage(result: DeliveryBatchResult) {
 
   if (result.skipped > 0) {
     parts.push(`${result.skipped} acceso(s) quedaron sin aviso porque no tienen un email válido o ya expiraron`)
-  }
-
-  if (result.telegram_link_fallbacks > 0) {
-    parts.push(`${result.telegram_link_fallbacks} asset(s) se enviaron a Telegram como link directo`)
   }
 
   return parts.length > 0 ? `${parts.join(". ")}.` : "La notificación se envió con advertencias."
@@ -105,11 +101,7 @@ function buildDeliverySuccessDescription(result: DeliveryBatchResult) {
   }
 
   if (result.telegram_sent > 0) {
-    parts.push(`${result.telegram_sent} archivo(s) completos en Telegram`)
-  }
-
-  if (result.telegram_link_fallbacks > 0) {
-    parts.push(`${result.telegram_link_fallbacks} link(s) en Telegram`)
+    parts.push(`${result.telegram_sent} aviso(s) por Telegram`)
   }
 
   return parts.length > 0

@@ -36,6 +36,12 @@ interface SendTelegramAssetDeliveryResult {
   messages: TelegramSentMessageRecord[]
 }
 
+interface SendTelegramNoticeResult {
+  sent: number
+  failed: number
+  errors: string[]
+}
+
 interface TelegramApiResponse<T> {
   ok: boolean
   result?: T
@@ -172,6 +178,36 @@ async function sendTelegramDocument(chatId: string, documentUrl: string, caption
   body.append('caption', caption)
 
   return callTelegramApi<TelegramApiMessage>('sendDocument', { body })
+}
+
+export async function sendTelegramTextNotice(params: {
+  headline: string
+  lines: string[]
+}): Promise<SendTelegramNoticeResult> {
+  const { botToken, chatId, isConfigured } = getTelegramConfig()
+
+  if (!isConfigured || !botToken || !chatId) {
+    return {
+      sent: 0,
+      failed: 1,
+      errors: ['Telegram no está configurado. Falta TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.'],
+    }
+  }
+
+  const text = trimCaption([params.headline, ...params.lines.filter(Boolean)].join('\n'))
+
+  try {
+    await sendTelegramMessage(chatId, text)
+    return { sent: 1, failed: 0, errors: [] }
+  } catch (error) {
+    return {
+      sent: 0,
+      failed: 1,
+      errors: [
+        `Telegram: no se pudo enviar el aviso de texto (${error instanceof Error ? error.message : 'error desconocido'}).`,
+      ],
+    }
+  }
 }
 
 async function resolveAssetUrl(asset: TelegramAssetPayload) {

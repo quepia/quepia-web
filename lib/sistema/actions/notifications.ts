@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { notifyUser } from '@/lib/sistema/notifications'
 import { sendEmail } from '@/lib/sistema/email-service'
 import { createClientDirectLink, getClientBaseUrl } from '@/lib/sistema/auth/client-session'
-import { sendTelegramAssetDelivery, type TelegramSentMessageRecord } from '@/lib/sistema/telegram-service'
+import { sendTelegramAssetDelivery, sendTelegramTextNotice, type TelegramSentMessageRecord } from '@/lib/sistema/telegram-service'
 
 type NotificationType = 'mention' | 'assignment' | 'approval_request' | 'status_change' | 'comment' | 'system'
 
@@ -501,7 +501,7 @@ export async function notifyClientAssetDeliveryBatch(
     let skipped = 0
     let pendingAssets = 0
     let telegramSent = 0
-    let telegramLinkFallbacks = 0
+    const telegramLinkFallbacks = 0
     let telegramFailed = 0
 
     try {
@@ -685,39 +685,21 @@ export async function notifyClientAssetDeliveryBatch(
         }
 
         if (sent > 0) {
-            const telegramResult = await sendTelegramAssetDelivery({
-                projectName,
-                taskTitle,
-                actorName,
-                assets: pendingAssetsForDelivery.map((asset) => ({
-                    assetId: asset.assetId,
-                    assetVersionId: asset.assetVersionId,
-                    assetName: asset.assetName,
-                    assetType: asset.assetType,
-                    versionNumber: asset.versionNumber,
-                    fileUrl: asset.fileUrl,
-                    storagePath: asset.storagePath,
-                    fileSize: asset.fileSize,
-                    originalFilename: asset.originalFilename,
-                })),
+            const telegramResult = await sendTelegramTextNotice({
+                headline: 'Quepia · Cliente notificado',
+                lines: [
+                    `Proyecto: ${projectName}`,
+                    `Tarea: ${taskTitle}`,
+                    `Entregables notificados: ${pendingAssets}`,
+                    `Avisos por email enviados: ${sent}`,
+                    `Notificado por: ${actorName}`,
+                    `Modo: ${modeLabel}`,
+                ],
             })
 
             telegramSent += telegramResult.sent
-            telegramLinkFallbacks += telegramResult.linkFallbacks
             telegramFailed += telegramResult.failed
             errors.push(...telegramResult.errors)
-
-            const persistLinksResult = await persistTelegramMessageLinks(supabase, {
-                projectId,
-                taskId,
-                actorUserId,
-                messages: telegramResult.messages,
-            })
-
-            if (!persistLinksResult.success) {
-                telegramFailed += 1
-                errors.push(`No se pudo registrar el contexto de reply de Telegram: ${persistLinksResult.error}`)
-            }
 
             const now = new Date().toISOString()
             const versionIdsToMark = pendingAssetsForDelivery.map((asset) => asset.versionId)
