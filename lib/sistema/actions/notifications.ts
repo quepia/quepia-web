@@ -501,7 +501,7 @@ export async function notifyClientAssetDeliveryBatch(
     let skipped = 0
     let pendingAssets = 0
     let telegramSent = 0
-    const telegramLinkFallbacks = 0
+    let telegramLinkFallbacks = 0
     let telegramFailed = 0
 
     try {

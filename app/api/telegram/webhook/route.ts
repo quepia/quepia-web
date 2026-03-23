@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { notifyTelegramReplyFeedback } from '@/lib/sistema/actions/notifications'
+import { replyToTelegramChat } from '@/lib/sistema/telegram-service'
+import { dispatchTelegramCommand } from '@/lib/sistema/telegram-commands'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -191,6 +193,38 @@ export async function POST(request: Request) {
     })
     return NextResponse.json({ ok: true, ignored: 'bot_sender' })
   }
+
+  // ─── Slash command routing ─────────────────────────────────────────────────
+
+  if (content.startsWith('/')) {
+    if (allowedSenderIds && (!senderId || !allowedSenderIds.has(senderId))) {
+      await replyToTelegramChat(chatId, '🚫 No tenés permiso para usar comandos.')
+      await updateInboundStatus(inboundId, {
+        status: 'ignored',
+        error_message: 'Sender not allowed for commands.',
+        processed_at: now,
+      })
+      return NextResponse.json({ ok: true, ignored: 'sender_not_allowed' })
+    }
+
+    try {
+      const response = await dispatchTelegramCommand(content)
+      await replyToTelegramChat(chatId, response)
+      await updateInboundStatus(inboundId, { status: 'processed', processed_at: now })
+      return NextResponse.json({ ok: true, status: 'command_processed' })
+    } catch (err) {
+      console.error('Telegram command error:', err)
+      await replyToTelegramChat(chatId, '❌ Error interno al procesar el comando.')
+      await updateInboundStatus(inboundId, {
+        status: 'failed',
+        error_message: err instanceof Error ? err.message : 'Unknown command error',
+        processed_at: now,
+      })
+      return NextResponse.json({ ok: true, status: 'command_failed' })
+    }
+  }
+
+  // ─── Existing asset feedback reply flow ────────────────────────────────────
 
   if (allowedSenderIds && (!senderId || !allowedSenderIds.has(senderId))) {
     await updateInboundStatus(inboundId, {

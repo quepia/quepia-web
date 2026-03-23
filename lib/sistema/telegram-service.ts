@@ -180,6 +180,25 @@ async function sendTelegramDocument(chatId: string, documentUrl: string, caption
   return callTelegramApi<TelegramApiMessage>('sendDocument', { body })
 }
 
+export async function replyToTelegramChat(chatId: string, text: string) {
+  const { botToken, isConfigured } = getTelegramConfig()
+  if (!isConfigured || !botToken) return
+
+  const body = new URLSearchParams()
+  body.set('chat_id', chatId)
+  body.set('text', text)
+  body.set('disable_web_page_preview', 'true')
+
+  try {
+    await callTelegramApi<TelegramApiMessage>('sendMessage', {
+      body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    })
+  } catch (error) {
+    console.error('replyToTelegramChat error:', error)
+  }
+}
+
 export async function sendTelegramTextNotice(params: {
   headline: string
   lines: string[]
@@ -265,7 +284,7 @@ export async function sendTelegramAssetDelivery(
           ? 'el asset usa una URL externa'
           : 'el archivo supera 50 MB'
 
-        await sendTelegramMessage(
+        const fallbackMsg = await sendTelegramMessage(
           chatId,
           buildFallbackMessage({
             projectName: params.projectName,
@@ -278,14 +297,14 @@ export async function sendTelegramAssetDelivery(
             actorLabel: params.actorLabel,
             fallbackLabel: params.fallbackLabel,
           })
-        ).then((message) => {
-          messages.push({
-            chatId: String(message.chat?.id ?? chatId),
-            messageId: String(message.message_id),
-            assetId: asset.assetId,
-            assetVersionId: asset.assetVersionId,
-            method: 'message',
-          })
+        )
+
+        messages.push({
+          chatId: String(fallbackMsg.chat?.id ?? chatId),
+          messageId: String(fallbackMsg.message_id),
+          assetId: asset.assetId,
+          assetVersionId: asset.assetVersionId,
+          method: 'message',
         })
 
         linkFallbacks += 1
@@ -294,7 +313,7 @@ export async function sendTelegramAssetDelivery(
       }
 
       try {
-        await sendTelegramDocument(
+        const docMsg = await sendTelegramDocument(
           chatId,
           assetUrl,
           buildDocumentCaption({
@@ -305,19 +324,19 @@ export async function sendTelegramAssetDelivery(
             headline: params.headline,
             actorLabel: params.actorLabel,
           })
-        ).then((message) => {
-          messages.push({
-            chatId: String(message.chat?.id ?? chatId),
-            messageId: String(message.message_id),
-            assetId: asset.assetId,
-            assetVersionId: asset.assetVersionId,
-            method: 'document',
-          })
+        )
+
+        messages.push({
+          chatId: String(docMsg.chat?.id ?? chatId),
+          messageId: String(docMsg.message_id),
+          assetId: asset.assetId,
+          assetVersionId: asset.assetVersionId,
+          method: 'document',
         })
 
         sent += 1
       } catch (error) {
-        await sendTelegramMessage(
+        const retryMsg = await sendTelegramMessage(
           chatId,
           buildFallbackMessage({
             projectName: params.projectName,
@@ -330,14 +349,14 @@ export async function sendTelegramAssetDelivery(
             actorLabel: params.actorLabel,
             fallbackLabel: params.fallbackLabel,
           })
-        ).then((message) => {
-          messages.push({
-            chatId: String(message.chat?.id ?? chatId),
-            messageId: String(message.message_id),
-            assetId: asset.assetId,
-            assetVersionId: asset.assetVersionId,
-            method: 'message',
-          })
+        )
+
+        messages.push({
+          chatId: String(retryMsg.chat?.id ?? chatId),
+          messageId: String(retryMsg.message_id),
+          assetId: asset.assetId,
+          assetVersionId: asset.assetVersionId,
+          method: 'message',
         })
 
         linkFallbacks += 1
