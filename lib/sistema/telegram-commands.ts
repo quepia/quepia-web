@@ -52,49 +52,103 @@ function yesNo(v: boolean | null) {
   return v ? 'Sí' : 'No'
 }
 
+// ─── Wizard state management ──────────────────────────────────────────────────
+
+type WizardContext = {
+  task_id?: string
+  task_titulo?: string
+  project_id?: string
+  project_nombre?: string
+  options?: Array<{ id: string; nombre: string }>
+}
+
+async function getWizardState(
+  chatId: string,
+  senderId: string
+): Promise<{ step: string; context: WizardContext } | null> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('sistema_telegram_conversation_state')
+    .select('step, context')
+    .eq('chat_id', chatId)
+    .eq('sender_id', senderId)
+    .gt('expires_at', new Date().toISOString())
+    .single()
+  return data as { step: string; context: WizardContext } | null
+}
+
+async function setWizardState(
+  chatId: string,
+  senderId: string,
+  step: string,
+  context: WizardContext
+) {
+  const supabase = createAdminClient()
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+  await supabase
+    .from('sistema_telegram_conversation_state')
+    .upsert(
+      { chat_id: chatId, sender_id: senderId, step, context, expires_at: expiresAt },
+      { onConflict: 'chat_id,sender_id' }
+    )
+}
+
+async function clearWizardState(chatId: string, senderId: string) {
+  const supabase = createAdminClient()
+  await supabase
+    .from('sistema_telegram_conversation_state')
+    .delete()
+    .eq('chat_id', chatId)
+    .eq('sender_id', senderId)
+}
+
 // ─── /ayuda ───────────────────────────────────────────────────────────────────
 
 export async function handleAyuda(): Promise<string> {
-  return `📋 Comandos disponibles
+  return `Comandos disponibles
 
-🗂 PROYECTOS & TAREAS
+PROYECTOS Y TAREAS
 /proyectos — Lista proyectos activos
 /tareas <proyecto> — Tareas del proyecto (búsqueda parcial)
 /tarea <id> — Detalle de tarea
-/nueva-tarea <proyecto> | <titulo> — Crear tarea
+/nueva-tarea <proyecto>, <titulo> — Crear tarea (guía paso a paso)
 /comentar <id> | <texto> — Comentar en tarea
 /estado <id> | <columna> — Mover tarea a columna
 /completar <id> — Marcar tarea completada
 /prioridad <id> | <P1|P2|P3|P4> — Cambiar prioridad
 /buscar <texto> — Buscar tareas
 
-📦 ASSETS
+ASSETS
 /assets <task-id> — Assets de una tarea
 /aprobar-asset <asset-id> — Aprobar asset
 /cambios-asset <asset-id> — Pedir cambios
 /assets-pendientes — Assets en revisión
 
-📋 PROPUESTAS
+PROPUESTAS
 /propuestas — Propuestas recientes
 /propuesta <id> — Detalle de propuesta
 /enviar-propuesta <id> — Enviar por email al cliente
 /estado-propuesta <id> | <estado> — Cambiar estado
 
-🧲 CRM
+CRM
 /leads — Leads del pipeline
 /lead <id> — Detalle de lead
 /lead-a-proyecto <id> — Convertir lead en proyecto
 
-💰 CONTABILIDAD
+CONTABILIDAD
 /resumen-financiero — Resumen mes actual
 /pagos-pendientes — Pagos pendientes de clientes
 
-📅 CALENDARIO & EFEMÉRIDES
+CALENDARIO Y EFEMERIDES
 /calendario — Eventos próximas 4 semanas
 /efemerides — Efemérides activas próximas 30 días
 /sincronizar-efemerides — Sincronizar efemérides con calendarios
 
-ℹ️ Los IDs pueden ser el UUID completo o los primeros 8 caracteres.`
+Cuando estés completando una tarea paso a paso:
+/saltar — Saltar el paso actual
+/cancelar — Cancelar la tarea en curso
+
+Los IDs pueden ser el UUID completo o los primeros 8 caracteres.`
 }
 
 // ─── /proyectos ───────────────────────────────────────────────────────────────
@@ -207,25 +261,54 @@ export async function handleTarea(args: string): Promise<string> {
 
 // ─── /nueva-tarea ─────────────────────────────────────────────────────────────
 
-export async function handleNuevaTarea(args: string): Promise<string> {
-  const parts = args.split('|')
-  if (parts.length < 2) return '⚠️ Uso: /nueva-tarea <proyecto> | <titulo>'
+export async function handleNuevaTarea(
+  args: string,
+  chatId: string,
+  senderId: string
+): Promise<string> {
+  if (!args.trim()) return '⚠️ Uso: /nueva-tarea <proyecto>, <titulo>'
 
-  const [proyectoQ, ...rest] = parts
-  const titulo = rest.join('|').trim()
-  if (!proyectoQ.trim() || !titulo) return '⚠️ Faltan datos: /nueva-tarea <proyecto> | <titulo>'
+  // Accept comma or pipe as separator
+  const sepIdx = args.indexOf(',') !== -1 ? args.indexOf(',') : args.indexOf('|')
 
   const supabase = createAdminClient()
+
+  if (sepIdx === -1) {
+    // Only project name provided — find project, then ask for title via wizard
+    const proyectoQ = args.trim()
+    const { data: projects } = await supabase
+      .from('sistema_projects')
+      .select('id, nombre')
+      .neq('icon', 'folder')
+      .ilike('nombre', `%${proyectoQ}%`)
+      .limit(1)
+
+    const project = projects?.[0]
+    if (!project) return `❌ No encontré proyecto con "${proyectoQ}"`
+
+    await setWizardState(chatId, senderId, 'task_title', {
+      project_id: project.id,
+      project_nombre: project.nombre,
+    })
+    return `Proyecto: ${project.nombre}\n\n¿Cuál es el título de la tarea?`
+  }
+
+  // Both project and title provided
+  const proyectoQ = args.slice(0, sepIdx).trim()
+  const titulo = args.slice(sepIdx + 1).trim()
+
+  if (!proyectoQ) return '⚠️ Uso: /nueva-tarea <proyecto>, <titulo>'
+  if (!titulo) return '⚠️ Falta el título. Uso: /nueva-tarea <proyecto>, <titulo>'
 
   const { data: projects } = await supabase
     .from('sistema_projects')
     .select('id, nombre')
     .neq('icon', 'folder')
-    .ilike('nombre', `%${proyectoQ.trim()}%`)
+    .ilike('nombre', `%${proyectoQ}%`)
     .limit(1)
 
   const project = projects?.[0]
-  if (!project) return `❌ No encontré proyecto con "${proyectoQ.trim()}"`
+  if (!project) return `❌ No encontré proyecto con "${proyectoQ}"`
 
   const { data: columns } = await supabase
     .from('sistema_columns')
@@ -239,19 +322,240 @@ export async function handleNuevaTarea(args: string): Promise<string> {
 
   const { data: task, error } = await supabase
     .from('sistema_tasks')
-    .insert({
-      project_id: project.id,
-      column_id: column.id,
-      titulo,
-      priority: 'P4',
-      orden: 0,
-    })
+    .insert({ project_id: project.id, column_id: column.id, titulo, priority: 'P4', orden: 0 })
     .select('id, titulo')
     .single()
 
   if (error) return `❌ Error al crear tarea: ${error.message}`
 
-  return `✅ Tarea creada\n"${task.titulo}"\nProyecto: ${project.nombre}\nColumna: ${column.nombre}\nID: ${shortId(task.id)}`
+  await setWizardState(chatId, senderId, 'task_desc', {
+    task_id: task.id,
+    task_titulo: task.titulo,
+    project_id: project.id,
+    project_nombre: project.nombre,
+  })
+
+  return `Tarea creada: "${task.titulo}" en ${project.nombre}\n\n¿Querés agregar una descripción? Escribila o /saltar.`
+}
+
+// ─── Wizard: saltar / cancelar ────────────────────────────────────────────────
+
+export async function handleSaltar(chatId: string, senderId: string): Promise<string> {
+  const state = await getWizardState(chatId, senderId)
+  if (!state) return '⚠️ No hay ninguna tarea en progreso.'
+  return advanceWizard(chatId, senderId, state.step, state.context, null)
+}
+
+export async function handleCancelar(chatId: string, senderId: string): Promise<string> {
+  const state = await getWizardState(chatId, senderId)
+  if (!state) return '⚠️ No hay ninguna tarea en progreso.'
+  await clearWizardState(chatId, senderId)
+  return `Tarea "${state.context.task_titulo ?? 'en curso'}" cancelada.`
+}
+
+// ─── Wizard: process non-command input ───────────────────────────────────────
+
+export async function processWizardInput(
+  chatId: string,
+  senderId: string,
+  content: string
+): Promise<{ handled: boolean; response: string }> {
+  const state = await getWizardState(chatId, senderId)
+  if (!state) return { handled: false, response: '' }
+  const response = await advanceWizard(chatId, senderId, state.step, state.context, content)
+  return { handled: true, response }
+}
+
+// ─── Wizard engine ────────────────────────────────────────────────────────────
+
+async function advanceWizard(
+  chatId: string,
+  senderId: string,
+  step: string,
+  ctx: WizardContext,
+  input: string | null
+): Promise<string> {
+  const supabase = createAdminClient()
+
+  switch (step) {
+    case 'task_title': {
+      if (!input) {
+        await clearWizardState(chatId, senderId)
+        return 'Creación de tarea cancelada.'
+      }
+      const titulo = input.trim()
+
+      const { data: columns } = await supabase
+        .from('sistema_columns')
+        .select('id, nombre')
+        .eq('project_id', ctx.project_id!)
+        .order('orden', { ascending: true })
+        .limit(1)
+
+      const column = columns?.[0]
+      if (!column) {
+        await clearWizardState(chatId, senderId)
+        return `❌ El proyecto no tiene columnas configuradas.`
+      }
+
+      const { data: task, error } = await supabase
+        .from('sistema_tasks')
+        .insert({
+          project_id: ctx.project_id,
+          column_id: column.id,
+          titulo,
+          priority: 'P4',
+          orden: 0,
+        })
+        .select('id, titulo')
+        .single()
+
+      if (error) {
+        await clearWizardState(chatId, senderId)
+        return `❌ Error al crear la tarea: ${error.message}`
+      }
+
+      const newCtx: WizardContext = {
+        task_id: task.id,
+        task_titulo: task.titulo,
+        project_id: ctx.project_id,
+        project_nombre: ctx.project_nombre,
+      }
+      await setWizardState(chatId, senderId, 'task_desc', newCtx)
+      return `Tarea creada: "${task.titulo}" en ${ctx.project_nombre}\n\n¿Querés agregar una descripción? Escribila o /saltar.`
+    }
+
+    case 'task_desc': {
+      if (input) {
+        await supabase
+          .from('sistema_tasks')
+          .update({ descripcion: input.trim() })
+          .eq('id', ctx.task_id!)
+      }
+
+      const { data: members } = await supabase
+        .from('sistema_users')
+        .select('id, nombre')
+        .order('nombre', { ascending: true })
+        .limit(10)
+
+      const prefix = input ? 'Descripción agregada.\n\n' : ''
+
+      if (!members?.length) {
+        await setWizardState(chatId, senderId, 'task_priority', ctx)
+        return `${prefix}¿Qué prioridad le das?\n1. P1 - Crítica\n2. P2 - Alta\n3. P3 - Media\n4. P4 - Baja (por defecto)\n\nEscribí el número o /saltar.`
+      }
+
+      const memberList = members.map((m, i) => `${i + 1}. ${m.nombre}`).join('\n')
+      await setWizardState(chatId, senderId, 'task_assignee', { ...ctx, options: members })
+      return `${prefix}¿A quién la asignamos?\n${memberList}\n\nEscribí el número o /saltar.`
+    }
+
+    case 'task_assignee': {
+      if (input) {
+        const options = ctx.options ?? []
+        const num = parseInt(input.trim())
+        let userId: string | null = null
+
+        if (!isNaN(num) && num >= 1 && num <= options.length) {
+          userId = options[num - 1].id
+        } else {
+          const match = options.find((o) =>
+            o.nombre.toLowerCase().includes(input.toLowerCase().trim())
+          )
+          userId = match?.id ?? null
+        }
+
+        if (!userId) {
+          const memberList = options.map((m, i) => `${i + 1}. ${m.nombre}`).join('\n')
+          return `No encontré ese usuario. Elegí un número de la lista:\n${memberList}\n\nO escribí /saltar para omitir.`
+        }
+
+        await supabase
+          .from('sistema_tasks')
+          .update({ assignee_id: userId })
+          .eq('id', ctx.task_id!)
+
+        const assigneeName = options.find((o) => o.id === userId)?.nombre
+        const newCtx = { ...ctx }
+        delete newCtx.options
+        await setWizardState(chatId, senderId, 'task_priority', newCtx)
+        return `Asignada a ${assigneeName}.\n\n¿Qué prioridad le das?\n1. P1 - Crítica\n2. P2 - Alta\n3. P3 - Media\n4. P4 - Baja (por defecto)\n\nEscribí el número o /saltar.`
+      }
+
+      const newCtx = { ...ctx }
+      delete newCtx.options
+      await setWizardState(chatId, senderId, 'task_priority', newCtx)
+      return `¿Qué prioridad le das?\n1. P1 - Crítica\n2. P2 - Alta\n3. P3 - Media\n4. P4 - Baja (por defecto)\n\nEscribí el número o /saltar.`
+    }
+
+    case 'task_priority': {
+      if (input) {
+        const prioMap: Record<string, string> = {
+          '1': 'P1', '2': 'P2', '3': 'P3', '4': 'P4',
+          'p1': 'P1', 'p2': 'P2', 'p3': 'P3', 'p4': 'P4',
+        }
+        const prio = prioMap[input.trim().toLowerCase()]
+
+        if (!prio) {
+          return `Opción inválida. Elegí:\n1. P1 - Crítica\n2. P2 - Alta\n3. P3 - Media\n4. P4 - Baja\n\nEscribí el número o /saltar.`
+        }
+
+        await supabase
+          .from('sistema_tasks')
+          .update({ priority: prio })
+          .eq('id', ctx.task_id!)
+
+        await setWizardState(chatId, senderId, 'task_deadline', ctx)
+        return `Prioridad ${prioLabel(prio)} asignada.\n\n¿Tiene fecha límite? Escribila como DD/MM/YYYY o /saltar.`
+      }
+
+      await setWizardState(chatId, senderId, 'task_deadline', ctx)
+      return `¿Tiene fecha límite? Escribila como DD/MM/YYYY o /saltar.`
+    }
+
+    case 'task_deadline': {
+      if (input) {
+        const date = parseDateInput(input.trim())
+        if (!date) {
+          return `Formato de fecha inválido. Usá DD/MM/YYYY (ej: 30/04/2026) o /saltar para omitir.`
+        }
+
+        await supabase
+          .from('sistema_tasks')
+          .update({ due_date: date })
+          .eq('id', ctx.task_id!)
+
+        await clearWizardState(chatId, senderId)
+        return `Fecha límite: ${formatDateDisplay(date)}.\n\nTarea lista. Podés verla con /tarea ${shortId(ctx.task_id!)}`
+      }
+
+      await clearWizardState(chatId, senderId)
+      return `Tarea "${ctx.task_titulo}" lista en "${ctx.project_nombre}".\n\nPodés verla con /tarea ${shortId(ctx.task_id!)}`
+    }
+
+    default: {
+      await clearWizardState(chatId, senderId)
+      return `Estado desconocido. Se canceló la operación en curso.`
+    }
+  }
+}
+
+function parseDateInput(input: string): string | null {
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = input.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  }
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input
+  return null
+}
+
+function formatDateDisplay(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
 }
 
 // ─── /comentar ────────────────────────────────────────────────────────────────
@@ -893,14 +1197,24 @@ export async function handleSincronizarEfemerides(): Promise<string> {
 
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
 
-export async function dispatchTelegramCommand(text: string): Promise<string> {
-  // text is the raw message, e.g. "/tareas Quepia" or "/nueva-tarea Quepia | Mi tarea"
+export async function dispatchTelegramCommand(
+  text: string,
+  chatId: string,
+  senderId: string
+): Promise<string> {
   const spaceIdx = text.indexOf(' ')
   const rawCmd = spaceIdx === -1 ? text : text.slice(0, spaceIdx)
   const args = spaceIdx === -1 ? '' : text.slice(spaceIdx + 1).trim()
 
   // Normalize: strip leading '/', lowercase, allow @botname suffix
   const cmd = rawCmd.replace(/^\//, '').split('@')[0].toLowerCase()
+
+  // Wizard control commands (always handled in context, don't clear state)
+  if (cmd === 'saltar') return handleSaltar(chatId, senderId)
+  if (cmd === 'cancelar') return handleCancelar(chatId, senderId)
+
+  // Any other command cancels an active wizard silently
+  await clearWizardState(chatId, senderId)
 
   switch (cmd) {
     case 'ayuda':
@@ -917,7 +1231,7 @@ export async function dispatchTelegramCommand(text: string): Promise<string> {
       return handleTarea(args)
     case 'nueva-tarea':
     case 'nuevatarea':
-      return handleNuevaTarea(args)
+      return handleNuevaTarea(args, chatId, senderId)
     case 'comentar':
       return handleComentar(args)
     case 'estado':

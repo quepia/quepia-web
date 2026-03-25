@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { notifyTelegramReplyFeedback } from '@/lib/sistema/actions/notifications'
 import { replyToTelegramChat } from '@/lib/sistema/telegram-service'
-import { dispatchTelegramCommand } from '@/lib/sistema/telegram-commands'
+import { dispatchTelegramCommand, processWizardInput } from '@/lib/sistema/telegram-commands'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -208,7 +208,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const response = await dispatchTelegramCommand(content)
+      const response = await dispatchTelegramCommand(content, chatId, senderId)
       await replyToTelegramChat(chatId, response)
       await updateInboundStatus(inboundId, { status: 'processed', processed_at: now })
       return NextResponse.json({ ok: true, status: 'command_processed' })
@@ -233,6 +233,21 @@ export async function POST(request: Request) {
       processed_at: now,
     })
     return NextResponse.json({ ok: true, ignored: 'sender_not_allowed' })
+  }
+
+  // ─── Wizard conversational flow ────────────────────────────────────────────
+
+  if (content && senderId) {
+    try {
+      const wizard = await processWizardInput(chatId, senderId, content)
+      if (wizard.handled) {
+        await replyToTelegramChat(chatId, wizard.response)
+        await updateInboundStatus(inboundId, { status: 'processed', processed_at: now })
+        return NextResponse.json({ ok: true, status: 'wizard_processed' })
+      }
+    } catch (err) {
+      console.error('Telegram wizard error:', err)
+    }
   }
 
   if (!replyToMessageId) {
