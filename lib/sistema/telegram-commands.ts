@@ -266,12 +266,25 @@ export async function handleNuevaTarea(
   chatId: string,
   senderId: string
 ): Promise<string> {
-  if (!args.trim()) return '⚠️ Uso: /nueva-tarea <proyecto>, <titulo>'
+  const supabase = createAdminClient()
+
+  // No args — start wizard from project selection
+  if (!args.trim()) {
+    const { data: projects } = await supabase
+      .from('sistema_projects')
+      .select('id, nombre')
+      .neq('icon', 'folder')
+      .order('nombre', { ascending: true })
+
+    if (!projects?.length) return '❌ No hay proyectos activos.'
+
+    const list = projects.map((p, i) => `${i + 1}. ${p.nombre}`).join('\n')
+    await setWizardState(chatId, senderId, 'task_project', { options: projects })
+    return `¿A qué proyecto le corresponde la tarea?\n${list}\n\nEscribí el número o parte del nombre.`
+  }
 
   // Accept comma or pipe as separator
   const sepIdx = args.indexOf(',') !== -1 ? args.indexOf(',') : args.indexOf('|')
-
-  const supabase = createAdminClient()
 
   if (sepIdx === -1) {
     // Only project name provided — find project, then ask for title via wizard
@@ -297,8 +310,8 @@ export async function handleNuevaTarea(
   const proyectoQ = args.slice(0, sepIdx).trim()
   const titulo = args.slice(sepIdx + 1).trim()
 
-  if (!proyectoQ) return '⚠️ Uso: /nueva-tarea <proyecto>, <titulo>'
-  if (!titulo) return '⚠️ Falta el título. Uso: /nueva-tarea <proyecto>, <titulo>'
+  if (!proyectoQ) return '⚠️ Uso: /nuevatarea <proyecto>, <titulo>'
+  if (!titulo) return '⚠️ Falta el título. Uso: /nuevatarea <proyecto>, <titulo>'
 
   const { data: projects } = await supabase
     .from('sistema_projects')
@@ -350,7 +363,8 @@ export async function handleCancelar(chatId: string, senderId: string): Promise<
   const state = await getWizardState(chatId, senderId)
   if (!state) return '⚠️ No hay ninguna tarea en progreso.'
   await clearWizardState(chatId, senderId)
-  return `Tarea "${state.context.task_titulo ?? 'en curso'}" cancelada.`
+  const label = state.context.task_titulo ?? state.context.project_nombre ?? 'en curso'
+  return `Creación de tarea cancelada (${label}).`
 }
 
 // ─── Wizard: process non-command input ───────────────────────────────────────
@@ -378,6 +392,36 @@ async function advanceWizard(
   const supabase = createAdminClient()
 
   switch (step) {
+    case 'task_project': {
+      if (!input) {
+        await clearWizardState(chatId, senderId)
+        return 'Creación de tarea cancelada.'
+      }
+
+      const options = ctx.options ?? []
+      const num = parseInt(input.trim())
+      let project: { id: string; nombre: string } | null = null
+
+      if (!isNaN(num) && num >= 1 && num <= options.length) {
+        project = options[num - 1]
+      } else {
+        project = options.find((o) =>
+          o.nombre.toLowerCase().includes(input.toLowerCase().trim())
+        ) ?? null
+      }
+
+      if (!project) {
+        const list = options.map((p, i) => `${i + 1}. ${p.nombre}`).join('\n')
+        return `No encontré ese proyecto. Elegí un número de la lista:\n${list}`
+      }
+
+      await setWizardState(chatId, senderId, 'task_title', {
+        project_id: project.id,
+        project_nombre: project.nombre,
+      })
+      return `Proyecto: ${project.nombre}\n\n¿Cuál es el título de la tarea?`
+    }
+
     case 'task_title': {
       if (!input) {
         await clearWizardState(chatId, senderId)
