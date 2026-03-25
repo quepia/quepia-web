@@ -111,7 +111,7 @@ PROYECTOS Y TAREAS
 /proyectos — Lista proyectos activos
 /tareas <proyecto> — Tareas del proyecto (búsqueda parcial)
 /tarea <id> — Detalle de tarea
-/nueva-tarea <proyecto>, <titulo> — Crear tarea (guía paso a paso)
+/nuevatarea <proyecto>, <titulo> — Crear tarea (guía paso a paso)
 /comentar <id> | <texto> — Comentar en tarea
 /estado <id> | <columna> — Mover tarea a columna
 /completar <id> — Marcar tarea completada
@@ -120,29 +120,29 @@ PROYECTOS Y TAREAS
 
 ASSETS
 /assets <task-id> — Assets de una tarea
-/aprobar-asset <asset-id> — Aprobar asset
-/cambios-asset <asset-id> — Pedir cambios
-/assets-pendientes — Assets en revisión
+/aprobarasset <asset-id> — Aprobar asset
+/cambiosasset <asset-id> — Pedir cambios
+/assetspendientes — Assets en revisión
 
 PROPUESTAS
 /propuestas — Propuestas recientes
 /propuesta <id> — Detalle de propuesta
-/enviar-propuesta <id> — Enviar por email al cliente
-/estado-propuesta <id> | <estado> — Cambiar estado
+/enviarpropuesta <id> — Enviar por email al cliente
+/estadopropuesta <id> | <estado> — Cambiar estado
 
 CRM
 /leads — Leads del pipeline
 /lead <id> — Detalle de lead
-/lead-a-proyecto <id> — Convertir lead en proyecto
+/leadaproyecto <id> — Convertir lead en proyecto
 
 CONTABILIDAD
-/resumen-financiero — Resumen mes actual
-/pagos-pendientes — Pagos pendientes de clientes
+/resumenfinanciero — Resumen mes actual
+/pagospendientes — Pagos pendientes de clientes
 
 CALENDARIO Y EFEMERIDES
 /calendario — Eventos próximas 4 semanas
 /efemerides — Efemérides activas próximas 30 días
-/sincronizar-efemerides — Sincronizar efemérides con calendarios
+/sincronizarefemerides — Sincronizar efemérides con calendarios
 
 Cuando estés completando una tarea paso a paso:
 /saltar — Saltar el paso actual
@@ -1229,8 +1229,8 @@ export async function dispatchTelegramCommand(
       return handleTareas(args)
     case 'tarea':
       return handleTarea(args)
-    case 'nueva-tarea':
     case 'nuevatarea':
+    case 'nueva-tarea':
       return handleNuevaTarea(args, chatId, senderId)
     case 'comentar':
       return handleComentar(args)
@@ -1246,14 +1246,14 @@ export async function dispatchTelegramCommand(
     // Assets
     case 'assets':
       return handleAssets(args)
-    case 'aprobar-asset':
     case 'aprobarasset':
+    case 'aprobar-asset':
       return handleAprobarAsset(args)
-    case 'cambios-asset':
     case 'cambiosasset':
+    case 'cambios-asset':
       return handleCambiosAsset(args)
-    case 'assets-pendientes':
     case 'assetspendientes':
+    case 'assets-pendientes':
       return handleAssetsPendientes()
 
     // Propuestas
@@ -1261,11 +1261,11 @@ export async function dispatchTelegramCommand(
       return handlePropuestas()
     case 'propuesta':
       return handlePropuesta(args)
-    case 'enviar-propuesta':
     case 'enviarpropuesta':
+    case 'enviar-propuesta':
       return handleEnviarPropuesta(args)
-    case 'estado-propuesta':
     case 'estadopropuesta':
+    case 'estado-propuesta':
       return handleEstadoPropuesta(args)
 
     // CRM
@@ -1273,17 +1273,17 @@ export async function dispatchTelegramCommand(
       return handleLeads()
     case 'lead':
       return handleLead(args)
-    case 'lead-a-proyecto':
     case 'leadaproyecto':
+    case 'lead-a-proyecto':
       return handleLeadAProyecto(args)
 
     // Contabilidad
-    case 'resumen-financiero':
     case 'resumenfinanciero':
+    case 'resumen-financiero':
     case 'resumen':
       return handleResumenFinanciero()
-    case 'pagos-pendientes':
     case 'pagospendientes':
+    case 'pagos-pendientes':
     case 'pagos':
       return handlePagosPendientes()
 
@@ -1292,8 +1292,8 @@ export async function dispatchTelegramCommand(
       return handleCalendario()
     case 'efemerides':
       return handleEfemerides()
-    case 'sincronizar-efemerides':
     case 'sincronizarefemerides':
+    case 'sincronizar-efemerides':
     case 'sync-efemerides':
       return handleSincronizarEfemerides()
 
