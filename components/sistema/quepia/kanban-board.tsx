@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/sistema/utils"
 import { useTasks, useColumns } from "@/lib/sistema/hooks"
 import type { Task, ColumnWithTasks, SistemaUser, TaskType, Subtask } from "@/types/sistema"
-import { PRIORITY_COLORS, PRIORITY_LABELS, Priority, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
+import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_ORDER, Priority, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
 import { TaskContextMenu } from "@/components/sistema/quepia/task-context-menu"
 import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
 import { ProjectResources } from "@/components/sistema/quepia/project-resources"
@@ -573,10 +573,17 @@ function KanbanColumn({
     const [showMenu, setShowMenu] = useState(false)
     const [editingWip, setEditingWip] = useState(false)
     const [wipValue, setWipValue] = useState(column.wip_limit?.toString() || "")
-    const visibleTasks = useMemo(
-        () => showCompletedTasks ? column.tasks : column.tasks.filter((task) => !task.completed),
-        [column.tasks, showCompletedTasks]
-    )
+    const visibleTasks = useMemo(() => {
+        const filteredTasks = showCompletedTasks
+            ? column.tasks
+            : column.tasks.filter((task) => !task.completed)
+
+        return [...filteredTasks].sort((a, b) => {
+            const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
+            if (priorityDiff !== 0) return priorityDiff
+            return a.orden - b.orden
+        })
+    }, [column.tasks, showCompletedTasks])
     const hiddenCompletedCount = column.tasks.length - visibleTasks.length
 
     const isAtWipLimit = column.wip_limit !== null && column.wip_limit !== undefined && column.tasks.length >= column.wip_limit

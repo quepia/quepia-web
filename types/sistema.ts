@@ -344,6 +344,13 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   P4: 'Baja',
 };
 
+export const PRIORITY_ORDER: Record<Priority, number> = {
+  P1: 0,
+  P2: 1,
+  P3: 2,
+  P4: 3,
+};
+
 export const PROJECT_COLORS = [
   '#dc4a3e', // red
   '#f97316', // orange
