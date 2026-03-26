@@ -19,7 +19,7 @@ import type {
   Priority,
   CommentWithUser,
 } from '@/types/sistema';
-import { sendNotification, notifyTaskComment } from '@/lib/sistema/actions/notifications';
+import { sendNotification, notifyTaskAssignment, notifyTaskComment } from '@/lib/sistema/actions/notifications';
 
 export function useColumns(projectId?: string) {
   const [columns, setColumns] = useState<Column[]>([]);
@@ -400,15 +400,14 @@ export function useTasks(projectId?: string) {
       // Handle notification for assignee (fire and forget)
       if (data && data.assignee_id) {
         supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user && data.assignee_id !== user.id) {
-            sendNotification({
+          if (user) {
+            notifyTaskAssignment({
               userId: data.assignee_id!,
               actorId: user.id,
-              type: 'assignment',
-              title: `Nueva tarea asignada: ${data.titulo}`,
-              content: `Te han asignado una nueva tarea en la columna ${task.column_id ? 'correspondiente' : ''}`,
-              link: `/sistema?taskId=${data.id}`,
-              data: { taskId: data.id, projectId: data.project_id }
+              taskId: data.id,
+              taskTitle: data.titulo,
+              projectId: data.project_id,
+              source: 'app',
             });
           }
         });

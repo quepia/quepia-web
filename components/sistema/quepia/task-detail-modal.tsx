@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useTaskDetails, useSubtasks, useComments, useTaskLinks, useSistemaUsers, useTaskDependencies } from "@/lib/sistema/hooks"
-import { sendNotification } from "@/lib/sistema/actions/notifications"
+import { notifyTaskAssignment, sendNotification } from "@/lib/sistema/actions/notifications"
 import type { CommentSource, CommentWithUser, Priority, SistemaUser, Task, TaskLink, TaskType, TaskWithDetails, Subtask } from "@/types/sistema"
 import { PRIORITY_COLORS, PRIORITY_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
 import { AssetPanel } from "./asset-panel"
@@ -234,14 +234,14 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
             if (userId) { // Ensure we have an actor
                 if (field === "assignee_id" && value && value !== userId) {
                     // Assignment notification
-                    await sendNotification({
+                    await notifyTaskAssignment({
                         userId: value as string,
                         actorId: userId,
-                        type: 'assignment',
-                        title: `Te asignaron a la tarea: ${task?.titulo}`,
-                        content: `Has sido asignado a la tarea "${task?.titulo}" en el proyecto ${task?.project?.nombre}`,
-                        link: `/sistema?taskId=${taskId}`,
-                        data: { taskId, projectId: task?.project_id }
+                        taskId,
+                        taskTitle: task?.titulo || "Tarea",
+                        projectId: task?.project_id,
+                        projectName: task?.project?.nombre,
+                        source: 'app',
                     })
                 } else if (task?.assignee_id && task.assignee_id !== userId) {
                     // Notify assignee of changes if they are not the actor

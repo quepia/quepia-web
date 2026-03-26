@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/sistema/supabase/admin'
+import { notifyTaskAssignment } from '@/lib/sistema/actions/notifications'
 import { sendProposalEmail } from '@/lib/sistema/actions/proposals'
 import { syncEfemeridesCalendarioActual } from '@/lib/sistema/actions/efemerides'
 import { createProjectFromLead } from '@/lib/sistema/actions/crm'
@@ -519,6 +520,15 @@ async function advanceWizard(
           .from('sistema_tasks')
           .update({ assignee_id: userId })
           .eq('id', ctx.task_id!)
+
+        await notifyTaskAssignment({
+          userId,
+          taskId: ctx.task_id!,
+          taskTitle: ctx.task_titulo || 'Tarea',
+          projectId: ctx.project_id,
+          projectName: ctx.project_nombre,
+          source: 'telegram',
+        })
 
         const assigneeName = options.find((o) => o.id === userId)?.nombre
         const newCtx = { ...ctx }

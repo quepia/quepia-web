@@ -19,6 +19,16 @@ interface SendNotificationParams {
     data?: Record<string, unknown>
 }
 
+interface NotifyTaskAssignmentParams {
+    userId: string
+    taskId: string
+    taskTitle: string
+    projectId?: string | null
+    projectName?: string | null
+    actorId?: string
+    source?: 'app' | 'telegram' | 'system'
+}
+
 interface ResolvedClientAccess {
     project_id: string
     nombre?: string | null
@@ -199,6 +209,42 @@ export async function sendNotification(params: SendNotificationParams) {
         return { success: true }
     } catch (error) {
         console.error('Error sending notification:', error)
+        return { success: false, error: 'Internal server error' }
+    }
+}
+
+export async function notifyTaskAssignment(params: NotifyTaskAssignmentParams) {
+    try {
+        if (!params.userId || !params.taskId || !params.taskTitle) {
+            return { success: false, error: 'Missing required task assignment fields' }
+        }
+
+        if (params.actorId && params.actorId === params.userId) {
+            return { success: true, skipped: true }
+        }
+
+        const projectLabel = params.projectName ? ` en el proyecto ${params.projectName}` : ''
+        const sourceLabel = params.source === 'telegram'
+            ? ' La tarea fue asignada desde Telegram.'
+            : ''
+
+        await notifyUser({
+            userId: params.userId,
+            actorId: params.actorId,
+            type: 'assignment',
+            title: `Nueva tarea asignada: ${params.taskTitle}`,
+            content: `Te asignaron la tarea "${params.taskTitle}"${projectLabel}.${sourceLabel}`,
+            link: `/sistema?taskId=${params.taskId}`,
+            data: {
+                taskId: params.taskId,
+                projectId: params.projectId || null,
+                source: params.source || 'app',
+            }
+        })
+
+        return { success: true }
+    } catch (error) {
+        console.error('Error notifying task assignment:', error)
         return { success: false, error: 'Internal server error' }
     }
 }
