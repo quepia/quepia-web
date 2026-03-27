@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Search, Shield, ShieldAlert, Check, Trash2, AlertTriangle } from "lucide-react"
+import { Search, Shield, Trash2, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { SistemaUser } from "@/types/sistema"
 import { Loader2 } from "lucide-react"
@@ -336,10 +336,10 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
                             <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
                                 <AlertTriangle className="h-6 w-6 text-red-500" />
                             </div>
-                            <h2 className="text-xl font-bold text-white mb-2">¿Eliminar Usuario?</h2>
+                            <h2 className="text-xl font-bold text-white mb-2">¿Desactivar Usuario?</h2>
                             <p className="text-white/60 text-sm">
-                                ¿Estás seguro que deseas eliminar a <span className="text-white font-medium">{userToDelete.nombre}</span>?
-                                <br />Esta acción no se puede deshacer.
+                                ¿Estás seguro que deseas desactivar a <span className="text-white font-medium">{userToDelete.nombre}</span>?
+                                <br />Perderá acceso, pero sus proyectos y registros permanecerán en el sistema.
                             </p>
                         </div>
 
@@ -359,7 +359,7 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
                                 {isDeleting ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                    "Eliminar"
+                                    "Desactivar"
                                 )}
                             </button>
                         </div>

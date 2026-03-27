@@ -33,6 +33,9 @@ export interface SistemaUser {
   nombre: string;
   avatar_url: string | null;
   role: 'admin' | 'user' | 'manager';
+  is_active?: boolean;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
   created_at: string;
 }
 

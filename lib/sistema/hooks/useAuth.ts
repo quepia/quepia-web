@@ -44,6 +44,11 @@ export function useAuth() {
         return;
       }
 
+      if (result.user && (result.user.deleted_at || result.user.is_active === false)) {
+        setSistemaUser(null);
+        return;
+      }
+
       setSistemaUser(result.user || null);
     } catch (err) {
       console.error('Error fetching sistema user:', err);
@@ -191,10 +196,21 @@ export function useSistemaUsers(options?: UseSistemaUsersOptions) {
     }
     try {
       const supabase = createClient();
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('sistema_users')
         .select('*')
+        .is('deleted_at', null)
+        .neq('is_active', false)
         .order('nombre', { ascending: true });
+
+      if (error && (error.message.includes('deleted_at') || error.message.includes('is_active'))) {
+        const fallback = await supabase
+          .from('sistema_users')
+          .select('*')
+          .order('nombre', { ascending: true });
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) {
         if (error.code !== '42P01') {

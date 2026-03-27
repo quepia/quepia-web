@@ -24,33 +24,52 @@ import { sendNotification, notifyTaskAssignment, notifyTaskComment } from '@/lib
 export function useColumns(projectId?: string) {
   const [columns, setColumns] = useState<Column[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestIdRef = useRef(0);
+  const latestProjectIdRef = useRef<string | undefined>(projectId);
+
+  const isStaleRequest = useCallback((requestId: number, targetProjectId?: string) => {
+    return requestIdRef.current !== requestId || latestProjectIdRef.current !== targetProjectId;
+  }, []);
 
   const fetchColumns = useCallback(async () => {
-    if (!projectId) {
-      setLoading(false);
+    const targetProjectId = projectId;
+    const requestId = ++requestIdRef.current;
+
+    if (!targetProjectId) {
+      if (!isStaleRequest(requestId, targetProjectId)) {
+        setColumns([]);
+        setLoading(false);
+      }
       return;
     }
 
     try {
+      setLoading(true);
       const supabase = createClient();
       const { data, error } = await supabase
         .from('sistema_columns')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', targetProjectId)
         .order('orden', { ascending: true });
 
       if (error) throw error;
+      if (isStaleRequest(requestId, targetProjectId)) return;
       setColumns(data || []);
     } catch (err) {
+      if (isStaleRequest(requestId, targetProjectId)) return;
       console.error('Error fetching columns:', err);
     } finally {
+      if (isStaleRequest(requestId, targetProjectId)) return;
       setLoading(false);
     }
-  }, [projectId]);
+  }, [isStaleRequest, projectId]);
 
   useEffect(() => {
-    fetchColumns();
-  }, [fetchColumns]);
+    latestProjectIdRef.current = projectId;
+    setColumns([]);
+    setLoading(Boolean(projectId));
+    void fetchColumns();
+  }, [fetchColumns, projectId]);
 
   const updateColumn = async (id: string, nombre: string): Promise<boolean> => {
     try {
@@ -167,11 +186,24 @@ export function useTasks(projectId?: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const initialLoadDone = useRef(false);
+  const requestIdRef = useRef(0);
+  const latestProjectIdRef = useRef<string | undefined>(projectId);
+
+  const isStaleRequest = useCallback((requestId: number, targetProjectId?: string) => {
+    return requestIdRef.current !== requestId || latestProjectIdRef.current !== targetProjectId;
+  }, []);
 
   // Core fetch function - only shows loading spinner on initial load
   const fetchTasks = useCallback(async (silent = false) => {
-    if (!projectId) {
-      setLoading(false);
+    const targetProjectId = projectId;
+    const requestId = ++requestIdRef.current;
+
+    if (!targetProjectId) {
+      if (!isStaleRequest(requestId, targetProjectId)) {
+        setColumns([]);
+        setError(null);
+        setLoading(false);
+      }
       return;
     }
 
@@ -186,7 +218,7 @@ export function useTasks(projectId?: string) {
       const { data: columnsData, error: columnsError } = await supabase
         .from('sistema_columns')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', targetProjectId)
         .order('orden', { ascending: true });
 
       if (columnsError) throw columnsError;
@@ -208,7 +240,7 @@ export function useTasks(projectId?: string) {
             versions:sistema_asset_versions(id, version_number, thumbnail_path, thumbnail_url, storage_path, file_url)
           )
         `)
-        .eq('project_id', projectId)
+        .eq('project_id', targetProjectId)
         .order('orden', { ascending: true });
 
       if (tasksError) throw tasksError;
@@ -340,16 +372,19 @@ export function useTasks(projectId?: string) {
         tasks: hydratedTasks.filter((task: Task) => task.column_id === column.id),
       }));
 
+      if (isStaleRequest(requestId, targetProjectId)) return;
       setColumns(columnsWithTasks);
       setError(null);
       initialLoadDone.current = true;
     } catch (err) {
+      if (isStaleRequest(requestId, targetProjectId)) return;
       console.error('Error fetching tasks:', err);
       setError(err instanceof Error ? err.message : 'Error fetching tasks');
     } finally {
+      if (isStaleRequest(requestId, targetProjectId)) return;
       setLoading(false);
     }
-  }, [projectId]);
+  }, [isStaleRequest, projectId]);
 
   // Background refresh - never shows loading spinner
   const silentRefresh = useCallback(() => {
@@ -357,9 +392,13 @@ export function useTasks(projectId?: string) {
   }, [fetchTasks]);
 
   useEffect(() => {
+    latestProjectIdRef.current = projectId;
     initialLoadDone.current = false;
-    fetchTasks();
-  }, [fetchTasks]);
+    setColumns([]);
+    setError(null);
+    setLoading(Boolean(projectId));
+    void fetchTasks();
+  }, [fetchTasks, projectId]);
 
   const createTask = async (task: TaskInsert): Promise<Task | null> => {
     try {

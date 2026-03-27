@@ -733,6 +733,7 @@ export default function DashboardPage() {
         if (isProjectView) {
             return (
                 <KanbanBoard
+                    key={activeProjectId || "project"}
                     projectId={activeProjectId || undefined}
                     projectName={activeProject?.nombre || "Selecciona un proyecto"}
                     onTaskClick={handleTaskClick}

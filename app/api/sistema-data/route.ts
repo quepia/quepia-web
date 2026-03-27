@@ -22,48 +22,6 @@ function getAdminClient() {
   )
 }
 
-type UserReferenceCleanup = {
-  table: string
-  column: string
-  mode: "nullify" | "delete"
-}
-
-const USER_REFERENCE_CLEANUP: UserReferenceCleanup[] = [
-  { table: "sistema_calendar_comments", column: "user_id", mode: "nullify" },
-  { table: "sistema_prompt_templates", column: "user_id", mode: "delete" },
-  { table: "sistema_crm_leads", column: "owner_id", mode: "nullify" },
-  { table: "accounting_client_payments", column: "created_by", mode: "nullify" },
-  { table: "accounting_expenses", column: "created_by", mode: "nullify" },
-  { table: "accounting_transfers", column: "created_by", mode: "nullify" },
-  { table: "sistema_proposals", column: "created_by", mode: "nullify" },
-  { table: "sistema_proposal_templates", column: "created_by", mode: "nullify" },
-]
-
-async function cleanupUserReferences(
-  supabase: ReturnType<typeof getAdminClient>,
-  targetUserId: string,
-) {
-  for (const cleanup of USER_REFERENCE_CLEANUP) {
-    const query =
-      cleanup.mode === "delete"
-        ? supabase.from(cleanup.table).delete().eq(cleanup.column, targetUserId)
-        : supabase
-            .from(cleanup.table)
-            .update({ [cleanup.column]: null } as Record<string, null>)
-            .eq(cleanup.column, targetUserId)
-
-    const { error } = await query
-
-    if (error?.code === "42P01") {
-      continue
-    }
-
-    if (error) {
-      throw new Error(`Error cleaning ${cleanup.table}.${cleanup.column}: ${error.message}`)
-    }
-  }
-}
-
 function getCachedProjectIds(userId: string) {
   const cached = projectIdsCache.get(userId)
   if (!cached) return null
@@ -466,29 +424,48 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 })
       }
 
-      try {
-        await cleanupUserReferences(supabase, targetUserId)
-      } catch (error) {
-        console.error("Error cleaning user references:", error)
-        return NextResponse.json(
-          {
-            error: error instanceof Error ? error.message : "Error cleaning user references",
-          },
-          { status: 500 },
-        )
+      const { data: targetUser, error: targetUserError } = await supabase
+        .from("sistema_users")
+        .select("id, deleted_at, is_active")
+        .eq("id", targetUserId)
+        .maybeSingle()
+
+      if (targetUserError) {
+        return NextResponse.json({ error: targetUserError.message }, { status: 500 })
       }
 
-      // Delete from auth.users and let cascading FKs clear the profile tree.
-      const { error: authError } = await supabase.auth.admin.deleteUser(targetUserId)
+      if (!targetUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
+      }
+
+      if (targetUser.deleted_at || targetUser.is_active === false) {
+        return NextResponse.json({ success: true, alreadyDeactivated: true })
+      }
+
+      const { error: authError } = await supabase.auth.admin.updateUserById(targetUserId, {
+        ban_duration: "876000h",
+      })
 
       if (authError) {
-        console.error("Error deleting auth user:", authError)
+        console.error("Error disabling auth user:", authError)
         return NextResponse.json({ error: authError.message }, { status: 500 })
       }
 
-      projectIdsCache.delete(targetUserId)
+      const { error: profileError } = await supabase
+        .from("sistema_users")
+        .update({
+          is_active: false,
+          deleted_at: new Date().toISOString(),
+          deleted_by: userId,
+        })
+        .eq("id", targetUserId)
 
-      return NextResponse.json({ success: true })
+      if (profileError) {
+        console.error("Error updating sistema user deletion flags:", profileError)
+        return NextResponse.json({ error: profileError.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, deactivated: true })
     }
 
     if (action === "add-project-member") {
