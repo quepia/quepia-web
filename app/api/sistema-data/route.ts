@@ -22,6 +22,48 @@ function getAdminClient() {
   )
 }
 
+type UserReferenceCleanup = {
+  table: string
+  column: string
+  mode: "nullify" | "delete"
+}
+
+const USER_REFERENCE_CLEANUP: UserReferenceCleanup[] = [
+  { table: "sistema_calendar_comments", column: "user_id", mode: "nullify" },
+  { table: "sistema_prompt_templates", column: "user_id", mode: "delete" },
+  { table: "sistema_crm_leads", column: "owner_id", mode: "nullify" },
+  { table: "accounting_client_payments", column: "created_by", mode: "nullify" },
+  { table: "accounting_expenses", column: "created_by", mode: "nullify" },
+  { table: "accounting_transfers", column: "created_by", mode: "nullify" },
+  { table: "sistema_proposals", column: "created_by", mode: "nullify" },
+  { table: "sistema_proposal_templates", column: "created_by", mode: "nullify" },
+]
+
+async function cleanupUserReferences(
+  supabase: ReturnType<typeof getAdminClient>,
+  targetUserId: string,
+) {
+  for (const cleanup of USER_REFERENCE_CLEANUP) {
+    const query =
+      cleanup.mode === "delete"
+        ? supabase.from(cleanup.table).delete().eq(cleanup.column, targetUserId)
+        : supabase
+            .from(cleanup.table)
+            .update({ [cleanup.column]: null } as Record<string, null>)
+            .eq(cleanup.column, targetUserId)
+
+    const { error } = await query
+
+    if (error?.code === "42P01") {
+      continue
+    }
+
+    if (error) {
+      throw new Error(`Error cleaning ${cleanup.table}.${cleanup.column}: ${error.message}`)
+    }
+  }
+}
+
 function getCachedProjectIds(userId: string) {
   const cached = projectIdsCache.get(userId)
   if (!cached) return null
@@ -402,7 +444,12 @@ export async function POST(request: Request) {
     }
 
     if (action === "delete-user") {
+      const { targetUserId } = body
       const supabase = getAdminClient()
+
+      if (!userId || !targetUserId) {
+        return NextResponse.json({ error: "Missing userId or targetUserId" }, { status: 400 })
+      }
 
       // 1. Verify requester is admin
       const { data: requester } = await supabase
@@ -419,23 +466,27 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 })
       }
 
-      // 2. Delete from sistema_users
-      const { error: profileError } = await supabase
-        .from("sistema_users")
-        .delete()
-        .eq("id", targetUserId)
-
-      if (profileError) {
-        console.error("Error deleting profile:", profileError)
-        // Continue to try deleting from auth
+      try {
+        await cleanupUserReferences(supabase, targetUserId)
+      } catch (error) {
+        console.error("Error cleaning user references:", error)
+        return NextResponse.json(
+          {
+            error: error instanceof Error ? error.message : "Error cleaning user references",
+          },
+          { status: 500 },
+        )
       }
 
-      // 3. Delete from auth.users
+      // Delete from auth.users and let cascading FKs clear the profile tree.
       const { error: authError } = await supabase.auth.admin.deleteUser(targetUserId)
 
       if (authError) {
+        console.error("Error deleting auth user:", authError)
         return NextResponse.json({ error: authError.message }, { status: 500 })
       }
+
+      projectIdsCache.delete(targetUserId)
 
       return NextResponse.json({ success: true })
     }

@@ -337,7 +337,7 @@ export default function DashboardPage() {
     const { projects, deleteProject, createProject, updateProject, refresh: refreshProjects, loading: projectsLoading } = useProjects(user?.id)
     const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id, { enabled: shouldLoadAllTasks })
     const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id, { enabled: shouldLoadAllEvents })
-    const { users: sistemaUsers, refresh: refreshUsers } = useSistemaUsers({ enabled: shouldLoadSistemaUsers })
+    const { users: sistemaUsers, loading: sistemaUsersLoading, refresh: refreshUsers } = useSistemaUsers({ enabled: shouldLoadSistemaUsers })
     const { templates, createProjectFromTemplate } = useProjectTemplates({ enabled: shouldLoadTemplates })
     const { brief, saveBrief } = useClientBrief(briefingProjectId)
     const {
@@ -365,10 +365,7 @@ export default function DashboardPage() {
     const activeProject = activeProjectId ? projectById.get(activeProjectId) ?? null : null
     const membersProject = membersProjectId ? projectById.get(membersProjectId) ?? null : null
     const hashProjects = useMemo(() => flattenHashProjects(projects), [projects])
-    const workloadUsers = useMemo(
-        () => sistemaUsers.filter((u) => u.id === user?.id),
-        [sistemaUsers, user?.id]
-    )
+    const workloadUsers = useMemo(() => sistemaUsers, [sistemaUsers])
     const isProjectView = useMemo(
         () => activeProjectId !== null && !GLOBAL_VIEWS.has(activeView),
         [activeProjectId, activeView]
@@ -796,7 +793,7 @@ export default function DashboardPage() {
                     <WorkloadView
                         tasks={allTasks}
                         users={workloadUsers}
-                        loading={allTasksLoading}
+                        loading={allTasksLoading || sistemaUsersLoading}
                         onTaskClick={handleTaskClick}
                     />
                 )
@@ -893,6 +890,7 @@ export default function DashboardPage() {
         refreshUsers,
         sistemaUser?.role,
         sistemaUsers,
+        sistemaUsersLoading,
         user?.id,
         workloadUsers,
     ])
