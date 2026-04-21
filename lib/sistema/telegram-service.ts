@@ -5,6 +5,7 @@ import { createSignedUrl } from '@/lib/sistema/assets-storage'
 const TELEGRAM_MAX_FILE_BYTES = 50 * 1024 * 1024
 const TELEGRAM_SIGNED_URL_TTL = 60 * 60 * 24 * 7 // 7 days
 const TELEGRAM_CAPTION_LIMIT = 1024
+const TELEGRAM_MESSAGE_LIMIT = 4096
 
 interface TelegramAssetPayload {
   assetId: string
@@ -19,13 +20,8 @@ interface TelegramAssetPayload {
 }
 
 interface SendTelegramAssetDeliveryParams {
-  projectName: string
-  taskTitle: string
-  actorName: string
   assets: TelegramAssetPayload[]
-  headline?: string
-  actorLabel?: string
-  fallbackLabel?: string
+  replyToMessageId?: string
 }
 
 interface SendTelegramAssetDeliveryResult {
@@ -40,6 +36,19 @@ interface SendTelegramNoticeResult {
   sent: number
   failed: number
   errors: string[]
+}
+
+interface SendTelegramTaskSummaryParams {
+  projectName: string
+  taskTitle: string
+  socialCopy?: string | null
+}
+
+interface SendTelegramTaskSummaryResult {
+  sent: number
+  failed: number
+  errors: string[]
+  message?: TelegramSentMessageRecord
 }
 
 interface TelegramApiResponse<T> {
@@ -58,9 +67,10 @@ interface TelegramApiMessage {
 export interface TelegramSentMessageRecord {
   chatId: string
   messageId: string
-  assetId: string
-  assetVersionId: string
+  assetId?: string
+  assetVersionId?: string
   method: 'message' | 'document'
+  scope: 'asset' | 'task_summary'
 }
 
 function getTelegramConfig() {
@@ -74,60 +84,52 @@ function getTelegramConfig() {
   }
 }
 
+function trimTelegramText(value: string, limit: number) {
+  if (value.length <= limit) return value
+  return `${value.slice(0, limit - 3)}...`
+}
+
 function trimCaption(value: string) {
-  if (value.length <= TELEGRAM_CAPTION_LIMIT) return value
-  return `${value.slice(0, TELEGRAM_CAPTION_LIMIT - 3)}...`
+  return trimTelegramText(value, TELEGRAM_CAPTION_LIMIT)
 }
 
-function buildAssetLabel(asset: TelegramAssetPayload) {
-  const baseName = asset.assetName?.trim() || asset.originalFilename?.trim() || 'Asset'
-  return `${baseName} · v${asset.versionNumber}`
+function trimMessage(value: string) {
+  return trimTelegramText(value, TELEGRAM_MESSAGE_LIMIT)
 }
 
-function buildDocumentCaption(params: {
-  projectName: string
-  taskTitle: string
-  actorName: string
-  asset: TelegramAssetPayload
-  headline?: string
-  actorLabel?: string
-}) {
+function getAssetDisplayName(asset: TelegramAssetPayload) {
+  return asset.assetName?.trim() || asset.originalFilename?.trim() || 'Asset'
+}
+
+function buildAssetDebugLabel(asset: TelegramAssetPayload) {
+  return `${getAssetDisplayName(asset)} · v${asset.versionNumber}`
+}
+
+function buildTaskSummaryMessage(params: SendTelegramTaskSummaryParams) {
   const lines = [
-    params.headline || 'Quepia · Entregable notificado',
-    `Proyecto: ${params.projectName}`,
+    'Entrega lista para enviar',
+    `Cliente: ${params.projectName}`,
     `Tarea: ${params.taskTitle}`,
-    `Asset: ${buildAssetLabel(params.asset)}`,
-    `Tipo: ${params.asset.assetType || 'single'}`,
-    `${params.actorLabel || 'Notificado por'}: ${params.actorName}`,
-    '',
-    'Responde a este mensaje para dejar feedback en el sistema.',
   ]
 
-  return trimCaption(lines.join('\n'))
+  const socialCopy = params.socialCopy?.trim()
+  if (socialCopy) {
+    lines.push('', 'Copy / SEO', socialCopy)
+  }
+
+  lines.push('', 'Si queres dejar feedback, responde este mensaje.')
+
+  return trimMessage(lines.join('\n'))
 }
 
 function buildFallbackMessage(params: {
-  projectName: string
-  taskTitle: string
-  actorName: string
   asset: TelegramAssetPayload
   assetUrl: string
-  reason: string
-  headline?: string
-  actorLabel?: string
-  fallbackLabel?: string
 }) {
-  return [
-    params.headline || 'Quepia · Entregable notificado',
-    `Proyecto: ${params.projectName}`,
-    `Tarea: ${params.taskTitle}`,
-    `Asset: ${buildAssetLabel(params.asset)}`,
-    `${params.actorLabel || 'Notificado por'}: ${params.actorName}`,
-    `${params.fallbackLabel || 'Entrega por link'}: ${params.reason}`,
-    'Responde a este mensaje para dejar feedback en el sistema.',
-    '',
+  return trimMessage([
+    `Asset: ${getAssetDisplayName(params.asset)}`,
     params.assetUrl,
-  ].join('\n')
+  ].join('\n'))
 }
 
 async function callTelegramApi<T>(
@@ -157,11 +159,15 @@ async function callTelegramApi<T>(
   return payload.result as T
 }
 
-async function sendTelegramMessage(chatId: string, text: string) {
+async function sendTelegramMessage(chatId: string, text: string, replyToMessageId?: string) {
   const body = new URLSearchParams()
   body.set('chat_id', chatId)
   body.set('text', text)
   body.set('disable_web_page_preview', 'true')
+
+  if (replyToMessageId) {
+    body.set('reply_to_message_id', replyToMessageId)
+  }
 
   return callTelegramApi<TelegramApiMessage>('sendMessage', {
     body,
@@ -171,11 +177,23 @@ async function sendTelegramMessage(chatId: string, text: string) {
   })
 }
 
-async function sendTelegramDocument(chatId: string, documentUrl: string, caption: string) {
+async function sendTelegramDocument(
+  chatId: string,
+  documentUrl: string,
+  caption?: string,
+  replyToMessageId?: string
+) {
   const body = new FormData()
   body.append('chat_id', chatId)
   body.append('document', documentUrl)
-  body.append('caption', caption)
+
+  if (caption?.trim()) {
+    body.append('caption', caption)
+  }
+
+  if (replyToMessageId) {
+    body.append('reply_to_message_id', replyToMessageId)
+  }
 
   return callTelegramApi<TelegramApiMessage>('sendDocument', { body })
 }
@@ -184,16 +202,8 @@ export async function replyToTelegramChat(chatId: string, text: string) {
   const { botToken, isConfigured } = getTelegramConfig()
   if (!isConfigured || !botToken) return
 
-  const body = new URLSearchParams()
-  body.set('chat_id', chatId)
-  body.set('text', text)
-  body.set('disable_web_page_preview', 'true')
-
   try {
-    await callTelegramApi<TelegramApiMessage>('sendMessage', {
-      body,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-    })
+    await sendTelegramMessage(chatId, trimMessage(text))
   } catch (error) {
     console.error('replyToTelegramChat error:', error)
   }
@@ -209,11 +219,11 @@ export async function sendTelegramTextNotice(params: {
     return {
       sent: 0,
       failed: 1,
-      errors: ['Telegram no está configurado. Falta TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.'],
+      errors: ['Telegram no esta configurado. Falta TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.'],
     }
   }
 
-  const text = trimCaption([params.headline, ...params.lines.filter(Boolean)].join('\n'))
+  const text = trimMessage([params.headline, ...params.lines.filter(Boolean)].join('\n'))
 
   try {
     await sendTelegramMessage(chatId, text)
@@ -224,6 +234,44 @@ export async function sendTelegramTextNotice(params: {
       failed: 1,
       errors: [
         `Telegram: no se pudo enviar el aviso de texto (${error instanceof Error ? error.message : 'error desconocido'}).`,
+      ],
+    }
+  }
+}
+
+export async function sendTelegramTaskSummary(
+  params: SendTelegramTaskSummaryParams
+): Promise<SendTelegramTaskSummaryResult> {
+  const { botToken, chatId, isConfigured } = getTelegramConfig()
+
+  if (!isConfigured || !botToken || !chatId) {
+    return {
+      sent: 0,
+      failed: 1,
+      errors: ['Telegram no esta configurado. Falta TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.'],
+    }
+  }
+
+  try {
+    const message = await sendTelegramMessage(chatId, buildTaskSummaryMessage(params))
+
+    return {
+      sent: 1,
+      failed: 0,
+      errors: [],
+      message: {
+        chatId: String(message.chat?.id ?? chatId),
+        messageId: String(message.message_id),
+        method: 'message',
+        scope: 'task_summary',
+      },
+    }
+  } catch (error) {
+    return {
+      sent: 0,
+      failed: 1,
+      errors: [
+        `Telegram: no se pudo enviar el resumen de la tarea (${error instanceof Error ? error.message : 'error desconocido'}).`,
       ],
     }
   }
@@ -261,13 +309,13 @@ export async function sendTelegramAssetDelivery(
       sent,
       linkFallbacks,
       failed: assets.length,
-      errors: ['Telegram no está configurado. Falta TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.'],
+      errors: ['Telegram no esta configurado. Falta TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.'],
       messages,
     }
   }
 
   for (const asset of assets) {
-    const assetLabel = buildAssetLabel(asset)
+    const assetLabel = buildAssetDebugLabel(asset)
 
     try {
       const assetUrl = await resolveAssetUrl(asset)
@@ -286,17 +334,8 @@ export async function sendTelegramAssetDelivery(
 
         const fallbackMsg = await sendTelegramMessage(
           chatId,
-          buildFallbackMessage({
-            projectName: params.projectName,
-            taskTitle: params.taskTitle,
-            actorName: params.actorName,
-            asset,
-            assetUrl,
-            reason,
-            headline: params.headline,
-            actorLabel: params.actorLabel,
-            fallbackLabel: params.fallbackLabel,
-          })
+          buildFallbackMessage({ asset, assetUrl }),
+          params.replyToMessageId
         )
 
         messages.push({
@@ -305,10 +344,11 @@ export async function sendTelegramAssetDelivery(
           assetId: asset.assetId,
           assetVersionId: asset.assetVersionId,
           method: 'message',
+          scope: 'asset',
         })
 
         linkFallbacks += 1
-        errors.push(`Telegram: "${assetLabel}" se envió como link porque ${reason}.`)
+        errors.push(`Telegram: "${assetLabel}" se envio como link porque ${reason}.`)
         continue
       }
 
@@ -316,14 +356,8 @@ export async function sendTelegramAssetDelivery(
         const docMsg = await sendTelegramDocument(
           chatId,
           assetUrl,
-          buildDocumentCaption({
-            projectName: params.projectName,
-            taskTitle: params.taskTitle,
-            actorName: params.actorName,
-            asset,
-            headline: params.headline,
-            actorLabel: params.actorLabel,
-          })
+          trimCaption(getAssetDisplayName(asset)),
+          params.replyToMessageId
         )
 
         messages.push({
@@ -332,23 +366,15 @@ export async function sendTelegramAssetDelivery(
           assetId: asset.assetId,
           assetVersionId: asset.assetVersionId,
           method: 'document',
+          scope: 'asset',
         })
 
         sent += 1
       } catch (error) {
         const retryMsg = await sendTelegramMessage(
           chatId,
-          buildFallbackMessage({
-            projectName: params.projectName,
-            taskTitle: params.taskTitle,
-            actorName: params.actorName,
-            asset,
-            assetUrl,
-            reason: 'Telegram no pudo adjuntar el archivo y se envió un acceso directo',
-            headline: params.headline,
-            actorLabel: params.actorLabel,
-            fallbackLabel: params.fallbackLabel,
-          })
+          buildFallbackMessage({ asset, assetUrl }),
+          params.replyToMessageId
         )
 
         messages.push({
@@ -357,11 +383,12 @@ export async function sendTelegramAssetDelivery(
           assetId: asset.assetId,
           assetVersionId: asset.assetVersionId,
           method: 'message',
+          scope: 'asset',
         })
 
         linkFallbacks += 1
         errors.push(
-          `Telegram: "${assetLabel}" se envió como link tras fallar el adjunto (${error instanceof Error ? error.message : 'error desconocido'}).`
+          `Telegram: "${assetLabel}" se envio como link tras fallar el adjunto (${error instanceof Error ? error.message : 'error desconocido'}).`
         )
       }
     } catch (error) {
