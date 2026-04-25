@@ -40,10 +40,63 @@ function ensureProjectCategories(values: Array<string | null | undefined>): Work
     return normalized.length > 0 ? normalized : [DEFAULT_PROJECT_CATEGORY];
 }
 
+function getStringProperty(value: unknown, key: string): string | null {
+    if (!value || typeof value !== 'object' || !(key in value)) return null;
+    const property = (value as Record<string, unknown>)[key];
+    return typeof property === 'string' && property.trim() ? property.trim() : null;
+}
+
 function getErrorMessage(error: unknown): string {
     if (error instanceof Error && error.message.trim()) return error.message;
     if (typeof error === 'string' && error.trim()) return error;
+
+    const message = getStringProperty(error, 'message') ?? getStringProperty(error, 'error');
+    if (message) {
+        const details = getStringProperty(error, 'details');
+        const hint = getStringProperty(error, 'hint');
+        const code = getStringProperty(error, 'code');
+        const extra = [details, hint].filter(Boolean).join(' ');
+        return `${message}${extra ? ` ${extra}` : ''}${code ? ` (${code})` : ''}`;
+    }
+
     return 'Error desconocido';
+}
+
+function isMissingColumnError(error: unknown, columnName: string): boolean {
+    const code = getStringProperty(error, 'code');
+    const message = getErrorMessage(error).toLowerCase();
+    return (code === '42703' || code === 'PGRST204') && message.includes(columnName.toLowerCase());
+}
+
+async function saveProyecto(
+    supabase: ReturnType<typeof createClient>,
+    data: ProyectoInsert,
+    editingId: string | null
+) {
+    const persist = (payload: ProyectoInsert | Omit<ProyectoInsert, 'categorias'>) => (
+        editingId
+            ? supabase.from('proyectos').update(payload).eq('id', editingId)
+            : supabase.from('proyectos').insert(payload)
+    );
+
+    const { error } = await persist(data);
+    if (!error) return;
+
+    if (data.categorias !== undefined && isMissingColumnError(error, 'categorias')) {
+        const fallbackData = { ...data };
+        delete fallbackData.categorias;
+
+        console.warn(
+            'La tabla proyectos no tiene la columna categorias; se guarda solo la categoria principal.',
+            error
+        );
+
+        const { error: fallbackError } = await persist(fallbackData);
+        if (!fallbackError) return;
+        throw fallbackError;
+    }
+
+    throw error;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -287,22 +340,7 @@ export function AdminProjectsView() {
                 orden: Number.isFinite(Number(form.orden)) ? Number(form.orden) : 0,
             };
 
-            if (editingId) {
-                // Update existing
-                const { error } = await supabase
-                    .from('proyectos')
-                    .update(data)
-                    .eq('id', editingId);
-
-                if (error) throw error;
-            } else {
-                // Create new
-                const { error } = await supabase
-                    .from('proyectos')
-                    .insert(data);
-
-                if (error) throw error;
-            }
+            await saveProyecto(supabase, data, editingId);
 
             await fetchProyectos();
             setModalOpen(false);
