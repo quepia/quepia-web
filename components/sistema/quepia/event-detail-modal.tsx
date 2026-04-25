@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/sistema/supabase/client"
+import { toTaskDeadlineTimestamp } from "@/lib/sistema/task-deadlines"
 import {
     X,
     Calendar as CalendarIcon,
@@ -212,7 +213,7 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
                     column_id: column.id,
                     titulo: formData.titulo, // Use current form data in case user edited
                     descripcion: formData.descripcion,
-                    due_date: formData.fecha_inicio,
+                    deadline: toTaskDeadlineTimestamp(formData.fecha_inicio),
                     priority: 'P3', // Default medium
                     orden: newOrden,
                     task_type: 'otro', // Or map from event type if possible

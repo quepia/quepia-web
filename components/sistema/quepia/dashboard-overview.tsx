@@ -13,6 +13,7 @@ import {
   Activity,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { compareTaskDeadlines, getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { CalendarEvent } from "@/types/sistema"
 import type { ProjectWithChildren } from "@/types/sistema"
@@ -93,7 +94,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
 
   const todayTasks = useMemo(() => {
     return tasks
-      .filter(t => !t.completed && t.due_date === todayStr)
+      .filter(t => !t.completed && getTaskDeadlineDateKey(t) === todayStr)
       .sort((a, b) => {
         const pOrder: Record<string, number> = { P1: 0, P2: 1, P3: 2, P4: 3 }
         return (pOrder[a.priority] || 3) - (pOrder[b.priority] || 3)
@@ -102,8 +103,11 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
 
   const overdueTasks = useMemo(() => {
     return tasks
-      .filter(t => !t.completed && t.due_date && t.due_date < todayStr)
-      .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))
+      .filter(t => {
+        const deadline = getTaskDeadlineDateKey(t)
+        return Boolean(!t.completed && deadline && deadline < todayStr)
+      })
+      .sort(compareTaskDeadlines)
   }, [tasks, todayStr])
 
   const upcomingTasks = useMemo(() => {
@@ -111,8 +115,11 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
     nextWeek.setDate(nextWeek.getDate() + 7)
     const nextWeekStr = nextWeek.toISOString().split("T")[0]
     return tasks
-      .filter(t => !t.completed && t.due_date && t.due_date > todayStr && t.due_date <= nextWeekStr)
-      .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))
+      .filter(t => {
+        const deadline = getTaskDeadlineDateKey(t)
+        return Boolean(!t.completed && deadline && deadline > todayStr && deadline <= nextWeekStr)
+      })
+      .sort(compareTaskDeadlines)
       .slice(0, 5)
   }, [tasks, today, todayStr])
 
@@ -389,7 +396,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
                 >
                   <div className="w-2 h-2 rounded-full shrink-0 bg-red-400" />
                   <span className="text-sm text-white/80 truncate flex-1">{task.titulo}</span>
-                  <span className="text-[10px] text-red-400 shrink-0">{daysUntil(task.due_date!)}</span>
+                  <span className="text-[10px] text-red-400 shrink-0">{daysUntil(getTaskDeadlineDateKey(task)!)}</span>
                 </button>
               ))}
             </div>
@@ -419,7 +426,7 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
                 >
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
                   <span className="text-sm text-white/80 truncate flex-1">{task.titulo}</span>
-                  <span className="text-[10px] text-white/40 shrink-0">{formatDate(task.due_date!)}</span>
+                  <span className="text-[10px] text-white/40 shrink-0">{formatDate(getTaskDeadlineDateKey(task)!)}</span>
                 </button>
               ))}
             </div>

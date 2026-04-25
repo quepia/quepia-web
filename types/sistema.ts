@@ -132,6 +132,7 @@ export interface Task {
   assignee_id: string | null;
   priority: Priority;
   social_copy?: string | null;
+  // Legacy mirror for older calendar/RPC surfaces. Use deadline as the canonical task date.
   due_date: string | null;
   deadline: string | null;
   labels: string[];
@@ -158,6 +159,7 @@ export interface TaskInsert {
   link?: string | null;
   assignee_id?: string | null;
   priority?: Priority;
+  // Legacy mirror for older calendar/RPC surfaces. Prefer deadline for new writes.
   due_date?: string | null;
   deadline?: string | null;
   labels?: string[];
@@ -176,6 +178,7 @@ export interface TaskUpdate {
   link?: string | null;
   assignee_id?: string | null;
   priority?: Priority;
+  // Legacy mirror for older calendar/RPC surfaces. Prefer deadline for new writes.
   due_date?: string | null;
   deadline?: string | null;
   labels?: string[];

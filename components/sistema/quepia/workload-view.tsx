@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import { AlertTriangle, BarChart3, CalendarRange, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListTodo, Users } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { SistemaUser } from "@/types/sistema"
 
@@ -141,8 +142,9 @@ function createEmptyDayBuckets(): DayBuckets {
 }
 
 function isTaskLate(task: TaskWithProject, referenceDate: Date) {
-  if (!task.due_date) return false
-  const dueEnd = endOfDateKey(task.due_date)
+  const deadline = getTaskDeadlineDateKey(task)
+  if (!deadline) return false
+  const dueEnd = endOfDateKey(deadline)
   if (task.completed_at) {
     return new Date(task.completed_at).getTime() > dueEnd.getTime()
   }
@@ -223,8 +225,9 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
 
       const hours = task.estimated_hours || 1
 
-      if (task.due_date) {
-        const dueBuckets = userMap.get(task.due_date)
+      const deadline = getTaskDeadlineDateKey(task)
+      if (deadline) {
+        const dueBuckets = userMap.get(deadline)
         if (dueBuckets) {
           dueBuckets.assigned_count.value += 1
           dueBuckets.assigned_count.tasks.push(task)
@@ -711,9 +714,9 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
                             {task.project.nombre}
                           </span>
                         )}
-                        {task.due_date && (
+                        {getTaskDeadlineDateKey(task) && (
                           <span className="text-[10px] text-white/30">
-                            Vence {parseDateKey(task.due_date).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                            Vence {parseDateKey(getTaskDeadlineDateKey(task)!).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
                           </span>
                         )}
                         {task.completed_at && (selectedMetric === "completed_count" || selectedMetric === "completed_hours") && (

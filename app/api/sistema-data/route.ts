@@ -173,7 +173,7 @@ export async function GET(request: Request) {
           column:sistema_columns(id, nombre)
         `)
         .in("project_id", projectIds)
-        .order("due_date", { ascending: true, nullsFirst: false })
+        .order("deadline", { ascending: true, nullsFirst: false })
 
       if (error) {
         console.error("Error fetching tasks:", error)

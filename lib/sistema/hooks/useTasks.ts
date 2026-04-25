@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/sistema/supabase/client';
+import { getDateKeyFromValue, toTaskDeadlineTimestamp } from '@/lib/sistema/task-deadlines';
 import type {
   Task,
   TaskInsert,
@@ -20,6 +21,33 @@ import type {
   CommentWithUser,
 } from '@/types/sistema';
 import { sendNotification, notifyTaskAssignment, notifyTaskComment } from '@/lib/sistema/actions/notifications';
+
+function normalizeTaskInsertDeadline(task: TaskInsert): TaskInsert {
+  const deadline = task.deadline ?? toTaskDeadlineTimestamp(task.due_date);
+  return {
+    ...task,
+    deadline,
+    due_date: deadline ? getDateKeyFromValue(deadline) : task.due_date ?? null,
+  };
+}
+
+function normalizeTaskUpdateDeadline(updates: TaskUpdate): TaskUpdate {
+  if (updates.deadline !== undefined) {
+    return {
+      ...updates,
+      due_date: updates.deadline ? getDateKeyFromValue(updates.deadline) : null,
+    };
+  }
+
+  if (updates.due_date !== undefined) {
+    return {
+      ...updates,
+      deadline: toTaskDeadlineTimestamp(updates.due_date),
+    };
+  }
+
+  return updates;
+}
 
 export function useColumns(projectId?: string) {
   const [columns, setColumns] = useState<Column[]>([]);
@@ -188,9 +216,30 @@ export function useTasks(projectId?: string) {
   const initialLoadDone = useRef(false);
   const requestIdRef = useRef(0);
   const latestProjectIdRef = useRef<string | undefined>(projectId);
+  const pendingCreateTasksRef = useRef(new Map<string, Promise<Task | null>>());
 
   const isStaleRequest = useCallback((requestId: number, targetProjectId?: string) => {
     return requestIdRef.current !== requestId || latestProjectIdRef.current !== targetProjectId;
+  }, []);
+
+  const getCreateTaskRequestKey = useCallback((task: TaskInsert) => {
+    return JSON.stringify({
+      project_id: task.project_id,
+      column_id: task.column_id,
+      titulo: task.titulo.trim().toLowerCase(),
+      descripcion: task.descripcion ?? null,
+      link: task.link ?? null,
+      assignee_id: task.assignee_id ?? null,
+      priority: task.priority ?? null,
+      due_date: task.due_date ?? null,
+      deadline: task.deadline ?? null,
+      labels: task.labels ?? [],
+      task_type: task.task_type ?? null,
+      estimated_hours: task.estimated_hours ?? null,
+      blocking_subtasks: task.blocking_subtasks ?? null,
+      type_metadata: task.type_metadata ?? null,
+      parent_task_id: task.parent_task_id ?? null,
+    });
   }, []);
 
   // Core fetch function - only shows loading spinner on initial load
@@ -401,87 +450,105 @@ export function useTasks(projectId?: string) {
   }, [fetchTasks, projectId]);
 
   const createTask = async (task: TaskInsert): Promise<Task | null> => {
-    try {
-      const supabase = createClient();
+    const normalizedTask = normalizeTaskInsertDeadline(task);
+    const requestKey = getCreateTaskRequestKey(normalizedTask);
+    const existingRequest = pendingCreateTasksRef.current.get(requestKey);
 
-      // Get the max orden for the column
-      const { data: maxOrden } = await supabase
-        .from('sistema_tasks')
-        .select('orden')
-        .eq('column_id', task.column_id)
-        .order('orden', { ascending: false })
-        .limit(1)
-        .single();
-
-      const newOrden = (maxOrden?.orden || 0) + 1;
-
-      const { data, error: insertError } = await supabase
-        .from('sistema_tasks')
-        .insert({ ...task, orden: newOrden })
-        .select(`
-          *,
-          assignee:sistema_users(id, nombre, avatar_url),
-          parent_task:sistema_tasks!parent_task_id(id, titulo)
-        `)
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Optimistic: add task to the correct column
-      if (data) {
-        setColumns(prev => prev.map(col =>
-          col.id === task.column_id
-            ? { ...col, tasks: [...col.tasks, data] }
-            : col
-        ));
-      }
-
-      // Handle notification for assignee (fire and forget)
-      if (data && data.assignee_id) {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) {
-            notifyTaskAssignment({
-              userId: data.assignee_id!,
-              actorId: user.id,
-              taskId: data.id,
-              taskTitle: data.titulo,
-              projectId: data.project_id,
-              source: 'app',
-            });
-          }
-        });
-      }
-
-      return data;
-    } catch (err) {
-      console.error('Error creating task:', err);
-      setError(err instanceof Error ? err.message : 'Error creating task');
-      await silentRefresh(); // Revert on error
-      return null;
+    if (existingRequest) {
+      return existingRequest;
     }
+
+    const createTaskRequest = (async () => {
+      try {
+        const supabase = createClient();
+
+        // Get the max orden for the column
+        const { data: maxOrden } = await supabase
+          .from('sistema_tasks')
+          .select('orden')
+          .eq('column_id', normalizedTask.column_id)
+          .order('orden', { ascending: false })
+          .limit(1)
+          .single();
+
+        const newOrden = (maxOrden?.orden || 0) + 1;
+
+        const { data, error: insertError } = await supabase
+          .from('sistema_tasks')
+          .insert({ ...normalizedTask, orden: newOrden })
+          .select(`
+            *,
+            assignee:sistema_users(id, nombre, avatar_url),
+            parent_task:sistema_tasks!parent_task_id(id, titulo)
+          `)
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Optimistic: add task to the correct column
+        if (data) {
+          setColumns(prev => prev.map(col =>
+            col.id === normalizedTask.column_id
+              ? { ...col, tasks: [...col.tasks, data] }
+              : col
+          ));
+        }
+
+        // Handle notification for assignee (fire and forget)
+        if (data && data.assignee_id) {
+          supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) {
+              notifyTaskAssignment({
+                userId: data.assignee_id!,
+                actorId: user.id,
+                taskId: data.id,
+                taskTitle: data.titulo,
+                projectId: data.project_id,
+                source: 'app',
+              });
+            }
+          });
+        }
+
+        return data;
+      } catch (err) {
+        console.error('Error creating task:', err);
+        setError(err instanceof Error ? err.message : 'Error creating task');
+        await silentRefresh(); // Revert on error
+        return null;
+      } finally {
+        pendingCreateTasksRef.current.delete(requestKey);
+      }
+    })();
+
+    pendingCreateTasksRef.current.set(requestKey, createTaskRequest);
+
+    return createTaskRequest;
   };
 
   const updateTask = async (id: string, updates: TaskUpdate): Promise<boolean> => {
     try {
+      const updatesToApply = normalizeTaskUpdateDeadline(updates);
+
       // If marking as completed, set completed_at
-      if (updates.completed === true) {
-        updates.completed_at = new Date().toISOString();
-      } else if (updates.completed === false) {
-        updates.completed_at = null;
+      if (updatesToApply.completed === true) {
+        updatesToApply.completed_at = new Date().toISOString();
+      } else if (updatesToApply.completed === false) {
+        updatesToApply.completed_at = null;
       }
 
       // Optimistic update: apply changes to local state immediately
       setColumns(prev => prev.map(col => ({
         ...col,
         tasks: col.tasks.map(t =>
-          t.id === id ? { ...t, ...updates } : t
+          t.id === id ? { ...t, ...updatesToApply } : t
         ),
       })));
 
       const supabase = createClient();
       const { error: updateError } = await supabase
         .from('sistema_tasks')
-        .update(updates)
+        .update(updatesToApply)
         .eq('id', id);
 
       if (updateError) {
@@ -490,7 +557,7 @@ export function useTasks(projectId?: string) {
       }
 
       // If assignee changed, we need the full task data with joined relations
-      if (updates.assignee_id !== undefined) {
+      if (updatesToApply.assignee_id !== undefined) {
         await silentRefresh();
       }
 

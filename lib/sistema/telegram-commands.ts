@@ -5,6 +5,7 @@ import { notifyTaskAssignment } from '@/lib/sistema/actions/notifications'
 import { sendProposalEmail } from '@/lib/sistema/actions/proposals'
 import { syncEfemeridesCalendarioActual } from '@/lib/sistema/actions/efemerides'
 import { createProjectFromLead } from '@/lib/sistema/actions/crm'
+import { getTaskDeadlineDateKey, toTaskDeadlineTimestamp } from '@/lib/sistema/task-deadlines'
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -219,7 +220,7 @@ export async function handleTarea(args: string): Promise<string> {
   const { data: task, error } = await supabase
     .from('sistema_tasks')
     .select(`
-      id, titulo, descripcion, priority, due_date, completed,
+      id, titulo, descripcion, priority, deadline, due_date, completed,
       column:sistema_columns(nombre),
       project:sistema_projects(nombre),
       assignee:sistema_users(nombre)
@@ -239,13 +240,15 @@ export async function handleTarea(args: string): Promise<string> {
   const proj = Array.isArray(task.project) ? task.project[0]?.nombre : (task.project as any)?.nombre
   const assignee = Array.isArray(task.assignee) ? task.assignee[0]?.nombre : (task.assignee as any)?.nombre
 
+  const deadline = getTaskDeadlineDateKey(task)
+
   const lines = [
     `📌 ${task.titulo}`,
     `Proyecto: ${proj ?? '-'}`,
     `Columna: ${col ?? '-'}`,
     `Prioridad: ${prioLabel(task.priority)}`,
     `Completada: ${yesNo(task.completed)}`,
-    task.due_date ? `Vencimiento: ${task.due_date}` : null,
+    deadline ? `Deadline: ${deadline}` : null,
     assignee ? `Asignada a: ${assignee}` : null,
     task.descripcion ? `\nDescripción: ${task.descripcion}` : null,
   ].filter(Boolean)
@@ -577,7 +580,7 @@ async function advanceWizard(
 
         await supabase
           .from('sistema_tasks')
-          .update({ due_date: date })
+          .update({ deadline: toTaskDeadlineTimestamp(date) })
           .eq('id', ctx.task_id!)
 
         await clearWizardState(chatId, senderId)

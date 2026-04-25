@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 import { CheckCircle2, Circle, CalendarDays } from "lucide-react"
 import { createClient } from "@/lib/sistema/supabase/client"
+import { compareTaskDeadlines, getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { PRIORITY_COLORS } from "@/types/sistema"
 
@@ -23,14 +24,17 @@ export function UpcomingView({ tasks, loading, onTaskClick, onRefresh }: Upcomin
   const grouped = useMemo(() => {
     const today = new Date(todayStr + "T12:00:00")
     const upcoming = tasks
-      .filter(t => !t.completed && t.due_date && t.due_date >= todayStr)
-      .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))
+      .filter(t => {
+        const deadline = getTaskDeadlineDateKey(t)
+        return Boolean(!t.completed && deadline && deadline >= todayStr)
+      })
+      .sort(compareTaskDeadlines)
 
     const groups: { label: string; key: string; tasks: TaskWithProject[] }[] = []
     const dateMap = new Map<string, TaskWithProject[]>()
 
     for (const task of upcoming) {
-      const d = task.due_date!
+      const d = getTaskDeadlineDateKey(task)!
       if (!dateMap.has(d)) dateMap.set(d, [])
       dateMap.get(d)!.push(task)
     }
@@ -47,7 +51,7 @@ export function UpcomingView({ tasks, loading, onTaskClick, onRefresh }: Upcomin
     }
 
     // Also add tasks with no due date at the end
-    const noDue = tasks.filter(t => !t.completed && !t.due_date)
+    const noDue = tasks.filter(t => !t.completed && !getTaskDeadlineDateKey(t))
     if (noDue.length > 0) {
       groups.push({ label: "Sin fecha", key: "no-date", tasks: noDue })
     }

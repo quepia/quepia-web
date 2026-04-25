@@ -20,6 +20,7 @@ import {
     Paperclip,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { getTaskDeadlineDateKey, toTaskDeadlineTimestamp } from "@/lib/sistema/task-deadlines"
 import { useTasks, useColumns } from "@/lib/sistema/hooks"
 import type { Task, ColumnWithTasks, SistemaUser, TaskType, Subtask } from "@/types/sistema"
 import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_ORDER, Priority, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
@@ -62,6 +63,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
 
     const [addingTaskColumn, setAddingTaskColumn] = useState<string | null>(null)
     const [newTaskTitle, setNewTaskTitle] = useState("")
+    const [creatingTaskColumn, setCreatingTaskColumn] = useState<string | null>(null)
     const [draggedTask, setDraggedTask] = useState<Task | null>(null)
     const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
@@ -71,6 +73,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
     const [showCompletedTasks, setShowCompletedTasks] = useState(false)
     const [isClearingCompleted, setIsClearingCompleted] = useState(false)
+    const creatingTaskColumnRef = useRef<string | null>(null)
 
     const completedTasksCount = useMemo(
         () => columns.reduce((count, column) => count + column.tasks.filter((task) => task.completed).length, 0),
@@ -87,16 +90,30 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
     }
 
     const handleAddTask = async (columnId: string) => {
-        if (!newTaskTitle.trim() || !projectId) return
+        const title = newTaskTitle.trim()
 
-        await createTask({
-            project_id: projectId,
-            column_id: columnId,
-            titulo: newTaskTitle.trim(),
-        })
+        if (!title || !projectId || creatingTaskColumnRef.current === columnId) return
 
-        setNewTaskTitle("")
-        setAddingTaskColumn(null)
+        creatingTaskColumnRef.current = columnId
+        setCreatingTaskColumn(columnId)
+
+        try {
+            const createdTask = await createTask({
+                project_id: projectId,
+                column_id: columnId,
+                titulo: title,
+            })
+
+            if (createdTask) {
+                setNewTaskTitle("")
+                setAddingTaskColumn(null)
+            }
+        } finally {
+            if (creatingTaskColumnRef.current === columnId) {
+                creatingTaskColumnRef.current = null
+            }
+            setCreatingTaskColumn((current) => current === columnId ? null : current)
+        }
     }
 
     const handleDeleteTask = async (taskId: string) => {
@@ -404,6 +421,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                             onToggleComplete={handleToggleComplete}
                             onAddTaskClick={() => setAddingTaskColumn(column.id)}
                             isAddingTask={addingTaskColumn === column.id}
+                            isCreatingTask={creatingTaskColumn === column.id}
                             newTaskTitle={newTaskTitle}
                             onNewTaskChange={setNewTaskTitle}
                             onNewTaskSubmit={() => handleAddTask(column.id)}
@@ -505,6 +523,7 @@ interface KanbanColumnProps {
     onToggleComplete?: (taskId: string) => void
     onAddTaskClick: () => void
     isAddingTask: boolean
+    isCreatingTask: boolean
     newTaskTitle: string
     onNewTaskChange: (value: string) => void
     onNewTaskSubmit: () => void
@@ -541,6 +560,7 @@ function KanbanColumn({
     onToggleComplete,
     onAddTaskClick,
     isAddingTask,
+    isCreatingTask,
     newTaskTitle,
     onNewTaskChange,
     onNewTaskSubmit,
@@ -871,19 +891,22 @@ function KanbanColumn({
                                 if (e.key === "Enter") onNewTaskSubmit()
                                 if (e.key === "Escape") onNewTaskCancel()
                             }}
+                            disabled={isCreatingTask}
                             autoFocus
-                            className="w-full bg-transparent text-sm text-white placeholder:text-white/40 outline-none"
+                            className="w-full bg-transparent text-sm text-white placeholder:text-white/40 outline-none disabled:cursor-not-allowed disabled:opacity-60"
                         />
                         <div className="flex items-center gap-2 mt-2">
                             <button
                                 onClick={onNewTaskSubmit}
-                                disabled={!newTaskTitle.trim()}
-                                className="px-3 py-1 text-xs font-medium rounded bg-quepia-cyan text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!newTaskTitle.trim() || isCreatingTask}
+                                className="px-3 py-1 text-xs font-medium rounded bg-quepia-cyan text-black disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
                             >
-                                Agregar
+                                {isCreatingTask && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                {isCreatingTask ? "Agregando..." : "Agregar"}
                             </button>
                             <button
                                 onClick={onNewTaskCancel}
+                                disabled={isCreatingTask}
                                 className="px-3 py-1 text-xs font-medium rounded text-white/60 hover:text-white"
                             >
                                 Cancelar
@@ -1013,7 +1036,7 @@ const TaskCard = React.memo(function TaskCard({
 }: TaskCardProps) {
     const [editTitle, setEditTitle] = useState(task.titulo)
     const [editPriority, setEditPriority] = useState<Priority>(task.priority || "P4")
-    const [editDueDate, setEditDueDate] = useState(task.due_date || "")
+    const [editDeadlineDate, setEditDeadlineDate] = useState(getTaskDeadlineDateKey(task) || "")
     const [uploadQueue, setUploadQueue] = useState<UploadProgressUpdate[]>([])
     const [isFileDragOver, setIsFileDragOver] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -1028,7 +1051,7 @@ const TaskCard = React.memo(function TaskCard({
         onSaveEdit?.({
             titulo: editTitle,
             priority: editPriority,
-            due_date: editDueDate || null
+            deadline: toTaskDeadlineTimestamp(editDeadlineDate)
         })
     }
 
@@ -1038,7 +1061,7 @@ const TaskCard = React.memo(function TaskCard({
         // Reset fields
         setEditTitle(task.titulo)
         setEditPriority(task.priority || "P4")
-        setEditDueDate(task.due_date || "")
+        setEditDeadlineDate(getTaskDeadlineDateKey(task) || "")
     }
 
     const updateUploadQueue = (update: UploadProgressUpdate) => {
@@ -1121,8 +1144,8 @@ const TaskCard = React.memo(function TaskCard({
 
                     <input
                         type="date"
-                        value={editDueDate}
-                        onChange={(e) => setEditDueDate(e.target.value)}
+                        value={editDeadlineDate}
+                        onChange={(e) => setEditDeadlineDate(e.target.value)}
                         className="bg-white/[0.05] text-[11px] text-white/80 border border-white/10 rounded px-2 py-1 outline-none hover:bg-white/10 transition-colors cursor-pointer [color-scheme:dark]"
                     />
                 </div>
@@ -1146,8 +1169,9 @@ const TaskCard = React.memo(function TaskCard({
     }
 
     const todayStart = startOfLocalDay(new Date())
-    const dueDayOffset = task.due_date
-        ? Math.round((startOfLocalDay(parseTaskDate(task.due_date)).getTime() - todayStart.getTime()) / DAY_IN_MS)
+    const deadlineDate = getTaskDeadlineDateKey(task)
+    const dueDayOffset = deadlineDate
+        ? Math.round((startOfLocalDay(parseTaskDate(deadlineDate)).getTime() - todayStart.getTime()) / DAY_IN_MS)
         : null
     const isOverdue = dueDayOffset !== null && dueDayOffset < 0 && !task.completed
     const isDueSoon = dueDayOffset !== null && dueDayOffset >= 0 && dueDayOffset <= 2 && !task.completed
@@ -1302,7 +1326,7 @@ const TaskCard = React.memo(function TaskCard({
                     {/* Meta Chips Row */}
                     <div className="flex items-center gap-1.5 flex-wrap mt-1">
                         {/* Due Date Chip */}
-                        {task.due_date && (
+                        {deadlineDate && (
                             <span className={cn(
                                 "inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-medium transition-colors",
                                 isOverdue ? "text-red-400 bg-red-500/10" :
@@ -1310,7 +1334,7 @@ const TaskCard = React.memo(function TaskCard({
                                         "text-white/50 bg-white/[0.04]"
                             )}>
                                 <Calendar className="h-3 w-3" />
-                                {formatDueDate(task.due_date)}
+                                {formatDueDate(deadlineDate)}
                             </span>
                         )}
 

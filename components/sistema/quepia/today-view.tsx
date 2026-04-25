@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { CheckCircle2, Circle, Calendar } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { createClient } from "@/lib/sistema/supabase/client"
+import { compareTaskDeadlines, getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { PRIORITY_COLORS } from "@/types/sistema"
 
@@ -22,9 +23,11 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
   const { overdue, dueToday } = useMemo(() => {
     const incomplete = tasks.filter(t => !t.completed)
     return {
-      overdue: incomplete.filter(t => t.due_date && t.due_date < todayStr)
-        .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || "")),
-      dueToday: incomplete.filter(t => t.due_date === todayStr)
+      overdue: incomplete.filter(t => {
+        const deadline = getTaskDeadlineDateKey(t)
+        return Boolean(deadline && deadline < todayStr)
+      }).sort(compareTaskDeadlines),
+      dueToday: incomplete.filter(t => getTaskDeadlineDateKey(t) === todayStr)
         .sort((a, b) => {
           const pOrder: Record<string, number> = { P1: 0, P2: 1, P3: 2, P4: 3 }
           return (pOrder[a.priority] || 3) - (pOrder[b.priority] || 3)
@@ -58,43 +61,47 @@ export function TodayView({ tasks, loading, onTaskClick, onRefresh }: TodayViewP
     )
   }
 
-  const renderTask = (task: TaskWithProject, showDate = false) => (
-    <div
-      key={task.id}
-      onClick={() => onTaskClick(task)}
-      className="flex min-h-12 w-full cursor-pointer items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
-    >
-      <button
-        onClick={(e) => toggleComplete(e, task)}
-        className="shrink-0"
+  const renderTask = (task: TaskWithProject, showDate = false) => {
+    const deadline = getTaskDeadlineDateKey(task)
+
+    return (
+      <div
+        key={task.id}
+        onClick={() => onTaskClick(task)}
+        className="flex min-h-12 w-full cursor-pointer items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
       >
-        {task.completed ? (
-          <CheckCircle2 className="h-4.5 w-4.5 text-green-400" />
-        ) : (
-          <Circle className="h-4.5 w-4.5 text-white/20 hover:text-white/40" />
-        )}
-      </button>
-      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
-      <span className={cn("text-sm truncate flex-1", task.completed ? "text-white/30 line-through" : "text-white/80")}>
-        {task.titulo}
-      </span>
-      {task.project && (
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full shrink-0 bg-white/5 border border-white/5">
-          {task.project.logo_url ? (
-            <img src={task.project.logo_url} alt="" className="w-3 h-3 rounded-full object-cover" />
+        <button
+          onClick={(e) => toggleComplete(e, task)}
+          className="shrink-0"
+        >
+          {task.completed ? (
+            <CheckCircle2 className="h-4.5 w-4.5 text-green-400" />
           ) : (
-            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: task.project.color }} />
+            <Circle className="h-4.5 w-4.5 text-white/20 hover:text-white/40" />
           )}
-          <span className="text-[10px] text-white/60">
-            {task.project.nombre}
-          </span>
-        </div>
-      )}
-      {showDate && task.due_date && (
-        <span className="text-[10px] text-red-400 shrink-0">{formatDate(task.due_date)}</span>
-      )}
-    </div>
-  )
+        </button>
+        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
+        <span className={cn("text-sm truncate flex-1", task.completed ? "text-white/30 line-through" : "text-white/80")}>
+          {task.titulo}
+        </span>
+        {task.project && (
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full shrink-0 bg-white/5 border border-white/5">
+            {task.project.logo_url ? (
+              <img src={task.project.logo_url} alt="" className="w-3 h-3 rounded-full object-cover" />
+            ) : (
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: task.project.color }} />
+            )}
+            <span className="text-[10px] text-white/60">
+              {task.project.nombre}
+            </span>
+          </div>
+        )}
+        {showDate && deadline && (
+          <span className="text-[10px] text-red-400 shrink-0">{formatDate(deadline)}</span>
+        )}
+      </div>
+    )
+  }
 
   const totalCount = overdue.length + dueToday.length
 

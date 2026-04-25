@@ -4,6 +4,7 @@ import { createClient } from '@/lib/sistema/supabase/server'
 import { createAdminClient } from '@/lib/sistema/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { sendEmail } from '@/lib/sistema/email-service'
+import { toTaskDeadlineTimestamp } from '@/lib/sistema/task-deadlines'
 import type { EfemerideInsert, EfemerideUpdate } from '@/types/sistema'
 
 type AdminClient = ReturnType<typeof createAdminClient>
@@ -654,7 +655,7 @@ export async function subirAssetEfemeride(params: SubirAssetParams) {
           titulo: `Efeméride: ${efemeride.nombre}`,
           descripcion: `Asset para ${efemeride.nombre} (${efemeride.fecha_dia}/${efemeride.fecha_mes}/${params.anio}).\n${params.notas || ''}`,
           priority: 'P2',
-          due_date: eventDateStr,
+          deadline: toTaskDeadlineTimestamp(eventDateStr),
           labels: ['efemeride'],
           orden: 0,
         })

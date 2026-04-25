@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { Search, CheckCircle2, Circle, Filter, X } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { createClient } from "@/lib/sistema/supabase/client"
+import { getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import { PRIORITY_COLORS, PRIORITY_LABELS, type Priority } from "@/types/sistema"
 
@@ -216,35 +217,39 @@ export function SearchView({ tasks, loading, onTaskClick, onRefresh }: SearchVie
           </div>
         ) : (
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
-            {results.map(task => (
-              <div
-                key={task.id}
-                onClick={() => onTaskClick(task)}
-                className="flex min-h-12 w-full cursor-pointer items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
-              >
-                <button onClick={(e) => toggleComplete(e, task)} className="shrink-0">
-                  {task.completed ? (
-                    <CheckCircle2 className="h-4.5 w-4.5 text-green-400" />
-                  ) : (
-                    <Circle className="h-4.5 w-4.5 text-white/20 hover:text-white/40" />
+            {results.map(task => {
+              const deadline = getTaskDeadlineDateKey(task)
+
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => onTaskClick(task)}
+                  className="flex min-h-12 w-full cursor-pointer items-center gap-3 border-b border-white/[0.04] px-4 py-3 text-left transition-all duration-200 hover:bg-white/[0.04] last:border-0"
+                >
+                  <button onClick={(e) => toggleComplete(e, task)} className="shrink-0">
+                    {task.completed ? (
+                      <CheckCircle2 className="h-4.5 w-4.5 text-green-400" />
+                    ) : (
+                      <Circle className="h-4.5 w-4.5 text-white/20 hover:text-white/40" />
+                    )}
+                  </button>
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
+                  <span className={cn("text-sm truncate flex-1", task.completed ? "text-white/30 line-through" : "text-white/80")}>
+                    {task.titulo}
+                  </span>
+                  {task.project && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ backgroundColor: task.project.color + "20", color: task.project.color }}>
+                      {task.project.nombre}
+                    </span>
                   )}
-                </button>
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_COLORS[task.priority] }} />
-                <span className={cn("text-sm truncate flex-1", task.completed ? "text-white/30 line-through" : "text-white/80")}>
-                  {task.titulo}
-                </span>
-                {task.project && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={{ backgroundColor: task.project.color + "20", color: task.project.color }}>
-                    {task.project.nombre}
-                  </span>
-                )}
-                {task.due_date && (
-                  <span className="text-[10px] text-white/25 shrink-0">
-                    {new Date(task.due_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-                  </span>
-                )}
-              </div>
-            ))}
+                  {deadline && (
+                    <span className="text-[10px] text-white/25 shrink-0">
+                      {new Date(`${deadline}T12:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

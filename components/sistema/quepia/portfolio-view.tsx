@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { Folder, Hash, ChevronRight, CheckCircle2, Clock, AlertCircle, BarChart3 } from "lucide-react"
 import type { ProjectWithChildren } from "@/types/sistema"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
+import { compareTaskDeadlines, getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 
 interface PortfolioViewProps {
     projects: ProjectWithChildren[]
@@ -51,12 +52,15 @@ export function PortfolioView({ projects, tasks, loading, onProjectClick }: Port
         const statsMap = new Map<string, ProjectTaskStats>()
         for (const [projectId, projectTasks] of byProject) {
             const completedTasks = projectTasks.filter((task) => task.completed)
-            const overdueTasks = projectTasks.filter((task) => !task.completed && task.due_date && task.due_date < todayStr)
+            const overdueTasks = projectTasks.filter((task) => {
+                const deadline = getTaskDeadlineDateKey(task)
+                return Boolean(!task.completed && deadline && deadline < todayStr)
+            })
             const totalHours = projectTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0)
             const completedHours = completedTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0)
             const nextDeadline = projectTasks
-                .filter((task) => !task.completed && task.due_date)
-                .sort((a, b) => (a.due_date || "").localeCompare(b.due_date || ""))[0]?.due_date || null
+                .filter((task) => !task.completed && getTaskDeadlineDateKey(task))
+                .sort(compareTaskDeadlines)[0]
 
             statsMap.set(projectId, {
                 totalTasks: projectTasks.length,
@@ -65,7 +69,7 @@ export function PortfolioView({ projects, tasks, loading, onProjectClick }: Port
                 totalHours,
                 completedHours,
                 progress: projectTasks.length > 0 ? Math.round((completedTasks.length / projectTasks.length) * 100) : 0,
-                nextDeadline,
+                nextDeadline: nextDeadline ? getTaskDeadlineDateKey(nextDeadline) : null,
             })
         }
 

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { ChevronLeft, ChevronRight, Calendar, Plus, X, Sparkles, Loader2, Trash2 } from "lucide-react"
 import { createClient } from "@/lib/sistema/supabase/client"
 import { cn } from "@/lib/sistema/utils"
+import { getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { CalendarEvent } from "@/types/sistema"
 import { PRIORITY_COLORS, EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from "@/types/sistema"
@@ -83,8 +84,8 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
     const map = new Map<string, { tasks: TaskWithProject[]; events: (CalendarEvent & { project?: ProjectWithLogo })[] }>()
 
     for (const task of tasks) {
-      if (!task.completed && task.due_date) {
-        const d = task.due_date
+      const d = getTaskDeadlineDateKey(task)
+      if (!task.completed && d) {
         if (!map.has(d)) map.set(d, { tasks: [], events: [] })
         map.get(d)!.tasks.push(task)
       }

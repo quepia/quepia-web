@@ -28,6 +28,7 @@ import {
     GitBranch,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { getTaskDeadlineDateKey, toTaskDeadlineTimestamp } from "@/lib/sistema/task-deadlines"
 import { useTaskDetails, useSubtasks, useComments, useTaskLinks, useSistemaUsers, useTaskDependencies } from "@/lib/sistema/hooks"
 import { notifyTaskAssignment, sendNotification } from "@/lib/sistema/actions/notifications"
 import type { CommentSource, CommentWithUser, Priority, SistemaUser, Task, TaskLink, TaskType, TaskWithDetails, Subtask } from "@/types/sistema"
@@ -92,8 +93,6 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [socialCopyValue, setSocialCopyValue] = useState("")
     const [showPriorityMenu, setShowPriorityMenu] = useState(false)
     const [showAssigneeMenu, setShowAssigneeMenu] = useState(false)
-    const [editingDueDate, setEditingDueDate] = useState(false)
-    const [dueDateValue, setDueDateValue] = useState("")
     const [editingDeadline, setEditingDeadline] = useState(false)
     const [deadlineValue, setDeadlineValue] = useState("")
     const [showTaskTypeMenu, setShowTaskTypeMenu] = useState(false)
@@ -207,8 +206,6 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
 
     const getDateOnly = (value?: string | null) => (value ? value.split("T")[0] : "")
 
-    const toDeadlineTimestamp = (value?: string | null) => (value ? `${value}T12:00:00` : null)
-
     const isPastDate = (value?: string | null) => {
         if (!value) return false
         const date = new Date(`${getDateOnly(value)}T12:00:00`)
@@ -245,10 +242,12 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                     })
                 } else if (task?.assignee_id && task.assignee_id !== userId) {
                     // Notify assignee of changes if they are not the actor
-                    const notifyFields = ['titulo', 'descripcion', 'due_date', 'deadline', 'priority', 'completed']
+                    const notifyFields = ['titulo', 'descripcion', 'deadline', 'priority', 'completed']
                     if (notifyFields.includes(field)) {
                         let title = `Actualización en tarea: ${task.titulo}`
-                        let content = `Se actualizó ${field} en la tarea`
+                        let content = field === "deadline"
+                            ? "Se actualizó el deadline de la tarea"
+                            : `Se actualizó ${field} en la tarea`
 
                         if (field === 'completed') {
                             title = `Tarea completada: ${task.titulo}`
@@ -1137,48 +1136,6 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                         </div>
                                     </SidebarField>
 
-                                    {/* Due Date */}
-                                    <SidebarField label="Fecha">
-                                        {editingDueDate ? (
-                                            <input
-                                                type="date"
-                                                value={dueDateValue}
-                                                onChange={(e) => setDueDateValue(e.target.value)}
-                                                onBlur={() => {
-                                                    const val = dueDateValue || null
-                                                    if (val !== (task.due_date || null)) {
-                                                        updateTaskField("due_date", val)
-                                                    }
-                                                    setEditingDueDate(false)
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        const val = dueDateValue || null
-                                                        if (val !== (task.due_date || null)) {
-                                                            updateTaskField("due_date", val)
-                                                        }
-                                                        setEditingDueDate(false)
-                                                    }
-                                                    if (e.key === "Escape") setEditingDueDate(false)
-                                                }}
-                                                autoFocus
-                                                className="text-sm bg-white/[0.03] border border-white/10 rounded px-2 py-1 text-white outline-none focus:border-quepia-cyan w-full [color-scheme:dark]"
-                                            />
-                                        ) : (
-                                            <button
-                                                onClick={() => { setDueDateValue(task.due_date || ""); setEditingDueDate(true) }}
-                                                className="flex items-center gap-2 text-sm hover:bg-white/[0.04] rounded px-1 -mx-1 py-0.5 transition-colors"
-                                            >
-                                                <Calendar className="h-4 w-4 text-white/30" />
-                                                {task.due_date ? (
-                                                    <span className="text-white/70">{new Date(task.due_date + "T12:00:00").toLocaleDateString("es-AR")}</span>
-                                                ) : (
-                                                    <span className="text-white/30">Agregar fecha</span>
-                                                )}
-                                            </button>
-                                        )}
-                                    </SidebarField>
-
                                     {/* Deadline */}
                                     <SidebarField label="Deadline">
                                         {editingDeadline ? (
@@ -1188,19 +1145,19 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                                     value={deadlineValue}
                                                     onChange={(e) => setDeadlineValue(e.target.value)}
                                                     onBlur={() => {
-                                                        const currentDeadlineDate = getDateOnly(task.deadline) || null
+                                                        const currentDeadlineDate = getTaskDeadlineDateKey(task)
                                                         const val = deadlineValue || null
                                                         if (val !== currentDeadlineDate) {
-                                                            updateTaskField("deadline", toDeadlineTimestamp(val))
+                                                            updateTaskField("deadline", toTaskDeadlineTimestamp(val))
                                                         }
                                                         setEditingDeadline(false)
                                                     }}
                                                     onKeyDown={(e) => {
                                                         if (e.key === "Enter") {
-                                                            const currentDeadlineDate = getDateOnly(task.deadline) || null
+                                                            const currentDeadlineDate = getTaskDeadlineDateKey(task)
                                                             const val = deadlineValue || null
                                                             if (val !== currentDeadlineDate) {
-                                                                updateTaskField("deadline", toDeadlineTimestamp(val))
+                                                                updateTaskField("deadline", toTaskDeadlineTimestamp(val))
                                                             }
                                                             setEditingDeadline(false)
                                                         }
@@ -1225,7 +1182,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                                                 base.setDate(base.getDate() + option.days)
                                                                 const dateStr = formatLocalDate(base)
                                                                 setDeadlineValue(dateStr)
-                                                                updateTaskField("deadline", toDeadlineTimestamp(dateStr))
+                                                                updateTaskField("deadline", toTaskDeadlineTimestamp(dateStr))
                                                                 setEditingDeadline(false)
                                                             }}
                                                             className="text-[11px] px-2 py-1 rounded-full bg-white/[0.04] text-white/70 hover:bg-white/[0.08] transition-colors"
@@ -1238,23 +1195,23 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                         ) : (
                                             <button
                                                 onClick={() => {
-                                                    setDeadlineValue(getDateOnly(task.deadline))
+                                                    setDeadlineValue(getTaskDeadlineDateKey(task) || "")
                                                     setEditingDeadline(true)
                                                 }}
                                                 className="flex items-center gap-2 text-sm hover:bg-white/[0.04] rounded px-1 -mx-1 py-0.5 transition-colors"
                                             >
-                                                {task.deadline && isPastDate(task.deadline) ? (
+                                                {getTaskDeadlineDateKey(task) && isPastDate(getTaskDeadlineDateKey(task)) ? (
                                                     <AlertCircle className="h-4 w-4 text-red-400" />
                                                 ) : (
                                                     <Calendar className="h-4 w-4 text-white/30" />
                                                 )}
-                                                {task.deadline ? (
+                                                {getTaskDeadlineDateKey(task) ? (
                                                     <span className={cn(
-                                                        isPastDate(task.deadline)
+                                                        isPastDate(getTaskDeadlineDateKey(task))
                                                             ? "text-red-400"
                                                             : "text-white/70"
                                                     )}>
-                                                        {new Date(`${getDateOnly(task.deadline)}T12:00:00`).toLocaleDateString("es-AR")}
+                                                        {new Date(`${getTaskDeadlineDateKey(task)}T12:00:00`).toLocaleDateString("es-AR")}
                                                     </span>
                                                 ) : (
                                                     <span className="text-white/30">Agregar deadline</span>

@@ -10,11 +10,15 @@ import EfemerideReminderEmail from '@/components/emails/EfemerideReminderEmail';
 import { getEmailFromAddress, isUsingDefaultResendSender } from '@/lib/sistema/email-config';
 // cleaned up imports
 
-const resend = process.env.RESEND_API_KEY
-    ? new Resend(process.env.RESEND_API_KEY)
-    : null;
-const emailFrom = getEmailFromAddress();
-const usingDefaultResendSender = isUsingDefaultResendSender();
+let resendClient: Resend | null | undefined;
+
+function getResendClient() {
+    if (resendClient !== undefined) return resendClient;
+    resendClient = process.env.RESEND_API_KEY
+        ? new Resend(process.env.RESEND_API_KEY)
+        : null;
+    return resendClient;
+}
 
 export type EmailType = 'approval_request' | 'daily_digest' | 'mention' | 'contact_form' | 'general_notification' | 'proposal' | 'efemeride_reminder';
 
@@ -39,7 +43,9 @@ export async function sendEmail({ type, to, data }: SendEmailParams) {
                 html = await render(ApprovalRequestEmail(data as any));
                 break;
             case 'daily_digest':
-                subject = `Resumen diario - ${new Date().toLocaleDateString('es-AR')}`;
+                subject = data.overdueCount > 0
+                    ? `Tenés ${data.overdueCount} tarea${data.overdueCount === 1 ? '' : 's'} vencida${data.overdueCount === 1 ? '' : 's'}`
+                    : `Resumen diario - ${new Date().toLocaleDateString('es-AR')}`;
                 html = await render(DailyDigestEmail(data as any));
                 break;
             case 'mention':
@@ -66,10 +72,14 @@ export async function sendEmail({ type, to, data }: SendEmailParams) {
                 return { success: false, error: `Unsupported email type: ${type}` };
         }
 
+        const resend = getResendClient();
         if (!resend) {
             console.log('[DEV] RESEND_API_KEY missing. Email simulated:', { to, subject, type });
             return { success: true, dev: true };
         }
+
+        const emailFrom = getEmailFromAddress();
+        const usingDefaultResendSender = isUsingDefaultResendSender();
 
         const { data: result, error } = await resend.emails.send({
             from: emailFrom,
