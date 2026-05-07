@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useEffect } from "react"
 import { Receipt, Search, Plus, Edit2, Trash2, Download, X, Check, Upload, ExternalLink, Loader2, Clock } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { ExpenseWithCategory, ExpenseInsert, ExpenseUpdate, ExpenseCategory, ExpenseSubcategory, Account, Currency } from "@/types/accounting"
@@ -57,6 +57,14 @@ export function AccountingExpensesView({
         return subcategories.filter(s => s.category_id === formCategoryId)
     }, [subcategories, formCategoryId])
 
+    useEffect(() => {
+        if (!formAccountId) return
+        const selectedAccount = accounts.find(acc => acc.id === formAccountId)
+        if (selectedAccount && selectedAccount.currency !== formCurrency) {
+            setFormAccountId("")
+        }
+    }, [accounts, formAccountId, formCurrency])
+
     // Filter expenses
     const filteredExpenses = expenses.filter((e) => {
         if (searchTerm) {
@@ -107,6 +115,9 @@ export function AccountingExpensesView({
 
     const handleSubmit = async () => {
         if (!formDescription || !formAmount || !formAccountId) return
+        const amount = parseFloat(formAmount)
+        const selectedAccount = accounts.find(acc => acc.id === formAccountId)
+        if (!Number.isFinite(amount) || amount <= 0 || !selectedAccount || selectedAccount.currency !== formCurrency) return
 
         setIsSubmitting(true)
         try {
@@ -116,7 +127,7 @@ export function AccountingExpensesView({
                 subcategory_id: formSubcategoryId || null,
                 account_id: formAccountId,
                 description: formDescription,
-                amount: parseFloat(formAmount),
+                amount,
                 currency: formCurrency,
                 provider: formProvider || null,
                 notes: formNotes || null,
@@ -543,7 +554,7 @@ export function AccountingExpensesView({
                             {/* Submit */}
                             <button
                                 onClick={handleSubmit}
-                                disabled={!formDescription || !formAmount || !formAccountId || isSubmitting}
+                                disabled={!formDescription || !formAmount || !formAccountId || parseFloat(formAmount) <= 0 || isSubmitting}
                                 className="w-full mt-2 px-4 py-3 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (

@@ -199,6 +199,7 @@ export function useAccounting() {
                 throw insertError;
             }
             await fetchPayments();
+            await fetchAccounts();
             return data;
         } catch (err: any) {
             console.error('Error creating payment:', err?.message || err?.code || JSON.stringify(err));
@@ -220,10 +221,51 @@ export function useAccounting() {
 
             if (updateError) throw updateError;
             await fetchPayments();
+            await fetchAccounts();
             return true;
         } catch (err) {
             console.error('Error updating payment:', err);
             setError(err instanceof Error ? err.message : 'Error updating payment');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const assignUnassignedIncome = async (accountId: string, year: number): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const startDate = `${year}-01-01`;
+            const endDate = `${year}-12-31`;
+
+            const { error: paymentsError } = await supabase
+                .from('accounting_client_payments')
+                .update({ account_id: accountId })
+                .is('account_id', null)
+                .eq('status', 'paid')
+                .eq('currency', 'ARS')
+                .eq('year', year);
+
+            if (paymentsError) throw paymentsError;
+
+            const { error: contributionsError } = await supabase
+                .from('accounting_partner_contributions')
+                .update({ account_id: accountId })
+                .is('account_id', null)
+                .eq('currency', 'ARS')
+                .gte('date', startDate)
+                .lte('date', endDate);
+
+            if (contributionsError) throw contributionsError;
+
+            await fetchPayments();
+            await fetchContributions();
+            await fetchAccounts();
+            return true;
+        } catch (err) {
+            console.error('Error assigning unassigned income:', err);
+            setError(err instanceof Error ? err.message : 'Error assigning unassigned income');
             return false;
         } finally {
             setLoading(false);
@@ -241,6 +283,7 @@ export function useAccounting() {
 
             if (deleteError) throw deleteError;
             await fetchPayments();
+            await fetchAccounts();
             return true;
         } catch (err) {
             console.error('Error deleting payment:', err);
@@ -294,6 +337,7 @@ export function useAccounting() {
 
             if (insertError) throw insertError;
             await fetchExpenses();
+            await fetchAccounts();
             return data;
         } catch (err) {
             console.error('Error creating expense:', err);
@@ -320,6 +364,7 @@ export function useAccounting() {
 
             if (updateError) throw updateError;
             await fetchExpenses();
+            await fetchAccounts();
             return true;
         } catch (err) {
             console.error('Error updating expense:', err);
@@ -341,6 +386,7 @@ export function useAccounting() {
 
             if (deleteError) throw deleteError;
             await fetchExpenses();
+            await fetchAccounts();
             return true;
         } catch (err) {
             console.error('Error deleting expense:', err);
@@ -957,6 +1003,7 @@ export function useAccounting() {
             if (updateError) throw updateError;
             await fetchContributions();
             await fetchContributionsTotals();
+            await fetchAccounts();
             await fetchMonthlyChartData(); // Mantener sincronizado "sin distribuir"
             return true;
         } catch (err) {
@@ -1093,6 +1140,7 @@ export function useAccounting() {
         fetchPayments,
         createPayment,
         updatePayment,
+        assignUnassignedIncome,
         deletePayment,
 
         // Gastos

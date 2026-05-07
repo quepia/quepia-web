@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { CreditCard, Search, Plus, Edit2, Trash2, Calendar, Download, X, Check, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { ClientPaymentWithProject, ClientPaymentInsert, ClientPaymentUpdate, PaymentStatus, Currency, Account } from "@/types/accounting"
@@ -64,6 +64,15 @@ export function AccountingPaymentsView({
 
     // Flatten projects for select
     const flatProjects = flattenProjects(projects)
+    const compatibleAccounts = accounts.filter(acc => acc.currency === formCurrency)
+
+    useEffect(() => {
+        if (!formAccountId) return
+        const selectedAccount = accounts.find(acc => acc.id === formAccountId)
+        if (selectedAccount && selectedAccount.currency !== formCurrency) {
+            setFormAccountId("")
+        }
+    }, [accounts, formAccountId, formCurrency])
 
     // Filter payments
     const filteredPayments = payments.filter((p) => {
@@ -114,6 +123,12 @@ export function AccountingPaymentsView({
 
     const handleSubmit = async () => {
         if (!formProjectId || !formAmount) return
+        const amount = parseFloat(formAmount)
+        if (!Number.isFinite(amount) || amount <= 0) return
+        if (formAccountId) {
+            const selectedAccount = accounts.find(acc => acc.id === formAccountId)
+            if (!selectedAccount || selectedAccount.currency !== formCurrency) return
+        }
 
         setIsSubmitting(true)
         try {
@@ -122,7 +137,7 @@ export function AccountingPaymentsView({
                 account_id: formAccountId || null,
                 month: formMonth,
                 year: formYear,
-                amount: parseFloat(formAmount),
+                amount,
                 currency: formCurrency,
                 status: formStatus,
                 expected_payment_date: formExpectedDate || null,
@@ -528,7 +543,7 @@ export function AccountingPaymentsView({
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-emerald-500 transition-colors"
                                 >
                                     <option value="" className="bg-[#1a1a1a]">Sin asignar</option>
-                                    {accounts.map(acc => (
+                                    {compatibleAccounts.map(acc => (
                                         <option key={acc.id} value={acc.id} className="bg-[#1a1a1a]">
                                             {acc.name} ({acc.currency})
                                         </option>
@@ -551,7 +566,7 @@ export function AccountingPaymentsView({
                             {/* Submit */}
                             <button
                                 onClick={handleSubmit}
-                                disabled={!formProjectId || !formAmount || isSubmitting}
+                                disabled={!formProjectId || !formAmount || parseFloat(formAmount) <= 0 || isSubmitting}
                                 className="w-full mt-2 px-4 py-3 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (

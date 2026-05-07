@@ -70,47 +70,25 @@ export function AccountingView({ projects }: AccountingViewProps) {
 
     // Calcular saldo sin distribuir
     const unassignedBalance = useMemo(() => {
-        // Usar totales ARS del historial (incluye aportes/devoluciones y evita mezclar USD)
-        const yearNetARSFromHistory = accounting.historySummary
-            ? (accounting.historySummary.total_income_ars || 0) - (accounting.historySummary.total_expenses_ars || 0)
-            : null
+        const unassignedPayments = accounting.payments
+            .filter((payment) =>
+                payment.status === 'paid' &&
+                payment.currency === 'ARS' &&
+                !payment.account_id &&
+                payment.year === selectedYear
+            )
+            .reduce((sum, payment) => sum + (payment.amount || 0), 0)
 
-        // Fallback mientras carga historySummary
-        const yearTotalsFallback = accounting.monthlyChartData.reduce((acc, d) => ({
-            income: acc.income + (d.total_income || 0),
-            expenses: acc.expenses + (d.total_expenses || 0),
-        }), { income: 0, expenses: 0 })
-        const yearNetFallback = yearTotalsFallback.income - yearTotalsFallback.expenses
+        const unassignedContributions = accounting.contributions
+            .filter((contribution) =>
+                contribution.currency === 'ARS' &&
+                !contribution.account_id &&
+                new Date(`${contribution.date}T00:00:00`).getFullYear() === selectedYear
+            )
+            .reduce((sum, contribution) => sum + (contribution.amount || 0), 0)
 
-        // Total en cuentas ARS (balance actual)
-        const accountTotalARS = accounting.accounts
-            .filter(a => a.currency === 'ARS')
-            .reduce((sum, a) => sum + (a.current_balance || 0), 0)
-
-        // Transferencias salientes de cuentas ARS del año (incluye conversiones a USD)
-        const arsYearTransfersOut = accounting.accounts
-            .filter(a => a.currency === 'ARS')
-            .reduce((sum, a) => sum + (a.year_transfers_out || 0), 0)
-
-        // Transferencias entrantes a cuentas ARS del año (desde otras cuentas)
-        const arsYearTransfersIn = accounting.accounts
-            .filter(a => a.currency === 'ARS')
-            .reduce((sum, a) => sum + (a.year_transfers_in || 0), 0)
-
-        // Ajustes de balance del año en cuentas ARS (arqueos de caja)
-        const arsYearAdjustments = accounting.accounts
-            .filter(a => a.currency === 'ARS')
-            .reduce((sum, a) => sum + (a.year_adjustments || 0), 0)
-
-        // El dinero "distribuido" en ARS incluye:
-        // - Balance actual en cuentas ARS
-        // - Plus transferencias salientes netas del año (dinero que fue a USD)
-        // - Menos ajustes de balance (ya que no son ingresos reales)
-        const totalDistributed = accountTotalARS + arsYearTransfersOut - arsYearTransfersIn - arsYearAdjustments
-
-        const yearNet = yearNetARSFromHistory ?? yearNetFallback
-        return yearNet - totalDistributed
-    }, [accounting.monthlyChartData, accounting.accounts, accounting.historySummary])
+        return unassignedPayments + unassignedContributions
+    }, [accounting.payments, accounting.contributions, selectedYear])
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#0a0a0a] text-white">
@@ -161,8 +139,11 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         onCreateTransfer={accounting.createTransfer}
                         onCreateBalanceAdjustment={accounting.createBalanceAdjustment}
                         onFetchMovements={accounting.fetchAccountMovements}
+                        onAssignUnassignedIncome={(accountId) => accounting.assignUnassignedIncome(accountId, selectedYear)}
                         onRefresh={() => {
                             accounting.fetchAccounts()
+                            accounting.fetchPayments()
+                            accounting.fetchContributions()
                             accounting.fetchTransfers()
                             accounting.fetchMonthlyChartData(selectedYear)
                             const { startDate, endDate } = getYearRange(selectedYear)

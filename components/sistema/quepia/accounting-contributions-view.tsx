@@ -118,6 +118,14 @@ export function AccountingContributionsView({
         )
     }, [filterStatus, filterPartner])
 
+    useEffect(() => {
+        if (!formAccountId) return
+        const selectedAccount = accounts.find(account => account.id === formAccountId)
+        if (selectedAccount && selectedAccount.currency !== formCurrency) {
+            setFormAccountId("")
+        }
+    }, [accounts, formAccountId, formCurrency])
+
     const resetContributionForm = () => {
         setFormPartnerName("")
         setFormAmount("")
@@ -163,12 +171,14 @@ export function AccountingContributionsView({
 
     const handleSubmitContribution = async () => {
         if (!formPartnerName.trim() || !formAmount) return
+        const amount = parseFloat(formAmount)
+        if (!Number.isFinite(amount) || amount <= 0) return
 
         setIsSubmitting(true)
         try {
             const contributionData: PartnerContributionInsert = {
                 partner_name: formPartnerName.trim(),
-                amount: parseFloat(formAmount),
+                amount,
                 currency: formCurrency,
                 date: formDate,
                 account_id: formAccountId || null,
@@ -197,12 +207,14 @@ export function AccountingContributionsView({
 
     const handleSubmitRepayment = async () => {
         if (!selectedContribution || !repaymentAmount) return
+        const amount = parseFloat(repaymentAmount)
+        if (!Number.isFinite(amount) || amount <= 0 || amount > selectedContribution.amount_pending) return
 
         setIsSubmitting(true)
         try {
             await onCreateRepayment({
                 contribution_id: selectedContribution.id,
-                amount: parseFloat(repaymentAmount),
+                amount,
                 date: repaymentDate,
                 repayment_type: repaymentType,
                 account_id: repaymentAccountId || null,
@@ -568,7 +580,7 @@ export function AccountingContributionsView({
                             {/* Submit */}
                             <button
                                 onClick={handleSubmitContribution}
-                                disabled={!formPartnerName.trim() || !formAmount || isSubmitting}
+                                disabled={!formPartnerName.trim() || !formAmount || parseFloat(formAmount) <= 0 || isSubmitting}
                                 className="w-full mt-2 px-4 py-3 bg-cyan-500 text-white font-medium rounded-lg hover:bg-cyan-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
@@ -699,7 +711,7 @@ export function AccountingContributionsView({
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleSubmitRepayment}
-                                        disabled={!repaymentAmount || isSubmitting}
+                                        disabled={!repaymentAmount || parseFloat(repaymentAmount) <= 0 || parseFloat(repaymentAmount) > selectedContribution.amount_pending || isSubmitting}
                                         className="flex-1 px-4 py-2 bg-cyan-500 text-white font-medium rounded-lg hover:bg-cyan-600 disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Registrar'}

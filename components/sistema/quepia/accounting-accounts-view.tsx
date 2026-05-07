@@ -31,6 +31,7 @@ interface AccountsViewProps {
     onCreateTransfer: (transfer: AccountTransferInsert) => Promise<any>
     onCreateBalanceAdjustment: (adjustment: BalanceAdjustmentInsert) => Promise<boolean>
     onFetchMovements: (accountId: string, limit?: number) => Promise<AccountMovement[]>
+    onAssignUnassignedIncome: (accountId: string) => Promise<boolean>
     onRefresh: () => void
 }
 
@@ -54,11 +55,10 @@ export function AccountingAccountsView({
     loading,
     unassignedBalance,
     onCreateAccount,
-    onUpdateAccount,
-    onDeleteAccount,
     onCreateTransfer,
     onCreateBalanceAdjustment,
     onFetchMovements,
+    onAssignUnassignedIncome,
     onRefresh
 }: AccountsViewProps) {
     const [showCreateModal, setShowCreateModal] = useState(false)
@@ -345,13 +345,9 @@ export function AccountingAccountsView({
                     accounts={accounts.filter(a => a.currency === 'ARS')}
                     unassignedBalance={unassignedBalance}
                     onClose={() => setShowAssignModal(false)}
-                    onAssign={async (accountId, amount) => {
-                        // Buscar la cuenta y actualizar su balance inicial
-                        const account = accounts.find(a => a.id === accountId)
-                        if (account) {
-                            await onUpdateAccount(accountId, {
-                                initial_balance: (account.initial_balance || 0) + amount
-                            })
+                    onAssign={async (accountId) => {
+                        const assigned = await onAssignUnassignedIncome(accountId)
+                        if (assigned) {
                             setShowAssignModal(false)
                             onRefresh()
                         }
@@ -552,17 +548,20 @@ function TransferModal({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) return
+        const parsedAmount = parseNumber(amount)
+        const parsedExchangeRate = parseNumber(exchangeRate)
+        if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return
 
         // Validar exchange_rate si es cross-currency
-        if (isCrossCurrency && !exchangeRate) return
+        if (isCrossCurrency && (!Number.isFinite(parsedExchangeRate) || parsedExchangeRate <= 0)) return
 
         setSaving(true)
         await onTransfer({
             from_account_id: fromAccountId,
             to_account_id: toAccountId,
-            amount: parseNumber(amount),
+            amount: parsedAmount,
             currency: fromAccount?.currency || 'ARS',
-            exchange_rate: isCrossCurrency ? parseNumber(exchangeRate) : undefined,
+            exchange_rate: isCrossCurrency ? parsedExchangeRate : undefined,
             commission: commission ? parseNumber(commission) : undefined,
             tax: tax ? parseNumber(tax) : undefined,
             date: new Date().toISOString().split('T')[0],
@@ -746,7 +745,7 @@ function TransferModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={saving || !fromAccountId || !toAccountId || !amount || fromAccountId === toAccountId || (isCrossCurrency && !exchangeRate)}
+                            disabled={saving || !fromAccountId || !toAccountId || !amount || parseNumber(amount) <= 0 || fromAccountId === toAccountId || (isCrossCurrency && parseNumber(exchangeRate) <= 0)}
                             className="px-4 py-2 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 rounded-lg font-medium transition-colors"
                         >
                             {saving ? 'Transfiriendo...' : 'Transferir'}
@@ -768,10 +767,9 @@ function AssignBalanceModal({
     accounts: Account[]
     unassignedBalance: number
     onClose: () => void
-    onAssign: (accountId: string, amount: number) => Promise<void>
+    onAssign: (accountId: string) => Promise<void>
 }) {
     const [selectedAccountId, setSelectedAccountId] = useState('')
-    const [amount, setAmount] = useState(unassignedBalance.toString())
     const [saving, setSaving] = useState(false)
 
     const formatCurrency = (amount: number, currency: string = 'ARS') => {
@@ -784,10 +782,10 @@ function AssignBalanceModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!selectedAccountId || !amount) return
+        if (!selectedAccountId) return
 
         setSaving(true)
-        await onAssign(selectedAccountId, parseFloat(amount))
+        await onAssign(selectedAccountId)
         setSaving(false)
     }
 
@@ -829,26 +827,13 @@ function AssignBalanceModal({
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-sm text-white/60 mb-2">Monto a asignar</label>
-                        <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-amber-500"
-                            placeholder="0"
-                            min="0"
-                            max={unassignedBalance}
-                            step="0.01"
-                            required
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setAmount(unassignedBalance.toString())}
-                            className="text-xs text-amber-400 hover:text-amber-300 mt-1"
-                        >
-                            Asignar todo ({formatCurrency(unassignedBalance)})
-                        </button>
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
+                        <p className="text-sm text-amber-100">
+                            Se asignarán los pagos y aportes ARS pagados que todavía están sin cuenta.
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-amber-400">
+                            {formatCurrency(unassignedBalance)}
+                        </p>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4">
@@ -861,7 +846,7 @@ function AssignBalanceModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={saving || !selectedAccountId || !amount}
+                            disabled={saving || !selectedAccountId}
                             className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 rounded-lg font-medium transition-colors"
                         >
                             {saving ? 'Asignando...' : 'Asignar saldo'}
