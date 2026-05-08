@@ -6,6 +6,7 @@ import HeroSection from '@/components/home/HeroSection';
 import CTASection from '@/components/home/CTASection';
 import MarqueeSection from '@/components/home/MarqueeSection';
 import ProcessSection from '@/components/home/ProcessSection';
+import PlansSection from '@/components/home/PlansSection';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 
@@ -87,6 +88,13 @@ export default async function Home() {
           style={{ contentVisibility: 'auto', containIntrinsicSize: '900px' }}
         >
           <ProcessSection />
+        </section>
+
+        <section
+          id="plans"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '1300px' }}
+        >
+          <PlansSection />
         </section>
 
         <section

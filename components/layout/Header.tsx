@@ -12,6 +12,7 @@ const navLinks = [
     { name: 'Servicios', path: '/servicios' },
     { name: 'Trabajos', path: '/trabajos' },
     { name: 'Nosotros', path: '/sobre-nosotros' },
+    { name: 'Precios', path: '/precios' },
     { name: 'Contacto', path: '/contacto' },
 ];
 
