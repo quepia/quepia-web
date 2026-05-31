@@ -29,11 +29,7 @@ interface AICalendarModalProps {
 }
 
 const PLATFORMS = ["Instagram", "TikTok", "LinkedIn", "Twitter"] as const
-const FREQUENCIES = [
-  { label: "3 por semana", value: "3/week" },
-  { label: "5 por semana", value: "5/week" },
-  { label: "Diario", value: "daily" },
-] as const
+const WEEKLY_FREQUENCY_PRESETS = [2, 3, 4, 5, 7] as const
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -62,7 +58,7 @@ export default function AICalendarModal({
   const [industry, setIndustry] = useState("")
   const [month, setMonth] = useState(new Date().getMonth())
   const [pillars, setPillars] = useState("")
-  const [frequency, setFrequency] = useState<string>("3/week")
+  const [postsPerWeek, setPostsPerWeek] = useState(3)
   const [platforms, setPlatforms] = useState<string[]>(["Instagram"])
   const [editablePrompt, setEditablePrompt] = useState("")
 
@@ -87,9 +83,8 @@ export default function AICalendarModal({
   const generatedPrompt = useMemo(() => {
     const year = new Date().getFullYear()
     const platformList = platforms.join(", ")
-    const freqLabel = FREQUENCIES.find((f) => f.value === frequency)?.label ?? frequency
-    return `Generá un calendario de contenido para ${MONTHS[month]} ${year} para una marca del rubro "${industry || "..."}".\n\nPlataformas: ${platformList}\nFrecuencia: ${freqLabel}\nPilares/temas: ${pillars || "..."}\n${projectName ? `Proyecto: ${projectName}\n` : ""}\nDevolvé SOLO un JSON válido (sin markdown, sin explicación) con este formato exacto:\n[\n  {\n    "date": "YYYY-MM-DD",\n    "pillar": "nombre del pilar",\n    "format": "Carrusel|Reel|Post|Story",\n    "topic": "título del contenido",\n    "copy_suggestion": "sugerencia de copy"\n  }\n]`
-  }, [industry, month, pillars, frequency, platforms, projectName])
+    return `Generá un calendario de contenido para ${MONTHS[month]} ${year} para una marca del rubro "${industry || "..."}".\n\nPlataformas: ${platformList}\nFrecuencia: exactamente ${postsPerWeek} publicaciones por semana. Distribuí las publicaciones de forma equilibrada durante cada semana del mes.\nPilares/temas: ${pillars || "..."}\n${projectName ? `Proyecto: ${projectName}\n` : ""}\nDevolvé SOLO un JSON válido (sin markdown, sin explicación) con este formato exacto:\n[\n  {\n    "date": "YYYY-MM-DD",\n    "pillar": "nombre del pilar",\n    "format": "Carrusel|Reel|Post|Story",\n    "topic": "título del contenido",\n    "copy_suggestion": "sugerencia de copy"\n  }\n]`
+  }, [industry, month, pillars, postsPerWeek, platforms, projectName])
 
   // Sync generated prompt into editable field when inputs change
   useEffect(() => {
@@ -240,21 +235,42 @@ export default function AICalendarModal({
                 <label className="text-sm font-medium text-white/70">
                   Frecuencia
                 </label>
-                <div className="flex gap-2">
-                  {FREQUENCIES.map((f) => (
+                <div className="flex flex-wrap items-center gap-2">
+                  {WEEKLY_FREQUENCY_PRESETS.map((preset) => (
                     <button
-                      key={f.value}
-                      onClick={() => setFrequency(f.value)}
+                      key={preset}
+                      type="button"
+                      onClick={() => setPostsPerWeek(preset)}
                       className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                        frequency === f.value
+                        postsPerWeek === preset
                           ? "border-quepia-cyan bg-quepia-cyan/10 text-quepia-cyan"
                           : "border-white/10 bg-[#0a0a0a] text-white/50 hover:text-white hover:border-white/20"
                       }`}
                     >
-                      {f.label}
+                      {preset} por semana
                     </button>
                   ))}
+                  <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-1.5 text-sm text-white/60">
+                    Personalizado
+                    <input
+                      type="number"
+                      min={1}
+                      max={7}
+                      value={postsPerWeek}
+                      onChange={(e) => {
+                        const nextValue = Number(e.target.value)
+                        if (Number.isInteger(nextValue) && nextValue >= 1 && nextValue <= 7) {
+                          setPostsPerWeek(nextValue)
+                        }
+                      }}
+                      className="w-10 bg-transparent text-center text-white focus:outline-none"
+                      aria-label="Publicaciones por semana"
+                    />
+                  </label>
                 </div>
+                <p className="text-xs text-white/40">
+                  Elegí entre 1 y 7 publicaciones por semana.
+                </p>
               </div>
 
               {/* Platforms */}
