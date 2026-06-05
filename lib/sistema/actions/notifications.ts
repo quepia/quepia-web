@@ -1037,6 +1037,7 @@ export async function sendTaskAssetsToTelegram(
             headline: 'Entrega lista para enviar',
             messages: [
                 ...(summaryResult.message ? [summaryResult.message] : []),
+                ...(summaryResult.copyMessage ? [summaryResult.copyMessage] : []),
                 ...telegramResult.messages,
             ],
         })

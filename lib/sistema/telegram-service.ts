@@ -50,6 +50,7 @@ interface SendTelegramTaskSummaryResult {
   failed: number
   errors: string[]
   message?: TelegramSentMessageRecord
+  copyMessage?: TelegramSentMessageRecord
 }
 
 interface TelegramApiResponse<T> {
@@ -113,14 +114,16 @@ function buildTaskSummaryMessage(params: SendTelegramTaskSummaryParams) {
     `Tarea: ${params.taskTitle}`,
   ]
 
-  const socialCopy = params.socialCopy?.trim()
-  if (socialCopy) {
-    lines.push('', 'Copy / SEO', socialCopy)
-  }
-
   lines.push('', 'Si queres dejar feedback, responde este mensaje.')
 
   return trimMessage(lines.join('\n'))
+}
+
+function buildTaskCopyMessage(params: SendTelegramTaskSummaryParams) {
+  const socialCopy = params.socialCopy?.trim()
+  if (!socialCopy) return null
+
+  return trimMessage(['Copy / SEO', socialCopy].join('\n'))
 }
 
 function buildFallbackMessage(params: {
@@ -253,19 +256,20 @@ export async function sendTelegramTaskSummary(
     }
   }
 
-  try {
-    const message = await sendTelegramMessage(chatId, buildTaskSummaryMessage(params))
+  const errors: string[] = []
+  let sent = 0
+  let failed = 0
+  let message: TelegramSentMessageRecord | undefined
+  let copyMessage: TelegramSentMessageRecord | undefined
 
-    return {
-      sent: 1,
-      failed: 0,
-      errors: [],
-      message: {
-        chatId: String(message.chat?.id ?? chatId),
-        messageId: String(message.message_id),
-        method: 'message',
-        scope: 'task_summary',
-      },
+  try {
+    const summaryMessage = await sendTelegramMessage(chatId, buildTaskSummaryMessage(params))
+    sent += 1
+    message = {
+      chatId: String(summaryMessage.chat?.id ?? chatId),
+      messageId: String(summaryMessage.message_id),
+      method: 'message',
+      scope: 'task_summary',
     }
   } catch (error) {
     return {
@@ -275,6 +279,33 @@ export async function sendTelegramTaskSummary(
         `Telegram: no se pudo enviar el resumen de la tarea (${error instanceof Error ? error.message : 'error desconocido'}).`,
       ],
     }
+  }
+
+  const copyText = buildTaskCopyMessage(params)
+  if (copyText) {
+    try {
+      const telegramCopyMessage = await sendTelegramMessage(chatId, copyText)
+      sent += 1
+      copyMessage = {
+        chatId: String(telegramCopyMessage.chat?.id ?? chatId),
+        messageId: String(telegramCopyMessage.message_id),
+        method: 'message',
+        scope: 'task_summary',
+      }
+    } catch (error) {
+      failed += 1
+      errors.push(
+        `Telegram: no se pudo enviar el copy/SEO de la tarea (${error instanceof Error ? error.message : 'error desconocido'}).`
+      )
+    }
+  }
+
+  return {
+    sent,
+    failed,
+    errors,
+    message,
+    copyMessage,
   }
 }
 
