@@ -516,6 +516,10 @@ export async function backupNotifiedAssetsToDrive(
 
     for (const asset of params.assets) {
       try {
+        if (asset.assetType === "folder") {
+          continue
+        }
+
         let parentId = monthFolder.id
         if (asset.assetType === "carousel" && asset.groupId) {
           const existingFolder = carouselFolderByGroupId.get(asset.groupId)

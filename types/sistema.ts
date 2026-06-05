@@ -669,18 +669,20 @@ export interface ClientAccessUpdate {
 }
 
 // ============ ASSETS & APPROVALS ============
-export type AssetType = 'single' | 'carousel' | 'reel';
+export type AssetType = 'single' | 'carousel' | 'reel' | 'folder';
 
 export const ASSET_TYPE_LABELS: Record<AssetType, string> = {
   single: 'Individual',
   carousel: 'Carrusel',
   reel: 'Reel',
+  folder: 'Carpeta',
 };
 
 export const ASSET_TYPE_ICONS: Record<AssetType, string> = {
   single: 'image',
   carousel: 'layers',
   reel: 'film',
+  folder: 'folder',
 };
 
 export type ApprovalStatus = 'pending_review' | 'changes_requested' | 'approved_internal' | 'approved_final' | 'published';

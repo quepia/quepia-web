@@ -681,3 +681,102 @@ export async function createReelFromLink(params: {
     previewPath: null,
   }
 }
+
+export async function createDriveFolderFromLink(params: {
+  folderUrl: string
+  taskId: string
+  projectId: string
+  userId: string
+  folderName?: string
+  onProgress?: (update: UploadProgressUpdate) => void
+}) {
+  const { folderUrl, taskId, projectId, userId, folderName, onProgress } = params
+  const uploadId = `folder-link-${Date.now()}`
+  let normalizedUrl: string
+  try {
+    normalizedUrl = normalizeExternalUrl(folderUrl)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "El link no es válido"
+    onProgress?.({
+      id: uploadId,
+      fileName: folderName || folderUrl || "Carpeta de Drive",
+      percent: 0,
+      stage: "error",
+      message,
+    })
+    throw error instanceof Error ? error : new Error(message)
+  }
+
+  onProgress?.({
+    id: uploadId,
+    fileName: folderName || normalizedUrl,
+    percent: 10,
+    stage: "validating",
+  })
+
+  const created = await serverCreateAsset({
+    task_id: taskId,
+    project_id: projectId,
+    nombre: folderName?.trim() || "Carpeta de Drive",
+    asset_type: "folder",
+    created_by: userId,
+  })
+
+  if (!created.success || !created.data) {
+    onProgress?.({
+      id: uploadId,
+      fileName: folderName || normalizedUrl,
+      percent: 0,
+      stage: "error",
+      message: created.error || "Error creando asset",
+    })
+    throw new Error(created.error || "Error creando asset")
+  }
+
+  onProgress?.({
+    id: uploadId,
+    fileName: folderName || normalizedUrl,
+    percent: 80,
+    stage: "saving",
+  })
+
+  const versionResult = await serverAddVersion({
+    asset_id: created.data.id,
+    version_number: 1,
+    file_url: normalizedUrl,
+    storage_path: null,
+    thumbnail_path: null,
+    preview_path: null,
+    original_filename: null,
+    file_type: "application/vnd.google-apps.folder",
+    file_size: null,
+    notes: "Carpeta enlazada desde Google Drive",
+    uploaded_by: userId,
+  })
+
+  if (!versionResult.success) {
+    onProgress?.({
+      id: uploadId,
+      fileName: folderName || normalizedUrl,
+      percent: 0,
+      stage: "error",
+      message: versionResult.error || "Error creando versión",
+    })
+    throw new Error(versionResult.error || "Error creando versión")
+  }
+
+  onProgress?.({
+    id: uploadId,
+    fileName: folderName || normalizedUrl,
+    percent: 100,
+    stage: "done",
+  })
+
+  return {
+    assetId: created.data.id,
+    versionId: versionResult.data?.id,
+    storagePath: null,
+    thumbnailPath: null,
+    previewPath: null,
+  }
+}

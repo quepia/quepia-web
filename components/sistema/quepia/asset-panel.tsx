@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Layers,
   Film,
+  Folder,
   GripVertical,
   Pencil,
   PlusCircle,
@@ -29,7 +30,7 @@ import { useAssets } from "@/lib/sistema/hooks"
 import type { AssetWithVersions, ApprovalStatus } from "@/types/sistema"
 import { APPROVAL_STATUS_LABELS, APPROVAL_STATUS_COLORS } from "@/types/sistema"
 import { AssetDetailModal } from "./asset-detail-modal"
-import { uploadAssetFile, uploadCarouselFilesToDrive, uploadReelFile, uploadReelFileToDrive, createReelFromLink, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
+import { uploadAssetFile, uploadCarouselFilesToDrive, uploadReelFile, uploadReelFileToDrive, createReelFromLink, createDriveFolderFromLink, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 import { toggleAssetAccess, reorderCarouselAssets, renameCarouselAssets, deleteCarouselGroup, getNextGroupOrder } from "@/lib/sistema/actions/assets"
 import { notifyClientAssetDeliveryBatch, sendTaskAssetsToTelegram } from "@/lib/sistema/actions/notifications"
 import { useToast } from "@/components/ui/toast-provider"
@@ -162,7 +163,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
   const { toast } = useToast()
   const { assets, loading, updateApprovalStatus, deleteAsset, refresh, optimisticReorder } = useAssets(taskId)
   const [isAdding, setIsAdding] = useState(false)
-  const [uploadMode, setUploadMode] = useState<'single' | 'carousel' | 'reel'>('single')
+  const [uploadMode, setUploadMode] = useState<'single' | 'carousel' | 'reel' | 'folder'>('single')
   const [carouselName, setCarouselName] = useState("")
   const [expandedAsset, setExpandedAsset] = useState<string | null>(null)
   const [uploadingVersion, setUploadingVersion] = useState<string | null>(null)
@@ -406,6 +407,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     if (list.length === 0) return
 
     const mode = uploadMode
+    if (mode === 'folder') return
     if (mode === 'reel' && reelInputMode === 'link') return
 
     setIsAdding(false)
@@ -513,6 +515,38 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     await refresh()
   }
 
+  const handleCreateFolderFromLink = async () => {
+    const externalUrl = reelExternalUrl.trim()
+    if (!externalUrl) {
+      updateUploadQueue({
+        id: `folder-link-${Date.now()}`,
+        fileName: "Carpeta de Drive",
+        percent: 0,
+        stage: "error",
+        message: "Pegá el link de la carpeta",
+      })
+      return
+    }
+
+    setIsAdding(false)
+
+    try {
+      await createDriveFolderFromLink({
+        folderUrl: externalUrl,
+        taskId,
+        projectId,
+        userId,
+        folderName: carouselName.trim() || undefined,
+        onProgress: updateUploadQueue,
+      })
+    } catch {}
+
+    setCarouselName("")
+    setReelExternalUrl("")
+
+    await refresh()
+  }
+
   const handleAddVersion = async (assetId: string, currentVersion: number) => {
     const file = versionFileRef.current?.files?.[0]
     if (!file) return
@@ -574,6 +608,8 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
     published: [],
   }
   const isReelLinkMode = uploadMode === "reel" && reelInputMode === "link"
+  const isFolderLinkMode = uploadMode === "folder"
+  const isLinkMode = isReelLinkMode || isFolderLinkMode
   const notifiableAssetCount = assets.filter(hasPendingLatestVersion).length
   const telegramEligibleAssetCount = assets.filter((asset) => (asset.versions?.length || 0) > 0).length
 
@@ -658,18 +694,18 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
         <div
           className={cn(
             "bg-white/[0.03] border border-dashed rounded-lg p-4 space-y-3 transition-colors",
-            isDragOver && !isReelLinkMode ? "border-quepia-cyan/60 bg-quepia-cyan/5" : "border-white/[0.12]"
+            isDragOver && !isLinkMode ? "border-quepia-cyan/60 bg-quepia-cyan/5" : "border-white/[0.12]"
           )}
           onDragOver={(e) => {
             e.preventDefault()
-            if (isReelLinkMode) return
+            if (isLinkMode) return
             setIsDragOver(true)
           }}
           onDragLeave={() => setIsDragOver(false)}
           onDrop={(e) => {
             e.preventDefault()
             setIsDragOver(false)
-            if (isReelLinkMode) return
+            if (isLinkMode) return
             handleFilesUpload(e.dataTransfer.files)
           }}
         >
@@ -684,9 +720,9 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
               : "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
             }
             className="hidden"
-            disabled={isReelLinkMode}
+            disabled={isLinkMode}
             onChange={(e) => {
-              if (isReelLinkMode) return
+              if (isLinkMode) return
               if (e.target.files) handleFilesUpload(e.target.files)
             }}
           />
@@ -697,6 +733,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
               { key: 'single' as const, label: 'Individual', icon: <ImageIcon className="h-3 w-3" /> },
               { key: 'carousel' as const, label: 'Carrusel', icon: <Layers className="h-3 w-3" /> },
               { key: 'reel' as const, label: 'Reel', icon: <Film className="h-3 w-3" /> },
+              { key: 'folder' as const, label: 'Carpeta', icon: <Folder className="h-3 w-3" /> },
             ]).map(({ key, label, icon }) => (
               <button
                 key={key}
@@ -704,6 +741,8 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
                   setUploadMode(key)
                   if (key === 'reel') {
                     setReelInputMode("drive")
+                  } else if (key === 'folder') {
+                    setReelInputMode("file")
                   } else {
                     setReelInputMode("file")
                     setReelExternalUrl("")
@@ -746,42 +785,54 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
             </div>
           )}
 
-          {/* Name input for carousel / reel */}
-          {(uploadMode === 'carousel' || uploadMode === 'reel') && (
+          {/* Name input for carousel / reel / folder */}
+          {(uploadMode === 'carousel' || uploadMode === 'reel' || uploadMode === 'folder') && (
             <input
               type="text"
               value={carouselName}
               onChange={(e) => setCarouselName(e.target.value)}
-              placeholder={uploadMode === 'carousel' ? "Nombre del carrusel (opcional)" : "Nombre del reel (opcional)"}
+              placeholder={
+                uploadMode === 'carousel'
+                  ? "Nombre del carrusel (opcional)"
+                  : uploadMode === 'folder'
+                    ? "Nombre de la carpeta (opcional)"
+                    : "Nombre del reel (opcional)"
+              }
               className="w-full text-xs bg-white/[0.03] border border-white/10 rounded px-2 py-1.5 text-white placeholder:text-white/30 outline-none focus:border-quepia-cyan"
             />
           )}
 
-          {isReelLinkMode ? (
+          {isLinkMode ? (
             <div className="space-y-2.5">
               <input
                 type="url"
                 value={reelExternalUrl}
                 onChange={(e) => setReelExternalUrl(e.target.value)}
-                placeholder="https://drive.google.com/file/d/.../view"
+                placeholder={isFolderLinkMode ? "https://drive.google.com/drive/folders/..." : "https://drive.google.com/file/d/.../view"}
                 className="w-full text-xs bg-white/[0.03] border border-white/10 rounded px-2 py-1.5 text-white placeholder:text-white/30 outline-none focus:border-quepia-cyan"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault()
-                    handleCreateReelFromLink()
+                    if (isFolderLinkMode) {
+                      handleCreateFolderFromLink()
+                    } else {
+                      handleCreateReelFromLink()
+                    }
                   }
                 }}
               />
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] text-white/40">
-                  Pegá un link de Drive (u otra URL) para crear el reel sin subir archivo.
+                  {isFolderLinkMode
+                    ? "Pegá el link de una carpeta de Drive para guardarla como asset."
+                    : "Pegá un link de Drive (u otra URL) para crear el reel sin subir archivo."}
                 </p>
                 <button
-                  onClick={handleCreateReelFromLink}
+                  onClick={isFolderLinkMode ? handleCreateFolderFromLink : handleCreateReelFromLink}
                   className="px-3 py-1 text-xs rounded bg-quepia-cyan text-black font-medium hover:opacity-90 shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={!reelExternalUrl.trim()}
                 >
-                  Crear reel
+                  {isFolderLinkMode ? "Crear carpeta" : "Crear reel"}
                 </button>
               </div>
             </div>
