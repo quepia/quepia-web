@@ -60,11 +60,14 @@ export function useAuth() {
 
     const initAuth = async () => {
       try {
-        // First check if tables exist
-        const exists = await checkTablesExist();
+        const [
+          exists,
+          { data: { session }, error: sessionError },
+        ] = await Promise.all([
+          checkTablesExist(),
+          supabase.auth.getSession(),
+        ]);
 
-        // Get initial session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) console.error("Session error:", sessionError);
 
         setUser(session?.user ?? null);

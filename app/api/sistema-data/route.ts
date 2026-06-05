@@ -46,6 +46,9 @@ export async function GET(request: Request) {
     const userId = searchParams.get("userId")
     const type = searchParams.get("type") // "tasks" | "projects" | "events"
     const forceRefresh = searchParams.get("force") === "true"
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
+    const syncEfemerides = searchParams.get("syncEfemerides") === "true" || forceRefresh
 
     if (!type) {
       return NextResponse.json({ error: "Missing type" }, { status: 400 })
@@ -243,17 +246,19 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] })
       }
 
-      const syncResult = await syncEfemeridesCalendarioActual({
-        userId,
-        projectIds,
-        backfillOnly: true,
-      })
+      if (syncEfemerides) {
+        const syncResult = await syncEfemeridesCalendarioActual({
+          userId,
+          projectIds,
+          backfillOnly: true,
+        })
 
-      if (!syncResult.success) {
-        console.error("Error syncing efemerides into calendar:", syncResult.error)
+        if (!syncResult.success) {
+          console.error("Error syncing efemerides into calendar:", syncResult.error)
+        }
       }
 
-      const { data, error } = await supabase
+      let eventsQuery = supabase
         .from("sistema_calendar_events")
         .select(`
           id,
@@ -272,6 +277,16 @@ export async function GET(request: Request) {
           project:sistema_projects(id, nombre, color, logo_url)
         `)
         .in("project_id", projectIds)
+
+      if (from) {
+        eventsQuery = eventsQuery.gte("fecha_inicio", from)
+      }
+
+      if (to) {
+        eventsQuery = eventsQuery.lte("fecha_inicio", to)
+      }
+
+      const { data, error } = await eventsQuery
         .order("fecha_inicio", { ascending: true })
 
       if (error) {

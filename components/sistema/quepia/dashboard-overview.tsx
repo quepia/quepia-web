@@ -24,6 +24,7 @@ interface DashboardOverviewProps {
   tasks: TaskWithProject[]
   events: (CalendarEvent & { project?: { id: string; nombre: string; color: string } })[]
   loading: boolean
+  eventsLoading?: boolean
   onTaskClick: (task: TaskWithProject) => void
   onViewChange: (view: string) => void
   onProjectOpen: (projectId: string) => void
@@ -46,7 +47,7 @@ interface PendingAsset {
   }[]
 }
 
-export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole }: DashboardOverviewProps) {
+export function DashboardOverview({ tasks, events, loading, eventsLoading = false, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole }: DashboardOverviewProps) {
   const [pendingAssets, setPendingAssets] = useState<PendingAsset[]>([])
   const [isApprovingAll, setIsApprovingAll] = useState(false)
   const [experience, setExperience] = useState(() => readExperienceMetrics())
@@ -441,7 +442,9 @@ export function DashboardOverview({ tasks, events, loading, onTaskClick, onViewC
               Eventos próximos
             </h3>
           </div>
-          {upcomingEvents.length === 0 ? (
+          {eventsLoading && upcomingEvents.length === 0 ? (
+            <p className="text-sm text-white/30 py-4 text-center">Cargando eventos...</p>
+          ) : upcomingEvents.length === 0 ? (
             <p className="text-sm text-white/30 py-4 text-center">Sin eventos próximos</p>
           ) : (
             <div className="space-y-2">

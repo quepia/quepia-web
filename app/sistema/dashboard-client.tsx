@@ -12,7 +12,6 @@ import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { SistemaNotification } from "@/lib/sistema/hooks/useNotifications"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
-import { LogoPicker } from "@/components/sistema/quepia/logo-picker"
 
 const GLOBAL_VIEWS = new Set([
     "dashboard",
@@ -219,6 +218,10 @@ const NotificationsPanel = dynamic(
     () => import("@/components/sistema/quepia/notifications-panel").then((mod) => mod.NotificationsPanel),
     { loading: ModalFallback }
 )
+const LogoPicker = dynamic(
+    () => import("@/components/sistema/quepia/logo-picker").then((mod) => mod.LogoPicker),
+    { loading: () => null }
+)
 
 
 function flattenHashProjects(projects: ProjectWithChildren[]): { id: string; nombre: string; color: string }[] {
@@ -282,6 +285,13 @@ function getMostVisitedProjectId(counts: Record<string, number>) {
 
 const NEW_PROJECT_COLORS = ["#dc4a3e", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"] as const
 
+function formatLocalDateKey(date: Date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+}
+
 export default function DashboardPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -333,10 +343,30 @@ export default function DashboardPage() {
     const shouldLoadSistemaUsers = activeView === "workload" || (activeView === "admin-users" && isAdmin)
     const shouldLoadTemplates = showNewProjectModal
     const briefingProjectId = showBriefingForm ? activeProjectId : null
+    const eventWindow = useMemo(() => {
+        if (activeView !== "dashboard") return null
+
+        const start = new Date()
+        start.setHours(0, 0, 0, 0)
+
+        const end = new Date(start)
+        end.setDate(end.getDate() + 7)
+        end.setHours(23, 59, 59, 999)
+
+        return {
+            from: `${formatLocalDateKey(start)}T00:00:00.000Z`,
+            to: `${formatLocalDateKey(end)}T23:59:59.999Z`,
+        }
+    }, [activeView])
 
     const { projects, deleteProject, createProject, updateProject, refresh: refreshProjects, loading: projectsLoading } = useProjects(user?.id)
     const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id, { enabled: shouldLoadAllTasks })
-    const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id, { enabled: shouldLoadAllEvents })
+    const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id, {
+        enabled: shouldLoadAllEvents,
+        from: eventWindow?.from,
+        to: eventWindow?.to,
+        syncEfemerides: activeView === "calendar",
+    })
     const { users: sistemaUsers, loading: sistemaUsersLoading, refresh: refreshUsers } = useSistemaUsers({ enabled: shouldLoadSistemaUsers })
     const { templates, createProjectFromTemplate } = useProjectTemplates({ enabled: shouldLoadTemplates })
     const { brief, saveBrief } = useClientBrief(briefingProjectId)
@@ -859,7 +889,8 @@ export default function DashboardPage() {
                     <DashboardOverview
                         tasks={allTasks}
                         events={allEvents}
-                        loading={allTasksLoading || allEventsLoading}
+                        loading={allTasksLoading}
+                        eventsLoading={allEventsLoading}
                         onTaskClick={handleTaskClick}
                         onViewChange={handleViewChange}
                         onProjectOpen={handleProjectOpen}
@@ -1239,7 +1270,7 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {user?.id && (
+            {showNotificationsPanel && user?.id && (
                 <NotificationsPanel
                     isOpen={showNotificationsPanel}
                     onClose={closeNotificationsPanel}
