@@ -5,6 +5,7 @@ import { serverCreateAsset, serverAddVersion } from "@/lib/sistema/actions/asset
 import { ASSET_BUCKET, sanitizeFilename } from "@/lib/sistema/assets-storage"
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024
+const DRIVE_CHUNK_SIZE = 3 * 1024 * 1024
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"]
 
@@ -378,31 +379,66 @@ async function uploadFileToDriveWithProgress(params: {
     throw new Error(session?.error || "No se pudo crear la sesión de Drive")
   }
 
-  const uploadResult = await new Promise<{ id: string; webViewLink?: string | null }>((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-    xhr.open("PUT", session.uploadUrl, true)
-    xhr.setRequestHeader("Content-Type", params.file.type || "application/octet-stream")
+  let uploadedBytes = 0
+  let uploadResult: { id: string; webViewLink?: string | null } | null = null
 
-    xhr.upload.onprogress = (evt) => {
-      if (!evt.lengthComputable) return
-      params.onProgress?.(Math.round((evt.loaded / evt.total) * 100))
-    }
+  while (uploadedBytes < params.file.size) {
+    const start = uploadedBytes
+    const end = Math.min(params.file.size, start + DRIVE_CHUNK_SIZE) - 1
+    const chunk = params.file.slice(start, end + 1)
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText))
-        } catch {
-          reject(new Error("Drive no devolvió una respuesta válida"))
-        }
-      } else {
-        reject(new Error(`Drive upload failed: ${xhr.status}`))
+    const chunkResult = await new Promise<{
+      done: boolean
+      file?: { id: string; webViewLink?: string | null }
+    }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open("POST", "/api/assets/drive-upload-chunk", true)
+      xhr.setRequestHeader("Content-Type", "application/octet-stream")
+      xhr.setRequestHeader("X-Drive-Upload-Url", session.uploadUrl)
+      xhr.setRequestHeader("X-File-Type", params.file.type || "application/octet-stream")
+      xhr.setRequestHeader("X-File-Size", String(params.file.size))
+      xhr.setRequestHeader("X-Chunk-Start", String(start))
+      xhr.setRequestHeader("X-Chunk-End", String(end))
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) return
+        const totalLoaded = start + evt.loaded
+        params.onProgress?.(Math.round((totalLoaded / params.file.size) * 100))
       }
-    }
 
-    xhr.onerror = () => reject(new Error("No se pudo subir el archivo a Drive"))
-    xhr.send(params.file)
-  })
+      xhr.onload = () => {
+        let payload: { done?: boolean; file?: { id: string; webViewLink?: string | null }; error?: string } | null = null
+        try {
+          payload = JSON.parse(xhr.responseText)
+        } catch {}
+
+        if (xhr.status >= 200 && xhr.status < 300 && payload) {
+          resolve({
+            done: Boolean(payload.done),
+            file: payload.file,
+          })
+          return
+        }
+
+        reject(new Error(payload?.error || `Drive chunk upload failed: ${xhr.status}`))
+      }
+
+      xhr.onerror = () => reject(new Error("No se pudo subir el archivo a Drive"))
+      xhr.send(chunk)
+    })
+
+    uploadedBytes = end + 1
+    params.onProgress?.(Math.round((uploadedBytes / params.file.size) * 100))
+
+    if (chunkResult.done) {
+      uploadResult = chunkResult.file || null
+      break
+    }
+  }
+
+  if (!uploadResult?.id) {
+    throw new Error("Drive no devolvió el archivo subido")
+  }
 
   return uploadResult
 }
