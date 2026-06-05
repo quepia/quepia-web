@@ -123,6 +123,7 @@ async function fetchCandidates() {
       asset:sistema_assets(
         id,
         nombre,
+        asset_type,
         access_revoked,
         project:sistema_projects(nombre)
       )
@@ -142,11 +143,13 @@ async function fetchCandidates() {
       return {
         ...row,
         asset_name: asset?.nombre || row.original_filename || row.id,
+        asset_type: asset?.asset_type || "single",
         project_name: project?.nombre || "Cliente",
         access_revoked: Boolean(asset?.access_revoked),
       }
     })
     .filter((row) => !row.access_revoked)
+    .filter((row) => row.asset_type !== "folder")
 }
 
 function loadEnv(path) {

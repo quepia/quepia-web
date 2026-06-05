@@ -81,6 +81,14 @@ export function useProjects(userId?: string) {
 
       if (insertError) throw insertError;
 
+      fetch('/api/projects/drive-folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: data.id }),
+      }).catch((driveError) => {
+        console.error('Error ensuring Drive folders for project:', driveError);
+      });
+
       await fetchProjects(true);
       return data;
     } catch (err) {

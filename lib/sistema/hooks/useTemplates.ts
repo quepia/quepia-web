@@ -103,6 +103,14 @@ export function useProjectTemplates(options?: UseTemplatesOptions) {
 
       if (projectError) throw projectError;
 
+      fetch('/api/projects/drive-folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id }),
+      }).catch((driveError) => {
+        console.error('Error ensuring Drive folders for project template:', driveError);
+      });
+
       // Delete default columns (created by trigger) and create template columns
       const { data: defaultCols } = await supabase
         .from('sistema_columns')

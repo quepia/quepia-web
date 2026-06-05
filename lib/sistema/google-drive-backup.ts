@@ -477,6 +477,32 @@ export async function ensureDriveSourceFolder(params: {
   return ensureFolder(systemFolder.id, safeTask)
 }
 
+export async function ensureDriveProjectFolders(params: {
+  projectName: string
+  year?: number
+}) {
+  if (!isBackupEnabled()) {
+    return { enabled: false, clientFolder: null, yearFolder: null, systemFolder: null }
+  }
+
+  const clientName = getClientName(params.projectName)
+  const year = params.year || Number(new Intl.DateTimeFormat("en-CA", {
+    timeZone: getTimeZone(),
+    year: "numeric",
+  }).format(new Date()))
+
+  const clientFolder = await ensureClientFolder(clientName)
+  const yearFolder = await ensureFolder(clientFolder.id, `${clientName}_${year}`)
+  const systemFolder = await ensureFolder(clientFolder.id, `${clientName}_Sistema`)
+
+  return {
+    enabled: true,
+    clientFolder,
+    yearFolder,
+    systemFolder,
+  }
+}
+
 export async function backupNotifiedAssetsToDrive(
   params: BackupNotifiedAssetsParams
 ): Promise<DriveBackupResult> {

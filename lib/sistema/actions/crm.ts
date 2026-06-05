@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/sistema/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { ensureDriveProjectFolders } from '@/lib/sistema/google-drive-backup'
 
 export async function createProjectFromLead(leadId: string, ownerId: string) {
   const supabase = await createClient()
@@ -28,6 +29,12 @@ export async function createProjectFromLead(leadId: string, ownerId: string) {
       .single()
 
     if (projectError) throw projectError
+
+    try {
+      await ensureDriveProjectFolders({ projectName: lead.company_name })
+    } catch (driveError) {
+      console.error('Error ensuring Drive folders for CRM project:', driveError)
+    }
 
     await supabase
       .from('sistema_crm_leads')

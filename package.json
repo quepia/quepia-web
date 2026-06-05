@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "drive:backfill": "node scripts/backfill-google-drive-backup.mjs",
+    "drive:ensure-folders": "node scripts/ensure-google-drive-client-folders.mjs",
     "portfolio:download": "node scripts/myportfolio-bulk-download.mjs",
     "portfolio:catalog": "node scripts/portfolio-import.mjs",
     "portfolio:import": "node scripts/portfolio-import.mjs --execute"
