@@ -11,6 +11,7 @@ import {
     sendTelegramTextNotice,
     type TelegramSentMessageRecord,
 } from '@/lib/sistema/telegram-service'
+import { backupNotifiedAssetsToDrive } from '@/lib/sistema/google-drive-backup'
 
 type NotificationType = 'mention' | 'assignment' | 'approval_request' | 'status_change' | 'comment' | 'system'
 
@@ -548,6 +549,9 @@ interface NotifyClientAssetDeliveryBatchResult {
     telegram_sent: number
     telegram_link_fallbacks: number
     telegram_failed: number
+    drive_backup_created: number
+    drive_backup_failed: number
+    drive_month_folder_link: string | null
     errors: string[]
 }
 
@@ -583,6 +587,9 @@ export async function notifyClientAssetDeliveryBatch(
     let telegramSent = 0
     const telegramLinkFallbacks = 0
     let telegramFailed = 0
+    let driveBackupCreated = 0
+    let driveBackupFailed = 0
+    let driveMonthFolderLink: string | null = null
 
     try {
         const supabase = createAdminClient()
@@ -598,6 +605,9 @@ export async function notifyClientAssetDeliveryBatch(
                 telegram_sent: telegramSent,
                 telegram_link_fallbacks: telegramLinkFallbacks,
                 telegram_failed: telegramFailed,
+                drive_backup_created: driveBackupCreated,
+                drive_backup_failed: driveBackupFailed,
+                drive_month_folder_link: driveMonthFolderLink,
                 errors: ["Missing required payload for delivery notification batch."],
             }
         }
@@ -614,11 +624,11 @@ export async function notifyClientAssetDeliveryBatch(
                 .eq('can_view_tasks', true),
             supabase
                 .from('sistema_assets')
-                .select('id, nombre, asset_type, access_revoked')
+                .select('id, nombre, asset_type, group_id, group_order, access_revoked')
                 .in('id', uniqueAssetIds),
             supabase
                 .from('sistema_asset_versions')
-                .select('id, asset_id, version_number, file_url, storage_path, file_size, original_filename, created_at, notified_at')
+                .select('id, asset_id, version_number, file_url, storage_path, file_type, file_size, original_filename, created_at, notified_at')
                 .in('asset_id', uniqueAssetIds)
                 .order('version_number', { ascending: false })
                 .order('created_at', { ascending: false }),
@@ -650,10 +660,13 @@ export async function notifyClientAssetDeliveryBatch(
                     assetVersionId: latestVersion.id,
                     assetName: asset.nombre,
                     assetType: asset.asset_type,
+                    groupId: asset.group_id || null,
+                    groupOrder: asset.group_order ?? null,
                     versionId: latestVersion.id,
                     versionNumber: latestVersion.version_number,
                     fileUrl: latestVersion.file_url,
                     storagePath: latestVersion.storage_path || null,
+                    fileType: latestVersion.file_type || null,
                     fileSize: latestVersion.file_size || null,
                     originalFilename: latestVersion.original_filename || null,
                 }
@@ -672,6 +685,9 @@ export async function notifyClientAssetDeliveryBatch(
                 telegram_sent: telegramSent,
                 telegram_link_fallbacks: telegramLinkFallbacks,
                 telegram_failed: telegramFailed,
+                drive_backup_created: driveBackupCreated,
+                drive_backup_failed: driveBackupFailed,
+                drive_month_folder_link: driveMonthFolderLink,
                 errors,
             }
         }
@@ -686,6 +702,9 @@ export async function notifyClientAssetDeliveryBatch(
                 telegram_sent: telegramSent,
                 telegram_link_fallbacks: telegramLinkFallbacks,
                 telegram_failed: telegramFailed,
+                drive_backup_created: driveBackupCreated,
+                drive_backup_failed: driveBackupFailed,
+                drive_month_folder_link: driveMonthFolderLink,
                 errors,
             }
         }
@@ -798,7 +817,75 @@ export async function notifyClientAssetDeliveryBatch(
                     telegram_sent: telegramSent,
                     telegram_link_fallbacks: telegramLinkFallbacks,
                     telegram_failed: telegramFailed,
+                    drive_backup_created: driveBackupCreated,
+                    drive_backup_failed: driveBackupFailed,
+                    drive_month_folder_link: driveMonthFolderLink,
                     errors,
+                }
+            }
+
+            const driveBackupResult = await backupNotifiedAssetsToDrive({
+                projectName,
+                notifiedAt: now,
+                assets: pendingAssetsForDelivery.map((asset) => ({
+                    assetId: asset.assetId,
+                    assetVersionId: asset.assetVersionId,
+                    assetName: asset.assetName,
+                    assetType: asset.assetType,
+                    groupId: asset.groupId,
+                    versionNumber: asset.versionNumber,
+                    fileUrl: asset.fileUrl,
+                    storagePath: asset.storagePath,
+                    fileType: asset.fileType,
+                    originalFilename: asset.originalFilename,
+                })),
+            })
+
+            driveBackupCreated = driveBackupResult.created
+            driveBackupFailed = driveBackupResult.failed
+            driveMonthFolderLink = driveBackupResult.monthFolderLink
+
+            if (driveBackupResult.enabled) {
+                const backedUpVersionIds = new Set(driveBackupResult.files.map((file) => file.assetVersionId))
+
+                const metadataUpdates = await Promise.all(
+                    driveBackupResult.files.map((file) =>
+                        supabase
+                            .from('sistema_asset_versions')
+                            .update({
+                                drive_file_id: file.fileId,
+                                drive_web_view_link: file.webViewLink,
+                                drive_month_folder_id: driveBackupResult.monthFolderId,
+                                drive_month_folder_link: driveBackupResult.monthFolderLink,
+                                drive_backup_at: now,
+                                drive_backup_error: null,
+                            })
+                            .eq('id', file.assetVersionId)
+                    )
+                )
+
+                metadataUpdates.forEach((update) => {
+                    if (update.error) {
+                        errors.push(`No se pudo guardar metadata de Drive: ${update.error.message}`)
+                    }
+                })
+
+                const failedVersionIds = versionIdsToMark.filter((versionId) => !backedUpVersionIds.has(versionId))
+                if (failedVersionIds.length > 0 && driveBackupResult.errors.length > 0) {
+                    const { error: backupErrorUpdateError } = await supabase
+                        .from('sistema_asset_versions')
+                        .update({
+                            drive_backup_error: driveBackupResult.errors.join(' | ').slice(0, 1000),
+                        })
+                        .in('id', failedVersionIds)
+
+                    if (backupErrorUpdateError) {
+                        errors.push(`No se pudo guardar el error de backup en Drive: ${backupErrorUpdateError.message}`)
+                    }
+                }
+
+                if (driveBackupResult.failed > 0) {
+                    errors.push(`Backup en Drive incompleto: ${driveBackupResult.errors.join(' | ')}`)
                 }
             }
         }
@@ -812,6 +899,9 @@ export async function notifyClientAssetDeliveryBatch(
             telegram_sent: telegramSent,
             telegram_link_fallbacks: telegramLinkFallbacks,
             telegram_failed: telegramFailed,
+            drive_backup_created: driveBackupCreated,
+            drive_backup_failed: driveBackupFailed,
+            drive_month_folder_link: driveMonthFolderLink,
             errors,
         }
     } catch (error) {
@@ -824,6 +914,9 @@ export async function notifyClientAssetDeliveryBatch(
             telegram_sent: telegramSent,
             telegram_link_fallbacks: telegramLinkFallbacks,
             telegram_failed: telegramFailed,
+            drive_backup_created: driveBackupCreated,
+            drive_backup_failed: driveBackupFailed,
+            drive_month_folder_link: driveMonthFolderLink,
             errors: [
                 ...errors,
                 error instanceof Error ? error.message : 'Unknown error sending delivery notifications.',
@@ -865,7 +958,7 @@ export async function sendTaskAssetsToTelegram(
                 .in('id', uniqueAssetIds),
             supabase
                 .from('sistema_asset_versions')
-                .select('id, asset_id, version_number, file_url, storage_path, file_size, original_filename, created_at')
+                .select('id, asset_id, version_number, file_url, storage_path, drive_web_view_link, file_size, original_filename, created_at')
                 .in('asset_id', uniqueAssetIds)
                 .order('version_number', { ascending: false })
                 .order('created_at', { ascending: false }),
@@ -900,6 +993,7 @@ export async function sendTaskAssetsToTelegram(
                     versionNumber: latestVersion.version_number,
                     fileUrl: latestVersion.file_url,
                     storagePath: latestVersion.storage_path || null,
+                    driveWebViewLink: latestVersion.drive_web_view_link || null,
                     fileSize: latestVersion.file_size || null,
                     originalFilename: latestVersion.original_filename || null,
                 }

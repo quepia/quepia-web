@@ -29,7 +29,7 @@ import { useAssets } from "@/lib/sistema/hooks"
 import type { AssetWithVersions, ApprovalStatus } from "@/types/sistema"
 import { APPROVAL_STATUS_LABELS, APPROVAL_STATUS_COLORS } from "@/types/sistema"
 import { AssetDetailModal } from "./asset-detail-modal"
-import { uploadAssetFile, uploadCarouselFiles, uploadReelFile, createReelFromLink, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
+import { uploadAssetFile, uploadCarouselFilesToDrive, uploadReelFile, uploadReelFileToDrive, createReelFromLink, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 import { toggleAssetAccess, reorderCarouselAssets, renameCarouselAssets, deleteCarouselGroup, getNextGroupOrder } from "@/lib/sistema/actions/assets"
 import { notifyClientAssetDeliveryBatch, sendTaskAssetsToTelegram } from "@/lib/sistema/actions/notifications"
 import { useToast } from "@/components/ui/toast-provider"
@@ -80,6 +80,10 @@ function buildDeliveryFailureMessage(result: DeliveryBatchResult) {
     parts.push(`${result.telegram_failed} aviso(s) por Telegram fallaron`)
   }
 
+  if (result.drive_backup_failed > 0) {
+    parts.push(`${result.drive_backup_failed} backup(s) en Drive fallaron`)
+  }
+
   return parts.length > 0 ? `${parts.join(" y ")}.` : "La notificación no se pudo completar."
 }
 
@@ -88,6 +92,10 @@ function buildDeliveryWarningMessage(result: DeliveryBatchResult) {
 
   if (result.skipped > 0) {
     parts.push(`${result.skipped} acceso(s) quedaron sin aviso porque no tienen un email válido o ya expiraron`)
+  }
+
+  if (result.drive_backup_failed > 0) {
+    parts.push(`${result.drive_backup_failed} archivo(s) no se pudieron copiar a Drive`)
   }
 
   return parts.length > 0 ? `${parts.join(". ")}.` : "La notificación se envió con advertencias."
@@ -104,8 +112,14 @@ function buildDeliverySuccessDescription(result: DeliveryBatchResult) {
     parts.push(`${result.telegram_sent} aviso(s) por Telegram`)
   }
 
+  if (result.drive_backup_created > 0) {
+    parts.push(`${result.drive_backup_created} backup(s) en Drive`)
+  }
+
+  const folderHint = result.drive_month_folder_link ? " Carpeta mensual lista en Drive." : ""
+
   return parts.length > 0
-    ? `Se enviaron ${parts.join(", ")}.`
+    ? `Se enviaron ${parts.join(", ")}.${folderHint}`
     : "La notificación se procesó correctamente."
 }
 
@@ -155,7 +169,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
   const [versionNotes, setVersionNotes] = useState("")
   const [uploadQueue, setUploadQueue] = useState<UploadProgressUpdate[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
-  const [reelInputMode, setReelInputMode] = useState<"file" | "link">("file")
+  const [reelInputMode, setReelInputMode] = useState<"file" | "drive" | "link">("drive")
   const [reelExternalUrl, setReelExternalUrl] = useState("")
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
@@ -202,6 +216,9 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
         telegram_sent: 0,
         telegram_link_fallbacks: 0,
         telegram_failed: 0,
+        drive_backup_created: 0,
+        drive_backup_failed: 0,
+        drive_month_folder_link: null,
         errors: ["No assets available to notify."],
       }
     }
@@ -224,7 +241,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
       return result
     }
 
-    if (result.skipped > 0 || result.telegram_link_fallbacks > 0) {
+    if (result.skipped > 0 || result.telegram_link_fallbacks > 0 || result.drive_backup_failed > 0) {
       setDeliveryNotificationWarning(
         {
           message: buildDeliveryWarningMessage(result),
@@ -278,7 +295,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
         return
       }
 
-      if (result.skipped > 0 || result.telegram_link_fallbacks > 0) {
+      if (result.skipped > 0 || result.telegram_link_fallbacks > 0 || result.drive_backup_failed > 0) {
         toast({
           title: "Notificación enviada con advertencias",
           description: buildDeliveryWarningMessage(result),
@@ -395,7 +412,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
     if (mode === 'carousel' && list.length >= 2) {
       try {
-        await uploadCarouselFiles({
+        await uploadCarouselFilesToDrive({
           files: list,
           taskId,
           projectId,
@@ -418,7 +435,8 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
       const videoFile = list.find(f => f.type.startsWith('video/'))
       if (videoFile) {
         try {
-          await uploadReelFile({
+          const uploadReel = reelInputMode === "drive" ? uploadReelFileToDrive : uploadReelFile
+          await uploadReel({
             file: videoFile,
             taskId,
             projectId,
@@ -490,7 +508,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
     setCarouselName("")
     setReelExternalUrl("")
-    setReelInputMode("file")
+    setReelInputMode("drive")
 
     await refresh()
   }
@@ -661,6 +679,8 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
             multiple={uploadMode !== 'reel'}
             accept={uploadMode === 'reel'
               ? "video/mp4,video/quicktime,video/webm"
+              : uploadMode === 'carousel'
+                ? "image/jpeg,image/png,image/webp,image/gif"
               : "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
             }
             className="hidden"
@@ -682,7 +702,9 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
                 key={key}
                 onClick={() => {
                   setUploadMode(key)
-                  if (key !== 'reel') {
+                  if (key === 'reel') {
+                    setReelInputMode("drive")
+                  } else {
                     setReelInputMode("file")
                     setReelExternalUrl("")
                   }
@@ -704,7 +726,8 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           {uploadMode === "reel" && (
             <div className="flex gap-1 bg-white/[0.02] p-0.5 rounded-lg border border-white/[0.06]">
               {([
-                { key: "file" as const, label: "Subir video" },
+                { key: "drive" as const, label: "Subir a Drive" },
+                { key: "file" as const, label: "Supabase" },
                 { key: "link" as const, label: "Pegar link" },
               ]).map(({ key, label }) => (
                 <button
@@ -777,9 +800,11 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
                 </p>
                 <p className="text-[11px] text-white/40">
                   {uploadMode === 'reel'
-                    ? "MP4, MOV, WEBM (máx 100MB)"
+                    ? reelInputMode === "drive"
+                      ? "MP4, MOV, WEBM · se guarda directo en Drive"
+                      : "MP4, MOV, WEBM (máx 100MB)"
                     : uploadMode === 'carousel'
-                      ? "2+ imágenes · JPG, PNG, WEBP, GIF (máx 100MB c/u)"
+                      ? "2+ imágenes · se guardan juntas en Drive"
                       : "JPG, PNG, WEBP, GIF, MP4, MOV, WEBM (máx 100MB)"}
                 </p>
               </div>
@@ -1262,9 +1287,22 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
                                 className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/[0.06] rounded transition-all"
+                                title="Abrir archivo"
                               >
                                 <ExternalLink className="h-3 w-3 text-white/30" />
                               </a>
+                              {v.drive_month_folder_link && (
+                                <a
+                                  href={v.drive_month_folder_link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/[0.06] rounded transition-all"
+                                  title="Abrir backup mensual en Drive"
+                                >
+                                  <CloudUpload className="h-3 w-3 text-emerald-300" />
+                                </a>
+                              )}
                             </div>
                           ))}
                         </div>

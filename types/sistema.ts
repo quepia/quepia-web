@@ -739,6 +739,12 @@ export interface AssetVersion {
   original_filename?: string | null;
   notified_at?: string | null;
   notified_by?: string | null;
+  drive_file_id?: string | null;
+  drive_web_view_link?: string | null;
+  drive_month_folder_id?: string | null;
+  drive_month_folder_link?: string | null;
+  drive_backup_at?: string | null;
+  drive_backup_error?: string | null;
   notes: string | null;
   uploaded_by: string;
   created_at: string;
@@ -758,6 +764,12 @@ export interface AssetVersionInsert {
   original_filename?: string | null;
   notified_at?: string | null;
   notified_by?: string | null;
+  drive_file_id?: string | null;
+  drive_web_view_link?: string | null;
+  drive_month_folder_id?: string | null;
+  drive_month_folder_link?: string | null;
+  drive_backup_at?: string | null;
+  drive_backup_error?: string | null;
   notes?: string | null;
   uploaded_by: string;
 }

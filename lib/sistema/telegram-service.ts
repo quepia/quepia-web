@@ -15,6 +15,7 @@ interface TelegramAssetPayload {
   versionNumber: number
   fileUrl: string
   storagePath: string | null
+  driveWebViewLink?: string | null
   fileSize: number | null
   originalFilename: string | null
 }
@@ -278,6 +279,10 @@ export async function sendTelegramTaskSummary(
 }
 
 async function resolveAssetUrl(asset: TelegramAssetPayload) {
+  if (asset.driveWebViewLink) {
+    return asset.driveWebViewLink
+  }
+
   if (asset.storagePath) {
     return createSignedUrl(asset.storagePath, TELEGRAM_SIGNED_URL_TTL)
   }
@@ -325,10 +330,14 @@ export async function sendTelegramAssetDelivery(
         continue
       }
 
-      const requiresLinkFallback = !asset.storagePath || Boolean(asset.fileSize && asset.fileSize > TELEGRAM_MAX_FILE_BYTES)
+      const requiresLinkFallback = Boolean(asset.driveWebViewLink)
+        || !asset.storagePath
+        || Boolean(asset.fileSize && asset.fileSize > TELEGRAM_MAX_FILE_BYTES)
 
       if (requiresLinkFallback) {
-        const reason = !asset.storagePath
+        const reason = asset.driveWebViewLink
+          ? 'el asset esta en Google Drive'
+          : !asset.storagePath
           ? 'el asset usa una URL externa'
           : 'el archivo supera 50 MB'
 

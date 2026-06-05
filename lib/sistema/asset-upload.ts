@@ -353,6 +353,196 @@ export async function uploadReelFile(params: {
   })
 }
 
+async function uploadFileToDriveWithProgress(params: {
+  file: File
+  taskId: string
+  projectId: string
+  subfolderName?: string
+  onProgress?: (p: number) => void
+}) {
+  const sessionResponse = await fetch("/api/assets/drive-upload-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      taskId: params.taskId,
+      projectId: params.projectId,
+      fileName: params.file.name,
+      mimeType: params.file.type || "application/octet-stream",
+      fileSize: params.file.size,
+      subfolderName: params.subfolderName || null,
+    }),
+  })
+
+  const session = await sessionResponse.json()
+  if (!sessionResponse.ok) {
+    throw new Error(session?.error || "No se pudo crear la sesión de Drive")
+  }
+
+  const uploadResult = await new Promise<{ id: string; webViewLink?: string | null }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("PUT", session.uploadUrl, true)
+    xhr.setRequestHeader("Content-Type", params.file.type || "application/octet-stream")
+
+    xhr.upload.onprogress = (evt) => {
+      if (!evt.lengthComputable) return
+      params.onProgress?.(Math.round((evt.loaded / evt.total) * 100))
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText))
+        } catch {
+          reject(new Error("Drive no devolvió una respuesta válida"))
+        }
+      } else {
+        reject(new Error(`Drive upload failed: ${xhr.status}`))
+      }
+    }
+
+    xhr.onerror = () => reject(new Error("No se pudo subir el archivo a Drive"))
+    xhr.send(params.file)
+  })
+
+  return uploadResult
+}
+
+export async function uploadAssetFileToDrive(params: {
+  file: File
+  taskId: string
+  projectId: string
+  userId: string
+  assetId?: string
+  assetName?: string
+  currentVersion?: number
+  notes?: string | null
+  assetType?: 'single' | 'carousel' | 'reel'
+  groupId?: string | null
+  groupOrder?: number
+  driveSubfolderName?: string
+  onProgress?: (update: UploadProgressUpdate) => void
+}) {
+  const { file, taskId, projectId, userId, assetId, assetName, currentVersion, notes, assetType, groupId, groupOrder, driveSubfolderName, onProgress } = params
+  const uploadId = `drive-${file.name}-${Date.now()}`
+
+  if (!isSupportedFile(file)) {
+    onProgress?.({ id: uploadId, fileName: file.name, percent: 0, stage: "error", message: "Formato no soportado" })
+    throw new Error("Formato no soportado")
+  }
+
+  onProgress?.({ id: uploadId, fileName: file.name, percent: 5, stage: "validating" })
+
+  const driveFile = await uploadFileToDriveWithProgress({
+    file,
+    taskId,
+    projectId,
+    subfolderName: driveSubfolderName,
+    onProgress: (p) => {
+      const percent = Math.min(85, Math.max(10, Math.round(p * 0.85)))
+      onProgress?.({ id: uploadId, fileName: file.name, percent, stage: "uploading" })
+    },
+  })
+
+  onProgress?.({ id: uploadId, fileName: file.name, percent: 92, stage: "saving" })
+
+  const completeResponse = await fetch("/api/assets/drive-upload-complete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      taskId,
+      projectId,
+      userId,
+      assetId: assetId || null,
+      assetName: assetName || file.name.replace(/\.[^/.]+$/, ""),
+      assetType: assetType || "single",
+      groupId: groupId || null,
+      groupOrder: groupOrder ?? 0,
+      currentVersion: currentVersion || null,
+      notes: notes || "Subido directamente a Google Drive",
+      driveFileId: driveFile.id,
+      driveWebViewLink: driveFile.webViewLink || null,
+      originalFilename: file.name,
+      fileType: file.type || null,
+      fileSize: file.size,
+    }),
+  })
+
+  const complete = await completeResponse.json()
+  if (!completeResponse.ok) {
+    onProgress?.({ id: uploadId, fileName: file.name, percent: 0, stage: "error", message: complete?.error || "Error guardando versión" })
+    throw new Error(complete?.error || "Error guardando versión")
+  }
+
+  onProgress?.({ id: uploadId, fileName: file.name, percent: 100, stage: "done" })
+
+  return {
+    assetId: complete.assetId as string,
+    versionId: complete.versionId as string,
+    driveFileId: driveFile.id,
+  }
+}
+
+export async function uploadCarouselFilesToDrive(params: {
+  files: File[]
+  taskId: string
+  projectId: string
+  userId: string
+  carouselName?: string
+  onProgress?: (update: UploadProgressUpdate) => void
+}) {
+  const { files, taskId, projectId, userId, carouselName, onProgress } = params
+  const groupId = crypto.randomUUID()
+  const firstName = files[0]?.name?.replace(/\.[^/.]+$/, "") || "carousel"
+  const baseName = carouselName?.trim() || firstName
+  const driveSubfolderName = `carousel-${sanitizeFilename(baseName) || "carousel"}-${groupId.slice(0, 8)}`
+  const results: Awaited<ReturnType<typeof uploadAssetFileToDrive>>[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    const name = carouselName
+      ? `${carouselName} (${i + 1}/${files.length})`
+      : file.name.replace(/\.[^/.]+$/, "")
+
+    const result = await uploadAssetFileToDrive({
+      file,
+      taskId,
+      projectId,
+      userId,
+      assetName: name,
+      assetType: "carousel",
+      groupId,
+      groupOrder: i,
+      driveSubfolderName,
+      notes: "Carrusel subido directamente a Google Drive",
+      onProgress,
+    })
+    results.push(result)
+  }
+
+  return { groupId, results, driveSubfolderName }
+}
+
+export async function uploadReelFileToDrive(params: {
+  file: File
+  taskId: string
+  projectId: string
+  userId: string
+  reelName?: string
+  onProgress?: (update: UploadProgressUpdate) => void
+}) {
+  const { file, taskId, projectId, userId, reelName, onProgress } = params
+
+  return uploadAssetFileToDrive({
+    file,
+    taskId,
+    projectId,
+    userId,
+    assetName: reelName || file.name.replace(/\.[^/.]+$/, ""),
+    assetType: "reel",
+    onProgress,
+  })
+}
+
 /**
  * Create a reel using an external URL (Drive or any public/private URL).
  * The URL is stored as the current asset version file_url without uploading a file.
