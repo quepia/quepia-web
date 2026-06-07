@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/client-notifications/process",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 15 * * *"
     }
   ]
 }

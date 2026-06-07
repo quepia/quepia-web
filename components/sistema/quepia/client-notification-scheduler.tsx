@@ -34,20 +34,17 @@ const STATUS_STYLES: Record<ClientNotificationScheduleStatus, string> = {
   cancelled: "border-white/10 bg-white/[0.03] text-white/35",
 }
 
-function toDatetimeLocalValue(date: Date) {
+function toDateInputValue(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, "0")
   const day = String(date.getDate()).padStart(2, "0")
-  const hours = String(date.getHours()).padStart(2, "0")
-  const minutes = String(date.getMinutes()).padStart(2, "0")
-  return `${year}-${month}-${day}T${hours}:${minutes}`
+  return `${year}-${month}-${day}`
 }
 
 function getDefaultScheduledValue() {
   const date = new Date()
   date.setDate(date.getDate() + 1)
-  date.setHours(10, 0, 0, 0)
-  return toDatetimeLocalValue(date)
+  return toDateInputValue(date)
 }
 
 function formatScheduleDate(value: string) {
@@ -57,8 +54,7 @@ function formatScheduleDate(value: string) {
   return date.toLocaleString("es-AR", {
     day: "2-digit",
     month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
+    year: "numeric",
   })
 }
 
@@ -82,7 +78,7 @@ export function ClientNotificationScheduler({ taskId, projectId, userId, assets 
   const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   const eligibleAssetIds = useMemo(() => getEligibleAssetIds(assets), [assets])
-  const minScheduledAt = useMemo(() => toDatetimeLocalValue(new Date()), [])
+  const minScheduledAt = useMemo(() => toDateInputValue(new Date()), [])
 
   const pendingSchedules = useMemo(
     () =>
@@ -119,7 +115,7 @@ export function ClientNotificationScheduler({ taskId, projectId, userId, assets 
   }, [loadSchedules])
 
   const handleSchedule = async () => {
-    const scheduledDate = new Date(scheduledAt)
+    const scheduledDate = new Date(`${scheduledAt}T12:00:00`)
 
     if (eligibleAssetIds.length === 0) {
       toast({
@@ -247,10 +243,10 @@ export function ClientNotificationScheduler({ taskId, projectId, userId, assets 
         <div className="mt-3 grid gap-2 border-t border-white/[0.06] pt-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
           <label className="min-w-0">
             <span className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-white/35">
-              Fecha y hora
+              Dia de aviso
             </span>
             <input
-              type="datetime-local"
+              type="date"
               value={scheduledAt}
               min={minScheduledAt}
               onChange={(event) => setScheduledAt(event.target.value)}
