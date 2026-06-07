@@ -12,6 +12,7 @@ import {
     type TelegramSentMessageRecord,
 } from '@/lib/sistema/telegram-service'
 import { backupNotifiedAssetsToDrive } from '@/lib/sistema/google-drive-backup'
+import type { ClientNotificationSchedule } from '@/types/sistema'
 
 type NotificationType = 'mention' | 'assignment' | 'approval_request' | 'status_change' | 'comment' | 'system'
 
@@ -571,6 +572,50 @@ interface SendTaskAssetsToTelegramResult {
     errors: string[]
 }
 
+interface ScheduleClientTelegramNotificationParams {
+    projectId: string
+    taskId: string
+    actorUserId: string
+    assetIds: string[]
+    scheduledAt: string
+}
+
+interface ScheduleClientTelegramNotificationResult {
+    success: boolean
+    schedule?: ClientNotificationSchedule
+    error?: string
+}
+
+interface GetTaskClientNotificationSchedulesParams {
+    taskId: string
+    limit?: number
+}
+
+interface GetTaskClientNotificationSchedulesResult {
+    success: boolean
+    schedules: ClientNotificationSchedule[]
+    error?: string
+}
+
+interface CancelClientTelegramNotificationParams {
+    scheduleId: string
+    actorUserId: string
+}
+
+interface ProcessDueScheduledClientNotificationsParams {
+    limit?: number
+    now?: string
+}
+
+interface ProcessDueScheduledClientNotificationsResult {
+    success: boolean
+    processed: number
+    sent: number
+    failed: number
+    skipped: number
+    errors: string[]
+}
+
 function isValidEmail(value: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
@@ -1066,6 +1111,325 @@ export async function sendTaskAssetsToTelegram(
                 ...errors,
                 error instanceof Error ? error.message : 'Unknown error sending assets to Telegram.',
             ],
+        }
+    }
+}
+
+function normalizeAssetIds(assetIds: string[]) {
+    return Array.from(new Set((assetIds || []).filter(Boolean)))
+}
+
+function getScheduleErrorMessage(error: unknown) {
+    if (error instanceof Error) return error.message
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+        return String((error as { message?: unknown }).message)
+    }
+    return String(error)
+}
+
+async function getEligibleTelegramAssetIds(
+    supabase: ReturnType<typeof createAdminClient>,
+    params: {
+        taskId: string
+        projectId?: string
+        assetIds?: string[]
+    }
+) {
+    let assetQuery = supabase
+        .from('sistema_assets')
+        .select('id')
+        .eq('task_id', params.taskId)
+        .eq('access_revoked', false)
+
+    if (params.projectId) {
+        assetQuery = assetQuery.eq('project_id', params.projectId)
+    }
+
+    const requestedAssetIds = normalizeAssetIds(params.assetIds || [])
+    if (requestedAssetIds.length > 0) {
+        assetQuery = assetQuery.in('id', requestedAssetIds)
+    }
+
+    const { data: assets, error: assetsError } = await assetQuery
+    if (assetsError) throw assetsError
+
+    const assetIds = (assets || []).map((asset) => asset.id as string).filter(Boolean)
+    if (assetIds.length === 0) return []
+
+    const { data: versions, error: versionsError } = await supabase
+        .from('sistema_asset_versions')
+        .select('asset_id')
+        .in('asset_id', assetIds)
+
+    if (versionsError) throw versionsError
+
+    const assetsWithVersions = new Set((versions || []).map((version) => version.asset_id as string).filter(Boolean))
+    return assetIds.filter((assetId) => assetsWithVersions.has(assetId))
+}
+
+export async function getTaskClientNotificationSchedules(
+    params: GetTaskClientNotificationSchedulesParams
+): Promise<GetTaskClientNotificationSchedulesResult> {
+    try {
+        if (!params.taskId) {
+            return { success: false, schedules: [], error: 'Missing task id.' }
+        }
+
+        const supabase = createAdminClient()
+        const { data, error } = await supabase
+            .from('sistema_client_notification_schedules')
+            .select('*')
+            .eq('task_id', params.taskId)
+            .order('scheduled_at', { ascending: false })
+            .limit(params.limit || 8)
+
+        if (error) throw error
+
+        return {
+            success: true,
+            schedules: (data || []) as ClientNotificationSchedule[],
+        }
+    } catch (error) {
+        return {
+            success: false,
+            schedules: [],
+            error: getScheduleErrorMessage(error),
+        }
+    }
+}
+
+export async function scheduleClientTelegramNotification(
+    params: ScheduleClientTelegramNotificationParams
+): Promise<ScheduleClientTelegramNotificationResult> {
+    try {
+        const { projectId, taskId, actorUserId, scheduledAt } = params
+        const supabase = createAdminClient()
+        const scheduledDate = new Date(scheduledAt)
+
+        if (!projectId || !taskId || !actorUserId || Number.isNaN(scheduledDate.getTime())) {
+            return { success: false, error: 'Faltan datos para programar el aviso.' }
+        }
+
+        if (scheduledDate <= new Date()) {
+            return { success: false, error: 'La fecha programada tiene que estar en el futuro.' }
+        }
+
+        const { data: task, error: taskError } = await supabase
+            .from('sistema_tasks')
+            .select('id')
+            .eq('id', taskId)
+            .eq('project_id', projectId)
+            .single()
+
+        if (taskError || !task) {
+            return { success: false, error: 'No se encontro la tarea para programar el aviso.' }
+        }
+
+        const eligibleAssetIds = await getEligibleTelegramAssetIds(supabase, {
+            taskId,
+            projectId,
+            assetIds: params.assetIds,
+        })
+
+        if (eligibleAssetIds.length === 0) {
+            return { success: false, error: 'No hay assets con version disponible para programar.' }
+        }
+
+        const now = new Date().toISOString()
+        const { data, error } = await supabase
+            .from('sistema_client_notification_schedules')
+            .insert({
+                project_id: projectId,
+                task_id: taskId,
+                created_by: actorUserId,
+                asset_ids: eligibleAssetIds,
+                scheduled_at: scheduledDate.toISOString(),
+                status: 'pending',
+                updated_at: now,
+            })
+            .select('*')
+            .single()
+
+        if (error) throw error
+
+        return {
+            success: true,
+            schedule: data as ClientNotificationSchedule,
+        }
+    } catch (error) {
+        return {
+            success: false,
+            error: getScheduleErrorMessage(error),
+        }
+    }
+}
+
+export async function cancelClientTelegramNotification(
+    params: CancelClientTelegramNotificationParams
+) {
+    try {
+        if (!params.scheduleId || !params.actorUserId) {
+            return { success: false, error: 'Faltan datos para cancelar el aviso.' }
+        }
+
+        const supabase = createAdminClient()
+        const now = new Date().toISOString()
+        const { data, error } = await supabase
+            .from('sistema_client_notification_schedules')
+            .update({
+                status: 'cancelled',
+                cancelled_by: params.actorUserId,
+                cancelled_at: now,
+                updated_at: now,
+            })
+            .eq('id', params.scheduleId)
+            .eq('status', 'pending')
+            .select('id')
+            .maybeSingle()
+
+        if (error) throw error
+
+        if (!data?.id) {
+            return { success: false, error: 'El aviso ya no esta pendiente.' }
+        }
+
+        return { success: true }
+    } catch (error) {
+        return {
+            success: false,
+            error: getScheduleErrorMessage(error),
+        }
+    }
+}
+
+export async function processDueScheduledClientNotifications(
+    params: ProcessDueScheduledClientNotificationsParams = {}
+): Promise<ProcessDueScheduledClientNotificationsResult> {
+    const errors: string[] = []
+    let processed = 0
+    let sent = 0
+    let failed = 0
+    let skipped = 0
+
+    try {
+        const supabase = createAdminClient()
+        const now = params.now ? new Date(params.now) : new Date()
+        const nowIso = Number.isNaN(now.getTime()) ? new Date().toISOString() : now.toISOString()
+
+        const { data: dueSchedules, error: dueError } = await supabase
+            .from('sistema_client_notification_schedules')
+            .select('*')
+            .eq('status', 'pending')
+            .lte('scheduled_at', nowIso)
+            .order('scheduled_at', { ascending: true })
+            .limit(Math.max(1, Math.min(params.limit || 10, 25)))
+
+        if (dueError) throw dueError
+
+        for (const schedule of (dueSchedules || []) as ClientNotificationSchedule[]) {
+            const lockNow = new Date().toISOString()
+            const { data: lockedSchedule, error: lockError } = await supabase
+                .from('sistema_client_notification_schedules')
+                .update({
+                    status: 'processing',
+                    attempts: (schedule.attempts || 0) + 1,
+                    processing_started_at: lockNow,
+                    updated_at: lockNow,
+                })
+                .eq('id', schedule.id)
+                .eq('status', 'pending')
+                .select('*')
+                .maybeSingle()
+
+            if (lockError) {
+                failed += 1
+                errors.push(`No se pudo bloquear el aviso ${schedule.id}: ${lockError.message}`)
+                continue
+            }
+
+            if (!lockedSchedule) {
+                skipped += 1
+                continue
+            }
+
+            processed += 1
+
+            try {
+                const locked = lockedSchedule as ClientNotificationSchedule
+                const assetIds = normalizeAssetIds(locked.asset_ids || [])
+
+                if (assetIds.length === 0) {
+                    throw new Error('El aviso no tiene assets asociados.')
+                }
+
+                const result = await sendTaskAssetsToTelegram({
+                    projectId: locked.project_id,
+                    taskId: locked.task_id,
+                    actorUserId: locked.created_by,
+                    assetIds,
+                })
+
+                const completedAt = new Date().toISOString()
+                const resultSucceeded = result.success && result.failed === 0
+                const resultError = result.errors.join(' | ').slice(0, 1000) || null
+
+                const { error: updateError } = await supabase
+                    .from('sistema_client_notification_schedules')
+                    .update({
+                        status: resultSucceeded ? 'sent' : 'failed',
+                        sent_at: resultSucceeded ? completedAt : null,
+                        telegram_sent: result.sent,
+                        telegram_link_fallbacks: result.link_fallbacks,
+                        telegram_failed: result.failed,
+                        result,
+                        error_message: resultSucceeded ? null : resultError || 'No se pudo enviar a Telegram.',
+                        updated_at: completedAt,
+                    })
+                    .eq('id', locked.id)
+
+                if (updateError) {
+                    errors.push(`No se pudo guardar el resultado del aviso ${locked.id}: ${updateError.message}`)
+                }
+
+                if (resultSucceeded) {
+                    sent += 1
+                } else {
+                    failed += 1
+                    if (resultError) errors.push(resultError)
+                }
+            } catch (error) {
+                const message = getScheduleErrorMessage(error)
+                const failedAt = new Date().toISOString()
+                failed += 1
+                errors.push(message)
+
+                await supabase
+                    .from('sistema_client_notification_schedules')
+                    .update({
+                        status: 'failed',
+                        error_message: message.slice(0, 1000),
+                        updated_at: failedAt,
+                    })
+                    .eq('id', lockedSchedule.id)
+            }
+        }
+
+        return {
+            success: failed === 0,
+            processed,
+            sent,
+            failed,
+            skipped,
+            errors,
+        }
+    } catch (error) {
+        return {
+            success: false,
+            processed,
+            sent,
+            failed: failed + 1,
+            skipped,
+            errors: [...errors, getScheduleErrorMessage(error)],
         }
     }
 }

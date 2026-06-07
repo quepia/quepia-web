@@ -34,6 +34,7 @@ import { uploadAssetFile, uploadCarouselFilesToDrive, uploadReelFile, uploadReel
 import { toggleAssetAccess, reorderCarouselAssets, renameCarouselAssets, deleteCarouselGroup, getNextGroupOrder } from "@/lib/sistema/actions/assets"
 import { notifyClientAssetDeliveryBatch, sendTaskAssetsToTelegram } from "@/lib/sistema/actions/notifications"
 import { useToast } from "@/components/ui/toast-provider"
+import { ClientNotificationScheduler } from "./client-notification-scheduler"
 
 interface DeliveryNotificationWarning {
   message: string
@@ -687,6 +688,13 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           }
           if (carouselFileInputRef.current) carouselFileInputRef.current.value = ""
         }}
+      />
+
+      <ClientNotificationScheduler
+        taskId={taskId}
+        projectId={projectId}
+        userId={userId}
+        assets={assets}
       />
 
       {/* Add asset form */}

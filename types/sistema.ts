@@ -811,6 +811,30 @@ export interface AssetWithVersions extends Asset {
   creator?: SistemaUser | null;
 }
 
+export type ClientNotificationScheduleStatus = 'pending' | 'processing' | 'sent' | 'failed' | 'cancelled';
+
+export interface ClientNotificationSchedule {
+  id: string;
+  project_id: string;
+  task_id: string;
+  created_by: string;
+  cancelled_by?: string | null;
+  asset_ids: string[];
+  scheduled_at: string;
+  status: ClientNotificationScheduleStatus;
+  attempts: number;
+  telegram_sent: number;
+  telegram_link_fallbacks: number;
+  telegram_failed: number;
+  result: Record<string, unknown>;
+  error_message?: string | null;
+  processing_started_at?: string | null;
+  sent_at?: string | null;
+  cancelled_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ApprovalLogEntry {
   id: string;
   asset_id: string;
