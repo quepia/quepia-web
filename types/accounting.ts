@@ -37,7 +37,8 @@ export interface ExpenseCategoryUpdate {
 // =====================================================
 export interface ClientPayment {
     id: string;
-    project_id: string;
+    project_id: string | null;
+    client_name: string | null;
     account_id: string | null;
     month: number;
     year: number;
@@ -63,7 +64,8 @@ export interface ClientPaymentWithProject extends ClientPayment {
 }
 
 export interface ClientPaymentInsert {
-    project_id: string;
+    project_id: string | null;
+    client_name?: string | null;
     account_id?: string | null;
     month: number;
     year: number;
@@ -78,7 +80,8 @@ export interface ClientPaymentInsert {
 }
 
 export interface ClientPaymentUpdate {
-    project_id?: string;
+    project_id?: string | null;
+    client_name?: string | null;
     account_id?: string | null;
     month?: number;
     year?: number;

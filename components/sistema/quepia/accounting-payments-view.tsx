@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CreditCard, Search, Plus, Edit2, Trash2, Calendar, Download, X, Check, Clock, AlertCircle, Loader2 } from "lucide-react"
+import { Search, Plus, Edit2, Trash2, Download, X, Check, Clock, AlertCircle, Loader2, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
-import type { ClientPaymentWithProject, ClientPaymentInsert, ClientPaymentUpdate, PaymentStatus, Currency, Account } from "@/types/accounting"
+import type { ClientPayment, ClientPaymentWithProject, ClientPaymentInsert, ClientPaymentUpdate, PaymentStatus, Currency, Account } from "@/types/accounting"
 import type { ProjectWithChildren } from "@/types/sistema"
 
 interface AccountingPaymentsViewProps {
@@ -11,7 +11,7 @@ interface AccountingPaymentsViewProps {
     loading: boolean
     projects: ProjectWithChildren[]
     accounts: Account[]
-    onCreatePayment: (payment: ClientPaymentInsert) => Promise<any>
+    onCreatePayment: (payment: ClientPaymentInsert) => Promise<ClientPayment | null>
     onUpdatePayment: (id: string, updates: ClientPaymentUpdate) => Promise<boolean>
     onDeletePayment: (id: string) => Promise<boolean>
     onRefresh: () => void
@@ -22,12 +22,14 @@ const MONTHS = [
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ]
 
-const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon: any }> = {
+const STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; icon: LucideIcon }> = {
     pending: { label: 'Pendiente', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', icon: Clock },
     paid: { label: 'Pagado', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: Check },
     overdue: { label: 'Vencido', color: 'text-red-400 bg-red-400/10 border-red-400/20', icon: AlertCircle },
     cancelled: { label: 'Cancelado', color: 'text-white/40 bg-white/5 border-white/10', icon: X },
 }
+
+type ClientMode = 'project' | 'occasional'
 
 export function AccountingPaymentsView({
     payments,
@@ -49,7 +51,9 @@ export function AccountingPaymentsView({
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
     // Form state
+    const [formClientMode, setFormClientMode] = useState<ClientMode>('project')
     const [formProjectId, setFormProjectId] = useState("")
+    const [formClientName, setFormClientName] = useState("")
     const [formMonth, setFormMonth] = useState(new Date().getMonth() + 1)
     const [formYear, setFormYear] = useState(new Date().getFullYear())
     const [formAmount, setFormAmount] = useState("")
@@ -84,7 +88,9 @@ export function AccountingPaymentsView({
     })
 
     const resetForm = () => {
+        setFormClientMode('project')
         setFormProjectId("")
+        setFormClientName("")
         setFormMonth(new Date().getMonth() + 1)
         setFormYear(new Date().getFullYear())
         setFormAmount("")
@@ -106,7 +112,9 @@ export function AccountingPaymentsView({
 
     const openEditModal = (payment: ClientPaymentWithProject) => {
         setEditingPayment(payment)
-        setFormProjectId(payment.project_id)
+        setFormClientMode(payment.project_id ? 'project' : 'occasional')
+        setFormProjectId(payment.project_id || "")
+        setFormClientName(payment.project_id ? "" : payment.project_name)
         setFormMonth(payment.month)
         setFormYear(payment.year)
         setFormAmount(payment.amount.toString())
@@ -122,7 +130,9 @@ export function AccountingPaymentsView({
     }
 
     const handleSubmit = async () => {
-        if (!formProjectId || !formAmount) return
+        const clientName = formClientName.trim()
+        const hasClient = formClientMode === 'project' ? Boolean(formProjectId) : Boolean(clientName)
+        if (!hasClient || !formAmount) return
         const amount = parseFloat(formAmount)
         if (!Number.isFinite(amount) || amount <= 0) return
         if (formAccountId) {
@@ -133,7 +143,8 @@ export function AccountingPaymentsView({
         setIsSubmitting(true)
         try {
             const paymentData = {
-                project_id: formProjectId,
+                project_id: formClientMode === 'project' ? formProjectId : null,
+                client_name: formClientMode === 'occasional' ? clientName : null,
                 account_id: formAccountId || null,
                 month: formMonth,
                 year: formYear,
@@ -147,11 +158,11 @@ export function AccountingPaymentsView({
                 notes: formNotes || null,
             }
 
-            if (editingPayment) {
-                await onUpdatePayment(editingPayment.id, paymentData)
-            } else {
-                await onCreatePayment(paymentData)
-            }
+            const succeeded = editingPayment
+                ? await onUpdatePayment(editingPayment.id, paymentData)
+                : Boolean(await onCreatePayment(paymentData))
+
+            if (!succeeded) return
 
             setIsModalOpen(false)
             resetForm()
@@ -395,16 +406,53 @@ export function AccountingPaymentsView({
                             {/* Cliente */}
                             <div>
                                 <label className="block text-sm font-medium text-white/80 mb-2">Cliente *</label>
-                                <select
-                                    value={formProjectId}
-                                    onChange={(e) => setFormProjectId(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-emerald-500 transition-colors"
-                                >
-                                    <option value="" className="bg-[#1a1a1a]">Seleccionar cliente...</option>
-                                    {flatProjects.map(p => (
-                                        <option key={p.id} value={p.id} className="bg-[#1a1a1a]">{p.nombre}</option>
-                                    ))}
-                                </select>
+                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormClientMode('project')}
+                                        className={cn(
+                                            "px-3 py-2 rounded-lg text-sm font-medium border transition-colors",
+                                            formClientMode === 'project'
+                                                ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                                                : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                                        )}
+                                    >
+                                        Cliente habitual
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormClientMode('occasional')}
+                                        className={cn(
+                                            "px-3 py-2 rounded-lg text-sm font-medium border transition-colors",
+                                            formClientMode === 'occasional'
+                                                ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                                                : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                                        )}
+                                    >
+                                        Cliente ocasional
+                                    </button>
+                                </div>
+                                {formClientMode === 'project' ? (
+                                    <select
+                                        value={formProjectId}
+                                        onChange={(e) => setFormProjectId(e.target.value)}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-emerald-500 transition-colors"
+                                    >
+                                        <option value="" className="bg-[#1a1a1a]">Seleccionar cliente...</option>
+                                        {flatProjects.map(p => (
+                                            <option key={p.id} value={p.id} className="bg-[#1a1a1a]">{p.nombre}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={formClientName}
+                                        onChange={(e) => setFormClientName(e.target.value)}
+                                        placeholder="Nombre del cliente ocasional"
+                                        autoFocus
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 outline-none focus:border-emerald-500 transition-colors"
+                                    />
+                                )}
                             </div>
 
                             {/* Período */}
@@ -566,7 +614,7 @@ export function AccountingPaymentsView({
                             {/* Submit */}
                             <button
                                 onClick={handleSubmit}
-                                disabled={!formProjectId || !formAmount || parseFloat(formAmount) <= 0 || isSubmitting}
+                                disabled={(formClientMode === 'project' ? !formProjectId : !formClientName.trim()) || !formAmount || parseFloat(formAmount) <= 0 || isSubmitting}
                                 className="w-full mt-2 px-4 py-3 bg-emerald-500 text-white font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
