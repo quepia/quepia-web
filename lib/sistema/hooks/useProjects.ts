@@ -14,6 +14,8 @@ type ProjectApiRow = Project & { task_count?: ProjectCountPayload };
 type FavoriteProjectPayload = ProjectApiRow | ProjectApiRow[] | null;
 type FavoriteProjectRow = { project: FavoriteProjectPayload };
 
+const favoriteLoads = new Map<string, Promise<FavoriteProjectRow[]>>();
+
 function normalizeTaskCount(taskCount: ProjectCountPayload): number {
   if (typeof taskCount === 'number') {
     return taskCount;
@@ -195,18 +197,30 @@ export function useFavorites(userId?: string) {
     }
 
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('sistema_favorites')
-        .select(`
-          project:sistema_projects(
-            *,
-            task_count:sistema_tasks(count)
-          )
-        `)
-        .eq('user_id', userId);
-
-      if (error) throw error;
+      let load = favoriteLoads.get(userId);
+      if (!load) {
+        const supabase = createClient();
+        const query = supabase
+          .from('sistema_favorites')
+          .select(`
+              project:sistema_projects(
+                *,
+                task_count:sistema_tasks(count)
+              )
+            `)
+          .eq('user_id', userId);
+        const newLoad = Promise.resolve(query).then(({ data, error }) => {
+            if (error) throw error;
+            return (data || []) as FavoriteProjectRow[];
+          });
+        load = newLoad;
+        favoriteLoads.set(userId, newLoad);
+        void newLoad.then(
+          () => window.setTimeout(() => favoriteLoads.delete(userId), 1_000),
+          () => window.setTimeout(() => favoriteLoads.delete(userId), 1_000),
+        );
+      }
+      const data = await load;
 
       const favProjects = (data || [])
         .map((f): ProjectWithChildren | null => {

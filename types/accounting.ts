@@ -8,6 +8,20 @@ export type Currency = 'ARS' | 'USD';
 // Estados de pago
 export type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'cancelled';
 
+export type ExpenseType =
+    | 'salary'
+    | 'project_fee'
+    | 'advance'
+    | 'bonus'
+    | 'reimbursement'
+    | 'subscription'
+    | 'tax'
+    | 'service'
+    | 'purchase'
+    | 'other';
+
+export type CounterpartyKind = 'team_member' | 'freelancer' | 'vendor' | 'partner' | 'other';
+
 // =====================================================
 // CATEGORÍAS DE GASTOS
 // =====================================================
@@ -104,9 +118,15 @@ export interface Expense {
     category_id: string | null;
     subcategory_id: string | null;
     account_id: string | null;
+    counterparty_id: string | null;
+    project_id: string | null;
     description: string;
     amount: number;
     currency: Currency;
+    expense_type: ExpenseType | null;
+    period_start: string | null;
+    classification_source: string | null;
+    classification_confidence: number | null;
     provider: string | null;
     receipt_url: string | null;
     notes: string | null;
@@ -122,6 +142,9 @@ export interface ExpenseWithCategory extends Expense {
     subcategory_name: string | null;
     account_name: string | null;
     account_color: string | null;
+    counterparty_name: string | null;
+    counterparty_kind: CounterpartyKind | null;
+    project_name: string | null;
 }
 
 export interface ExpenseInsert {
@@ -129,9 +152,15 @@ export interface ExpenseInsert {
     category_id?: string | null;
     subcategory_id?: string | null;
     account_id?: string | null;
+    counterparty_id?: string | null;
+    project_id?: string | null;
     description: string;
     amount: number;
     currency?: Currency;
+    expense_type?: ExpenseType | null;
+    period_start?: string | null;
+    classification_source?: string | null;
+    classification_confidence?: number | null;
     provider?: string | null;
     receipt_url?: string | null;
     notes?: string | null;
@@ -142,9 +171,15 @@ export interface ExpenseUpdate {
     category_id?: string | null;
     subcategory_id?: string | null;
     account_id?: string | null;
+    counterparty_id?: string | null;
+    project_id?: string | null;
     description?: string;
     amount?: number;
     currency?: Currency;
+    expense_type?: ExpenseType | null;
+    period_start?: string | null;
+    classification_source?: string | null;
+    classification_confidence?: number | null;
     provider?: string | null;
     receipt_url?: string | null;
     notes?: string | null;
@@ -243,6 +278,12 @@ export interface AccountTransfer {
     to_account_color: string;
     amount: number;
     currency: Currency;
+    source_amount: number | null;
+    source_currency: Currency | null;
+    destination_amount: number | null;
+    destination_currency: Currency | null;
+    fee_amount: number | null;
+    fee_currency: Currency | null;
     exchange_rate: number | null;
     date: string;
     notes: string | null;
@@ -254,11 +295,74 @@ export interface AccountTransferInsert {
     to_account_id: string;
     amount: number;
     currency?: Currency;
+    source_amount?: number;
+    source_currency?: Currency;
+    destination_amount?: number;
+    destination_currency?: Currency;
+    fee_amount?: number;
+    fee_currency?: Currency;
     exchange_rate?: number;
     commission?: number;
     tax?: number;
     date: string;
     notes?: string;
+}
+
+// =====================================================
+// PERSONAS / PROVEEDORES Y ANALÍTICA DE GASTOS
+// =====================================================
+export interface AccountingCounterparty {
+    id: string;
+    name: string;
+    kind: CounterpartyKind;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AccountingCounterpartyInsert {
+    name: string;
+    kind?: CounterpartyKind;
+}
+
+export interface ExpenseAnalyticsGroup {
+    id: string | null;
+    label?: string;
+    kind?: CounterpartyKind | 'unclassified';
+    expense_count: number;
+    total_amount: number;
+}
+
+export interface SalaryAnalyticsRow {
+    id: string | null;
+    label: string;
+    payment_count: number;
+    total_amount: number;
+    salary_amount: number | null;
+    project_fee_amount: number | null;
+    advance_amount: number | null;
+    first_payment_date: string | null;
+    last_payment_date: string | null;
+}
+
+export interface MonthlyExpenseAnalytics {
+    month: number;
+    expense_count: number;
+    total_amount: number;
+}
+
+export interface ExpenseAnalytics {
+    year: number;
+    currency: Currency;
+    total_amount: number;
+    expense_count: number;
+    classified_count: number;
+    unclassified_count: number;
+    by_category: ExpenseAnalyticsGroup[];
+    by_counterparty: ExpenseAnalyticsGroup[];
+    by_type: ExpenseAnalyticsGroup[];
+    monthly: MonthlyExpenseAnalytics[];
+    salary_by_person: SalaryAnalyticsRow[];
 }
 
 // =====================================================

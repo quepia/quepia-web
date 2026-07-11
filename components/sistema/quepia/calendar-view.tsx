@@ -32,15 +32,17 @@ interface CalendarViewProps {
   tasks: TaskWithProject[]
   events: (CalendarEvent & { project?: ProjectWithLogo })[]
   loading: boolean
+  tasksLoading?: boolean
+  currentDate: Date
+  onCurrentDateChange: (date: Date) => void
   onTaskClick: (task: TaskWithProject) => void
   userId?: string
   projects?: ProjectOption[]
   onRefresh?: () => void
 }
 
-export function CalendarView({ tasks, events, loading, onTaskClick, userId, projects = [], onRefresh }: CalendarViewProps) {
+export function CalendarView({ tasks, events, loading, tasksLoading = false, currentDate, onCurrentDateChange, onTaskClick, userId, projects = [], onRefresh }: CalendarViewProps) {
   const { toast } = useToast()
-  const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [showAIModal, setShowAIModal] = useState(false)
   const [showManualModal, setShowManualModal] = useState(false)
@@ -71,10 +73,10 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   const firstDayOfWeek = new Date(year, month, 1).getDay()
   const monthName = currentDate.toLocaleDateString("es-AR", { month: "long", year: "numeric" })
 
-  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
-  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
+  const prevMonth = () => onCurrentDateChange(new Date(year, month - 1, 1))
+  const nextMonth = () => onCurrentDateChange(new Date(year, month + 1, 1))
   const goToToday = () => {
-    setCurrentDate(new Date())
+    onCurrentDateChange(new Date())
     const todayStr = new Date().toISOString().split("T")[0]
     setSelectedDate(todayStr)
   }
@@ -111,8 +113,9 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
   }, [events, month, year])
 
   const filteredMonthEvents = useMemo(() => {
-    if (bulkDeleteProjectFilter === "all") return monthEvents
-    return monthEvents.filter((event) => event.project_id === bulkDeleteProjectFilter)
+    const deletableEvents = monthEvents.filter((event) => event.source !== "efemeride")
+    if (bulkDeleteProjectFilter === "all") return deletableEvents
+    return deletableEvents.filter((event) => event.project_id === bulkDeleteProjectFilter)
   }, [bulkDeleteProjectFilter, monthEvents])
 
   if (loading) {
@@ -142,6 +145,7 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
           <div className="flex items-center gap-3">
             <Calendar className="h-5 w-5 text-quepia-cyan" />
             <h2 className="text-lg font-semibold text-white capitalize">{monthName}</h2>
+            {tasksLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-white/30" aria-label="Cargando tareas" />}
           </div>
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
             <button
@@ -299,6 +303,10 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
             <div className="w-2 h-2 rounded-full bg-yellow-500" />
             <span>Media</span>
           </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2 w-2 rounded-full bg-[#a78bfa]" />
+            <span>Efeméride compartida</span>
+          </div>
           {Object.entries(EVENT_TYPE_LABELS).map(([key, label]) => (
             <div key={key} className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS[key as keyof typeof EVENT_TYPE_COLORS] }} />
@@ -374,14 +382,16 @@ export function CalendarView({ tasks, events, loading, onTaskClick, userId, proj
                     {selectedItems.events.map(event => (
                       <button
                         key={event.id}
-                        onClick={() => setSelectedEvent(event)}
+                        onClick={() => {
+                          if (event.source !== "efemeride") setSelectedEvent(event)
+                        }}
                         className="flex min-h-10 w-full items-center gap-2 rounded-xl bg-white/[0.02] p-2.5 text-left transition-all duration-200 hover:bg-white/[0.06]"
                       >
                         <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
                         <div className="flex-1 min-w-0">
                           <span className="text-xs text-white/70 truncate block">{event.titulo}</span>
                           <span className="text-[9px] text-white/30">
-                            {EVENT_TYPE_LABELS[event.tipo]}
+                            {event.source === "efemeride" ? "Efeméride compartida" : EVENT_TYPE_LABELS[event.tipo]}
                           </span>
                         </div>
                         {event.project && (

@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
-import { syncEfemeridesCalendarioActual } from "@/lib/sistema/actions/efemerides"
+import { unstable_cache } from "next/cache"
 import { getEmailFromAddress } from "@/lib/sistema/email-config"
+import { createClient as createServerClient } from "@/lib/sistema/supabase/server"
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null
+let resendClient: Resend | null | undefined
+
+function getResendClient() {
+  if (resendClient !== undefined) return resendClient
+  resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+  return resendClient
+}
 
 export const dynamic = "force-dynamic"
 
@@ -16,11 +21,27 @@ type ProjectIdRow = { id: string }
 type MemberProjectIdRow = { project_id: string }
 
 function getAdminClient() {
-  return createClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 }
+
+const getCachedEfemerides = unstable_cache(
+  async () => {
+    const supabase = getAdminClient()
+    return supabase
+      .from("sistema_efemerides")
+      .select(`
+        id, nombre, descripcion, fecha_mes, fecha_dia, categoria, global,
+        project_id, created_by, created_at, updated_at,
+        project:sistema_projects(id, nombre, color, logo_url)
+      `)
+      .eq("activa", true)
+  },
+  ["shared-efemerides-catalog"],
+  { revalidate: 300, tags: ["shared-efemerides"] },
+)
 
 function getCachedProjectIds(userId: string) {
   const cached = projectIdsCache.get(userId)
@@ -43,18 +64,35 @@ function setCachedProjectIds(userId: string, projectIds: string[]) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const userId = searchParams.get("userId")
+    let userId = searchParams.get("userId")
     const type = searchParams.get("type") // "tasks" | "projects" | "events"
     const forceRefresh = searchParams.get("force") === "true"
     const from = searchParams.get("from")
     const to = searchParams.get("to")
-    const syncEfemerides = searchParams.get("syncEfemerides") === "true" || forceRefresh
 
     if (!type) {
       return NextResponse.json({ error: "Missing type" }, { status: 400 })
     }
 
     const supabase = getAdminClient()
+
+    if (type !== "check-tables") {
+      const authClient = await createServerClient()
+      const { data: authData, error: authError } = await authClient.auth.getUser()
+      if (authError || !authData.user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+
+      const { data: requester } = await supabase
+        .from("sistema_users")
+        .select("role")
+        .eq("id", authData.user.id)
+        .single()
+      if (userId && userId !== authData.user.id && requester?.role !== "admin") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      userId = userId || authData.user.id
+    }
 
     // Helper to get all project IDs accessible by user (owned + member)
     const getUserProjectIds = async (userId: string, bypassCache = false) => {
@@ -149,7 +187,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] })
       }
 
-      const { data, error } = await supabase
+      let tasksQuery = supabase
         .from("sistema_tasks")
         .select(`
           id,
@@ -176,7 +214,11 @@ export async function GET(request: Request) {
           column:sistema_columns(id, nombre)
         `)
         .in("project_id", projectIds)
-        .order("deadline", { ascending: true, nullsFirst: false })
+
+      if (from) tasksQuery = tasksQuery.gte("deadline", from)
+      if (to) tasksQuery = tasksQuery.lte("deadline", to)
+
+      const { data, error } = await tasksQuery.order("deadline", { ascending: true, nullsFirst: false })
 
       if (error) {
         console.error("Error fetching tasks:", error)
@@ -218,6 +260,13 @@ export async function GET(request: Request) {
       if (!projectId) {
         return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
       }
+      if (!userId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+      const accessibleProjectIds = await getUserProjectIds(userId)
+      if (!accessibleProjectIds.includes(projectId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
 
       const { data, error } = await supabase
         .from("sistema_project_members")
@@ -244,18 +293,6 @@ export async function GET(request: Request) {
 
       if (projectIds.length === 0) {
         return NextResponse.json({ data: [] })
-      }
-
-      if (syncEfemerides) {
-        const syncResult = await syncEfemeridesCalendarioActual({
-          userId,
-          projectIds,
-          backfillOnly: true,
-        })
-
-        if (!syncResult.success) {
-          console.error("Error syncing efemerides into calendar:", syncResult.error)
-        }
       }
 
       let eventsQuery = supabase
@@ -286,15 +323,93 @@ export async function GET(request: Request) {
         eventsQuery = eventsQuery.lte("fecha_inicio", to)
       }
 
-      const { data, error } = await eventsQuery
-        .order("fecha_inicio", { ascending: true })
+      const [{ data, error }, { data: efemerides, error: efemeridesError }, { data: assignments, error: assignmentsError }] = await Promise.all([
+        eventsQuery.order("fecha_inicio", { ascending: true }),
+        getCachedEfemerides(),
+        supabase
+          .from("sistema_efemerides_proyectos")
+          .select("calendar_event_id")
+          .not("calendar_event_id", "is", null),
+      ])
 
       if (error) {
         console.error("Error fetching events:", error)
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
-      return NextResponse.json({ data: data || [] })
+      if (efemeridesError) {
+        console.error("Error fetching shared efemerides:", efemeridesError)
+        return NextResponse.json({ error: efemeridesError.message }, { status: 500 })
+      }
+
+      if (assignmentsError) {
+        console.error("Error fetching legacy efemeride links:", assignmentsError)
+        return NextResponse.json({ error: assignmentsError.message }, { status: 500 })
+      }
+
+      // Efemerides are shared catalog entries. Legacy per-project calendar copies are
+      // hidden, and one lightweight occurrence per year is returned instead.
+      const linkedEventIds = new Set(
+        (assignments || [])
+          .map((assignment) => assignment.calendar_event_id)
+          .filter((id): id is string => Boolean(id)),
+      )
+      const regularEvents = (data || []).filter((event) => !linkedEventIds.has(event.id))
+      const accessibleEfemerides = (efemerides || []).filter(
+        (efemeride) => efemeride.global || (efemeride.project_id && projectIds.includes(efemeride.project_id)),
+      )
+      const currentYear = new Date().getFullYear()
+      const years = from && to
+        ? Array.from(
+            { length: new Date(to).getUTCFullYear() - new Date(from).getUTCFullYear() + 1 },
+            (_, index) => new Date(from).getUTCFullYear() + index,
+          )
+        : [currentYear - 1, currentYear, currentYear + 1]
+
+      const sharedEfemerideEvents = accessibleEfemerides.flatMap((efemeride) =>
+        years.flatMap((year) => {
+          const occurrence = new Date(
+            Date.UTC(year, efemeride.fecha_mes - 1, efemeride.fecha_dia, 12),
+          )
+
+          // JavaScript normalizes invalid dates (31/04 -> 01/05). Skip those
+          // occurrences instead of displaying an efemeride on the wrong day.
+          if (
+            occurrence.getUTCFullYear() !== year ||
+            occurrence.getUTCMonth() !== efemeride.fecha_mes - 1 ||
+            occurrence.getUTCDate() !== efemeride.fecha_dia
+          ) {
+            return []
+          }
+
+          const fechaInicio = occurrence.toISOString()
+
+          return [{
+            id: `efemeride:${efemeride.id}:${year}`,
+            project_id: efemeride.project_id || "shared-efemerides",
+            titulo: efemeride.nombre,
+            descripcion: efemeride.descripcion,
+            tipo: "otro",
+            fecha_inicio: fechaInicio,
+            fecha_fin: null,
+            todo_el_dia: true,
+            color: "#a78bfa",
+            task_id: null,
+            created_by: efemeride.created_by,
+            created_at: efemeride.created_at,
+            updated_at: efemeride.updated_at,
+            project: efemeride.project,
+            source: "efemeride",
+            categoria: efemeride.categoria,
+          }]
+        }),
+      ).filter((event) => (!from || event.fecha_inicio >= from) && (!to || event.fecha_inicio <= to))
+
+      return NextResponse.json({
+        data: [...regularEvents, ...sharedEfemerideEvents].sort(
+          (a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio),
+        ),
+      })
     }
 
     return NextResponse.json({ error: "Invalid type" }, { status: 400 })
@@ -307,7 +422,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { action, userId, targetUserId, newRole, email, nombre, role } = body
+    const { action, targetUserId, newRole, email, nombre, role } = body
+    const authClient = await createServerClient()
+    const { data: authData, error: authError } = await authClient.auth.getUser()
+    if (authError || !authData.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const userId = authData.user.id
 
     if (action === "update-role") {
       const supabase = getAdminClient()
@@ -373,6 +494,7 @@ export async function POST(request: Request) {
       const actionLink = linkData.properties.action_link
 
       // 3. Send email via Resend
+      const resend = getResendClient()
       if (resend) {
         const { error: emailError } = await resend.emails.send({
           from: getEmailFromAddress(),

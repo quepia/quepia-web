@@ -11,16 +11,19 @@ export interface TaskWithProject extends Task {
 
 type UseAllOptions = {
   enabled?: boolean;
+  from?: string;
+  to?: string;
 };
 
 type UseAllCalendarEventsOptions = UseAllOptions & {
   from?: string;
   to?: string;
-  syncEfemerides?: boolean;
 };
 
 export function useAllTasks(userId?: string, options?: UseAllOptions) {
   const enabled = options?.enabled ?? true;
+  const from = options?.from;
+  const to = options?.to;
   const [tasks, setTasks] = useState<TaskWithProject[]>([]);
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
@@ -31,7 +34,7 @@ export function useAllTasks(userId?: string, options?: UseAllOptions) {
       setTasks([]);
       setLoading(false);
     }
-  }, [userId]);
+  }, [from, to, userId]);
 
   const fetchAllTasks = useCallback(async () => {
     if (!enabled || !userId) {
@@ -43,7 +46,10 @@ export function useAllTasks(userId?: string, options?: UseAllOptions) {
       if (!initialLoadDone.current) {
         setLoading(true);
       }
-      const res = await fetch(`/api/sistema-data?userId=${userId}&type=tasks`);
+      const params = new URLSearchParams({ userId, type: 'tasks' });
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const res = await fetch(`/api/sistema-data?${params.toString()}`);
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       setTasks(result.data || []);
@@ -53,7 +59,7 @@ export function useAllTasks(userId?: string, options?: UseAllOptions) {
       setLoading(false);
       initialLoadDone.current = true;
     }
-  }, [enabled, userId]);
+  }, [enabled, from, to, userId]);
 
   useEffect(() => {
     fetchAllTasks();
@@ -66,7 +72,6 @@ export function useAllCalendarEvents(userId?: string, options?: UseAllCalendarEv
   const enabled = options?.enabled ?? true;
   const from = options?.from;
   const to = options?.to;
-  const syncEfemerides = options?.syncEfemerides ?? false;
   const [events, setEvents] = useState<(CalendarEvent & { project?: { id: string; nombre: string; color: string; logo_url?: string | null } })[]>([]);
   const [loading, setLoading] = useState(true);
   const initialLoadDone = useRef(false);
@@ -81,7 +86,7 @@ export function useAllCalendarEvents(userId?: string, options?: UseAllCalendarEv
       }
       setLoading(false);
     }
-  }, [enabled, from, syncEfemerides, to, userId]);
+  }, [enabled, from, to, userId]);
 
   const fetchAllEvents = useCallback(async () => {
     if (!enabled || !userId) {
@@ -102,8 +107,6 @@ export function useAllCalendarEvents(userId?: string, options?: UseAllCalendarEv
       });
       if (from) params.set('from', from);
       if (to) params.set('to', to);
-      if (syncEfemerides) params.set('syncEfemerides', 'true');
-
       const res = await fetch(`/api/sistema-data?${params.toString()}`);
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -117,7 +120,7 @@ export function useAllCalendarEvents(userId?: string, options?: UseAllCalendarEv
         initialLoadDone.current = true;
       }
     }
-  }, [enabled, from, syncEfemerides, to, userId]);
+  }, [enabled, from, to, userId]);
 
   useEffect(() => {
     fetchAllEvents();

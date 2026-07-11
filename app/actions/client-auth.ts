@@ -5,7 +5,12 @@ import { Resend } from "resend"
 import { createClientDirectLink, createClientSessionForAccess } from "@/lib/sistema/auth/client-session"
 import { getEmailFromAddress } from "@/lib/sistema/email-config"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+let resendClient: Resend | null = null
+
+function getResendClient() {
+    if (!resendClient) resendClient = new Resend(process.env.RESEND_API_KEY)
+    return resendClient
+}
 
 /**
  * Sends a 6-digit login code to the client's email.
@@ -61,7 +66,7 @@ export async function sendClientLoginCode(email: string) {
     const clientName = clients[0].nombre
 
     try {
-        await resend.emails.send({
+        await getResendClient().emails.send({
             from: getEmailFromAddress(),
             to: normalizedEmail,
             subject: "Tu código de acceso a Quepia",

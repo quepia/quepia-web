@@ -14,6 +14,8 @@ import {
   Clock,
   Link2,
   DollarSign,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { ProjectWithChildren, ProposalCurrency, ProposalStatus } from "@/types/sistema"
@@ -108,7 +110,8 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [templateName, setTemplateName] = useState("")
   const [showAIModal, setShowAIModal] = useState(false)
-  const [aiJson, setAiJson] = useState("")
+  const [isGeneratingProposal, setIsGeneratingProposal] = useState(false)
+  const [aiError, setAiError] = useState("")
   const [aiInputs, setAiInputs] = useState({
     proyecto: "",
     cliente: "",
@@ -261,14 +264,8 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
     setTemplateName("")
   }
 
-  const buildAIPrompt = () => {
-    return `Actuá como consultor/a senior de una agencia creativa. Necesito que generes un JSON para una propuesta comercial.\n\nContexto clave:\n- Proyecto: ${aiInputs.proyecto || "[sin definir]"}\n- Cliente: ${aiInputs.cliente || "[sin definir]"}\n- Contexto: ${aiInputs.contexto || "[sin definir]"}\n- Objetivos: ${aiInputs.objetivos || "[sin definir]"}\n- Funcionalidades / Alcance: ${aiInputs.funcionalidades || "[sin definir]"}\n- Plazo estimado: ${aiInputs.plazo || "[sin definir]"}\n- Moneda: ${aiInputs.moneda}\n- Rango de inversión (si aplica): ${aiInputs.rango || "[sin definir]"}\n\nRequisitos:\n- Debe incluir secciones con items y precios realistas según el trabajo.\n- La moneda debe ser ${aiInputs.moneda}.\n- Cada item debe tener quantity y unit_price, y total_price = quantity * unit_price.\n- Incluir resumen claro.\n- Sugerir links de moodboard o referencias por sección cuando aplique.\n\nDevuelve SOLO JSON válido, sin texto extra. Usar este formato:\n{\n  \"title\": \"...\",\n  \"summary\": \"...\",\n  \"currency\": \"ARS|USD|EUR\",\n  \"sections\": [\n    {\n      \"title\": \"...\",\n      \"description\": \"...\",\n      \"moodboard_links\": [\n        { \"label\": \"...\", \"url\": \"https://...\" }\n      ],\n      \"items\": [\n        { \"title\": \"...\", \"description\": \"...\", \"quantity\": 1, \"unit_price\": 1000, \"total_price\": 1000 }\n      ]\n    }\n  ]\n}\n`
-  }
-
-  const applyAIJson = () => {
-    if (!aiJson.trim()) return
+  const applyAIProposal = (parsed: any) => {
     try {
-      const parsed = JSON.parse(aiJson)
       if (!parsed || !parsed.title || !Array.isArray(parsed.sections)) {
         alert("El JSON no tiene el formato esperado.")
         return
@@ -328,9 +325,29 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
       setSections(newSections)
       setItems(newItems)
       setShowAIModal(false)
-      setAiJson("")
+      setAiError("")
     } catch (err) {
-      alert("No se pudo leer el JSON. Revisá el formato.")
+      console.error("No se pudo aplicar la propuesta generada", err)
+      setAiError("La propuesta generada no tiene un formato válido.")
+    }
+  }
+
+  const generateAIProposal = async () => {
+    setIsGeneratingProposal(true)
+    setAiError("")
+    try {
+      const response = await fetch("/api/ai/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(aiInputs),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || "No se pudo generar la propuesta.")
+      applyAIProposal(data.proposal)
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "No se pudo generar la propuesta.")
+    } finally {
+      setIsGeneratingProposal(false)
     }
   }
 
@@ -723,10 +740,20 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
                     </div>
                     <div className="mt-2">
                       <button
-                        onClick={() => setShowAIModal(true)}
+                        onClick={() => {
+                          setAiInputs((prev) => ({
+                            ...prev,
+                            proyecto: prev.proyecto || projectOptions.find((project) => project.id === form.project_id)?.nombre || form.title,
+                            cliente: prev.cliente || form.client_name,
+                            moneda: form.currency,
+                          }))
+                          setAiError("")
+                          setShowAIModal(true)
+                        }}
                         className="w-full px-3 py-2 rounded-lg text-xs bg-white/5 text-white/70 hover:text-white"
                       >
-                        Generar con IA (sin API)
+                        <Sparkles className="inline h-3.5 w-3.5 mr-1.5" />
+                        Generar con IA
                       </button>
                     </div>
                   </div>
@@ -994,7 +1021,10 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowAIModal(false)} />
           <div className="relative w-full h-[100svh] sm:h-auto sm:max-w-3xl bg-[#0a0a0a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl sm:max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">IA para propuestas (sin API)</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Generar propuesta con IA</h3>
+                <p className="text-xs text-white/40 mt-1">Usa tarifarios argentinos como referencia de honorarios.</p>
+              </div>
               <button onClick={() => setShowAIModal(false)} className="text-white/40 hover:text-white">Cerrar</button>
             </div>
 
@@ -1053,24 +1083,12 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
                 />
               </div>
 
-              <div>
-                <label className="text-xs uppercase tracking-wider text-white/40">Prompt sugerido</label>
-                <textarea
-                  readOnly
-                  value={buildAIPrompt()}
-                  className="mt-2 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white/80 min-h-[160px]"
-                />
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-xs text-white/55 space-y-2">
+                <p>La IA consulta ARDG, Tarifario Digital y la Cámara de Diseñadores en Comunicación Visual de Rafaela.</p>
+                <p>Los importes son orientativos. Revisá alcance, cantidades y precios antes de enviar la propuesta.</p>
               </div>
 
-              <div>
-                <label className="text-xs uppercase tracking-wider text-white/40">Pegar JSON devuelto por Gemini</label>
-                <textarea
-                  value={aiJson}
-                  onChange={(e) => setAiJson(e.target.value)}
-                  className="mt-2 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white/80 min-h-[160px]"
-                  placeholder='{"title":"...","summary":"...","currency":"USD","sections":[...] }'
-                />
-              </div>
+              {aiError && <p className="text-sm text-red-300" role="alert">{aiError}</p>}
             </div>
 
             <div className="p-5 border-t border-white/10 flex items-center justify-end gap-2">
@@ -1081,10 +1099,15 @@ export function ProposalsView({ projects, userId }: ProposalsViewProps) {
                 Cancelar
               </button>
               <button
-                onClick={applyAIJson}
+                onClick={generateAIProposal}
+                disabled={isGeneratingProposal}
                 className="px-4 py-2 rounded-lg text-sm bg-quepia-cyan text-black font-semibold hover:bg-quepia-cyan/90"
               >
-                Aplicar JSON
+                {isGeneratingProposal ? (
+                  <><Loader2 className="inline h-4 w-4 mr-2 animate-spin" />Generando...</>
+                ) : (
+                  <><Sparkles className="inline h-4 w-4 mr-2" />Generar y aplicar</>
+                )}
               </button>
             </div>
           </div>

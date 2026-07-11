@@ -46,7 +46,16 @@ import type {
     ContributionsSummary,
     ContributionsTotals,
     ContributionStatus,
+    AccountingCounterparty,
+    AccountingCounterpartyInsert,
+    ExpenseAnalytics,
 } from '@/types/accounting';
+
+const normalizeMoney = (value: number | string | null | undefined): number => {
+    const amount = Number(value || 0);
+    if (Math.abs(amount) < 0.005) return 0;
+    return Math.round((amount + Number.EPSILON) * 100) / 100;
+};
 
 // =====================================================
 // HOOK: useAccounting
@@ -304,10 +313,11 @@ export function useAccounting() {
         try {
             setExpensesLoading(true);
             const supabase = createClient();
-            const { data, error: fetchError } = await supabase.rpc('get_accounting_expenses', {
+            const { data, error: fetchError } = await supabase.rpc('get_accounting_expenses_v2', {
                 p_start_date: filters?.start_date || null,
                 p_end_date: filters?.end_date || null,
                 p_category_id: filters?.category_id || null,
+                p_account_id: filters?.account_id || null,
             });
 
             if (fetchError) throw fetchError;
@@ -338,6 +348,7 @@ export function useAccounting() {
             if (insertError) throw insertError;
             await fetchExpenses();
             await fetchAccounts();
+            await fetchExpenseAnalytics();
             return data;
         } catch (err) {
             console.error('Error creating expense:', err);
@@ -365,6 +376,7 @@ export function useAccounting() {
             if (updateError) throw updateError;
             await fetchExpenses();
             await fetchAccounts();
+            await fetchExpenseAnalytics();
             return true;
         } catch (err) {
             console.error('Error updating expense:', err);
@@ -387,6 +399,7 @@ export function useAccounting() {
             if (deleteError) throw deleteError;
             await fetchExpenses();
             await fetchAccounts();
+            await fetchExpenseAnalytics();
             return true;
         } catch (err) {
             console.error('Error deleting expense:', err);
@@ -469,7 +482,17 @@ export function useAccounting() {
             const { data, error: fetchError } = await supabase.rpc('get_accounting_accounts');
 
             if (fetchError) throw fetchError;
-            setAccounts(data || []);
+            setAccounts((data || []).map((account: Account) => ({
+                ...account,
+                current_balance: normalizeMoney(account.current_balance),
+                month_income: normalizeMoney(account.month_income),
+                month_expenses: normalizeMoney(account.month_expenses),
+                month_transfers_in: normalizeMoney(account.month_transfers_in),
+                month_transfers_out: normalizeMoney(account.month_transfers_out),
+                year_transfers_in: normalizeMoney(account.year_transfers_in),
+                year_transfers_out: normalizeMoney(account.year_transfers_out),
+                year_adjustments: normalizeMoney(account.year_adjustments),
+            })));
         } catch (err) {
             console.error('Error fetching accounts:', err);
             setError(err instanceof Error ? err.message : 'Error fetching accounts');
@@ -591,6 +614,80 @@ export function useAccounting() {
             setLoading(false);
         }
     };
+
+    // =====================================================
+    // PERSONAS / PROVEEDORES Y ANALÍTICA DE GASTOS
+    // =====================================================
+    const [counterparties, setCounterparties] = useState<AccountingCounterparty[]>([]);
+    const [counterpartiesLoading, setCounterpartiesLoading] = useState(true);
+    const [expenseAnalytics, setExpenseAnalytics] = useState<ExpenseAnalytics | null>(null);
+    const [expenseAnalyticsLoading, setExpenseAnalyticsLoading] = useState(false);
+
+    const fetchCounterparties = useCallback(async () => {
+        try {
+            setCounterpartiesLoading(true);
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase
+                .from('accounting_counterparties')
+                .select('*')
+                .eq('is_active', true)
+                .order('name');
+
+            if (fetchError) throw fetchError;
+            setCounterparties(data || []);
+        } catch (err) {
+            console.error('Error fetching accounting counterparties:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching counterparties');
+        } finally {
+            setCounterpartiesLoading(false);
+        }
+    }, []);
+
+    const createCounterparty = async (
+        counterparty: AccountingCounterpartyInsert
+    ): Promise<AccountingCounterparty | null> => {
+        try {
+            setLoading(true);
+            const supabase = createClient();
+            const { data, error: insertError } = await supabase
+                .from('accounting_counterparties')
+                .insert(counterparty)
+                .select()
+                .single();
+
+            if (insertError) throw insertError;
+            await fetchCounterparties();
+            return data;
+        } catch (err) {
+            console.error('Error creating accounting counterparty:', err);
+            setError(err instanceof Error ? err.message : 'Error creating counterparty');
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchExpenseAnalytics = useCallback(async (
+        year: number = new Date().getFullYear(),
+        currency: 'ARS' | 'USD' = 'ARS'
+    ) => {
+        try {
+            setExpenseAnalyticsLoading(true);
+            const supabase = createClient();
+            const { data, error: fetchError } = await supabase.rpc('get_expense_analytics', {
+                p_year: year,
+                p_currency: currency,
+            });
+
+            if (fetchError) throw fetchError;
+            setExpenseAnalytics(data as ExpenseAnalytics);
+        } catch (err) {
+            console.error('Error fetching expense analytics:', err);
+            setError(err instanceof Error ? err.message : 'Error fetching expense analytics');
+        } finally {
+            setExpenseAnalyticsLoading(false);
+        }
+    }, []);
 
     const deleteTransfer = async (id: string): Promise<boolean> => {
         try {
@@ -1118,7 +1215,9 @@ export function useAccounting() {
         fetchInvestments();
         fetchContributions();
         fetchContributionsTotals();
-    }, [fetchCategories, fetchPayments, fetchExpenses, fetchSummary, fetchAccounts, fetchTransfers, fetchSubcategories, fetchMonthlyChartData, fetchExpenseDistribution, fetchInvestments, fetchContributions, fetchContributionsTotals]);
+        fetchCounterparties();
+        fetchExpenseAnalytics();
+    }, [fetchCategories, fetchPayments, fetchExpenses, fetchSummary, fetchAccounts, fetchTransfers, fetchSubcategories, fetchMonthlyChartData, fetchExpenseDistribution, fetchInvestments, fetchContributions, fetchContributionsTotals, fetchCounterparties, fetchExpenseAnalytics]);
 
     return {
         // Estado general
@@ -1151,6 +1250,13 @@ export function useAccounting() {
         updateExpense,
         deleteExpense,
         uploadReceipt,
+        counterparties,
+        counterpartiesLoading,
+        fetchCounterparties,
+        createCounterparty,
+        expenseAnalytics,
+        expenseAnalyticsLoading,
+        fetchExpenseAnalytics,
 
         // Resumen
         summary,

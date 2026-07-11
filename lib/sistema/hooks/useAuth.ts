@@ -5,6 +5,8 @@ import { createClient } from '@/lib/sistema/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import type { SistemaUser } from '@/types/sistema';
 
+const sistemaUserLoads = new Map<string, Promise<{ ok: boolean; result: { exists?: boolean; user?: SistemaUser | null; error?: string } }>>();
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [sistemaUser, setSistemaUser] = useState<SistemaUser | null>(null);
@@ -29,17 +31,25 @@ export function useAuth() {
 
   const fetchSistemaUser = useCallback(async (userId: string) => {
     try {
-      const res = await fetch(`/api/sistema-data?userId=${userId}&type=user`, {
-        cache: 'no-store'
-      });
-      const result = await res.json();
+      let load = sistemaUserLoads.get(userId);
+      if (!load) {
+        load = fetch(`/api/sistema-data?userId=${userId}&type=user`, {
+          cache: 'no-store'
+        }).then(async (res) => ({ ok: res.ok, result: await res.json() }));
+        sistemaUserLoads.set(userId, load);
+        void load.then(
+          () => window.setTimeout(() => sistemaUserLoads.delete(userId), 1_000),
+          () => window.setTimeout(() => sistemaUserLoads.delete(userId), 1_000),
+        );
+      }
+      const { ok, result } = await load;
 
       if (result.exists === false) {
         setTablesExist(false);
         return;
       }
 
-      if (!res.ok) {
+      if (!ok) {
         console.error('Error fetching sistema user:', result.error);
         return;
       }

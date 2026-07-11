@@ -517,6 +517,7 @@ function TransferModal({
     const [toAccountId, setToAccountId] = useState('')
     const [amount, setAmount] = useState('')
     const [exchangeRate, setExchangeRate] = useState('')
+    const [destinationAmount, setDestinationAmount] = useState('')
     const [commission, setCommission] = useState('')
     const [tax, setTax] = useState('')
     const [notes, setNotes] = useState('')
@@ -539,21 +540,34 @@ function TransferModal({
     const totalFees = parseNumber(commission) + parseNumber(tax)
     const amountAfterFees = Math.max(0, parseNumber(amount) - totalFees)
 
-    const receivedAmount = isCrossCurrency && amount && exchangeRate
+    const estimatedReceivedAmount = isCrossCurrency && amount && exchangeRate
         ? fromAccount?.currency === 'ARS'
             ? amountAfterFees / parseNumber(exchangeRate)  // ARS → USD: dividir
             : amountAfterFees * parseNumber(exchangeRate)  // USD → ARS: multiplicar
         : amountAfterFees
 
+    const actualDestinationAmount = destinationAmount
+        ? parseNumber(destinationAmount)
+        : estimatedReceivedAmount
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) return
         const parsedAmount = parseNumber(amount)
-        const parsedExchangeRate = parseNumber(exchangeRate)
         if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) return
+        if (!Number.isFinite(totalFees) || totalFees < 0 || totalFees >= parsedAmount) return
 
-        // Validar exchange_rate si es cross-currency
-        if (isCrossCurrency && (!Number.isFinite(parsedExchangeRate) || parsedExchangeRate <= 0)) return
+        const parsedDestinationAmount = Math.round(actualDestinationAmount * 100) / 100
+        if (!Number.isFinite(parsedDestinationAmount) || parsedDestinationAmount <= 0) return
+
+        // The effective rate is derived from what actually left and arrived.
+        // This keeps balances stable even when a broker applies a different
+        // quote than the initially displayed rate.
+        const effectiveRate = isCrossCurrency
+            ? fromAccount?.currency === 'ARS'
+                ? amountAfterFees / parsedDestinationAmount
+                : parsedDestinationAmount / amountAfterFees
+            : undefined
 
         setSaving(true)
         await onTransfer({
@@ -561,7 +575,13 @@ function TransferModal({
             to_account_id: toAccountId,
             amount: parsedAmount,
             currency: fromAccount?.currency || 'ARS',
-            exchange_rate: isCrossCurrency ? parsedExchangeRate : undefined,
+            source_amount: parsedAmount,
+            source_currency: fromAccount?.currency || 'ARS',
+            destination_amount: parsedDestinationAmount,
+            destination_currency: toAccount?.currency || fromAccount?.currency || 'ARS',
+            fee_amount: totalFees,
+            fee_currency: fromAccount?.currency || 'ARS',
+            exchange_rate: effectiveRate,
             commission: commission ? parseNumber(commission) : undefined,
             tax: tax ? parseNumber(tax) : undefined,
             date: new Date().toISOString().split('T')[0],
@@ -646,7 +666,7 @@ function TransferModal({
 
                     <div>
                         <label className="block text-sm text-white/60 mb-2">
-                            Monto {fromAccount && `(${fromAccount.currency})`}
+                            Total debitado {fromAccount && `(${fromAccount.currency})`}
                         </label>
                         <input
                             type="number"
@@ -717,10 +737,27 @@ function TransferModal({
                                         </p>
                                     )}
                                     <p className="text-sm text-emerald-400 font-medium">
-                                        Recibirá: {formatCurrency(receivedAmount, toAccount?.currency || 'USD')}
+                                        Estimado a recibir: {formatCurrency(estimatedReceivedAmount, toAccount?.currency || 'USD')}
                                     </p>
                                 </div>
                             )}
+
+                            <div>
+                                <label className="block text-sm text-white/60 mb-2">
+                                    Monto acreditado real ({toAccount?.currency})
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={destinationAmount}
+                                    onChange={(e) => setDestinationAmount(e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white placeholder-white/30 focus:outline-none focus:border-emerald-500"
+                                    placeholder={estimatedReceivedAmount > 0 ? estimatedReceivedAmount.toFixed(2) : "0.00"}
+                                />
+                                <p className="mt-1.5 text-xs text-white/35">
+                                    Si lo dejás vacío se usará el estimado. El monto real quedará guardado para conciliación y control de redondeos.
+                                </p>
+                            </div>
                         </>
                     )}
 
@@ -745,7 +782,7 @@ function TransferModal({
                         </button>
                         <button
                             type="submit"
-                            disabled={saving || !fromAccountId || !toAccountId || !amount || parseNumber(amount) <= 0 || fromAccountId === toAccountId || (isCrossCurrency && parseNumber(exchangeRate) <= 0)}
+                            disabled={saving || !fromAccountId || !toAccountId || !amount || parseNumber(amount) <= 0 || totalFees >= parseNumber(amount) || fromAccountId === toAccountId || (isCrossCurrency && parseNumber(exchangeRate) <= 0)}
                             className="px-4 py-2 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 rounded-lg font-medium transition-colors"
                         >
                             {saving ? 'Transfiriendo...' : 'Transferir'}

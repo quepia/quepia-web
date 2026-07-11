@@ -386,6 +386,8 @@ export interface CalendarEvent {
   created_by: string;
   created_at: string;
   updated_at: string;
+  source?: 'calendar' | 'efemeride';
+  categoria?: string;
 }
 
 export interface CalendarEventInsert {

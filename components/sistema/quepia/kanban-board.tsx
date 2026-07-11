@@ -46,7 +46,10 @@ interface KanbanBoardProps {
 export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef, userId }: KanbanBoardProps) {
     const { toast } = useToast()
     const { confirm } = useConfirm()
-    const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, clearCompletedTasks, silentRefresh } = useTasks(projectId)
+    const [showCompletedTasks, setShowCompletedTasks] = useState(false)
+    const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, clearCompletedTasks, silentRefresh } = useTasks(projectId, {
+        includeCompletedThumbnails: showCompletedTasks,
+    })
 
     // Expose silentRefresh to parent via ref
     useEffect(() => {
@@ -59,7 +62,10 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
             }
         }
     }, [onRefreshRef, silentRefresh])
-    const { updateColumn, updateColumnWipLimit, createColumn, deleteColumn } = useColumns(projectId)
+    const { updateColumn, updateColumnWipLimit, createColumn, deleteColumn } = useColumns(projectId, {
+        fetchOnMount: false,
+        initialColumns: columns,
+    })
 
     const [addingTaskColumn, setAddingTaskColumn] = useState<string | null>(null)
     const [newTaskTitle, setNewTaskTitle] = useState("")
@@ -71,7 +77,6 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
     const [isAddingColumn, setIsAddingColumn] = useState(false)
     const [newColumnName, setNewColumnName] = useState("")
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
-    const [showCompletedTasks, setShowCompletedTasks] = useState(false)
     const [isClearingCompleted, setIsClearingCompleted] = useState(false)
     const creatingTaskColumnRef = useRef<string | null>(null)
 

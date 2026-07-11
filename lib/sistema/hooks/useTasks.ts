@@ -22,6 +22,15 @@ import type {
 } from '@/types/sistema';
 import { sendNotification, notifyTaskAssignment, notifyTaskComment } from '@/lib/sistema/actions/notifications';
 
+type ProjectTaskLoadResult = {
+  columns: ColumnWithTasks[];
+  error: string | null;
+};
+
+// React Strict Mode mounts effects twice in development. Share the in-flight
+// project load so both mounts consume one Supabase/signing request chain.
+const inFlightProjectTaskLoads = new Map<string, Promise<ProjectTaskLoadResult>>();
+
 function normalizeTaskInsertDeadline(task: TaskInsert): TaskInsert {
   const deadline = task.deadline ?? toTaskDeadlineTimestamp(task.due_date);
   return {
@@ -49,8 +58,13 @@ function normalizeTaskUpdateDeadline(updates: TaskUpdate): TaskUpdate {
   return updates;
 }
 
-export function useColumns(projectId?: string) {
-  const [columns, setColumns] = useState<Column[]>([]);
+export function useColumns(
+  projectId?: string,
+  options?: { fetchOnMount?: boolean; initialColumns?: Column[] },
+) {
+  const fetchOnMount = options?.fetchOnMount ?? true;
+  const initialColumns = options?.initialColumns;
+  const [columns, setColumns] = useState<Column[]>(initialColumns ?? []);
   const [loading, setLoading] = useState(true);
   const requestIdRef = useRef(0);
   const latestProjectIdRef = useRef<string | undefined>(projectId);
@@ -94,10 +108,10 @@ export function useColumns(projectId?: string) {
 
   useEffect(() => {
     latestProjectIdRef.current = projectId;
-    setColumns([]);
-    setLoading(Boolean(projectId));
-    void fetchColumns();
-  }, [fetchColumns, projectId]);
+    setColumns(initialColumns ?? []);
+    setLoading(fetchOnMount && Boolean(projectId));
+    if (fetchOnMount) void fetchColumns();
+  }, [fetchColumns, fetchOnMount, initialColumns, projectId]);
 
   const updateColumn = async (id: string, nombre: string): Promise<boolean> => {
     try {
@@ -209,7 +223,8 @@ export function useColumns(projectId?: string) {
   };
 }
 
-export function useTasks(projectId?: string) {
+export function useTasks(projectId?: string, options?: { includeCompletedThumbnails?: boolean }) {
+  const includeCompletedThumbnails = options?.includeCompletedThumbnails ?? false;
   const [columns, setColumns] = useState<ColumnWithTasks[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -256,6 +271,25 @@ export function useTasks(projectId?: string) {
       return;
     }
 
+    const loadKey = `${targetProjectId}:${includeCompletedThumbnails ? 'all-thumbnails' : 'active-thumbnails'}`;
+    const existingLoad = inFlightProjectTaskLoads.get(loadKey);
+    if (existingLoad) {
+      const result = await existingLoad;
+      if (!isStaleRequest(requestId, targetProjectId)) {
+        setColumns(result.columns);
+        setError(result.error);
+        initialLoadDone.current = true;
+        setLoading(false);
+      }
+      return;
+    }
+
+    let completeSharedLoad!: (result: ProjectTaskLoadResult) => void;
+    const sharedLoad = new Promise<ProjectTaskLoadResult>((resolve) => {
+      completeSharedLoad = resolve;
+    });
+    inFlightProjectTaskLoads.set(loadKey, sharedLoad);
+
     try {
       // Only show loading on initial load, not on refetches
       if (!silent && !initialLoadDone.current) {
@@ -263,35 +297,37 @@ export function useTasks(projectId?: string) {
       }
       const supabase = createClient();
 
-      // Fetch columns for this project
-      const { data: columnsData, error: columnsError } = await supabase
-        .from('sistema_columns')
-        .select('*')
-        .eq('project_id', targetProjectId)
-        .order('orden', { ascending: true });
+      // These datasets are independent; fetch them concurrently.
+      const [
+        { data: columnsData, error: columnsError },
+        { data: tasksData, error: tasksError },
+      ] = await Promise.all([
+        supabase
+          .from('sistema_columns')
+          .select('*')
+          .eq('project_id', targetProjectId)
+          .order('orden', { ascending: true }),
+        supabase
+          .from('sistema_tasks')
+          .select(`
+            *,
+            assignee:sistema_users(id, nombre, avatar_url),
+            parent_task:sistema_tasks!parent_task_id(id, titulo),
+            assets:sistema_assets(
+              id,
+              approval_status,
+              asset_type,
+              group_id,
+              group_order,
+              current_version,
+              versions:sistema_asset_versions(id, version_number, thumbnail_path, thumbnail_url, storage_path, file_url)
+            )
+          `)
+          .eq('project_id', targetProjectId)
+          .order('orden', { ascending: true }),
+      ]);
 
       if (columnsError) throw columnsError;
-
-      // Fetch tasks for this project with assignee and parent task info
-      const { data: tasksData, error: tasksError } = await supabase
-        .from('sistema_tasks')
-        .select(`
-          *,
-          assignee:sistema_users(id, nombre, avatar_url),
-          parent_task:sistema_tasks!parent_task_id(id, titulo),
-          assets:sistema_assets(
-            id,
-            approval_status,
-            asset_type,
-            group_id,
-            group_order,
-            current_version,
-            versions:sistema_asset_versions(id, version_number, thumbnail_path, thumbnail_url, storage_path, file_url)
-          )
-        `)
-        .eq('project_id', targetProjectId)
-        .order('orden', { ascending: true });
-
       if (tasksError) throw tasksError;
 
       // Fetch subtasks separately to avoid nested-relation inconsistencies in production.
@@ -335,7 +371,7 @@ export function useTasks(projectId?: string) {
             (latest && typeof latest.thumbnail_url === "string" ? latest.thumbnail_url : null) ||
             (latest && typeof latest.storage_path === "string" ? latest.storage_path : null) ||
             (latest && typeof latest.file_url === "string" ? latest.file_url : null);
-          if (path) thumbPaths.push(path);
+          if (path && (!taskRecord.completed || includeCompletedThumbnails)) thumbPaths.push(path);
           return {
             id: typeof asset.id === "string" ? asset.id : "",
             approval_status: typeof asset.approval_status === "string" ? asset.approval_status : "pending",
@@ -365,17 +401,22 @@ export function useTasks(projectId?: string) {
             (typeof youtubeRecord.thumbnail_path === "string" ? youtubeRecord.thumbnail_path : null) ||
             (typeof youtubeRecord.thumbnail_url === "string" ? youtubeRecord.thumbnail_url : null);
         }
-        if (youtubeThumbPath) thumbPaths.push(youtubeThumbPath);
+        if (youtubeThumbPath && (!taskRecord.completed || includeCompletedThumbnails)) {
+          thumbPaths.push(youtubeThumbPath);
+        }
         return { ...taskRecord, assets, subtasks } as Task;
       });
 
       let signedMap: Record<string, string | null> = {};
-      if (thumbPaths.length > 0) {
+      const storageThumbPaths = Array.from(new Set(thumbPaths)).filter(
+        (path) => !/^https?:\/\//i.test(path),
+      );
+      if (storageThumbPaths.length > 0) {
         try {
           const res = await fetch("/api/assets/sign", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paths: Array.from(new Set(thumbPaths)) }),
+            body: JSON.stringify({ paths: storageThumbPaths }),
           });
           const data = await res.json();
           signedMap = data?.urls || {};
@@ -421,19 +462,28 @@ export function useTasks(projectId?: string) {
         tasks: hydratedTasks.filter((task: Task) => task.column_id === column.id),
       }));
 
+      completeSharedLoad({ columns: columnsWithTasks, error: null });
+
       if (isStaleRequest(requestId, targetProjectId)) return;
       setColumns(columnsWithTasks);
       setError(null);
       initialLoadDone.current = true;
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error fetching tasks';
+      completeSharedLoad({ columns: [], error: message });
       if (isStaleRequest(requestId, targetProjectId)) return;
       console.error('Error fetching tasks:', err);
-      setError(err instanceof Error ? err.message : 'Error fetching tasks');
+      setError(message);
     } finally {
+      window.setTimeout(() => {
+        if (inFlightProjectTaskLoads.get(loadKey) === sharedLoad) {
+          inFlightProjectTaskLoads.delete(loadKey);
+        }
+      }, 1_000);
       if (isStaleRequest(requestId, targetProjectId)) return;
       setLoading(false);
     }
-  }, [isStaleRequest, projectId]);
+  }, [includeCompletedThumbnails, isStaleRequest, projectId]);
 
   // Background refresh - never shows loading spinner
   const silentRefresh = useCallback(() => {

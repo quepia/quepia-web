@@ -300,6 +300,7 @@ export default function DashboardPage() {
     const { user, sistemaUser, loading: authLoading, isAuthenticated, tablesExist, setupError, createSistemaUser, signOut } = useAuth()
 
     const [activeView, setActiveView] = useState(initialView)
+    const [calendarDate, setCalendarDate] = useState(() => new Date())
     const [activeProjectId, setActiveProjectId] = useState<string | null>(initialProjectId)
     const [mostVisitedProjectId, setMostVisitedProjectId] = useState<string | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
@@ -344,6 +345,14 @@ export default function DashboardPage() {
     const shouldLoadTemplates = showNewProjectModal
     const briefingProjectId = showBriefingForm ? activeProjectId : null
     const eventWindow = useMemo(() => {
+        if (activeView === "calendar") {
+            const start = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1)
+            const end = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0)
+            return {
+                from: `${formatLocalDateKey(start)}T00:00:00.000Z`,
+                to: `${formatLocalDateKey(end)}T23:59:59.999Z`,
+            }
+        }
         if (activeView !== "dashboard") return null
 
         const start = new Date()
@@ -357,15 +366,18 @@ export default function DashboardPage() {
             from: `${formatLocalDateKey(start)}T00:00:00.000Z`,
             to: `${formatLocalDateKey(end)}T23:59:59.999Z`,
         }
-    }, [activeView])
+    }, [activeView, calendarDate])
 
     const { projects, deleteProject, createProject, updateProject, refresh: refreshProjects, loading: projectsLoading } = useProjects(user?.id)
-    const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id, { enabled: shouldLoadAllTasks })
+    const { tasks: allTasks, loading: allTasksLoading, refresh: refreshAllTasks } = useAllTasks(user?.id, {
+        enabled: shouldLoadAllTasks,
+        from: activeView === "calendar" ? eventWindow?.from : undefined,
+        to: activeView === "calendar" ? eventWindow?.to : undefined,
+    })
     const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id, {
         enabled: shouldLoadAllEvents,
         from: eventWindow?.from,
         to: eventWindow?.to,
-        syncEfemerides: activeView === "calendar",
     })
     const { users: sistemaUsers, loading: sistemaUsersLoading, refresh: refreshUsers } = useSistemaUsers({ enabled: shouldLoadSistemaUsers })
     const { templates, createProjectFromTemplate } = useProjectTemplates({ enabled: shouldLoadTemplates })
@@ -854,7 +866,10 @@ export default function DashboardPage() {
                     <CalendarView
                         tasks={allTasks}
                         events={allEvents}
-                        loading={allTasksLoading || allEventsLoading}
+                        loading={allEventsLoading}
+                        tasksLoading={allTasksLoading}
+                        currentDate={calendarDate}
+                        onCurrentDateChange={setCalendarDate}
                         onTaskClick={handleTaskClick}
                         userId={user?.id}
                         projects={hashProjects}
@@ -908,6 +923,7 @@ export default function DashboardPage() {
         allEventsLoading,
         allTasks,
         allTasksLoading,
+        calendarDate,
         handleProjectOpen,
         handleTaskClick,
         handleViewChange,

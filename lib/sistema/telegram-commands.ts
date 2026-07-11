@@ -1249,7 +1249,7 @@ export async function handleSincronizarEfemerides(): Promise<string> {
 
   if (!result.success) return `❌ Error al sincronizar: ${result.error ?? 'desconocido'}`
 
-  return `✅ Efemérides sincronizadas con el calendario del año en curso.`
+  return `✅ Las efemérides ya se muestran desde el catálogo compartido; no necesitan sincronización por proyecto.`
 }
 
 // ─── Main dispatcher ──────────────────────────────────────────────────────────

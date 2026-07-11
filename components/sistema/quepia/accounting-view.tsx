@@ -181,6 +181,11 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         categories={accounting.categories}
                         subcategories={accounting.subcategories}
                         accounts={accounting.accounts}
+                        counterparties={accounting.counterparties}
+                        analytics={accounting.expenseAnalytics}
+                        analyticsLoading={accounting.expenseAnalyticsLoading}
+                        onFetchAnalytics={accounting.fetchExpenseAnalytics}
+                        onCreateCounterparty={accounting.createCounterparty}
                         onCreateExpense={accounting.createExpense}
                         onUpdateExpense={accounting.updateExpense}
                         onDeleteExpense={accounting.deleteExpense}
@@ -188,6 +193,7 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         onRefresh={() => {
                             accounting.fetchExpenses()
                             accounting.fetchAccounts()
+                            accounting.fetchExpenseAnalytics(selectedYear)
                             const { startDate, endDate } = getYearRange(selectedYear)
                             fetchHistorySummary({
                                 start_date: startDate,

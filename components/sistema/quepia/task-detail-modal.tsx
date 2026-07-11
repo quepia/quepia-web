@@ -26,6 +26,7 @@ import {
     UserPlus,
     ArrowUpRight,
     GitBranch,
+    Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { getTaskDeadlineDateKey, toTaskDeadlineTimestamp } from "@/lib/sistema/task-deadlines"
@@ -58,6 +59,18 @@ interface YoutubeTaskMetadata {
     playlist?: string
     scheduled_at?: string | null
 }
+
+type CopilotAction = "generate" | "improve" | "variants" | "instagram" | "linkedin" | "facebook" | "review"
+
+const COPILOT_ACTIONS: { id: CopilotAction; label: string }[] = [
+    { id: "generate", label: "Generar copy" },
+    { id: "improve", label: "Mejorar" },
+    { id: "variants", label: "3 variantes" },
+    { id: "instagram", label: "Instagram" },
+    { id: "linkedin", label: "LinkedIn" },
+    { id: "facebook", label: "Facebook" },
+    { id: "review", label: "Revisar antes de publicar" },
+]
 
 function readYoutubeMetadata(typeMetadata: Record<string, unknown> | null | undefined): YoutubeTaskMetadata {
     if (!typeMetadata || typeof typeMetadata !== "object") return {}
@@ -101,6 +114,12 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [youtubeData, setYoutubeData] = useState<YoutubeTaskMetadata>({})
     const [youtubeThumbPreviewUrl, setYoutubeThumbPreviewUrl] = useState<string | null>(null)
     const [uploadingYoutubeThumb, setUploadingYoutubeThumb] = useState(false)
+    const [showCopilot, setShowCopilot] = useState(false)
+    const [copilotAction, setCopilotAction] = useState<CopilotAction | null>(null)
+    const [copilotResultAction, setCopilotResultAction] = useState<CopilotAction | null>(null)
+    const [copilotResult, setCopilotResult] = useState("")
+    const [copilotError, setCopilotError] = useState("")
+    const copilotAbortRef = useRef<AbortController | null>(null)
 
     // No separate refresh on open - useTaskDetails already fetches when taskId changes
 
@@ -156,6 +175,8 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         if (isOpen) window.addEventListener("keydown", handleEsc)
         return () => window.removeEventListener("keydown", handleEsc)
     }, [isOpen, onClose])
+
+    useEffect(() => () => copilotAbortRef.current?.abort(), [])
 
     if (!isOpen) return null
 
@@ -462,6 +483,63 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         setEditingSocialCopy(false)
     }
 
+    const runCopilot = async (action: CopilotAction) => {
+        copilotAbortRef.current?.abort()
+        const controller = new AbortController()
+        copilotAbortRef.current = controller
+        setCopilotAction(action)
+        setCopilotResultAction(action)
+        setCopilotResult("")
+        setCopilotError("")
+
+        try {
+            const response = await fetch("/api/ai/content-copilot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action,
+                    title: task?.titulo,
+                    description: task?.descripcion,
+                    currentCopy: socialCopyValue || task?.social_copy,
+                    projectName: task?.project?.nombre,
+                }),
+                signal: controller.signal,
+            })
+
+            if (!response.ok || !response.body) {
+                const data = await response.json().catch(() => null)
+                throw new Error(data?.error || "No se pudo generar el contenido")
+            }
+
+            const reader = response.body.getReader()
+            const decoder = new TextDecoder()
+            while (true) {
+                const { value, done } = await reader.read()
+                if (done) break
+                setCopilotResult((current) => current + decoder.decode(value, { stream: true }))
+            }
+        } catch (error) {
+            if ((error as Error).name !== "AbortError") {
+                setCopilotError((error as Error).message)
+            }
+        } finally {
+            if (copilotAbortRef.current === controller) {
+                copilotAbortRef.current = null
+                setCopilotAction(null)
+            }
+        }
+    }
+
+    const applyCopilotResult = async () => {
+        if (!copilotResult.trim()) return
+        const nextCopy = copilotResult.trim()
+        setSocialCopyValue(nextCopy)
+        await updateTaskField("social_copy", nextCopy)
+        setShowCopilot(false)
+        setCopilotResult("")
+        setCopilotResultAction(null)
+    }
+
     const handleOpenParentTask = async () => {
         if (!task?.parent_task_id) return
         // Open parent task in same view
@@ -572,10 +650,23 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
 
                                 {/* Social Media Copy */}
                                 <div className="mb-6">
-                                    <h3 className="text-sm font-medium text-white mb-2 flex items-center gap-2">
+                                    <h3 className="text-sm font-medium text-white mb-2 flex items-center justify-between gap-2">
                                         <span className="bg-gradient-to-r from-quepia-cyan to-quepia-magenta bg-clip-text text-transparent">
                                             Copy / SEO
                                         </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCopilot((value) => !value)}
+                                            className={cn(
+                                                "flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors",
+                                                showCopilot
+                                                    ? "border-quepia-cyan/40 bg-quepia-cyan/10 text-quepia-cyan"
+                                                    : "border-white/10 text-white/45 hover:border-quepia-cyan/30 hover:text-quepia-cyan"
+                                            )}
+                                        >
+                                            <Sparkles className="h-3.5 w-3.5" />
+                                            Copiloto IA
+                                        </button>
                                     </h3>
                                     {editingSocialCopy ? (
                                         <textarea
@@ -597,6 +688,57 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                             {task.social_copy || (
                                                 <span className="text-white/20 italic">Agregar copy para redes...</span>
                                             )}
+                                        </div>
+                                    )}
+                                    {showCopilot && (
+                                        <div className="mt-4 rounded-xl border border-quepia-cyan/20 bg-quepia-cyan/[0.04] p-3">
+                                            <div className="mb-3 flex flex-wrap gap-1.5">
+                                                {COPILOT_ACTIONS.map((action) => (
+                                                    <button
+                                                        key={action.id}
+                                                        type="button"
+                                                        onClick={() => void runCopilot(action.id)}
+                                                        disabled={copilotAction !== null}
+                                                        className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs text-white/65 transition-colors hover:border-quepia-cyan/30 hover:text-white disabled:opacity-40"
+                                                    >
+                                                        {copilotAction === action.id && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />}
+                                                        {action.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {(copilotResult || copilotAction) && (
+                                                <div className="rounded-lg border border-white/[0.08] bg-black/20 p-3">
+                                                    <div className="min-h-16 whitespace-pre-wrap text-sm leading-relaxed text-white/70">
+                                                        {copilotResult || <span className="text-white/35">Preparando propuesta…</span>}
+                                                    </div>
+                                                    {copilotResult && !copilotAction && (
+                                                        <div className="mt-3 flex items-center justify-end gap-2 border-t border-white/[0.06] pt-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setCopilotResult("")}
+                                                                className="px-2 py-1 text-xs text-white/40 hover:text-white/70"
+                                                            >
+                                                                Descartar
+                                                            </button>
+                                                            {copilotResultAction !== "review" && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => void applyCopilotResult()}
+                                                                    className="rounded-md bg-quepia-cyan px-3 py-1.5 text-xs font-medium text-black hover:bg-quepia-cyan/90"
+                                                                >
+                                                                    Aplicar al copy
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {copilotError && (
+                                                <p className="mt-2 text-xs text-red-300">{copilotError}</p>
+                                            )}
+                                            <p className="mt-2 text-[11px] text-white/25">La IA nunca modifica el copy sin tu aprobación.</p>
                                         </div>
                                     )}
                                 </div>

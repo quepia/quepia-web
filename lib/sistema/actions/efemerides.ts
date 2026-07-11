@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/sistema/supabase/server'
 import { createAdminClient } from '@/lib/sistema/supabase/admin'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { sendEmail } from '@/lib/sistema/email-service'
 import { toTaskDeadlineTimestamp } from '@/lib/sistema/task-deadlines'
 import type { EfemerideInsert, EfemerideUpdate } from '@/types/sistema'
@@ -19,62 +19,8 @@ interface SubirAssetParams {
   notas?: string
 }
 
-interface EfemerideRow {
-  id: string
-  nombre: string
-  descripcion: string | null
-  fecha_mes: number
-  fecha_dia: number
-  categoria: string
-  dias_anticipacion: number
-  recurrente: boolean
-  activa: boolean
-  global: boolean
-  project_id: string | null
-  created_by: string | null
-}
-
-interface EfemerideProjectRow {
-  id: string
-  nombre: string
-  color: string | null
-}
-
-interface EfemerideAsignacionRow {
-  id: string
-  project_id: string
-  calendar_event_id: string | null
-}
-
-function buildEfemerideDateBounds(anio: number, mes: number, dia: number) {
-  const start = new Date(Date.UTC(anio, mes - 1, dia, 0, 0, 0))
-  const end = new Date(Date.UTC(anio, mes - 1, dia + 1, 0, 0, 0))
-
-  return {
-    start: start.toISOString(),
-    end: end.toISOString(),
-  }
-}
-
 function buildEfemerideDateISO(anio: number, mes: number, dia: number) {
   return new Date(Date.UTC(anio, mes - 1, dia, 12, 0, 0)).toISOString()
-}
-
-function buildCalendarEventPayload(
-  efemeride: EfemerideRow,
-  project: EfemerideProjectRow,
-  anio: number
-) {
-  return {
-    project_id: project.id,
-    titulo: efemeride.nombre,
-    descripcion: efemeride.descripcion || `Efeméride: ${efemeride.nombre}`,
-    tipo: 'publicacion' as const,
-    fecha_inicio: buildEfemerideDateISO(anio, efemeride.fecha_mes, efemeride.fecha_dia),
-    fecha_fin: null,
-    todo_el_dia: true,
-    color: project.color || '#22c55e',
-  }
 }
 
 async function requireAdminAccess() {
@@ -104,40 +50,6 @@ async function requireAdminAccess() {
   return { admin, userId }
 }
 
-async function getTargetProjects(
-  admin: AdminClient,
-  efemeride: EfemerideRow,
-  allowedProjectIds?: string[]
-) {
-  if (allowedProjectIds && allowedProjectIds.length === 0) {
-    return []
-  }
-
-  let query = admin
-    .from('sistema_projects')
-    .select('id, nombre, color')
-
-  if (efemeride.global || !efemeride.project_id) {
-    query = query.neq('icon', 'folder')
-    if (allowedProjectIds?.length) {
-      query = query.in('id', allowedProjectIds)
-    }
-  } else {
-    if (allowedProjectIds?.length && !allowedProjectIds.includes(efemeride.project_id)) {
-      return []
-    }
-    query = query.eq('id', efemeride.project_id)
-  }
-
-  const { data: projects, error } = await query.order('nombre', { ascending: true })
-
-  if (error) {
-    throw new Error(`No se pudieron cargar los proyectos para sincronizar: ${error.message}`)
-  }
-
-  return (projects || []) as EfemerideProjectRow[]
-}
-
 async function deleteCalendarEventsByIds(admin: AdminClient, eventIds: Array<string | null | undefined>) {
   const ids = Array.from(new Set(eventIds.filter((id): id is string => Boolean(id))))
   if (ids.length === 0) return
@@ -152,195 +64,6 @@ async function deleteCalendarEventsByIds(admin: AdminClient, eventIds: Array<str
   }
 }
 
-async function findExistingEfemerideEvent(
-  admin: AdminClient,
-  projectId: string,
-  titles: string[],
-  anio: number,
-  mes: number,
-  dia: number
-) {
-  const uniqueTitles = Array.from(new Set(titles.filter(Boolean)))
-  if (uniqueTitles.length === 0) return null
-
-  const { start, end } = buildEfemerideDateBounds(anio, mes, dia)
-  const { data: existingEvent, error } = await admin
-    .from('sistema_calendar_events')
-    .select('id')
-    .eq('project_id', projectId)
-    .in('titulo', uniqueTitles)
-    .gte('fecha_inicio', start)
-    .lt('fecha_inicio', end)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    console.error('Error searching existing efemeride event:', error)
-    return null
-  }
-
-  return existingEvent?.id ?? null
-}
-
-async function syncEfemerideCalendarForYear(
-  admin: AdminClient,
-  efemeride: EfemerideRow,
-  anio: number,
-  userId: string,
-  options?: {
-    projectIds?: string[]
-    pruneMissing?: boolean
-    backfillOnly?: boolean
-  }
-) {
-  let asignacionesQuery = admin
-    .from('sistema_efemerides_proyectos')
-    .select('id, project_id, calendar_event_id')
-    .eq('efemeride_id', efemeride.id)
-    .eq('anio', anio)
-
-  if (options?.projectIds?.length) {
-    asignacionesQuery = asignacionesQuery.in('project_id', options.projectIds)
-  }
-
-  const { data: existingAsignaciones, error: asignacionesError } = await asignacionesQuery
-
-  if (asignacionesError) {
-    throw new Error(`No se pudieron leer las asignaciones de la efeméride: ${asignacionesError.message}`)
-  }
-
-  const asignaciones = (existingAsignaciones || []) as EfemerideAsignacionRow[]
-  const asignacionByProject = new Map(asignaciones.map((item) => [item.project_id, item]))
-  const targetProjects = efemeride.activa
-    ? await getTargetProjects(admin, efemeride, options?.projectIds)
-    : []
-  const targetProjectIds = new Set(targetProjects.map((project) => project.id))
-  const pruneMissing = options?.pruneMissing ?? true
-  const backfillOnly = options?.backfillOnly ?? false
-
-  const asignacionesFueraDeScope = pruneMissing
-    ? asignaciones.filter(
-        (item) => item.calendar_event_id && !targetProjectIds.has(item.project_id)
-      )
-    : []
-
-  if (asignacionesFueraDeScope.length > 0) {
-    await deleteCalendarEventsByIds(
-      admin,
-      asignacionesFueraDeScope.map((item) => item.calendar_event_id)
-    )
-
-    const { error: clearError } = await admin
-      .from('sistema_efemerides_proyectos')
-      .update({ calendar_event_id: null })
-      .in('id', asignacionesFueraDeScope.map((item) => item.id))
-
-    if (clearError) {
-      throw new Error(`No se pudieron limpiar vínculos fuera de alcance: ${clearError.message}`)
-    }
-  }
-
-  for (const project of targetProjects) {
-    const baseEventPayload = buildCalendarEventPayload(efemeride, project, anio)
-    const existingAsignacion = asignacionByProject.get(project.id)
-    let calendarEventId = existingAsignacion?.calendar_event_id ?? null
-
-    if (backfillOnly && calendarEventId) {
-      continue
-    }
-
-    if (calendarEventId) {
-      const { data: updatedEvent, error: updateEventError } = await admin
-        .from('sistema_calendar_events')
-        .update(baseEventPayload)
-        .eq('id', calendarEventId)
-        .select('id')
-        .maybeSingle()
-
-      if (updateEventError) {
-        console.error('Error updating synced efemeride event:', updateEventError)
-        calendarEventId = null
-      } else {
-        calendarEventId = updatedEvent?.id ?? null
-      }
-    }
-
-    if (!calendarEventId) {
-      calendarEventId = await findExistingEfemerideEvent(
-        admin,
-        project.id,
-        [efemeride.nombre, `Efeméride: ${efemeride.nombre}`],
-        anio,
-        efemeride.fecha_mes,
-        efemeride.fecha_dia
-      )
-    }
-
-    if (calendarEventId && !existingAsignacion?.calendar_event_id) {
-      const { data: matchedEvent, error: matchedEventError } = await admin
-        .from('sistema_calendar_events')
-        .update(baseEventPayload)
-        .eq('id', calendarEventId)
-        .select('id')
-        .single()
-
-      if (matchedEventError) {
-        console.error('Error reusing existing efemeride event:', matchedEventError)
-        calendarEventId = null
-      } else {
-        calendarEventId = matchedEvent.id
-      }
-    }
-
-    if (!calendarEventId) {
-      const { data: createdEvent, error: createEventError } = await admin
-        .from('sistema_calendar_events')
-        .insert({
-          ...baseEventPayload,
-          created_by: userId,
-        })
-        .select('id')
-        .single()
-
-      if (createEventError) {
-        throw new Error(`No se pudo crear el evento sincronizado: ${createEventError.message}`)
-      }
-
-      calendarEventId = createdEvent.id
-    }
-
-    if (existingAsignacion) {
-      if (existingAsignacion.calendar_event_id !== calendarEventId) {
-        const { error: updateAsignacionError } = await admin
-          .from('sistema_efemerides_proyectos')
-          .update({ calendar_event_id: calendarEventId })
-          .eq('id', existingAsignacion.id)
-
-        if (updateAsignacionError) {
-          throw new Error(`No se pudo actualizar la asignación sincronizada: ${updateAsignacionError.message}`)
-        }
-      }
-
-      continue
-    }
-
-    const { error: createAsignacionError } = await admin
-      .from('sistema_efemerides_proyectos')
-      .insert({
-        efemeride_id: efemeride.id,
-        project_id: project.id,
-        anio,
-        estado: 'pendiente',
-        calendar_event_id: calendarEventId,
-      })
-
-    if (createAsignacionError) {
-      throw new Error(`No se pudo crear la asignación sincronizada: ${createAsignacionError.message}`)
-    }
-  }
-}
-
 export async function syncEfemeridesCalendarioActual(params?: {
   userId?: string
   year?: number
@@ -349,44 +72,15 @@ export async function syncEfemeridesCalendarioActual(params?: {
   backfillOnly?: boolean
 }) {
   try {
-    let admin = createAdminClient()
-    let userId = params?.userId
-
-    if (!userId) {
-      const auth = await requireAdminAccess()
-      admin = auth.admin
-      userId = auth.userId
-    }
-
-    const currentYear = params?.year ?? new Date().getFullYear()
-    const { data: efemerides, error } = await admin
-      .from('sistema_efemerides')
-      .select('*')
-      .eq('activa', true)
-
-    if (error) {
-      throw new Error(`No se pudieron cargar las efemérides activas: ${error.message}`)
-    }
-
-    for (const efemeride of (efemerides || []) as EfemerideRow[]) {
-      await syncEfemerideCalendarForYear(
-        admin,
-        efemeride,
-        currentYear,
-        userId,
-        {
-          projectIds: params?.projectIds,
-          pruneMissing: !params?.projectIds?.length,
-          backfillOnly: params?.backfillOnly,
-        }
-      )
+    if (!params?.userId) {
+      await requireAdminAccess()
     }
 
     if (params?.revalidate ?? false) {
       revalidatePath('/sistema')
     }
 
-    return { success: true }
+    return { success: true, sharedCatalog: true }
   } catch (err) {
     console.error('Error in syncEfemeridesCalendarioActual:', err)
     return {
@@ -413,14 +107,8 @@ export async function createEfemerideSincronizada(payload: EfemerideInsert) {
       throw new Error(error?.message || 'No se pudo crear la efeméride.')
     }
 
-    await syncEfemerideCalendarForYear(
-      admin,
-      efemeride as EfemerideRow,
-      new Date().getFullYear(),
-      userId
-    )
-
     revalidatePath('/sistema')
+    revalidateTag('shared-efemerides')
     return { success: true, efemeride }
   } catch (err) {
     console.error('Error in createEfemerideSincronizada:', err)
@@ -433,7 +121,7 @@ export async function createEfemerideSincronizada(payload: EfemerideInsert) {
 
 export async function updateEfemerideSincronizada(id: string, updates: EfemerideUpdate) {
   try {
-    const { admin, userId } = await requireAdminAccess()
+    const { admin } = await requireAdminAccess()
 
     const { data: efemeride, error } = await admin
       .from('sistema_efemerides')
@@ -446,14 +134,8 @@ export async function updateEfemerideSincronizada(id: string, updates: Efemeride
       throw new Error(error?.message || 'No se pudo actualizar la efeméride.')
     }
 
-    await syncEfemerideCalendarForYear(
-      admin,
-      efemeride as EfemerideRow,
-      new Date().getFullYear(),
-      userId
-    )
-
     revalidatePath('/sistema')
+    revalidateTag('shared-efemerides')
     return { success: true, efemeride }
   } catch (err) {
     console.error('Error in updateEfemerideSincronizada:', err)
@@ -492,6 +174,7 @@ export async function deleteEfemerideSincronizada(id: string) {
     }
 
     revalidatePath('/sistema')
+    revalidateTag('shared-efemerides')
     return { success: true }
   } catch (err) {
     console.error('Error in deleteEfemerideSincronizada:', err)
@@ -525,17 +208,6 @@ export async function subirAssetEfemeride(params: SubirAssetParams) {
       throw new Error('Efeméride no encontrada.')
     }
 
-    // Get project info
-    const { data: project, error: projError } = await admin
-      .from('sistema_projects')
-      .select('id, nombre, color')
-      .eq('id', params.project_id)
-      .single()
-
-    if (projError || !project) {
-      throw new Error('Proyecto no encontrado.')
-    }
-
     // 1. Upsert efemerides_proyectos record
     const { data: asignacion, error: upsertError } = await admin
       .from('sistema_efemerides_proyectos')
@@ -559,81 +231,11 @@ export async function subirAssetEfemeride(params: SubirAssetParams) {
       throw new Error(`Error guardando asignación: ${upsertError.message}`)
     }
 
-    // 2. Reuse synced calendar event when it already exists
+    // Shared efemerides are rendered directly from sistema_efemerides. Project
+    // assignments keep workflow/asset state only and do not create calendar copies.
     const eventDateStr = buildEfemerideDateISO(params.anio, efemeride.fecha_mes, efemeride.fecha_dia)
-    const baseEventPayload = buildCalendarEventPayload(
-      efemeride as EfemerideRow,
-      project as EfemerideProjectRow,
-      params.anio
-    )
 
-    let calendarEvent: { id: string } | null = null
-    let linkedCalendarEventId = asignacion.calendar_event_id
-
-    if (linkedCalendarEventId) {
-      const { data: updatedEvent, error: updateEventError } = await admin
-        .from('sistema_calendar_events')
-        .update(baseEventPayload)
-        .eq('id', linkedCalendarEventId)
-        .select('id')
-        .maybeSingle()
-
-      if (updateEventError) {
-        console.error('Error updating linked calendar event:', updateEventError)
-        linkedCalendarEventId = null
-      } else if (updatedEvent) {
-        calendarEvent = updatedEvent
-      } else {
-        linkedCalendarEventId = null
-      }
-    }
-
-    if (!linkedCalendarEventId) {
-      linkedCalendarEventId = await findExistingEfemerideEvent(
-        admin,
-        params.project_id,
-        [efemeride.nombre, `Efeméride: ${efemeride.nombre}`],
-        params.anio,
-        efemeride.fecha_mes,
-        efemeride.fecha_dia
-      )
-    }
-
-    if (linkedCalendarEventId && !asignacion.calendar_event_id) {
-      const { data: matchedEvent, error: matchedEventError } = await admin
-        .from('sistema_calendar_events')
-        .update(baseEventPayload)
-        .eq('id', linkedCalendarEventId)
-        .select('id')
-        .single()
-
-      if (matchedEventError) {
-        console.error('Error reusing existing calendar event:', matchedEventError)
-        linkedCalendarEventId = null
-      } else {
-        calendarEvent = matchedEvent
-      }
-    }
-
-    if (!linkedCalendarEventId) {
-      const { data: createdEvent, error: eventError } = await admin
-        .from('sistema_calendar_events')
-        .insert({
-          ...baseEventPayload,
-          created_by: userId,
-        })
-        .select('id')
-        .single()
-
-      if (eventError) {
-        console.error('Error creating calendar event:', eventError)
-      } else {
-        calendarEvent = createdEvent
-        linkedCalendarEventId = createdEvent.id
-      }
-    }
-
-    // 3. Find "LISTO PARA PUBLICAR" column
+    // 2. Find "LISTO PARA PUBLICAR" column
     const { data: columns } = await admin
       .from('sistema_columns')
       .select('id, nombre')
@@ -646,7 +248,7 @@ export async function subirAssetEfemeride(params: SubirAssetParams) {
 
     let taskData = null
     if (targetColumn) {
-      // 4. Create task
+      // 3. Create task
       const { data: task, error: taskError } = await admin
         .from('sistema_tasks')
         .insert({
@@ -668,7 +270,7 @@ export async function subirAssetEfemeride(params: SubirAssetParams) {
         taskData = task
       }
 
-      // 5. Create asset + asset version linked to the task
+      // 4. Create asset + asset version linked to the task
       if (taskData) {
         const { data: asset } = await admin
           .from('sistema_assets')
@@ -697,9 +299,8 @@ export async function subirAssetEfemeride(params: SubirAssetParams) {
       }
     }
 
-    // 6. Update asignacion with calendar_event_id and task_id
+    // 5. Update the project assignment with its workflow task only.
     const updatePayload: Record<string, string | null> = {}
-    if (linkedCalendarEventId) updatePayload.calendar_event_id = linkedCalendarEventId
     if (taskData) updatePayload.task_id = taskData.id
 
     if (Object.keys(updatePayload).length > 0) {
@@ -710,7 +311,7 @@ export async function subirAssetEfemeride(params: SubirAssetParams) {
     }
 
     revalidatePath('/sistema')
-    return { success: true, asignacion, calendarEvent, task: taskData }
+    return { success: true, asignacion, calendarEvent: null, task: taskData }
   } catch (err) {
     console.error('Error in subirAssetEfemeride:', err)
     return {

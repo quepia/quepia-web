@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useRef, useMemo, useEffect } from "react"
-import { Receipt, Search, Plus, Edit2, Trash2, Download, X, Check, Upload, ExternalLink, Loader2, Clock } from "lucide-react"
+import { useState, useMemo, useEffect } from "react"
+import { Search, Plus, Edit2, Trash2, Download, X, Check, Upload, ExternalLink, Loader2, Clock, List, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
-import type { ExpenseWithCategory, ExpenseInsert, ExpenseUpdate, ExpenseCategory, ExpenseSubcategory, Account, Currency } from "@/types/accounting"
+import type { Expense, ExpenseWithCategory, ExpenseInsert, ExpenseUpdate, ExpenseCategory, ExpenseSubcategory, Account, Currency, AccountingCounterparty, ExpenseAnalytics, ExpenseType } from "@/types/accounting"
+import { AccountingExpenseAnalytics } from "./accounting-expense-analytics"
 
 interface AccountingExpensesViewProps {
     expenses: ExpenseWithCategory[]
@@ -11,7 +12,12 @@ interface AccountingExpensesViewProps {
     categories: ExpenseCategory[]
     subcategories: ExpenseSubcategory[]
     accounts: Account[]
-    onCreateExpense: (expense: ExpenseInsert) => Promise<any>
+    counterparties: AccountingCounterparty[]
+    analytics: ExpenseAnalytics | null
+    analyticsLoading: boolean
+    onFetchAnalytics: (year: number, currency: Currency) => void
+    onCreateCounterparty: (counterparty: { name: string; kind: AccountingCounterparty['kind'] }) => Promise<AccountingCounterparty | null>
+    onCreateExpense: (expense: ExpenseInsert) => Promise<Expense | null>
     onUpdateExpense: (id: string, updates: ExpenseUpdate) => Promise<boolean>
     onDeleteExpense: (id: string) => Promise<boolean>
     onUploadReceipt: (file: File, expenseId: string) => Promise<string | null>
@@ -24,6 +30,11 @@ export function AccountingExpensesView({
     categories,
     subcategories,
     accounts,
+    counterparties,
+    analytics,
+    analyticsLoading,
+    onFetchAnalytics,
+    onCreateCounterparty,
     onCreateExpense,
     onUpdateExpense,
     onDeleteExpense,
@@ -39,8 +50,7 @@ export function AccountingExpensesView({
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
     const [uploadingId, setUploadingId] = useState<string | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
-
+    const [viewMode, setViewMode] = useState<'records' | 'analysis'>('records')
     // Form state
     const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0])
     const [formCategoryId, setFormCategoryId] = useState("")
@@ -51,6 +61,9 @@ export function AccountingExpensesView({
     const [formNotes, setFormNotes] = useState("")
     const [formSubcategoryId, setFormSubcategoryId] = useState("")
     const [formAccountId, setFormAccountId] = useState("")
+    const [formCounterpartyId, setFormCounterpartyId] = useState("")
+    const [formExpenseType, setFormExpenseType] = useState<ExpenseType | "">("")
+    const [formPeriodStart, setFormPeriodStart] = useState("")
 
     // Filtered subcategories based on selected category
     const filteredSubcategories = useMemo(() => {
@@ -91,6 +104,9 @@ export function AccountingExpensesView({
         setFormNotes("")
         setFormSubcategoryId("")
         setFormAccountId("")
+        setFormCounterpartyId("")
+        setFormExpenseType("")
+        setFormPeriodStart("")
         setEditingExpense(null)
     }
 
@@ -105,6 +121,9 @@ export function AccountingExpensesView({
         setFormCategoryId(expense.category_id || "")
         setFormSubcategoryId(expense.subcategory_id || "")
         setFormAccountId(expense.account_id || "")
+        setFormCounterpartyId(expense.counterparty_id || "")
+        setFormExpenseType(expense.expense_type || "")
+        setFormPeriodStart(expense.period_start || "")
         setFormDescription(expense.description)
         setFormAmount(expense.amount.toString())
         setFormCurrency(expense.currency)
@@ -121,14 +140,45 @@ export function AccountingExpensesView({
 
         setIsSubmitting(true)
         try {
+            let counterpartyId = formCounterpartyId
+            const providerName = formProvider.trim()
+
+            if (!counterpartyId && providerName) {
+                const existingCounterparty = counterparties.find(
+                    item => item.name.trim().toLocaleLowerCase('es-AR') === providerName.toLocaleLowerCase('es-AR')
+                )
+                counterpartyId = existingCounterparty?.id || ''
+
+                if (!counterpartyId) {
+                    const createdCounterparty = await onCreateCounterparty({
+                        name: providerName,
+                        kind: formExpenseType === 'salary' || formExpenseType === 'advance'
+                            ? 'team_member'
+                            : formExpenseType === 'project_fee'
+                                ? 'freelancer'
+                                : 'vendor',
+                    })
+                    counterpartyId = createdCounterparty?.id || ''
+                }
+            }
+
             const expenseData = {
                 date: formDate,
                 category_id: formCategoryId || null,
                 subcategory_id: formSubcategoryId || null,
                 account_id: formAccountId,
+                counterparty_id: counterpartyId || null,
                 description: formDescription,
                 amount,
                 currency: formCurrency,
+                expense_type: formExpenseType || null,
+                period_start: formPeriodStart || (
+                    formExpenseType === 'salary' || formExpenseType === 'project_fee' || formExpenseType === 'advance'
+                        ? `${formDate.slice(0, 7)}-01`
+                        : null
+                ),
+                classification_source: counterpartyId || formExpenseType ? 'manual' : null,
+                classification_confidence: counterpartyId || formExpenseType ? 1 : null,
                 provider: formProvider || null,
                 notes: formNotes || null,
             }
@@ -207,6 +257,49 @@ export function AccountingExpensesView({
 
     return (
         <div className="p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.03] p-1">
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('records')}
+                        className={cn(
+                            "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                            viewMode === 'records' ? "bg-white/10 text-white" : "text-white/50 hover:text-white"
+                        )}
+                    >
+                        <List className="h-4 w-4" />
+                        Movimientos
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('analysis')}
+                        className={cn(
+                            "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                            viewMode === 'analysis' ? "bg-white/10 text-white" : "text-white/50 hover:text-white"
+                        )}
+                    >
+                        <BarChart3 className="h-4 w-4" />
+                        Análisis
+                    </button>
+                </div>
+
+                <button
+                    onClick={openCreateModal}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                    <Plus className="h-4 w-4" />
+                    Nuevo Gasto
+                </button>
+            </div>
+
+            {viewMode === 'analysis' ? (
+                <AccountingExpenseAnalytics
+                    analytics={analytics}
+                    loading={analyticsLoading}
+                    onFetch={onFetchAnalytics}
+                />
+            ) : (
+                <>
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3 mb-6">
                 <div className="relative flex-1 min-w-[200px] max-w-xs">
@@ -257,13 +350,6 @@ export function AccountingExpensesView({
                     Exportar
                 </button>
 
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                    <Plus className="h-4 w-4" />
-                    Nuevo Gasto
-                </button>
             </div>
 
             {/* Table */}
@@ -331,7 +417,7 @@ export function AccountingExpensesView({
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-white/60">
-                                            {expense.provider || '-'}
+                                            {expense.counterparty_name || expense.provider || '-'}
                                         </td>
                                         <td className="px-6 py-4">
                                             {expense.receipt_url ? (
@@ -403,6 +489,8 @@ export function AccountingExpensesView({
                     </tbody>
                 </table>
             </div>
+                </>
+            )}
 
             {/* Modal */}
             {isModalOpen && (
@@ -511,14 +599,58 @@ export function AccountingExpensesView({
 
                             {/* Proveedor */}
                             <div>
-                                <label className="block text-sm font-medium text-white/80 mb-2">Proveedor</label>
+                                <label className="block text-sm font-medium text-white/80 mb-2">Persona o proveedor</label>
+                                <select
+                                    value={formCounterpartyId}
+                                    onChange={(e) => setFormCounterpartyId(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-red-500 transition-colors"
+                                >
+                                    <option value="" className="bg-[#1a1a1a]">Sin asignar</option>
+                                    {counterparties.map(counterparty => (
+                                        <option key={counterparty.id} value={counterparty.id} className="bg-[#1a1a1a]">
+                                            {counterparty.name}
+                                        </option>
+                                    ))}
+                                </select>
                                 <input
                                     type="text"
                                     value={formProvider}
                                     onChange={(e) => setFormProvider(e.target.value)}
-                                    placeholder="Ej: Figma Inc."
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 outline-none focus:border-red-500 transition-colors"
+                                    placeholder="Texto original o proveedor no listado"
+                                    className="mt-2 w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/40 outline-none focus:border-red-500 transition-colors"
                                 />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-white/80 mb-2">Concepto analítico</label>
+                                    <select
+                                        value={formExpenseType}
+                                        onChange={(e) => setFormExpenseType(e.target.value as ExpenseType | "")}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-red-500 transition-colors"
+                                    >
+                                        <option value="" className="bg-[#1a1a1a]">Sin clasificar</option>
+                                        <option value="salary">Sueldo</option>
+                                        <option value="project_fee">Trabajo por proyecto</option>
+                                        <option value="advance">Adelanto</option>
+                                        <option value="bonus">Bono</option>
+                                        <option value="reimbursement">Reintegro</option>
+                                        <option value="subscription">Suscripción</option>
+                                        <option value="tax">Impuesto</option>
+                                        <option value="service">Servicio</option>
+                                        <option value="purchase">Compra</option>
+                                        <option value="other">Otro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-white/80 mb-2">Período correspondiente</label>
+                                    <input
+                                        type="month"
+                                        value={formPeriodStart ? formPeriodStart.slice(0, 7) : ""}
+                                        onChange={(e) => setFormPeriodStart(e.target.value ? `${e.target.value}-01` : "")}
+                                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white outline-none focus:border-red-500 transition-colors"
+                                    />
+                                </div>
                             </div>
 
                             {/* Notas */}
