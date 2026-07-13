@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
     X,
     ChevronUp,
@@ -60,9 +60,9 @@ interface YoutubeTaskMetadata {
     scheduled_at?: string | null
 }
 
-type CopilotAction = "generate" | "improve" | "variants" | "instagram" | "linkedin" | "facebook" | "review"
+type CopilotAction = "generate" | "improve" | "variants" | "instagram" | "linkedin" | "facebook" | "review" | "revise"
 
-const COPILOT_ACTIONS: { id: CopilotAction; label: string }[] = [
+const COPILOT_ACTIONS: { id: Exclude<CopilotAction, "revise">; label: string }[] = [
     { id: "generate", label: "Generar copy" },
     { id: "improve", label: "Mejorar" },
     { id: "variants", label: "3 variantes" },
@@ -71,6 +71,19 @@ const COPILOT_ACTIONS: { id: CopilotAction; label: string }[] = [
     { id: "facebook", label: "Facebook" },
     { id: "review", label: "Revisar antes de publicar" },
 ]
+
+interface CopilotAssetContext {
+    id: string
+    versionId: string
+    name: string
+    filename: string
+    assetType: "single" | "carousel" | "reel" | "folder"
+    groupId: string | null
+    groupOrder: number
+    fileType: string
+    status: "ready" | "pending"
+    analyzedAt: string | null
+}
 
 function readYoutubeMetadata(typeMetadata: Record<string, unknown> | null | undefined): YoutubeTaskMetadata {
     if (!typeMetadata || typeof typeMetadata !== "object") return {}
@@ -119,7 +132,38 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [copilotResultAction, setCopilotResultAction] = useState<CopilotAction | null>(null)
     const [copilotResult, setCopilotResult] = useState("")
     const [copilotError, setCopilotError] = useState("")
+    const [copilotFeedback, setCopilotFeedback] = useState("")
+    const [copilotAssets, setCopilotAssets] = useState<CopilotAssetContext[]>([])
+    const [selectedCopilotAssetIds, setSelectedCopilotAssetIds] = useState<string[] | null>(null)
+    const [copilotAssetsLoading, setCopilotAssetsLoading] = useState(false)
+    const [copilotMaxAssets, setCopilotMaxAssets] = useState(24)
+    const [copilotAssetsUsed, setCopilotAssetsUsed] = useState(0)
+    const [copilotAssetsFailed, setCopilotAssetsFailed] = useState(0)
     const copilotAbortRef = useRef<AbortController | null>(null)
+
+    const loadCopilotAssets = useCallback(async () => {
+        if (!taskId) return
+        setCopilotAssetsLoading(true)
+        try {
+            const response = await fetch(`/api/ai/content-copilot/context?taskId=${encodeURIComponent(taskId)}`)
+            const data = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(data?.error || "No se pudieron cargar los assets")
+
+            const assets = Array.isArray(data?.assets) ? data.assets as CopilotAssetContext[] : []
+            const maxAssets = typeof data?.maxAssets === "number" ? data.maxAssets : 24
+            const availableIds = new Set(assets.map((asset) => asset.id))
+            setCopilotAssets(assets)
+            setCopilotMaxAssets(maxAssets)
+            setSelectedCopilotAssetIds((current) => current === null
+                ? assets.slice(0, maxAssets).map((asset) => asset.id)
+                : current.filter((id) => availableIds.has(id)).slice(0, maxAssets)
+            )
+        } catch (error) {
+            setCopilotError((error as Error).message)
+        } finally {
+            setCopilotAssetsLoading(false)
+        }
+    }, [taskId])
 
     // No separate refresh on open - useTaskDetails already fetches when taskId changes
 
@@ -131,6 +175,18 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
             setYoutubeData(readYoutubeMetadata(task.type_metadata as Record<string, unknown> | null))
         }
     }, [task])
+
+    useEffect(() => {
+        setSelectedCopilotAssetIds(null)
+        setCopilotAssets([])
+        setCopilotFeedback("")
+        setCopilotAssetsUsed(0)
+        setCopilotAssetsFailed(0)
+    }, [taskId])
+
+    useEffect(() => {
+        if (showCopilot && taskId) void loadCopilotAssets()
+    }, [showCopilot, taskId, loadCopilotAssets])
 
     useEffect(() => {
         let cancelled = false
@@ -483,25 +539,45 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         setEditingSocialCopy(false)
     }
 
-    const runCopilot = async (action: CopilotAction) => {
+    const toggleCopilotAsset = (assetId: string) => {
+        setSelectedCopilotAssetIds((current) => {
+            const selected = current || []
+            if (selected.includes(assetId)) return selected.filter((id) => id !== assetId)
+            if (selected.length >= copilotMaxAssets) {
+                setCopilotError(`Podés seleccionar hasta ${copilotMaxAssets} assets por vez`)
+                return selected
+            }
+            setCopilotError("")
+            return [...selected, assetId]
+        })
+    }
+
+    const runCopilot = async (
+        action: CopilotAction,
+        options?: { currentCopy?: string; feedback?: string },
+    ) => {
+        if (!taskId) return
         copilotAbortRef.current?.abort()
         const controller = new AbortController()
+        const previousResult = copilotResult
         copilotAbortRef.current = controller
         setCopilotAction(action)
         setCopilotResultAction(action)
         setCopilotResult("")
         setCopilotError("")
+        setCopilotAssetsUsed(0)
+        setCopilotAssetsFailed(0)
 
         try {
             const response = await fetch("/api/ai/content-copilot", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    taskId,
                     action,
-                    title: task?.titulo,
-                    description: task?.descripcion,
-                    currentCopy: socialCopyValue || task?.social_copy,
-                    projectName: task?.project?.nombre,
+                    currentCopy: options?.currentCopy ?? socialCopyValue ?? task?.social_copy,
+                    feedback: options?.feedback,
+                    selectedAssetIds: selectedCopilotAssetIds || [],
                 }),
                 signal: controller.signal,
             })
@@ -511,6 +587,9 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                 throw new Error(data?.error || "No se pudo generar el contenido")
             }
 
+            setCopilotAssetsUsed(Number(response.headers.get("X-Copilot-Assets-Used") || 0))
+            setCopilotAssetsFailed(Number(response.headers.get("X-Copilot-Assets-Failed") || 0))
+
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
             while (true) {
@@ -518,8 +597,11 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                 if (done) break
                 setCopilotResult((current) => current + decoder.decode(value, { stream: true }))
             }
+            if (action === "revise") setCopilotFeedback("")
+            void loadCopilotAssets()
         } catch (error) {
             if ((error as Error).name !== "AbortError") {
+                if (action === "revise") setCopilotResult(previousResult)
                 setCopilotError((error as Error).message)
             }
         } finally {
@@ -538,6 +620,14 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         setShowCopilot(false)
         setCopilotResult("")
         setCopilotResultAction(null)
+        setCopilotFeedback("")
+    }
+
+    const reviseCopilotResult = () => {
+        const feedback = copilotFeedback.trim()
+        const currentCopy = copilotResult.trim()
+        if (!feedback || !currentCopy) return
+        void runCopilot("revise", { currentCopy, feedback })
     }
 
     const handleOpenParentTask = async () => {
@@ -692,13 +782,75 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                     )}
                                     {showCopilot && (
                                         <div className="mt-4 rounded-xl border border-quepia-cyan/20 bg-quepia-cyan/[0.04] p-3">
+                                            <div className="mb-3 rounded-lg border border-white/[0.07] bg-black/15 p-2.5">
+                                                <div className="mb-2 flex items-center justify-between gap-2">
+                                                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/45">
+                                                        Contexto visual
+                                                    </span>
+                                                    {!copilotAssetsLoading && copilotAssets.length > 0 && (
+                                                        <span className="text-[11px] text-white/30">
+                                                            {(selectedCopilotAssetIds || []).length}/{copilotAssets.length} seleccionados
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {copilotAssetsLoading ? (
+                                                    <div className="flex items-center gap-2 text-xs text-white/35">
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        Buscando assets de la tarea…
+                                                    </div>
+                                                ) : copilotAssets.length > 0 ? (
+                                                    <>
+                                                        <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                                                            {copilotAssets.map((asset) => {
+                                                                const isSelected = (selectedCopilotAssetIds || []).includes(asset.id)
+                                                                return (
+                                                                    <button
+                                                                        key={asset.versionId}
+                                                                        type="button"
+                                                                        onClick={() => toggleCopilotAsset(asset.id)}
+                                                                        title={asset.filename}
+                                                                        className={cn(
+                                                                            "inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition-colors",
+                                                                            isSelected
+                                                                                ? "border-quepia-cyan/35 bg-quepia-cyan/10 text-white/75"
+                                                                                : "border-white/[0.07] bg-white/[0.02] text-white/30"
+                                                                        )}
+                                                                    >
+                                                                        {isSelected ? <Check className="h-3 w-3 text-quepia-cyan" /> : <Paperclip className="h-3 w-3" />}
+                                                                        <span className="truncate">{asset.name}</span>
+                                                                        {asset.assetType === "carousel" && (
+                                                                            <span className="text-white/25">#{asset.groupOrder + 1}</span>
+                                                                        )}
+                                                                        <span
+                                                                            className={cn(
+                                                                                "h-1.5 w-1.5 shrink-0 rounded-full",
+                                                                                asset.status === "ready" ? "bg-emerald-400" : "bg-amber-300/70"
+                                                                            )}
+                                                                            title={asset.status === "ready" ? "Análisis listo" : "Se analizará al generar"}
+                                                                        />
+                                                                    </button>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                        <p className="mt-2 text-[10px] leading-relaxed text-white/25">
+                                                            Verde: análisis guardado. Amarillo: se analizará al generar. La versión más reciente de cada asset es la que se usa.
+                                                        </p>
+                                                    </>
+                                                ) : (
+                                                    <p className="text-xs text-white/30">
+                                                        No hay assets adjuntos. El Copiloto usará el título, el brief y el copy disponible.
+                                                    </p>
+                                                )}
+                                            </div>
+
                                             <div className="mb-3 flex flex-wrap gap-1.5">
                                                 {COPILOT_ACTIONS.map((action) => (
                                                     <button
                                                         key={action.id}
                                                         type="button"
                                                         onClick={() => void runCopilot(action.id)}
-                                                        disabled={copilotAction !== null}
+                                                        disabled={copilotAction !== null || copilotAssetsLoading || selectedCopilotAssetIds === null}
                                                         className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs text-white/65 transition-colors hover:border-quepia-cyan/30 hover:text-white disabled:opacity-40"
                                                     >
                                                         {copilotAction === action.id && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />}
@@ -713,23 +865,53 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                                         {copilotResult || <span className="text-white/35">Preparando propuesta…</span>}
                                                     </div>
                                                     {copilotResult && !copilotAction && (
-                                                        <div className="mt-3 flex items-center justify-end gap-2 border-t border-white/[0.06] pt-3">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setCopilotResult("")}
-                                                                className="px-2 py-1 text-xs text-white/40 hover:text-white/70"
-                                                            >
-                                                                Descartar
-                                                            </button>
+                                                        <div className="mt-3 border-t border-white/[0.06] pt-3">
                                                             {copilotResultAction !== "review" && (
+                                                                <div className="mb-3">
+                                                                    <label className="mb-1.5 block text-[11px] font-medium text-white/40">
+                                                                        ¿Qué querés cambiar de este copy?
+                                                                    </label>
+                                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                                                                        <textarea
+                                                                            value={copilotFeedback}
+                                                                            onChange={(e) => setCopilotFeedback(e.target.value)}
+                                                                            onKeyDown={(e) => {
+                                                                                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") reviseCopilotResult()
+                                                                            }}
+                                                                            rows={2}
+                                                                            maxLength={2000}
+                                                                            placeholder="Ej: hacelo más corto, menos comercial y sin hashtags…"
+                                                                            className="min-h-16 flex-1 resize-none rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-2 text-xs text-white/70 outline-none placeholder:text-white/20 focus:border-quepia-cyan/40"
+                                                                        />
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={reviseCopilotResult}
+                                                                            disabled={!copilotFeedback.trim()}
+                                                                            className="rounded-md border border-quepia-cyan/30 bg-quepia-cyan/10 px-3 py-2 text-xs font-medium text-quepia-cyan hover:bg-quepia-cyan/15 disabled:cursor-not-allowed disabled:opacity-35"
+                                                                        >
+                                                                            Mejorar con feedback
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex items-center justify-end gap-2">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => void applyCopilotResult()}
-                                                                    className="rounded-md bg-quepia-cyan px-3 py-1.5 text-xs font-medium text-black hover:bg-quepia-cyan/90"
+                                                                    onClick={() => setCopilotResult("")}
+                                                                    className="px-2 py-1 text-xs text-white/40 hover:text-white/70"
                                                                 >
-                                                                    Aplicar al copy
+                                                                    Descartar
                                                                 </button>
-                                                            )}
+                                                                {copilotResultAction !== "review" && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => void applyCopilotResult()}
+                                                                        className="rounded-md bg-quepia-cyan px-3 py-1.5 text-xs font-medium text-black hover:bg-quepia-cyan/90"
+                                                                    >
+                                                                        Aplicar al copy
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -737,6 +919,12 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
 
                                             {copilotError && (
                                                 <p className="mt-2 text-xs text-red-300">{copilotError}</p>
+                                            )}
+                                            {!copilotAction && (copilotAssetsUsed > 0 || copilotAssetsFailed > 0) && (
+                                                <p className="mt-2 text-[11px] text-white/30">
+                                                    {copilotAssetsUsed > 0 && `${copilotAssetsUsed} asset(s) usados como contexto.`}
+                                                    {copilotAssetsFailed > 0 && ` ${copilotAssetsFailed} no pudieron analizarse.`}
+                                                </p>
                                             )}
                                             <p className="mt-2 text-[11px] text-white/25">La IA nunca modifica el copy sin tu aprobación.</p>
                                         </div>

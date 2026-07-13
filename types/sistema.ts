@@ -749,9 +749,25 @@ export interface AssetVersion {
   drive_month_folder_link?: string | null;
   drive_backup_at?: string | null;
   drive_backup_error?: string | null;
+  ai_content_analysis?: AssetContentAnalysis | null;
+  ai_content_analyzed_at?: string | null;
+  ai_content_analysis_model?: string | null;
   notes: string | null;
   uploaded_by: string;
   created_at: string;
+}
+
+export interface AssetContentAnalysis {
+  summary: string;
+  visibleText: string[];
+  subjects: string[];
+  mood: string;
+  sequence: string[];
+  supportedClaims: string[];
+  uncertainties: string[];
+  suggestedObjective: string;
+  language: string;
+  transcript: string;
 }
 
 export interface AssetVersionInsert {

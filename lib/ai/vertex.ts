@@ -7,4 +7,6 @@ const googleVertex = createGoogleVertex({
     'https://aiplatform.googleapis.com/v1/projects/955684370207/locations/global/publishers/google',
 });
 
-export const vertexModel = googleVertex('gemini-3.1-flash-lite');
+export const VERTEX_MODEL_ID = 'gemini-3.1-flash-lite';
+
+export const vertexModel = googleVertex(VERTEX_MODEL_ID);
