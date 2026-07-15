@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['ffmpeg-static'],
   async headers() {
     // Avoid custom security headers during local development,
     // they can interfere with Next dev asset delivery/hot reload.

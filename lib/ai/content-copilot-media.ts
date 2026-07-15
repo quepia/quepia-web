@@ -17,6 +17,7 @@ function createSignature(versionId: string, expires: number) {
 export function createContentCopilotMediaUrl(origin: string, versionId: string) {
   const expires = Math.floor(Date.now() / 1000) + MEDIA_URL_TTL_SECONDS
   const url = new URL(`/api/ai/content-copilot/media/${encodeURIComponent(versionId)}`, origin)
+  url.searchParams.set("analysis", "1")
   url.searchParams.set("expires", String(expires))
   url.searchParams.set("signature", createSignature(versionId, expires))
   return url
