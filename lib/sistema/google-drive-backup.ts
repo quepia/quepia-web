@@ -156,6 +156,47 @@ async function getAccessToken() {
   return accessTokenCache.token
 }
 
+export async function downloadDriveFile(fileId: string, maxBytes = 110 * 1024 * 1024) {
+  const normalizedFileId = fileId.trim()
+  if (!normalizedFileId) throw new Error("Google Drive file ID is missing.")
+
+  const token = await getAccessToken()
+  const query = new URLSearchParams({
+    alt: "media",
+    supportsAllDrives: "true",
+  })
+  const response = await fetch(
+    `${DRIVE_API_BASE}/files/${encodeURIComponent(normalizedFileId)}?${query.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+
+  if (!response.ok) {
+    const text = await response.text()
+    let message = response.statusText
+    try {
+      const payload = JSON.parse(text)
+      message = payload?.error?.message || payload?.error_description || message
+    } catch {}
+    throw new Error(`Google Drive API error: ${message}`)
+  }
+
+  const declaredSize = Number(response.headers.get("content-length") || 0)
+  if (declaredSize > maxBytes) {
+    await response.body?.cancel()
+    throw new Error(`Google Drive file exceeds the ${Math.floor(maxBytes / 1024 / 1024)} MB analysis limit.`)
+  }
+
+  const buffer = await response.arrayBuffer()
+  if (buffer.byteLength > maxBytes) {
+    throw new Error(`Google Drive file exceeds the ${Math.floor(maxBytes / 1024 / 1024)} MB analysis limit.`)
+  }
+
+  return {
+    data: new Uint8Array(buffer),
+    mediaType: response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() || null,
+  }
+}
+
 async function driveFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAccessToken()
   const response = await fetch(path.startsWith("http") ? path : `${DRIVE_API_BASE}${path}`, {
@@ -355,7 +396,7 @@ async function uploadDriveFile(params: {
   })
 }
 
-function extractGoogleDriveFileId(url: string) {
+export function extractGoogleDriveFileId(url: string) {
   try {
     const parsed = new URL(url)
     if (!/(^|\.)drive\.google\.com$/i.test(parsed.hostname)) return null

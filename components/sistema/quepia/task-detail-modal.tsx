@@ -134,6 +134,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [copilotError, setCopilotError] = useState("")
     const [copilotFeedback, setCopilotFeedback] = useState("")
     const [copilotAssets, setCopilotAssets] = useState<CopilotAssetContext[]>([])
+    const [copilotAssetsError, setCopilotAssetsError] = useState("")
     const [selectedCopilotAssetIds, setSelectedCopilotAssetIds] = useState<string[] | null>(null)
     const [copilotAssetsLoading, setCopilotAssetsLoading] = useState(false)
     const [copilotMaxAssets, setCopilotMaxAssets] = useState(24)
@@ -144,6 +145,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const loadCopilotAssets = useCallback(async () => {
         if (!taskId) return
         setCopilotAssetsLoading(true)
+        setCopilotAssetsError("")
         try {
             const response = await fetch(`/api/ai/content-copilot/context?taskId=${encodeURIComponent(taskId)}`)
             const data = await response.json().catch(() => null)
@@ -159,7 +161,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                 : current.filter((id) => availableIds.has(id)).slice(0, maxAssets)
             )
         } catch (error) {
-            setCopilotError((error as Error).message)
+            setCopilotAssetsError((error as Error).message)
         } finally {
             setCopilotAssetsLoading(false)
         }
@@ -179,6 +181,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     useEffect(() => {
         setSelectedCopilotAssetIds(null)
         setCopilotAssets([])
+        setCopilotAssetsError("")
         setCopilotFeedback("")
         setCopilotAssetsUsed(0)
         setCopilotAssetsFailed(0)
@@ -798,6 +801,17 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                                     <div className="flex items-center gap-2 text-xs text-white/35">
                                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                         Buscando assets de la tarea…
+                                                    </div>
+                                                ) : copilotAssetsError ? (
+                                                    <div className="flex items-center justify-between gap-3 text-xs text-red-300">
+                                                        <span>{copilotAssetsError}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void loadCopilotAssets()}
+                                                            className="shrink-0 rounded-md border border-red-300/20 px-2 py-1 text-[11px] transition-colors hover:bg-red-300/10"
+                                                        >
+                                                            Reintentar
+                                                        </button>
                                                     </div>
                                                 ) : copilotAssets.length > 0 ? (
                                                     <>

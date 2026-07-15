@@ -2,6 +2,7 @@ import { generateText, jsonSchema, Output } from "ai"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { VERTEX_MODEL_ID, vertexModel } from "@/lib/ai/vertex"
 import { createSignedUrl, isStoragePath } from "@/lib/sistema/assets-storage"
+import { downloadDriveFile, extractGoogleDriveFileId } from "@/lib/sistema/google-drive-backup"
 import type { AssetContentAnalysis, AssetType } from "@/types/sistema"
 
 export const MAX_COPILOT_ASSETS = 24
@@ -38,8 +39,8 @@ interface AssetVersionRecord {
   original_filename: string | null
   thumbnail_url: string | null
   thumbnail_path: string | null
-  preview_url: string | null
   preview_path: string | null
+  drive_file_id: string | null
   ai_content_analysis: unknown
   ai_content_analyzed_at: string | null
   ai_content_analysis_model: string | null
@@ -75,7 +76,7 @@ export interface TaskAssetContext {
 }
 
 interface MediaDescriptor {
-  url: URL
+  data: Uint8Array | { type: "url"; url: URL }
   mediaType: string
   filename: string
 }
@@ -145,6 +146,12 @@ function normalizeMimeType(value: string | null) {
   return (value || "application/octet-stream").split(";", 1)[0].trim().toLowerCase()
 }
 
+function isSupportedMediaType(mediaType: string) {
+  return SUPPORTED_IMAGE_TYPES.has(mediaType)
+    || SUPPORTED_VIDEO_TYPES.has(mediaType)
+    || SUPPORTED_DOCUMENT_TYPES.has(mediaType)
+}
+
 function pickLatestVersion(asset: AssetRecord) {
   const versions = [...(asset.versions || [])].sort((a, b) => b.version_number - a.version_number)
   return versions.find((version) => version.version_number === asset.current_version) || versions[0] || null
@@ -183,8 +190,8 @@ export async function getTaskAssetContexts(
         original_filename,
         thumbnail_url,
         thumbnail_path,
-        preview_url,
         preview_path,
+        drive_file_id,
         ai_content_analysis,
         ai_content_analyzed_at,
         ai_content_analysis_model
@@ -226,19 +233,31 @@ async function resolveMedia(context: TaskAssetContext): Promise<MediaDescriptor 
   let mediaType = originalType
   let source = context.version.storage_path || context.version.file_url
 
-  if (originalType === "image/gif") {
-    source = context.version.preview_path || context.version.preview_url
-    mediaType = "image/webp"
-  } else if (SUPPORTED_IMAGE_TYPES.has(originalType) && (context.version.file_size || 0) > 7 * 1024 * 1024) {
-    source = context.version.preview_path || context.version.preview_url || source
-    if (source === context.version.preview_path || source === context.version.preview_url) mediaType = "image/webp"
+  const driveFileId = context.version.drive_file_id
+    || (source && !isStoragePath(source) ? extractGoogleDriveFileId(source) : null)
+
+  if (driveFileId) {
+    const downloaded = await downloadDriveFile(driveFileId)
+    const downloadedType = normalizeMimeType(downloaded.mediaType)
+    mediaType = isSupportedMediaType(downloadedType) ? downloadedType : originalType
+
+    if (!isSupportedMediaType(mediaType)) return null
+    return {
+      data: downloaded.data,
+      mediaType,
+      filename: context.filename,
+    }
   }
 
-  const isSupported = SUPPORTED_IMAGE_TYPES.has(mediaType)
-    || SUPPORTED_VIDEO_TYPES.has(mediaType)
-    || SUPPORTED_DOCUMENT_TYPES.has(mediaType)
+  if (originalType === "image/gif") {
+    source = context.version.preview_path
+    mediaType = "image/webp"
+  } else if (SUPPORTED_IMAGE_TYPES.has(originalType) && (context.version.file_size || 0) > 7 * 1024 * 1024) {
+    source = context.version.preview_path || source
+    if (source === context.version.preview_path) mediaType = "image/webp"
+  }
 
-  if (!source || !isSupported) return null
+  if (!source || !isSupportedMediaType(mediaType)) return null
 
   const resolvedUrl = isStoragePath(source) ? await createSignedUrl(source, 15 * 60) : source
   if (!resolvedUrl) return null
@@ -251,7 +270,11 @@ async function resolveMedia(context: TaskAssetContext): Promise<MediaDescriptor 
   }
   if (!['http:', 'https:'].includes(url.protocol)) return null
 
-  return { url, mediaType, filename: context.filename }
+  return {
+    data: { type: "url", url },
+    mediaType,
+    filename: context.filename,
+  }
 }
 
 async function analyzeAsset(supabase: SupabaseClient, context: TaskAssetContext) {
@@ -279,7 +302,7 @@ async function analyzeAsset(supabase: SupabaseClient, context: TaskAssetContext)
       content: [
         {
           type: "file",
-          data: { type: "url", url: media.url },
+          data: media.data,
           mediaType: media.mediaType,
           filename: media.filename,
         },
