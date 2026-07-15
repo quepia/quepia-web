@@ -2,6 +2,12 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['ffmpeg-static'],
+  outputFileTracingIncludes: {
+    '/api/ai/content-copilot/media/[versionId]': [
+      './node_modules/ffmpeg-static/ffmpeg',
+      './node_modules/.pnpm/ffmpeg-static@*/node_modules/ffmpeg-static/ffmpeg',
+    ],
+  },
   async headers() {
     // Avoid custom security headers during local development,
     // they can interfere with Next dev asset delivery/hot reload.
