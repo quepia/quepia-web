@@ -20,6 +20,7 @@ nextjs-app/
 
 # production
 /build
+/vendor/ffmpeg*
 
 # misc
 .DS_Store

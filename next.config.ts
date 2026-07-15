@@ -1,11 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['ffmpeg-static'],
   outputFileTracingIncludes: {
     '/api/ai/content-copilot/media/[versionId]': [
-      './node_modules/ffmpeg-static/ffmpeg',
-      './node_modules/.pnpm/ffmpeg-static@*/node_modules/ffmpeg-static/ffmpeg',
+      './vendor/ffmpeg*',
     ],
   },
   async headers() {

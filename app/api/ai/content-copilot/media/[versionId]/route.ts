@@ -3,10 +3,10 @@ import { spawn } from "node:child_process"
 import { createReadStream, createWriteStream } from "node:fs"
 import { stat, unlink } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
+import { join } from "node:path"
 import { Readable } from "node:stream"
 import { pipeline } from "node:stream/promises"
 import type { ReadableStream as NodeReadableStream } from "node:stream/web"
-import ffmpegPath from "ffmpeg-static"
 import { verifyContentCopilotMediaToken } from "@/lib/ai/content-copilot-media"
 import { extractGoogleDriveFileId, fetchDriveFile } from "@/lib/sistema/google-drive-backup"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
@@ -20,6 +20,7 @@ interface RouteContext {
 }
 
 const MODEL_VIDEO_MAX_BYTES = 15 * 1024 * 1024
+const ffmpegPath = join(process.cwd(), "vendor", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg")
 
 async function removeFile(path: string) {
   await unlink(path).catch(() => undefined)
