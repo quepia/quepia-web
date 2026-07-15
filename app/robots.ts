@@ -4,7 +4,10 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
-      allow: '/',
+      allow: [
+        '/',
+        '/api/ai/content-copilot/media/',
+      ],
       disallow: [
         '/sistema',
         '/cliente',

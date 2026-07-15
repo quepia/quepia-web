@@ -156,9 +156,14 @@ async function getAccessToken() {
   return accessTokenCache.token
 }
 
-export async function downloadDriveFile(fileId: string, maxBytes = 110 * 1024 * 1024) {
+export async function fetchDriveFile(
+  fileId: string,
+  options: { maxBytes?: number; range?: string | null } = {},
+) {
   const normalizedFileId = fileId.trim()
   if (!normalizedFileId) throw new Error("Google Drive file ID is missing.")
+
+  const maxBytes = options.maxBytes ?? 110 * 1024 * 1024
 
   const token = await getAccessToken()
   const query = new URLSearchParams({
@@ -167,7 +172,12 @@ export async function downloadDriveFile(fileId: string, maxBytes = 110 * 1024 * 
   })
   const response = await fetch(
     `${DRIVE_API_BASE}/files/${encodeURIComponent(normalizedFileId)}?${query.toString()}`,
-    { headers: { Authorization: `Bearer ${token}` } },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(options.range ? { Range: options.range } : {}),
+      },
+    },
   )
 
   if (!response.ok) {
@@ -180,11 +190,18 @@ export async function downloadDriveFile(fileId: string, maxBytes = 110 * 1024 * 
     throw new Error(`Google Drive API error: ${message}`)
   }
 
-  const declaredSize = Number(response.headers.get("content-length") || 0)
-  if (declaredSize > maxBytes) {
+  const contentRange = response.headers.get("content-range")
+  const totalSize = Number(contentRange?.match(/\/(\d+)$/)?.[1] || response.headers.get("content-length") || 0)
+  if (totalSize > maxBytes) {
     await response.body?.cancel()
     throw new Error(`Google Drive file exceeds the ${Math.floor(maxBytes / 1024 / 1024)} MB analysis limit.`)
   }
+
+  return response
+}
+
+export async function downloadDriveFile(fileId: string, maxBytes = 110 * 1024 * 1024) {
+  const response = await fetchDriveFile(fileId, { maxBytes })
 
   const buffer = await response.arrayBuffer()
   if (buffer.byteLength > maxBytes) {

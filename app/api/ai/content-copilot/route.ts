@@ -98,7 +98,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Seleccioná hasta ${MAX_COPILOT_ASSETS} assets para generar el copy` }, { status: 400 })
     }
 
-    const analyzedAssets = await ensureTaskAssetAnalyses(supabase, assetContexts)
+    const analyzedAssets = await ensureTaskAssetAnalyses(
+      supabase,
+      assetContexts,
+      new URL(request.url).origin,
+    )
     const usableAssets = analyzedAssets.filter((asset) => asset.analysis)
     const assetBrief = formatAssetAnalysisContext(usableAssets)
 

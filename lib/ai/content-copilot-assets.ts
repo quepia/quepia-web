@@ -1,6 +1,7 @@
 import { generateText, jsonSchema, Output } from "ai"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { VERTEX_MODEL_ID, vertexModel } from "@/lib/ai/vertex"
+import { createContentCopilotMediaUrl } from "@/lib/ai/content-copilot-media"
 import { createSignedUrl, isStoragePath } from "@/lib/sistema/assets-storage"
 import { downloadDriveFile, extractGoogleDriveFileId } from "@/lib/sistema/google-drive-backup"
 import type { AssetContentAnalysis, AssetType } from "@/types/sistema"
@@ -152,6 +153,16 @@ function isSupportedMediaType(mediaType: string) {
     || SUPPORTED_DOCUMENT_TYPES.has(mediaType)
 }
 
+function canUseRemoteMediaProxy(origin?: string) {
+  if (!origin) return false
+  try {
+    const hostname = new URL(origin).hostname
+    return hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1"
+  } catch {
+    return false
+  }
+}
+
 function pickLatestVersion(asset: AssetRecord) {
   const versions = [...(asset.versions || [])].sort((a, b) => b.version_number - a.version_number)
   return versions.find((version) => version.version_number === asset.current_version) || versions[0] || null
@@ -228,7 +239,7 @@ export async function getTaskAssetContexts(
   })
 }
 
-async function resolveMedia(context: TaskAssetContext): Promise<MediaDescriptor | null> {
+async function resolveMedia(context: TaskAssetContext, mediaProxyOrigin?: string): Promise<MediaDescriptor | null> {
   const originalType = normalizeMimeType(context.version.file_type)
   let mediaType = originalType
   let source = context.version.storage_path || context.version.file_url
@@ -237,6 +248,16 @@ async function resolveMedia(context: TaskAssetContext): Promise<MediaDescriptor 
     || (source && !isStoragePath(source) ? extractGoogleDriveFileId(source) : null)
 
   if (driveFileId) {
+    const proxyOrigin = canUseRemoteMediaProxy(mediaProxyOrigin) ? mediaProxyOrigin : null
+    if (proxyOrigin) {
+      if (!isSupportedMediaType(originalType)) return null
+      return {
+        data: { type: "url", url: createContentCopilotMediaUrl(proxyOrigin, context.versionId) },
+        mediaType: originalType,
+        filename: context.filename,
+      }
+    }
+
     const downloaded = await downloadDriveFile(driveFileId)
     const downloadedType = normalizeMimeType(downloaded.mediaType)
     mediaType = isSupportedMediaType(downloadedType) ? downloadedType : originalType
@@ -277,8 +298,8 @@ async function resolveMedia(context: TaskAssetContext): Promise<MediaDescriptor 
   }
 }
 
-async function analyzeAsset(supabase: SupabaseClient, context: TaskAssetContext) {
-  const media = await resolveMedia(context)
+async function analyzeAsset(supabase: SupabaseClient, context: TaskAssetContext, mediaProxyOrigin?: string) {
+  const media = await resolveMedia(context, mediaProxyOrigin)
   if (!media) throw new Error("Formato o archivo no compatible con el análisis")
 
   const { output } = await generateText({
@@ -355,11 +376,15 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item
   return results
 }
 
-export async function ensureTaskAssetAnalyses(supabase: SupabaseClient, contexts: TaskAssetContext[]) {
+export async function ensureTaskAssetAnalyses(
+  supabase: SupabaseClient,
+  contexts: TaskAssetContext[],
+  mediaProxyOrigin?: string,
+) {
   return mapWithConcurrency(contexts, 2, async (context): Promise<TaskAssetContext> => {
     if (context.analysis) return context
     try {
-      const analyzed = await analyzeAsset(supabase, context)
+      const analyzed = await analyzeAsset(supabase, context, mediaProxyOrigin)
       return { ...context, ...analyzed }
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudo analizar"
