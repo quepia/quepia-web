@@ -20,6 +20,10 @@ function getBriefErrorDetails(error: unknown) {
     parts.push('La base de datos no tiene aplicada la migración del brief creativo.');
   }
 
+  if (value?.code === '42501') {
+    parts.push('Tu usuario no tiene permisos para editar el brief de este proyecto.');
+  }
+
   return {
     code: value?.code || 'UNKNOWN',
     message: parts.join(' '),
@@ -106,7 +110,7 @@ export function useClientBrief(projectId: string | null) {
       const failure = getBriefErrorDetails(err);
       console.warn('Brief save failed:', failure);
       setError(failure.message);
-      return false;
+      throw new Error(failure.message);
     } finally {
       setLoading(false);
     }
