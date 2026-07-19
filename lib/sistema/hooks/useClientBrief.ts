@@ -4,6 +4,28 @@ import { useState, useCallback, useEffect } from 'react';
 import { createClient } from '@/lib/sistema/supabase/client';
 import type { ClientBrief, ClientBriefInsert } from '@/types/sistema';
 
+interface SupabaseErrorLike {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+}
+
+function getBriefErrorDetails(error: unknown) {
+  const value = error && typeof error === 'object' ? error as SupabaseErrorLike : null;
+  const message = value?.message || (error instanceof Error ? error.message : 'No se pudo guardar el brief');
+  const parts = [message, value?.details, value?.hint].filter(Boolean);
+
+  if (value?.code === '42703' || value?.code === 'PGRST204') {
+    parts.push('La base de datos no tiene aplicada la migración del brief creativo.');
+  }
+
+  return {
+    code: value?.code || 'UNKNOWN',
+    message: parts.join(' '),
+  };
+}
+
 export function useClientBrief(projectId: string | null) {
   const [brief, setBrief] = useState<ClientBrief | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,14 +68,16 @@ export function useClientBrief(projectId: string | null) {
 
     try {
       setLoading(true);
+      setError(null);
       const supabase = createClient();
 
       // Check if exists
-      const { data: existing } = await supabase
+      const { data: existing, error: lookupError } = await supabase
         .from('sistema_client_briefs')
         .select('id')
         .eq('project_id', projectId)
         .maybeSingle();
+      if (lookupError) throw lookupError;
 
       if (existing) {
         // Update
@@ -79,8 +103,9 @@ export function useClientBrief(projectId: string | null) {
       await fetchBrief();
       return true;
     } catch (err) {
-      console.error('Error saving brief:', err);
-      setError(err instanceof Error ? err.message : 'Error saving brief');
+      const failure = getBriefErrorDetails(err);
+      console.warn('Brief save failed:', failure);
+      setError(failure.message);
       return false;
     } finally {
       setLoading(false);

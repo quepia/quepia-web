@@ -24,6 +24,7 @@ import {
   X,
   Mail,
   Send,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useAssets } from "@/lib/sistema/hooks"
@@ -35,6 +36,7 @@ import { toggleAssetAccess, reorderCarouselAssets, renameCarouselAssets, deleteC
 import { notifyClientAssetDeliveryBatch, sendTaskAssetsToTelegram } from "@/lib/sistema/actions/notifications"
 import { useToast } from "@/components/ui/toast-provider"
 import { ClientNotificationScheduler } from "./client-notification-scheduler"
+import { CreativeAIStudioModal } from "./creative-ai-studio-modal"
 
 interface DeliveryNotificationWarning {
   message: string
@@ -181,6 +183,8 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
   const [deliveryNotificationWarning, setDeliveryNotificationWarning] = useState<DeliveryNotificationWarning | null>(null)
   const [isSendingDeliveryNotification, setIsSendingDeliveryNotification] = useState(false)
   const [isSendingTelegramAssets, setIsSendingTelegramAssets] = useState(false)
+  const [showCreativeStudio, setShowCreativeStudio] = useState(false)
+  const [creativeStudioAssetId, setCreativeStudioAssetId] = useState<string | null>(null)
   const carouselFileInputRef = useRef<HTMLInputElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -624,11 +628,21 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider">
           Assets ({assets.length})
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setCreativeStudioAssetId(null)
+              setShowCreativeStudio(true)
+            }}
+            className="flex items-center gap-1 rounded-md border border-quepia-magenta/30 bg-quepia-magenta/10 px-2.5 py-1 text-xs text-pink-200 transition-colors hover:bg-quepia-magenta/15"
+          >
+            <Sparkles className="h-3 w-3" /> Estudio IA
+          </button>
           <button
             onClick={handleSendAssetsToTelegram}
             disabled={isSendingTelegramAssets || telegramEligibleAssetCount === 0}
@@ -1404,13 +1418,25 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
                       )}
 
                       {/* Open detail view (annotations) */}
-                      <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
-                        <button
-                          onClick={() => handleOpenAssetDetail(asset)}
-                          className="text-[10px] text-quepia-cyan hover:underline flex items-center gap-1"
-                        >
-                          <Eye className="h-3 w-3" /> Ver y anotar
-                        </button>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.04]">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleOpenAssetDetail(asset)}
+                            className="text-[10px] text-quepia-cyan hover:underline flex items-center gap-1"
+                          >
+                            <Eye className="h-3 w-3" /> Ver y anotar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCreativeStudioAssetId(asset.id)
+                              setShowCreativeStudio(true)
+                            }}
+                            className="flex items-center gap-1 text-[10px] text-pink-300/70 hover:text-pink-200"
+                          >
+                            <Sparkles className="h-3 w-3" /> Revisar con IA
+                          </button>
+                        </div>
                         <button
                           onClick={() => { if (confirm("¿Eliminar este asset?")) deleteAsset(asset.id) }}
                           className="text-[10px] text-red-400/50 hover:text-red-400 flex items-center gap-1"
@@ -1442,6 +1468,16 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           }}
         />
       )}
+
+      <CreativeAIStudioModal
+        taskId={taskId}
+        isOpen={showCreativeStudio}
+        initialAssetId={creativeStudioAssetId}
+        onClose={() => {
+          setShowCreativeStudio(false)
+          setCreativeStudioAssetId(null)
+        }}
+      />
     </div>
   )
 }

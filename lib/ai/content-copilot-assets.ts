@@ -76,7 +76,7 @@ export interface TaskAssetContext {
   analysisError?: string
 }
 
-interface MediaDescriptor {
+export interface TaskAssetMediaDescriptor {
   data: Uint8Array | { type: "url"; url: URL }
   mediaType: string
   filename: string
@@ -239,7 +239,10 @@ export async function getTaskAssetContexts(
   })
 }
 
-async function resolveMedia(context: TaskAssetContext, mediaProxyOrigin?: string): Promise<MediaDescriptor | null> {
+export async function resolveTaskAssetMedia(
+  context: TaskAssetContext,
+  mediaProxyOrigin?: string,
+): Promise<TaskAssetMediaDescriptor | null> {
   const originalType = normalizeMimeType(context.version.file_type)
   let mediaType = originalType
   let source = context.version.storage_path || context.version.file_url
@@ -299,7 +302,7 @@ async function resolveMedia(context: TaskAssetContext, mediaProxyOrigin?: string
 }
 
 async function analyzeAsset(supabase: SupabaseClient, context: TaskAssetContext, mediaProxyOrigin?: string) {
-  const media = await resolveMedia(context, mediaProxyOrigin)
+  const media = await resolveTaskAssetMedia(context, mediaProxyOrigin)
   if (!media) throw new Error("Formato o archivo no compatible con el análisis")
 
   const { output } = await generateText({

@@ -1595,9 +1595,26 @@ export default function DashboardPage() {
                             existing_elements: brief.existing_elements || "",
                             content_frequency: brief.content_frequency || "",
                             key_messages: brief.key_messages || "",
+                            brand_name: brief.brand_name || "",
+                            industry: brief.industry || "",
+                            brand_description: brief.brand_description || "",
+                            value_proposition: brief.value_proposition || "",
+                            brand_personality: brief.brand_personality || [],
+                            visual_style_keywords: brief.visual_style_keywords || [],
+                            color_palette: brief.color_palette || [],
+                            typography: brief.typography || "",
+                            logo_storage_path: brief.logo_storage_path || "",
+                            logo_file_name: brief.logo_file_name || "",
+                            image_direction: brief.image_direction || "",
+                            photography_style: brief.photography_style || "",
+                            composition_guidelines: brief.composition_guidelines || "",
+                            must_include: brief.must_include || "",
+                            avoid_elements: brief.avoid_elements || "",
+                            reference_links: brief.reference_links || [],
+                            output_formats: brief.output_formats || [],
+                            ai_generation_notes: brief.ai_generation_notes || "",
                         } : null}
                         onSave={async (data) => {
-                            console.log("Briefing saving:", data)
                             const success = await saveBrief({
                                 project_type: data.project_type,
                                 objectives: data.objectives,
@@ -1613,10 +1630,29 @@ export default function DashboardPage() {
                                 existing_elements: data.existing_elements,
                                 content_frequency: data.content_frequency,
                                 key_messages: data.key_messages,
+                                brand_name: data.brand_name,
+                                industry: data.industry,
+                                brand_description: data.brand_description,
+                                value_proposition: data.value_proposition,
+                                brand_personality: data.brand_personality,
+                                visual_style_keywords: data.visual_style_keywords,
+                                color_palette: data.color_palette,
+                                typography: data.typography,
+                                logo_storage_path: data.logo_storage_path,
+                                logo_file_name: data.logo_file_name,
+                                image_direction: data.image_direction,
+                                photography_style: data.photography_style,
+                                composition_guidelines: data.composition_guidelines,
+                                must_include: data.must_include,
+                                avoid_elements: data.avoid_elements,
+                                reference_links: data.reference_links,
+                                output_formats: data.output_formats,
+                                ai_generation_notes: data.ai_generation_notes,
                             })
                             if (success) {
                                 setShowBriefingForm(false)
                             }
+                            return success
                         }}
                     />
                 )

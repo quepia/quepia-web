@@ -1019,6 +1019,24 @@ export interface ClientBrief {
   existing_elements: string | null;
   content_frequency: string | null;
   key_messages: string | null;
+  brand_name: string | null;
+  industry: string | null;
+  brand_description: string | null;
+  value_proposition: string | null;
+  brand_personality: string[] | null;
+  visual_style_keywords: string[] | null;
+  color_palette: BriefColor[];
+  typography: string | null;
+  logo_storage_path: string | null;
+  logo_file_name: string | null;
+  image_direction: string | null;
+  photography_style: string | null;
+  composition_guidelines: string | null;
+  must_include: string | null;
+  avoid_elements: string | null;
+  reference_links: BriefReference[];
+  output_formats: string[] | null;
+  ai_generation_notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1039,6 +1057,24 @@ export interface ClientBriefInsert {
   existing_elements?: string | null;
   content_frequency?: string | null;
   key_messages?: string | null;
+  brand_name?: string | null;
+  industry?: string | null;
+  brand_description?: string | null;
+  value_proposition?: string | null;
+  brand_personality?: string[] | null;
+  visual_style_keywords?: string[] | null;
+  color_palette?: BriefColor[];
+  typography?: string | null;
+  logo_storage_path?: string | null;
+  logo_file_name?: string | null;
+  image_direction?: string | null;
+  photography_style?: string | null;
+  composition_guidelines?: string | null;
+  must_include?: string | null;
+  avoid_elements?: string | null;
+  reference_links?: BriefReference[];
+  output_formats?: string[] | null;
+  ai_generation_notes?: string | null;
 }
 
 export interface ClientBriefUpdate {
@@ -1056,6 +1092,35 @@ export interface ClientBriefUpdate {
   existing_elements?: string | null;
   content_frequency?: string | null;
   key_messages?: string | null;
+  brand_name?: string | null;
+  industry?: string | null;
+  brand_description?: string | null;
+  value_proposition?: string | null;
+  brand_personality?: string[] | null;
+  visual_style_keywords?: string[] | null;
+  color_palette?: BriefColor[];
+  typography?: string | null;
+  logo_storage_path?: string | null;
+  logo_file_name?: string | null;
+  image_direction?: string | null;
+  photography_style?: string | null;
+  composition_guidelines?: string | null;
+  must_include?: string | null;
+  avoid_elements?: string | null;
+  reference_links?: BriefReference[];
+  output_formats?: string[] | null;
+  ai_generation_notes?: string | null;
+}
+
+export interface BriefColor {
+  name: string;
+  hex: string;
+  usage: string;
+}
+
+export interface BriefReference {
+  url: string;
+  note: string;
 }
 
 // ============ EFEMERIDES ============
