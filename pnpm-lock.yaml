@@ -81,6 +81,9 @@ importers:
         specifier: ^3.1.1
         version: 3.1.1(react@19.2.8)
     devDependencies:
+      '@next/eslint-plugin-next':
+        specifier: 15.5.22
+        version: 15.5.22
       '@types/archiver':
         specifier: ^6.0.4
         version: 6.0.4
@@ -93,6 +96,12 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.17)
+      '@typescript-eslint/eslint-plugin':
+        specifier: 8.63.0
+        version: 8.63.0(@typescript-eslint/parser@8.63.0(eslint@9.38.0(jiti@1.21.7))(typescript@5.9.3))(eslint@9.38.0(jiti@1.21.7))(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: 8.63.0
+        version: 8.63.0(eslint@9.38.0(jiti@1.21.7))(typescript@5.9.3)
       autoprefixer:
         specifier: ^10.4.24
         version: 10.5.2(postcss@8.5.23)
@@ -105,6 +114,18 @@ importers:
       eslint-config-next:
         specifier: ^15.5.22
         version: 15.5.22(eslint@9.38.0(jiti@1.21.7))(typescript@5.9.3)
+      eslint-plugin-import:
+        specifier: 2.32.0
+        version: 2.32.0(@typescript-eslint/parser@8.63.0(eslint@9.38.0(jiti@1.21.7))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.38.0(jiti@1.21.7))
+      eslint-plugin-jsx-a11y:
+        specifier: 6.10.2
+        version: 6.10.2(eslint@9.38.0(jiti@1.21.7))
+      eslint-plugin-react:
+        specifier: 7.37.5
+        version: 7.37.5(eslint@9.38.0(jiti@1.21.7))
+      eslint-plugin-react-hooks:
+        specifier: 5.2.0
+        version: 5.2.0(eslint@9.38.0(jiti@1.21.7))
       globals:
         specifier: 17.7.0
         version: 17.7.0
