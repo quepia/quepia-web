@@ -30,6 +30,16 @@ function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength
 }
 
+function originFromHeader(value: string | null): string | null {
+  if (!value) return null
+
+  try {
+    return new URL(value).origin
+  } catch {
+    return value === "null" ? "null" : "invalid"
+  }
+}
+
 function textResponse(message: string, status: number): NextResponse {
   return new NextResponse(message, {
     status,
@@ -71,14 +81,27 @@ export async function POST(request: Request) {
   const allowedOrigins = parseAllowedOrigins(
     process.env.MCP_WEB_ALLOWED_ORIGINS,
   )
+  const origin = request.headers.get("origin")
+  const secFetchSite = request.headers.get("sec-fetch-site")
   if (
     !validateSameOriginRequest({
       requestUrl: request.url,
-      origin: request.headers.get("origin"),
-      secFetchSite: request.headers.get("sec-fetch-site"),
+      origin,
+      secFetchSite,
       additionalAllowedOrigins: allowedOrigins,
     })
   ) {
+    console.warn(
+      "[OAuth decision] Request origin rejected",
+      JSON.stringify({
+        requestOrigin: new URL(request.url).origin,
+        origin: originFromHeader(origin),
+        refererOrigin: originFromHeader(request.headers.get("referer")),
+        secFetchSite,
+        host: request.headers.get("host"),
+        forwardedHost: request.headers.get("x-forwarded-host"),
+      }),
+    )
     return textResponse("Solicitud cross-site rechazada.", 403)
   }
 
