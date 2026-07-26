@@ -430,19 +430,19 @@ export function parseMcpOAuthLifecycle(
       const grantId = readBoundedString(candidate.grant, "id", 128)
       const expiresAtValue = candidate.grant.expires_at
       const expiresAt =
-        expiresAtValue === null
+        expiresAtValue === null || expiresAtValue === undefined
           ? null
           : readBoundedString(candidate.grant, "expires_at", 128)
       const lifetime = candidate.grant.lifetime
       if (
         !grantId ||
         !isOAuthClientId(grantId) ||
-        !("expires_at" in candidate.grant) ||
         (expiresAt !== null &&
           (!expiresAt || !Number.isFinite(Date.parse(expiresAt)))) ||
         typeof candidate.grant.active !== "boolean" ||
         (lifetime !== "oauth_grant" && lifetime !== "database_expiry") ||
-        (lifetime === "oauth_grant" && expiresAt !== null)
+        (lifetime === "oauth_grant" && expiresAt !== null) ||
+        (lifetime === "database_expiry" && expiresAt === null)
       ) {
         throw new Error("INVALID_MCP_OAUTH_GRANT")
       }
