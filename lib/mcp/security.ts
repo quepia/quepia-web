@@ -54,6 +54,16 @@ export function validateSameOriginRequest({
   return true
 }
 
+export function isOpaqueSameOriginOAuthRequest({
+  origin,
+  secFetchSite,
+}: Pick<
+  OriginValidationInput,
+  "origin" | "secFetchSite"
+>): boolean {
+  return origin === "null" && secFetchSite === "same-origin"
+}
+
 export function parseAllowedOrigins(value: string | undefined): string[] {
   if (!value) return []
   return value

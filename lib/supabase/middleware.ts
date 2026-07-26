@@ -4,8 +4,29 @@ import {
     isDirectFirstPartySessionClaims,
     isFirstPartyProtectedPath,
 } from '@/lib/mcp/session-boundary';
+import {
+    isOAuthCsrfCookieSecret,
+    MCP_OAUTH_CSRF_COOKIE_MAX_AGE_SECONDS,
+    MCP_OAUTH_CSRF_COOKIE_NAME,
+} from '@/lib/mcp/oauth-csrf-cookie';
 
 export async function updateSession(request: NextRequest) {
+    const shouldIssueOAuthCsrfCookie =
+        request.method === 'GET' &&
+        request.nextUrl.pathname === '/oauth/consent' &&
+        !isOAuthCsrfCookieSecret(
+            request.cookies.get(MCP_OAUTH_CSRF_COOKIE_NAME)?.value
+        );
+    const oauthCsrfCookieSecret = shouldIssueOAuthCsrfCookie
+        ? crypto.randomUUID()
+        : null;
+    if (oauthCsrfCookieSecret) {
+        request.cookies.set(
+            MCP_OAUTH_CSRF_COOKIE_NAME,
+            oauthCsrfCookieSecret
+        );
+    }
+
     let supabaseResponse = NextResponse.next({
         request,
     });
@@ -91,6 +112,20 @@ export async function updateSession(request: NextRequest) {
             url.searchParams.set('redirectTo', request.nextUrl.pathname);
             return NextResponse.redirect(url);
         }
+    }
+
+    if (oauthCsrfCookieSecret) {
+        supabaseResponse.cookies.set(
+            MCP_OAUTH_CSRF_COOKIE_NAME,
+            oauthCsrfCookieSecret,
+            {
+                httpOnly: true,
+                maxAge: MCP_OAUTH_CSRF_COOKIE_MAX_AGE_SECONDS,
+                path: '/',
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+            }
+        );
     }
 
     return supabaseResponse;

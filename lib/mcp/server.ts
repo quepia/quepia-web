@@ -16,7 +16,10 @@ import {
   mapSupabaseMcpError,
   McpWebError,
 } from "@/lib/mcp/errors"
-import { isDirectFirstPartySessionClaims } from "@/lib/mcp/session-boundary"
+import {
+  getDirectFirstPartySessionId,
+  isDirectFirstPartySessionClaims,
+} from "@/lib/mcp/session-boundary"
 
 type SistemaServerClient = Awaited<ReturnType<typeof createClient>>
 export type McpAuthenticatorLevel = "aal1" | "aal2" | null
@@ -25,6 +28,7 @@ export interface McpWebSession {
   supabase: SistemaServerClient
   user: User
   aal: McpAuthenticatorLevel
+  sessionId: string
 }
 
 export async function getMcpWebSession(): Promise<McpWebSession> {
@@ -54,6 +58,14 @@ export async function getMcpWebSession(): Promise<McpWebSession> {
       403,
     )
   }
+  const sessionId = getDirectFirstPartySessionId(claimsData?.claims)
+  if (!sessionId) {
+    throw new McpWebError(
+      "FORBIDDEN",
+      "La sesión web no contiene un identificador verificable.",
+      403,
+    )
+  }
 
   const { data: aalData, error: aalError } =
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
@@ -69,6 +81,7 @@ export async function getMcpWebSession(): Promise<McpWebSession> {
     supabase,
     user,
     aal,
+    sessionId,
   }
 }
 

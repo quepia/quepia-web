@@ -47,6 +47,7 @@ export type OAuthAuthorizationResult =
 export interface OAuthDecisionRequest {
   authorizationId: string
   decision: OAuthConsentDecision
+  csrfToken: string
 }
 
 export interface McpOAuthAccessGrant {
@@ -104,6 +105,8 @@ export type McpOAuthRevocationPanelStatus =
   | "revocation_failed"
 
 const AUTHORIZATION_ID_PATTERN = /^[A-Za-z0-9._~-]{1,256}$/
+const OAUTH_CSRF_TOKEN_PATTERN =
+  /^v1\.[0-9]{10}\.[A-Za-z0-9_-]{43}$/
 const CLIENT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SCOPE_PATTERN = /^[A-Za-z0-9:._/-]{1,128}$/
@@ -137,6 +140,12 @@ function readBoundedString(
 export function isOAuthAuthorizationId(value: unknown): value is string {
   return (
     typeof value === "string" && AUTHORIZATION_ID_PATTERN.test(value)
+  )
+}
+
+export function isOAuthCsrfToken(value: unknown): value is string {
+  return (
+    typeof value === "string" && OAUTH_CSRF_TOKEN_PATTERN.test(value)
   )
 }
 
@@ -321,11 +330,15 @@ export function parseOAuthDecisionRequest(
   const params = new URLSearchParams(rawBody)
   const keys = [...params.keys()]
   if (
-    keys.length !== 2 ||
+    keys.length !== 3 ||
     params.getAll("authorization_id").length !== 1 ||
     params.getAll("decision").length !== 1 ||
+    params.getAll("csrf_token").length !== 1 ||
     keys.some(
-      (key) => key !== "authorization_id" && key !== "decision",
+      (key) =>
+        key !== "authorization_id" &&
+        key !== "decision" &&
+        key !== "csrf_token",
     )
   ) {
     return null
@@ -333,14 +346,16 @@ export function parseOAuthDecisionRequest(
 
   const authorizationId = params.get("authorization_id")
   const decision = params.get("decision")
+  const csrfToken = params.get("csrf_token")
   if (
     !isOAuthAuthorizationId(authorizationId) ||
+    !isOAuthCsrfToken(csrfToken) ||
     (decision !== "approve" && decision !== "deny")
   ) {
     return null
   }
 
-  return { authorizationId, decision }
+  return { authorizationId, decision, csrfToken }
 }
 
 export function parseMcpOAuthRevokeRequest(rawBody: string): string | null {

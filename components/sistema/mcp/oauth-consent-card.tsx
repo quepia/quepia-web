@@ -15,9 +15,11 @@ import {
 export function OAuthConsentCard({
   details,
   errorMessage,
+  csrfToken,
 }: {
   details: OAuthAuthorizationDetails
   errorMessage: string | null
+  csrfToken: string
 }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
@@ -97,6 +99,7 @@ export function OAuthConsentCard({
               name="authorization_id"
               value={details.authorizationId}
             />
+            <input type="hidden" name="csrf_token" value={csrfToken} />
             <button
               type="submit"
               name="decision"
@@ -114,6 +117,7 @@ export function OAuthConsentCard({
               name="authorization_id"
               value={details.authorizationId}
             />
+            <input type="hidden" name="csrf_token" value={csrfToken} />
             <button
               type="submit"
               name="decision"

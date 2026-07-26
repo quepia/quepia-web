@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import {
   buildOAuthConsentPath,
   parseOAuthDecisionRequest,
@@ -12,9 +12,15 @@ import {
 import { McpWebError } from "@/lib/mcp/errors"
 import { getMcpWebSession } from "@/lib/mcp/server"
 import {
+  isOpaqueSameOriginOAuthRequest,
   parseAllowedOrigins,
   validateSameOriginRequest,
 } from "@/lib/mcp/security"
+import { verifyOAuthCsrfToken } from "@/lib/mcp/oauth-csrf"
+import {
+  isOAuthCsrfCookieSecret,
+  MCP_OAUTH_CSRF_COOKIE_NAME,
+} from "@/lib/mcp/oauth-csrf-cookie"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -77,20 +83,21 @@ function errorCodeFor(error: McpWebError): string {
   return "request_failed"
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const allowedOrigins = parseAllowedOrigins(
     process.env.MCP_WEB_ALLOWED_ORIGINS,
   )
   const origin = request.headers.get("origin")
   const secFetchSite = request.headers.get("sec-fetch-site")
-  if (
-    !validateSameOriginRequest({
-      requestUrl: request.url,
-      origin,
-      secFetchSite,
-      additionalAllowedOrigins: allowedOrigins,
-    })
-  ) {
+  const hasTrustedOrigin = validateSameOriginRequest({
+    requestUrl: request.url,
+    origin,
+    secFetchSite,
+    additionalAllowedOrigins: allowedOrigins,
+  })
+  const hasOpaqueSameOrigin =
+    isOpaqueSameOriginOAuthRequest({ origin, secFetchSite })
+  if (!hasTrustedOrigin && !hasOpaqueSameOrigin) {
     console.warn(
       "[OAuth decision] Request origin rejected",
       JSON.stringify({
@@ -140,6 +147,30 @@ export async function POST(request: Request) {
 
   try {
     const session = await getMcpWebSession()
+    const cookieSecret = request.cookies.get(
+      MCP_OAUTH_CSRF_COOKIE_NAME,
+    )?.value
+    if (
+      !isOAuthCsrfCookieSecret(cookieSecret) ||
+      !verifyOAuthCsrfToken(decisionRequest.csrfToken, {
+        authorizationId: decisionRequest.authorizationId,
+        userId: session.user.id,
+        sessionId: session.sessionId,
+        cookieSecret,
+      })
+    ) {
+      console.warn(
+        "[OAuth decision] CSRF token rejected",
+        JSON.stringify({
+          origin: originFromHeader(origin),
+          secFetchSite,
+          hasOpaqueSameOrigin,
+          hasCookie: Boolean(cookieSecret),
+        }),
+      )
+      return textResponse("Token CSRF inválido o vencido.", 403)
+    }
+
     await requireMcpOAuthAdmin(session)
 
     const authorization = await getOAuthAuthorization(

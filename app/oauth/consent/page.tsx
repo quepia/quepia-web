@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 import { AlertTriangle, SearchX } from "lucide-react"
 import { McpShell } from "@/components/sistema/mcp/mcp-shell"
 import { OAuthConsentCard } from "@/components/sistema/mcp/oauth-consent-card"
@@ -14,6 +15,11 @@ import {
 } from "@/lib/mcp/oauth-server"
 import { McpWebError } from "@/lib/mcp/errors"
 import { getMcpWebSession } from "@/lib/mcp/server"
+import { createOAuthCsrfToken } from "@/lib/mcp/oauth-csrf"
+import {
+  isOAuthCsrfCookieSecret,
+  MCP_OAUTH_CSRF_COOKIE_NAME,
+} from "@/lib/mcp/oauth-csrf-cookie"
 
 export const dynamic = "force-dynamic"
 
@@ -75,6 +81,26 @@ export default async function OAuthConsentPage({
       redirect(authorization.redirectUrl)
     }
 
+    const cookieStore = await cookies()
+    const cookieSecret = cookieStore.get(
+      MCP_OAUTH_CSRF_COOKIE_NAME,
+    )?.value
+    if (!isOAuthCsrfCookieSecret(cookieSecret)) {
+      return (
+        <ConsentError
+          icon={AlertTriangle}
+          title="Autorización no disponible"
+          message="No fue posible preparar la protección del formulario. Volvé a iniciar la conexión."
+        />
+      )
+    }
+    const csrfToken = createOAuthCsrfToken({
+      authorizationId,
+      userId: session.user.id,
+      sessionId: session.sessionId,
+      cookieSecret,
+    })
+
     return (
       <McpShell
         eyebrow="Autorización OAuth 2.1"
@@ -84,6 +110,7 @@ export default async function OAuthConsentPage({
         <OAuthConsentCard
           details={authorization.details}
           errorMessage={oauthConsentErrorMessage(params.error)}
+          csrfToken={csrfToken}
         />
       </McpShell>
     )
