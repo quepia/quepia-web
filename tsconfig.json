@@ -39,6 +39,7 @@
   "exclude": [
     "node_modules",
     "node_modules 2",
-    " sistema de gestion de proyectos"
+    " sistema de gestion de proyectos",
+    "services/mcp"
   ]
 }
