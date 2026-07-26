@@ -1,0 +1,108 @@
+name: MCP security and contract checks
+
+on:
+  pull_request:
+    paths:
+      - "services/mcp/**"
+      - "app/sistema/mcp/**"
+      - "app/api/mcp/**"
+      - "components/sistema/mcp/**"
+      - "lib/mcp/**"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - "scripts/verify-mcp-boundaries.mjs"
+      - "scripts/verify-mcp-sql-syntax.mjs"
+      - "docs/mcp/**"
+      - "MCP_BUSINESS_CONTROL_PLAN.md"
+      - "MCP_IMPLEMENTATION_PROMPT.md"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mcp-ci.yml"
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - "services/mcp/**"
+      - "app/sistema/mcp/**"
+      - "app/api/mcp/**"
+      - "components/sistema/mcp/**"
+      - "lib/mcp/**"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - "scripts/verify-mcp-boundaries.mjs"
+      - "scripts/verify-mcp-sql-syntax.mjs"
+      - "docs/mcp/**"
+      - "MCP_BUSINESS_CONTROL_PLAN.md"
+      - "MCP_IMPLEMENTATION_PROMPT.md"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mcp-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            services/mcp/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Install MCP dependencies
+        run: npm ci --ignore-scripts
+        working-directory: services/mcp
+
+      - name: Verify MCP security boundaries
+        run: npm run mcp:verify
+
+      - name: Parse MCP SQL and PL/pgSQL
+        run: npm run mcp:sql:verify
+
+      - name: Typecheck the web approval flow
+        run: npm run typecheck
+
+      - name: Lint MCP web and verification code
+        run: >
+          npx eslint
+          app/api/mcp
+          app/sistema/mcp
+          components/sistema/mcp
+          lib/mcp
+          scripts/verify-mcp-boundaries.mjs
+          scripts/verify-mcp-sql-syntax.mjs
+          --max-warnings=0
+
+      - name: Test the web approval contracts
+        run: npm run mcp:web:test
+
+      - name: Build the web application
+        run: npm run build
+
+      - name: Typecheck MCP service
+        run: npm run typecheck
+        working-directory: services/mcp
+
+      - name: Test MCP service
+        run: npm run test
+        working-directory: services/mcp
+
+      - name: Build MCP service
+        run: npm run build
+        working-directory: services/mcp
+
+      - name: Audit MCP production dependencies
+        run: npm audit --omit=dev --audit-level=moderate
+        working-directory: services/mcp
