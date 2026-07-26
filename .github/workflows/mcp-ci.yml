@@ -91,7 +91,10 @@ jobs:
         run: npm run mcp:web:test
 
       - name: Build the web application
-        run: npm run build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
 
       - name: Typecheck MCP service
         run: npm run typecheck
