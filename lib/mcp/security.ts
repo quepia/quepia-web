@@ -30,10 +30,6 @@ export function validateSameOriginRequest({
     return false
   }
 
-  if (secFetchSite && secFetchSite !== "same-origin") {
-    return false
-  }
-
   const allowedOrigins = new Set<string>([requestOrigin])
   for (const candidate of additionalAllowedOrigins) {
     const normalized = normalizeOrigin(candidate.trim())
@@ -42,7 +38,20 @@ export function validateSameOriginRequest({
     }
   }
 
-  return allowedOrigins.has(suppliedOrigin)
+  if (!allowedOrigins.has(suppliedOrigin)) {
+    return false
+  }
+
+  // Fetch Metadata can remain tainted as "cross-site" after an OAuth
+  // navigation/redirect chain. An exact Origin match is still a strong CSRF
+  // signal and must not be rejected solely because of that browser metadata.
+  // Cross-site requests from a different (even explicitly allowlisted) origin
+  // remain blocked.
+  if (secFetchSite === "cross-site" && suppliedOrigin !== requestOrigin) {
+    return false
+  }
+
+  return true
 }
 
 export function parseAllowedOrigins(value: string | undefined): string[] {
