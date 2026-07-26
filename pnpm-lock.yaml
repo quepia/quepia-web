@@ -105,6 +105,9 @@ importers:
       eslint-config-next:
         specifier: ^15.5.22
         version: 15.5.22(eslint@9.38.0(jiti@1.21.7))(typescript@5.9.3)
+      globals:
+        specifier: 17.7.0
+        version: 17.7.0
       plpgsql-parser:
         specifier: 18.2.1
         version: 18.2.1
@@ -1919,6 +1922,10 @@ packages:
 
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
+    engines: {node: '>=18'}
+
+  globals@17.7.0:
+    resolution: {integrity: sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -5018,6 +5025,8 @@ snapshots:
       path-scurry: 1.11.1
 
   globals@14.0.0: {}
+
+  globals@17.7.0: {}
 
   globalthis@1.0.4:
     dependencies:
