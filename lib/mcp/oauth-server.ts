@@ -244,18 +244,101 @@ export async function resolveOAuthDecisionRedirect(
   authorizationId: string,
   decision: "approve" | "deny",
 ): Promise<string> {
-  const response =
-    decision === "approve"
-      ? await session.supabase.auth.oauth.approveAuthorization(
-          authorizationId,
-          { skipBrowserRedirect: true },
-        )
-      : await session.supabase.auth.oauth.denyAuthorization(
-          authorizationId,
-          { skipBrowserRedirect: true },
-        )
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseKey) {
+    throw new McpWebError(
+      "CONTROL_PLANE_UNAVAILABLE",
+      "La configuración del servidor OAuth no está disponible.",
+      503,
+    )
+  }
 
-  if (response.error || !response.data) {
+  const {
+    data: { session: authSession },
+    error: sessionError,
+  } = await session.supabase.auth.getSession()
+  if (sessionError || !authSession?.access_token) {
+    throw new McpWebError(
+      "UNAUTHENTICATED",
+      "La sesión web venció antes de registrar la decisión.",
+      401,
+    )
+  }
+
+  let endpoint: URL
+  try {
+    endpoint = new URL(
+      `/auth/v1/oauth/authorizations/${encodeURIComponent(
+        authorizationId,
+      )}/consent`,
+      supabaseUrl,
+    )
+  } catch {
+    throw new McpWebError(
+      "CONTROL_PLANE_UNAVAILABLE",
+      "La configuración del servidor OAuth no es válida.",
+      503,
+    )
+  }
+
+  let response: Response
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        apikey: supabaseKey,
+        Authorization: `Bearer ${authSession.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action: decision }),
+      cache: "no-store",
+    })
+  } catch {
+    throw new McpWebError(
+      "CONTROL_PLANE_UNAVAILABLE",
+      "El servidor OAuth no respondió al registrar la decisión.",
+      503,
+    )
+  }
+
+  let payload: unknown
+  try {
+    payload = await response.json()
+  } catch {
+    throw new McpWebError(
+      "INVALID_RESPONSE",
+      "El servidor OAuth devolvió una decisión ilegible.",
+      502,
+    )
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new McpWebError(
+        "UNAUTHENTICATED",
+        "La sesión web venció antes de registrar la decisión.",
+        401,
+      )
+    }
+    if (response.status === 403) {
+      throw new McpWebError(
+        "FORBIDDEN",
+        "El servidor OAuth rechazó esta sesión web.",
+        403,
+      )
+    }
+    if (response.status === 404) {
+      throw new McpWebError(
+        "NOT_FOUND",
+        "La solicitud OAuth ya no está disponible.",
+        404,
+      )
+    }
+
     throw new McpWebError(
       "CONTROL_PLANE_UNAVAILABLE",
       "El servidor OAuth no pudo registrar la decisión.",
@@ -263,11 +346,21 @@ export async function resolveOAuthDecisionRedirect(
     )
   }
 
-  const result = parseOAuthAuthorizationResult(
-    response.data,
-    authorizationId,
-    session.user.id,
-  )
+  let result: OAuthAuthorizationResult
+  try {
+    result = parseOAuthAuthorizationResult(
+      payload,
+      authorizationId,
+      session.user.id,
+    )
+  } catch {
+    throw new McpWebError(
+      "INVALID_RESPONSE",
+      "El servidor OAuth no devolvió un redirect válido.",
+      502,
+    )
+  }
+
   if (result.kind !== "redirect") {
     throw new McpWebError(
       "INVALID_RESPONSE",

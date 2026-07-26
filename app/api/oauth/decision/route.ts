@@ -84,6 +84,7 @@ function errorCodeFor(error: McpWebError): string {
 }
 
 export async function POST(request: NextRequest) {
+  let stage = "request_validation"
   const allowedOrigins = parseAllowedOrigins(
     process.env.MCP_WEB_ALLOWED_ORIGINS,
   )
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest) {
   )
 
   try {
+    stage = "session_validation"
     const session = await getMcpWebSession()
     const cookieSecret = request.cookies.get(
       MCP_OAUTH_CSRF_COOKIE_NAME,
@@ -171,8 +173,10 @@ export async function POST(request: NextRequest) {
       return textResponse("Token CSRF inválido o vencido.", 403)
     }
 
+    stage = "admin_validation"
     await requireMcpOAuthAdmin(session)
 
+    stage = "authorization_details"
     const authorization = await getOAuthAuthorization(
       session,
       decisionRequest.authorizationId,
@@ -183,12 +187,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (decisionRequest.decision === "approve") {
+      stage = "client_provisioning"
       await provisionMcpOAuthClient(
         session,
         authorization.details.client.id,
       )
     }
 
+    stage = "consent_decision"
     const redirectUrl = await resolveOAuthDecisionRedirect(
       session,
       decisionRequest.authorizationId,
@@ -198,6 +204,14 @@ export async function POST(request: NextRequest) {
     return oauthRedirect(redirectUrl)
   } catch (error) {
     if (error instanceof McpWebError) {
+      console.error(
+        "[OAuth decision] Request failed",
+        JSON.stringify({
+          stage,
+          code: error.code,
+          status: error.status,
+        }),
+      )
       if (error.code === "UNAUTHENTICATED") {
         return internalRedirect(
           request.url,
