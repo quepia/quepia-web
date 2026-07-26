@@ -2,8 +2,9 @@
   "name": "nextjs-app",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.32.1",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "scripts": {
     "postinstall": "node scripts/copy-ffmpeg-static.mjs",
