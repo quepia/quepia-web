@@ -59,6 +59,10 @@ export function mapSupabaseMcpError(error: SupabaseLikeError): McpWebError {
   if (
     text.includes("42501") ||
     text.includes("FORBIDDEN") ||
+    text.includes("CLIENT_NOT_ALLOWED") ||
+    text.includes("OAUTH_CLIENT_NOT_ALLOWED") ||
+    text.includes("OAUTH_CLIENT_NOT_ACTIVE") ||
+    text.includes("OAUTH_CLIENT_DISABLED") ||
     text.includes("HUMAN_APPROVAL_REQUIRED") ||
     text.includes("MISSING_CAPABILITY")
   ) {

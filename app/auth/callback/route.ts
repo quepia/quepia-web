@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeInternalRedirect } from '@/lib/mcp/oauth';
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
-    const redirectTo = searchParams.get('redirectTo') || '/sistema';
+    const redirectTo = normalizeInternalRedirect(
+        searchParams.get('redirectTo'),
+        '/sistema'
+    );
 
     if (code) {
         const supabase = await createClient();
@@ -14,8 +18,6 @@ export async function GET(request: Request) {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                console.log('[Auth Callback] User Logged In:', user.email);
-
                 // Check if user exists in sistema_users
                 const { data: sistemaUser } = await supabase
                     .from('sistema_users')
@@ -25,8 +27,6 @@ export async function GET(request: Request) {
 
                 if (!sistemaUser) {
                     // Auto-register new user
-                    console.log('[Auth Callback] Registering new user:', user.email);
-                    
                     const { error: createError } = await supabase
                         .from('sistema_users')
                         .insert({
@@ -37,12 +37,12 @@ export async function GET(request: Request) {
                         });
 
                     if (createError) {
-                        console.error('[Auth Callback] Error creating user:', createError);
+                        console.error('[Auth Callback] Failed to create sistema user');
                         // Optional: Redirect to error page or let them proceed (they might see setup modal)
                     }
                 }
 
-                return NextResponse.redirect(`${origin}${redirectTo}`);
+                return NextResponse.redirect(new URL(redirectTo, origin));
             }
         }
     }

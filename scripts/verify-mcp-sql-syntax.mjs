@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
@@ -8,27 +9,71 @@ import {
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const migrationDirectory = join(projectRoot, "supabase", "migrations");
-const migrationNames = readdirSync(migrationDirectory).filter((name) =>
-  /_create_mcp_accounting_control_plane\.sql$/.test(name),
-);
+const expectedMigrationSuffixes = [
+  "_create_mcp_accounting_control_plane.sql",
+  "_mcp_oauth_onboarding.sql",
+  "_mcp_hook_clock_timestamp.sql",
+];
+// These migrations are already applied remotely and must remain byte-for-byte
+// immutable. Further fixes belong in a new forward-only migration.
+const immutableAppliedMigrationSha256 = new Map([
+  [
+    "_create_mcp_accounting_control_plane.sql",
+    "74f8ffe76290756427283b6d59b57a95fc24b42215e25cedb6de4d515cc59309",
+  ],
+  [
+    "_mcp_oauth_onboarding.sql",
+    "79dad9b6380421f0e431c5c2099654b5a7486ea3e8481a1b3456be2958a5e0c5",
+  ],
+  [
+    "_mcp_hook_clock_timestamp.sql",
+    "d96ecddbafadd521013fd46635dd7131b6a02950bad24ddecfb8da291a352b58",
+  ],
+]);
+const migrationNames = readdirSync(migrationDirectory)
+  .filter((name) =>
+    expectedMigrationSuffixes.some((suffix) => name.endsWith(suffix)),
+  )
+  .sort();
 
-if (migrationNames.length !== 1) {
+if (
+  migrationNames.length !== expectedMigrationSuffixes.length ||
+  expectedMigrationSuffixes.some(
+    (suffix) => !migrationNames.some((name) => name.endsWith(suffix)),
+  )
+) {
   throw new Error(
-    `Expected exactly one MCP control-plane migration, found ${migrationNames.length}`,
+    `Expected MCP migrations ${expectedMigrationSuffixes.join(", ")}, found ${migrationNames.join(", ")}`,
   );
 }
 
 await loadModule();
 
-const migrationPath = join(migrationDirectory, migrationNames[0]);
-const sql = readFileSync(migrationPath, "utf8");
+const sql = migrationNames
+  .map((name) => readFileSync(join(migrationDirectory, name), "utf8"))
+  .join("\n");
 const failures = [];
+
+for (const [suffix, expectedSha256] of immutableAppliedMigrationSha256) {
+  const migrationName = migrationNames.find((name) => name.endsWith(suffix));
+  const migrationSha256 = createHash("sha256")
+    .update(readFileSync(join(migrationDirectory, migrationName), "utf8"))
+    .digest("hex");
+
+  if (migrationSha256 !== expectedSha256) {
+    failures.push({
+      object: migrationName,
+      error:
+        "an already-applied MCP migration changed; add a new forward-only migration instead",
+    });
+  }
+}
 
 try {
   parse(sql);
 } catch (error) {
   failures.push({
-    object: migrationNames[0],
+    object: migrationNames.join(", "),
     error: error instanceof Error ? error.message : String(error),
   });
 }

@@ -454,41 +454,6 @@ BEGIN
 END
 $accounting_oauth_fence$;
 
--- Convert every existing financial SECURITY DEFINER read/report function to
--- invoker semantics based on the catalog/body, instead of maintaining a
--- fragile hard-coded list. New mcp_* functions are created after this block.
-DO $legacy_accounting_rpc_fence$
-DECLARE
-  function_signature REGPROCEDURE;
-BEGIN
-  FOR function_signature IN
-    SELECT p.oid::REGPROCEDURE
-    FROM pg_proc AS p
-    JOIN pg_namespace AS n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
-      AND p.prosecdef
-      AND p.prokind = 'f'
-      AND (
-        p.proname LIKE 'get_accounting_%'
-        OR p.proname LIKE 'get_expense_%'
-        OR p.proname LIKE 'get_future_investment%'
-        OR p.proname LIKE 'get_partner_contribution%'
-        OR p.proname LIKE 'get_contribution%'
-        OR p.proname IN (
-          'get_account_movements',
-          'get_unified_history',
-          'get_history_summary'
-        )
-        OR p.prosrc ILIKE '%accounting_%'
-      )
-  LOOP
-    EXECUTE format('ALTER FUNCTION %s SECURITY INVOKER', function_signature);
-    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC, anon', function_signature);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', function_signature);
-  END LOOP;
-END
-$legacy_accounting_rpc_fence$;
-
 CREATE OR REPLACE FUNCTION private.mcp_prevent_append_only_mutation()
 RETURNS TRIGGER
 LANGUAGE plpgsql

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/http-app.js";
 import type { TokenVerifier } from "../src/auth.js";
 import {
   accessContext,

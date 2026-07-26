@@ -13,7 +13,7 @@ const environmentSchema = z.object({
   MCP_PROTOCOL_VERSIONS: z
     .string()
     .default("2025-11-25,2025-06-18,2025-03-26"),
-  MCP_OAUTH_SCOPES: z.string().default("openid profile email"),
+  MCP_OAUTH_SCOPES: z.string().default("openid"),
   MCP_REQUEST_BODY_LIMIT_BYTES: positiveInteger.default(65_536),
   MCP_REQUEST_TIMEOUT_MS: positiveInteger.default(15_000),
   MCP_DB_TIMEOUT_MS: positiveInteger.default(8_000),

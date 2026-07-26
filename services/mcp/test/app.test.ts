@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/http-app.js";
 import type { TokenVerifier } from "../src/auth.js";
+import { HttpError } from "../src/errors.js";
 import {
   accessContext,
   databaseFactory,
@@ -91,11 +92,13 @@ describe("HTTP security and discovery", () => {
         Origin: "https://evil.example",
       });
       expect(response.status).toBe(403);
+      expect(response.headers.get("www-authenticate")).toBeNull();
 
       const credentialed = await postMcp(baseUrl, initializeRequest(), {
         Origin: "https://user:password@app.quepia.test",
       });
       expect(credentialed.status).toBe(403);
+      expect(credentialed.headers.get("www-authenticate")).toBeNull();
     });
   });
 
@@ -110,13 +113,16 @@ describe("HTTP security and discovery", () => {
     await withHttpServer(app, async (baseUrl) => {
       const noOrigin = await postMcp(baseUrl, initializeRequest());
       expect(noOrigin.status).toBe(200);
-      await expect(noOrigin.json()).resolves.toMatchObject({
+        await expect(noOrigin.json()).resolves.toMatchObject({
         result: {
           capabilities: {
             tools: {
               listChanged: false,
             },
           },
+          instructions: expect.stringContaining(
+            "Never call commit until accounting_get_operation reports the operation as approved",
+          ),
         },
       });
 
@@ -125,6 +131,62 @@ describe("HTTP security and discovery", () => {
       });
       expect(allowed.status).toBe(200);
       expect(database.contextCalls).toBe(2);
+    });
+  });
+
+  it("uses only registered Bearer error codes in authentication challenges", async () => {
+    const config = testConfig();
+    const database = databaseMock(accessContext());
+    const invalidTokenVerifier: TokenVerifier = vi.fn(async () => {
+      throw new HttpError(401, "invalid_token", "Invalid access token");
+    });
+    const app = createApp({
+      config,
+      tokenVerifier: invalidTokenVerifier,
+      databaseFactory: databaseFactory(database),
+    });
+
+    await withHttpServer(app, async (baseUrl) => {
+      const missing = await postMcp(baseUrl, initializeRequest(), {
+        Authorization: "",
+      });
+      expect(missing.headers.get("www-authenticate")).not.toContain(
+        'error="missing_token"',
+      );
+
+      const invalid = await postMcp(baseUrl, initializeRequest());
+      expect(invalid.headers.get("www-authenticate")).toContain(
+        'error="invalid_token"',
+      );
+      expect(invalid.headers.get("www-authenticate")).not.toContain(
+        'error="internal_error"',
+      );
+    });
+
+    const deniedApp = createApp({
+      config,
+      tokenVerifier,
+      databaseFactory: () => ({
+        async getContext() {
+          throw new HttpError(
+            403,
+            "missing_capability",
+            "Capability not granted",
+          );
+        },
+        async call() {
+          throw new Error("unreachable");
+        },
+      }),
+    });
+    await withHttpServer(deniedApp, async (baseUrl) => {
+      const denied = await postMcp(baseUrl, initializeRequest());
+      expect(denied.headers.get("www-authenticate")).toContain(
+        'error="insufficient_scope"',
+      );
+      expect(denied.headers.get("www-authenticate")).not.toContain(
+        "missing_capability",
+      );
     });
   });
 

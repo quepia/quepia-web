@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import {
   CheckCircle2,
   Clock,
@@ -11,6 +12,7 @@ import {
   ArrowRight,
   Eye,
   Activity,
+  Bot,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { compareTaskDeadlines, getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
@@ -31,6 +33,7 @@ interface DashboardOverviewProps {
   projects: ProjectWithChildren[]
   mostVisitedProjectId?: string | null
   userRole?: string
+  showMcpSetup?: boolean
 }
 
 interface PendingAsset {
@@ -47,7 +50,7 @@ interface PendingAsset {
   }[]
 }
 
-export function DashboardOverview({ tasks, events, loading, eventsLoading = false, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole }: DashboardOverviewProps) {
+export function DashboardOverview({ tasks, events, loading, eventsLoading = false, onTaskClick, onViewChange, onProjectOpen, projects, mostVisitedProjectId, userRole, showMcpSetup = false }: DashboardOverviewProps) {
   const [pendingAssets, setPendingAssets] = useState<PendingAsset[]>([])
   const [isApprovingAll, setIsApprovingAll] = useState(false)
   const [experience, setExperience] = useState(() => readExperienceMetrics())
@@ -261,6 +264,32 @@ export function DashboardOverview({ tasks, events, loading, eventsLoading = fals
 
   return (
     <div className="flex-1 space-y-5 overflow-y-auto p-3 sm:space-y-6 sm:p-6">
+      {showMcpSetup ? (
+        <section className="flex flex-col gap-4 rounded-2xl border border-quepia-cyan/20 bg-gradient-to-br from-quepia-cyan/10 via-white/[0.035] to-quepia-purple/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="shrink-0 rounded-xl border border-quepia-cyan/20 bg-quepia-cyan/10 p-2.5 text-quepia-cyan">
+              <Bot className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-white">
+                Configurar MCP
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-white/55">
+                Conectá un asistente compatible para consultar la contabilidad
+                y preparar gastos con los controles de Quepia.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/sistema/mcp"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-quepia-cyan/15 px-4 py-2.5 text-sm font-semibold text-quepia-cyan transition-colors hover:bg-quepia-cyan/25"
+          >
+            Configurar MCP
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </section>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
           <p className="text-[10px] uppercase tracking-wider text-white/35">Trabajo activo</p>

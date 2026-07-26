@@ -4,10 +4,16 @@ Remote, stateless Model Context Protocol server for Quepia's accounting
 operations. It targets MCP protocol `2025-11-25`, runs on Node.js 22 or newer,
 and pins the production SDK to `@modelcontextprotocol/sdk@1.29.0`.
 
+`src/index.ts` default-exports the Express application for Vercel's native
+Express runtime. `src/local.ts` is the separate local listener used by
+`npm run dev` and `npm start`; importing the Vercel entrypoint never binds a
+port.
+
 The service is deliberately a narrow resource server:
 
 - it validates Supabase OAuth access tokens locally with the project's JWKS;
 - it requires the canonical MCP URI as the JWT audience;
+- it requires the isolated `mcp_authenticated` Postgres role claim;
 - it obtains a fresh capability context from the database on every request;
 - it exposes only tools allowed by that context;
 - it calls narrow `mcp_*` RPCs and never reads or writes tables directly;
@@ -47,7 +53,7 @@ Every RPC accepts exactly one `jsonb` argument named `p_request`.
     "session_id": "uuid",
     "capabilities": ["accounting.read", "accounting.expense.write"],
     "read_only": false,
-    "grant_expires_at": "2026-07-26T18:00:00Z"
+    "grant_expires_at": null
   },
   "error": null
 }
@@ -57,6 +63,8 @@ The service rejects the context if its user, OAuth client, or session differs
 from the verified JWT. The database function is responsible for checking the
 active OAuth client, active user session, grant expiry/revocation, global
 read-only switch, and capability grant on every invocation.
+`grant_expires_at` is nullable because the internal grant normally follows the
+OAuth grant lifecycle instead of creating a second independent deadline.
 
 Tool-to-RPC mapping:
 
@@ -102,15 +110,21 @@ unconsumed, payload-bound, and owned by the current user/client/session.
 
 ## OAuth and Supabase setup
 
-1. Enable the Supabase OAuth 2.1 server in a non-production project first.
-2. Register approved clients and use authorization code flow with PKCE.
-3. Configure a Custom Access Token Hook that sets `aud` to the exact
-   `MCP_RESOURCE_URI` for approved MCP clients.
-4. Confirm tokens contain `sub`, `client_id`, `session_id`, `aal`, `exp`, and
-   the exact MCP audience.
-5. Keep access tokens short-lived and make `mcp_get_context` reject revoked
+1. Apply and verify the database boundary before enabling the Supabase OAuth
+   2.1 server.
+2. Enable Dynamic Client Registration. The administrator configures only the
+   MCP URL; compatible hosts register themselves and use authorization code
+   flow with PKCE.
+3. Configure a Custom Access Token Hook that assigns every OAuth token with a
+   UUID `client_id` to the isolated `mcp_authenticated` Postgres role and sets
+   `aud` to the exact `MCP_RESOURCE_URI` only for an active MCP grant.
+4. Confirm tokens contain `sub`, `client_id`, `session_id`, `aal`, `exp`,
+   `role=mcp_authenticated`, and the exact MCP audience.
+5. Use Quepia's existing direct web login and require a persisted, active
+   global `admin` before consent can create the automatic user/client grant.
+6. Keep access tokens short-lived and make `mcp_get_context` reject revoked
    sessions and grants.
-6. Verify authorization and token requests include the same `resource`
+7. Verify authorization and token requests include the same `resource`
    parameter. OAuth clients must treat any successful 2xx token response via
    `response.ok`; they must not hardcode `201`.
 
@@ -143,7 +157,7 @@ production rules:
 npm install
 npm test
 npm run typecheck
-npm run build
+npm run compile
 npm start
 ```
 
@@ -161,6 +175,10 @@ Streamable HTTP transport and serves no static files. Keep the override covered
 by the transport integration tests when updating either package.
 
 See [THREAT_MODEL.md](./THREAT_MODEL.md) before deployment.
+For the independent Vercel project setup and non-deploying validation workflow,
+see [DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md).
+For production client setup in Codex, ChatGPT, Claude, Cursor, and VS Code, see
+[INSTALL_REMOTE.md](./INSTALL_REMOTE.md).
 
 ## Protocol references
 

@@ -5,10 +5,14 @@ import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 import { Suspense, useState } from 'react';
 import { Shield, Sparkles } from 'lucide-react';
+import { normalizeInternalRedirect } from '@/lib/mcp/oauth';
 
 function LoginContent() {
     const searchParams = useSearchParams();
-    const redirectTo = searchParams?.get('redirectTo') || '/admin';
+    const redirectTo = normalizeInternalRedirect(
+        searchParams?.get('redirectTo'),
+        '/sistema'
+    );
     const [isLoading, setIsLoading] = useState(false);
 
     const handleGoogleLogin = async () => {

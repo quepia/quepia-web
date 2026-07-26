@@ -27,7 +27,7 @@ export function testConfig(
       "2025-06-18",
       "2025-03-26",
     ]),
-    oauthScopes: ["openid", "profile", "email"],
+    oauthScopes: ["openid"],
     requestBodyLimitBytes: 65_536,
     requestTimeoutMs: 5_000,
     databaseTimeoutMs: 1_000,

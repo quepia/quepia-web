@@ -1,5 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+    isDirectFirstPartySessionClaims,
+    isFirstPartyProtectedPath,
+} from '@/lib/mcp/session-boundary';
 
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
@@ -52,10 +56,31 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
     }
 
-    // Refresh session
+    // Refresh and verify the direct first-party session. Supabase OAuth access
+    // tokens are valid user JWTs too, so privileged web/API routes must reject
+    // any session that carries client_id even when getUser() succeeds.
+    const { data: claimsData } = await supabase.auth.getClaims();
     const {
         data: { user },
     } = await supabase.auth.getUser();
+
+    if (
+        user &&
+        isFirstPartyProtectedPath(request.nextUrl.pathname) &&
+        !isDirectFirstPartySessionClaims(claimsData?.claims)
+    ) {
+        return NextResponse.json(
+            { error: 'OAuth client tokens are not valid web sessions' },
+            {
+                status: 403,
+                headers: {
+                    'Cache-Control': 'no-store',
+                    'Referrer-Policy': 'no-referrer',
+                    'X-Content-Type-Options': 'nosniff',
+                },
+            }
+        );
+    }
 
     // Protect /admin and /sistema routes
     if (request.nextUrl.pathname.startsWith('/admin') || request.nextUrl.pathname.startsWith('/sistema')) {

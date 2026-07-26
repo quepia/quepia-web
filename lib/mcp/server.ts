@@ -16,6 +16,7 @@ import {
   mapSupabaseMcpError,
   McpWebError,
 } from "@/lib/mcp/errors"
+import { isDirectFirstPartySessionClaims } from "@/lib/mcp/session-boundary"
 
 type SistemaServerClient = Awaited<ReturnType<typeof createClient>>
 export type McpAuthenticatorLevel = "aal1" | "aal2" | null
@@ -38,6 +39,19 @@ export async function getMcpWebSession(): Promise<McpWebSession> {
       "UNAUTHENTICATED",
       "Necesitás iniciar sesión.",
       401,
+    )
+  }
+
+  const { data: claimsData, error: claimsError } =
+    await supabase.auth.getClaims()
+  if (
+    claimsError ||
+    !isDirectFirstPartySessionClaims(claimsData?.claims)
+  ) {
+    throw new McpWebError(
+      "FORBIDDEN",
+      "Los tokens de clientes OAuth no son sesiones web válidas.",
+      403,
     )
   }
 

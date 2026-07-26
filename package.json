@@ -16,7 +16,7 @@
     "mcp:verify": "node scripts/verify-mcp-boundaries.mjs",
     "mcp:sql:verify": "node scripts/verify-mcp-sql-syntax.mjs",
     "mcp:test": "npm --prefix services/mcp test",
-    "mcp:build": "npm --prefix services/mcp run build",
+    "mcp:build": "npm --prefix services/mcp run compile",
     "mcp:web:test": "node --test lib/mcp/*.test.mjs",
     "ai:vertex:test": "node --env-file=.env.local scripts/test-vertex-ai.mjs",
     "accounting:verify": "node scripts/verify-accounting-integrity.mjs",

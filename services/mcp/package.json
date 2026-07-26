@@ -7,12 +7,14 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "tsx --env-file-if-exists=.env watch src/index.ts",
-    "start": "node --env-file-if-exists=.env dist/index.js",
-    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx --env-file-if-exists=.env watch src/local.ts",
+    "start": "node --env-file-if-exists=.env dist/local.js",
+    "compile": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "vercel:dev": "npx --yes vercel@57.0.0 dev",
+    "vercel:build": "npx --yes vercel@57.0.0 build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

@@ -4,10 +4,17 @@ on:
   pull_request:
     paths:
       - "services/mcp/**"
+      - "app/oauth/**"
+      - "app/api/oauth/**"
+      - "app/auth/mfa/**"
+      - "app/auth/login/**"
+      - "app/auth/callback/**"
       - "app/sistema/mcp/**"
       - "app/api/mcp/**"
       - "components/sistema/mcp/**"
       - "lib/mcp/**"
+      - "lib/supabase/middleware.ts"
+      - "middleware.ts"
       - "supabase/migrations/**"
       - "supabase/tests/**"
       - "scripts/verify-mcp-boundaries.mjs"
@@ -17,6 +24,9 @@ on:
       - "MCP_IMPLEMENTATION_PROMPT.md"
       - "package.json"
       - "package-lock.json"
+      - "pnpm-lock.yaml"
+      - "tsconfig.json"
+      - "next.config.*"
       - ".github/workflows/mcp-ci.yml"
   push:
     branches:
@@ -24,10 +34,17 @@ on:
       - "codex/**"
     paths:
       - "services/mcp/**"
+      - "app/oauth/**"
+      - "app/api/oauth/**"
+      - "app/auth/mfa/**"
+      - "app/auth/login/**"
+      - "app/auth/callback/**"
       - "app/sistema/mcp/**"
       - "app/api/mcp/**"
       - "components/sistema/mcp/**"
       - "lib/mcp/**"
+      - "lib/supabase/middleware.ts"
+      - "middleware.ts"
       - "supabase/migrations/**"
       - "supabase/tests/**"
       - "scripts/verify-mcp-boundaries.mjs"
@@ -37,6 +54,9 @@ on:
       - "MCP_IMPLEMENTATION_PROMPT.md"
       - "package.json"
       - "package-lock.json"
+      - "pnpm-lock.yaml"
+      - "tsconfig.json"
+      - "next.config.*"
       - ".github/workflows/mcp-ci.yml"
 
 permissions:
@@ -80,9 +100,16 @@ jobs:
         run: >
           npx eslint
           app/api/mcp
+          app/api/oauth
+          app/auth/callback
+          app/auth/login
+          app/auth/mfa
+          app/oauth
           app/sistema/mcp
           components/sistema/mcp
           lib/mcp
+          lib/supabase/middleware.ts
+          middleware.ts
           scripts/verify-mcp-boundaries.mjs
           scripts/verify-mcp-sql-syntax.mjs
           --max-warnings=0
@@ -105,7 +132,7 @@ jobs:
         working-directory: services/mcp
 
       - name: Build MCP service
-        run: npm run build
+        run: npm run compile
         working-directory: services/mcp
 
       - name: Audit MCP production dependencies

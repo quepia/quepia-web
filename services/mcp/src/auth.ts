@@ -15,6 +15,7 @@ const claimsSchema = z.object({
   client_id: z.string().min(1).max(512),
   session_id: z.uuid(),
   aal: z.enum(["aal1", "aal2"]),
+  role: z.literal("mcp_authenticated"),
 });
 
 export type TokenVerifier = (token: string) => Promise<AuthIdentity>;
@@ -57,6 +58,7 @@ export function createTokenVerifier(
           "session_id",
           "aal",
           "aud",
+          "role",
         ],
         clockTolerance: 5,
       });

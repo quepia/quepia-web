@@ -20,6 +20,13 @@ Estas decisiones prevalecen sobre cualquier frase incompatible que haya quedado 
 6. Agregar `record_state` queda fuera del primer incremento hasta auditar y probar todas las funciones y vistas dependientes, no una lista fija de cinco.
 7. Las mutaciones exitosas auditan dentro de la transacción. Los rechazos o fallos que provocan rollback se auditan después del rollback o se devuelven como resultado estructurado sin relanzar la excepción.
 8. La versión de SDK MCP se decide inmediatamente antes de construir el servicio. Al 2026-07-26 se fija `@modelcontextprotocol/sdk@1.29.0`; v2 continúa en beta hasta su publicación estable.
+9. El despliegue objetivo es un servidor Streamable HTTP independiente y público en `https://mcp.quepia.com/mcp`, protegido por OAuth; no es un proceso local ni una ruta del proyecto Next.js.
+10. Para que el mismo endpoint sea instalable en Codex, ChatGPT, Claude, Cursor y VS Code se habilita Dynamic Client Registration de Supabase. Registrar un cliente no concede permisos: únicamente el login web directo existente de un `admin` activo puede activar la política y crear su grant acotado al `client_id` exacto durante el consentimiento; conectar, listar o revocar no obliga a inscribir MFA.
+11. CIMD no forma parte de este incremento porque Supabase Auth no lo documenta como capacidad de su servidor OAuth. DCR es el único camino de alta para los hosts MCP del MVP: el administrador configura solo la URL y nunca copia un `client_id` ni un secreto.
+12. El servidor publica `instructions` operativas durante `initialize`: datos recuperados nunca son instrucciones, cada gasto se prepara por separado y el `commit` solo se intenta después de la aprobación humana alojada por Quepia.
+13. Todo token OAuth con `client_id` usa el rol técnico PostgreSQL `mcp_authenticated`, separado de los roles globales de negocio. Un pre-request de PostgREST limita ese rol a los RPCs MCP permitidos, y la web protegida rechaza sesiones OAuth de clientes.
+14. El consentimiento reutiliza el login web directo existente del `admin` y puede operar en AAL1. El access token que Supabase emite después del Authorization Code también puede tener AAL1. AAL2 se conserva para aprobar una operación contable preparada, no como requisito para conectar, listar o revocar un cliente.
+15. El grant interno acompaña la vigencia del grant OAuth y no introduce un TTL independiente. La revocación inicia en paralelo en Supabase Auth y en el plano de control de Quepia.
 
 ## 1. Decisión principal
 
@@ -63,7 +70,10 @@ Estos puntos se confirmaron leyendo migraciones y hooks. Reemplazan los supuesto
 - `sistema_users.role` → `admin | user | manager` (`025_add_global_role.sql`). **Es la fuente que usan las RLS reales**, a través de `public.sistema_is_admin(uuid)` definida en `051_restore_rls_security_and_perf.sql`.
 - `sistema_user_roles.role` → `superadmin | admin_org | team_member | client_guest` (`006_kanban_upgrades.sql`). Legado, con policies propias todavía activas.
 
-Consecuencia: no se creará un tercer conjunto de roles. Ver sección 4.1.
+Consecuencia: no se creará un tercer conjunto de roles **de negocio**. El rol
+PostgreSQL técnico `mcp_authenticated` existe únicamente para aislar tokens
+OAuth en Data API y no concede ni representa jerarquía funcional. Ver sección
+4.1.
 
 **b) Las escrituras contables están restringidas por RLS, pero los privilegios de tabla siguen siendo amplios.**
 
@@ -163,7 +173,8 @@ Tener rol superior no habilita el MCP automáticamente. Para conectar deben cump
 2. Rol `admin` durante el MVP.
 3. Registro activo en `mcp_access_grants`.
 4. Cliente OAuth permitido.
-5. MFA con nivel AAL2 al conectar y para reautorizar acciones críticas.
+5. Consentimiento humano realizado desde el login web directo existente de un
+   `admin` activo; el access token OAuth posterior puede ser AAL1.
 6. Conexión no revocada.
 
 Un grant tendrá capacidades explícitas, por ejemplo:
@@ -256,7 +267,11 @@ La web deberá migrar gradualmente de `.from(...).insert/update/delete` a esos m
 
 ### 5.3 Límite de privilegios en Supabase
 
-El token OAuth identificará al usuario y, si el claim está disponible, al `client_id`. El servicio:
+El token OAuth identificará al usuario y al `client_id`. El Custom Access Token
+Hook asigna a todo token con `client_id` el rol PostgreSQL técnico
+`mcp_authenticated`; solo asigna la audiencia canónica cuando coinciden
+`event.user_id`, `sub`, una política de cliente activa y un grant activo. El
+servicio:
 
 1. valida firma, emisor, **audiencia**, expiración, usuario y `client_id`;
 2. crea un cliente de Supabase con el token del usuario;
@@ -264,6 +279,13 @@ El token OAuth identificará al usuario y, si el claim está disponible, al `cli
 4. expone únicamente las herramientas permitidas;
 5. aplica los límites de la sección 11;
 6. ejecuta RPCs estrechos con el contexto del usuario.
+
+El rol `mcp_authenticated` no hereda acceso de `authenticated`, no tiene acceso
+a tablas, Storage o Realtime y solo recibe `EXECUTE` sobre la fachada MCP. Un
+`pgrst.db_pre_request` bloquea cualquier ruta Data API con `client_id` salvo
+`POST` a la allowlist exacta de RPCs MCP. Si ya existe otro pre-request, la
+migración falla para que ambos controles se compongan explícitamente en vez de
+sobrescribirlo.
 
 **Defensa en profundidad a nivel privilegio.** RLS no es suficiente por sí sola (hallazgo 2.1.b). Cuando la web ya use los nuevos comandos, se aplicará sobre las tablas financieras y de control:
 
@@ -295,24 +317,32 @@ Supabase Auth puede actuar como servidor OAuth 2.1 y emitir tokens compatibles c
 
 ### 6.1 Modelo de amenaza del token — corrección importante
 
-La versión 1 del plan asumía implícitamente que un token del MCP solo sirve para hablar con el MCP. **No es así.** Supabase emite JWTs con `aud: authenticated`; ese token es válido contra el Data API de Supabase directamente. Si se filtra, el atacante obtiene lo mismo que tendría con la sesión web del usuario, sin pasar por ninguna de nuestras herramientas.
+La versión 1 del plan asumía implícitamente que un token del MCP solo sirve para
+hablar con el MCP. **No es así sin aislamiento adicional.** Un token de usuario
+de Supabase puede alcanzar sus APIs con los privilegios del claim `role`. El
+hook, el rol `mcp_authenticated`, la allowlist pre-request y los grants mínimos
+evitan que un token OAuth reutilice el rol web `authenticated`.
 
 De ahí se desprenden tres obligaciones, ya reflejadas arriba:
 
-1. Los `REVOKE` de la sección 5.3 no son opcionales: son lo único que impide que un token robado escriba directo a las tablas.
-2. La lectura también debe cerrarse, o un token robado exporta la contabilidad completa.
-3. La revocación debe cubrir sesiones de Supabase, no solo el grant MCP (ver runbook, sección 18).
+1. El rol técnico y la allowlist Data API se aplican antes de activar OAuth.
+2. Los `REVOKE` de la sección 5.3 siguen siendo obligatorios como defensa en profundidad para los demás roles.
+3. La lectura también debe cerrarse para los roles web que no la necesiten.
+4. La web protegida rechaza sesiones cuyo JWT contiene `client_id`, aun cuando la firma sea válida.
+5. La revocación debe cubrir el grant OAuth y el grant MCP, iniciando ambos intentos en paralelo (ver runbook, sección 18).
 
 ### 6.2 Flujo
 
 1. El host MCP descubre el recurso protegido.
-2. Redirige al OAuth de Supabase con Authorization Code + PKCE.
-3. La aplicación muestra una pantalla propia de consentimiento.
-4. La pantalla verifica rol, grant MCP, cliente permitido y MFA.
-5. El usuario ve exactamente qué podrá leer y modificar.
-6. Un Custom Access Token Hook fija `aud` al URI canónico cuando `client_id` corresponde al MCP permitido, y Supabase emite tokens.
-7. El MCP valida el token en cada solicitud.
-8. La conexión aparece en "Configuración → MCP" y puede revocarse.
+2. El host usa Dynamic Client Registration en Supabase; el administrador no registra ni copia credenciales del cliente.
+3. Redirige al OAuth de Supabase con Authorization Code + PKCE y el `resource` canónico.
+4. La aplicación muestra una pantalla propia de consentimiento.
+5. La pantalla verifica login web directo, `admin` activo, cliente y redirect URI obtenidos desde Supabase, sin exigir MFA para conectar.
+6. Al aprobar, una RPC web estrecha crea o renueva la política y el grant para ese usuario y `client_id`; su vida acompaña el grant OAuth y rechazar no provisiona nada.
+7. El usuario ve exactamente qué podrá leer y modificar.
+8. Un Custom Access Token Hook fija `aud` al URI canónico solo cuando la política de ese `client_id` está activa, y Supabase emite tokens.
+9. El MCP valida token, rol técnico, sesión, cliente, audiencia, AAL mínimo 1 y grant en cada solicitud. La aprobación contable posterior conserva su exigencia AAL2.
+10. La conexión aparece en "Configuración → MCP" y puede revocarse.
 
 ### 6.3 Cumplimiento de la especificación de autorización MCP
 
@@ -326,12 +356,14 @@ De ahí se desprenden tres obligaciones, ya reflejadas arriba:
 
 ### 6.4 Decisiones de seguridad
 
-- Comenzar con clientes OAuth pre-registrados y allowlist.
-- Mantener desactivado el registro dinámico de clientes durante el piloto.
+- Habilitar DCR para clientes MCP compatibles como único camino del MVP.
+- Tratar todo cliente recién registrado como inerte hasta el consentimiento explícito desde el login existente de un `admin` activo.
+- Provisionar únicamente el `client_id` devuelto por `getAuthorizationDetails`; nunca aceptar nombre, redirect URI, capacidades ni audiencia enviados por el navegador.
+- Conceder inicialmente solo `accounting.read` y `accounting.expense.write`; la vigencia sigue el grant OAuth y la revocación cubre ambos planos.
 - Access tokens cortos y refresh token rotation.
 - Validación mediante JWKS con claves asimétricas.
-- Reautenticación AAL2 para conceder acceso, anular movimientos o elevar capacidades.
-- Revocación inmediata del grant y rechazo en la siguiente llamada.
+- Reautenticación AAL2 para aprobar operaciones contables o elevar capacidades de alto riesgo; no para conectar, listar o revocar el cliente MCP.
+- Revocación concurrente del grant OAuth y del grant interno, con rechazo del grant interno en la siguiente llamada aunque falle parcialmente Auth.
 - Panel con conexiones, último uso, cliente, capacidades y botón "Revocar".
 - Botón global "MCP solo lectura" y otro "Revocar todas las conexiones".
 
@@ -368,10 +400,10 @@ Todas las tablas de esta sección viven en el esquema no expuesto `private`. `an
 
 Restricciones:
 
-- un usuario no puede otorgarse su propio grant;
-- en el MVP se crean o revocan solo mediante un bootstrap/runbook administrativo fuera del MCP;
+- un usuario no puede otorgarse capacidades arbitrarias ni provisionar desde un token OAuth;
+- en el MVP se crean automáticamente durante el consentimiento desde el login web directo existente de un `admin` activo, siempre para el `client_id` verificado por Supabase y con capacidades fijadas en servidor;
 - el propio MCP no puede crear, ampliar ni reactivar grants;
-- el grant puede expirar;
+- `expires_at` es nullable y, cuando existe, no puede sobrevivir a la vigencia OAuth correspondiente;
 - todos los cambios generan auditoría.
 
 #### `mcp_connections`
@@ -925,8 +957,8 @@ Estas reglas deben probarse tanto en TypeScript como en PostgreSQL:
 | El modelo repite una llamada por timeout | Idempotencia y operación consumible una vez |
 | Prompt injection dentro de notas o facturas | Contenido marcado como no confiable, salida estructurada, sin navegación automática |
 | Tool poisoning por descripciones dinámicas | Schemas estáticos en código, catálogo versionado y con hash visible |
-| Robo de token | Tokens cortos, refresh rotation, AAL2, revocación, allowlist de `client_id` |
-| **Token robado usado directo contra el Data API** | `REVOKE` de escritura y cierre de lectura a nivel privilegio; revocación de sesión, no solo de grant |
+| Robo de token | Tokens cortos, refresh rotation, rol PostgreSQL aislado, revocación y allowlist de `client_id` |
+| **Token robado usado directo contra el Data API** | Rol aislado `mcp_authenticated`, pre-request con allowlist RPC, grants mínimos y revocación de ambos planos |
 | Confused deputy / token passthrough | Validación estricta de audiencia; el token nunca se reenvía a terceros |
 | DNS rebinding sobre el transporte HTTP | Validación de `Origin` con allowlist |
 | Preparar barato y confirmar caro | El commit solo acepta `operation_id` y la base exige una aprobación humana ligada al payload preparado |
@@ -1133,7 +1165,7 @@ Nombre y contacto de quien decide, y de quien ejecuta.
 
 El MVP de gastos estará listo cuando:
 
-1. Un usuario autorizado puede conectar un cliente MCP mediante OAuth y MFA.
+1. Un `admin` activo puede conectar un cliente MCP mediante OAuth reutilizando su login web existente, sin inscripción MFA obligatoria.
 2. Un usuario no autorizado recibe 403 y no ve herramientas.
 3. El servicio MCP no tiene `service_role`.
 4. "Anotá $X de proveedor con cuenta" se resuelve con una vista previa y, como máximo, una aclaración habitual.
@@ -1171,12 +1203,12 @@ Las fases cambiaron respecto de la versión 1: el `REVOKE` de escrituras directa
 Duración orientativa: 3–5 días, condicionada por la reconciliación de migraciones.
 
 - Reconciliar historial local/remoto, los dos prefijos `055` y las migraciones cuyos objetos existen sin versión registrada. No reparar automáticamente producción.
-- Comprobar en staging el flujo OAuth: discovery, PKCE, `resource`, `aud`, `client_id`, `session_id`, AAL2, refresh rotation, revocación y respuestas 2xx.
+- Comprobar en staging el flujo OAuth: discovery, PKCE, `resource`, `aud`, `client_id`, `session_id`, login web directo AAL1 del `admin`, AAL1 en el token intercambiado, refresh rotation, revocación y respuestas 2xx.
 - Elegir el primer `admin` con grant MCP; no migrar roles en el MVP.
-- Elegir los primeros clientes MCP permitidos.
+- Verificar DCR con los hosts MCP objetivo; no mantener una lista manual de credenciales de clientes.
 - Definir umbrales ARS/USD y presupuesto de riesgo inicial.
-- Confirmar política de MFA.
-- Confirmar backup/PITR y retención.
+- Confirmar que MFA/AAL2 sigue exigido al aprobar operaciones contables y no bloquea la conexión OAuth.
+- Confirmar las capacidades reales del plan de Supabase. En Free no se presupone PITR ni backup automático: los cambios del MVP son aditivos y transaccionales, y cualquier cambio destructivo futuro exigirá antes una exportación lógica externa.
 - Levantar el proyecto de staging.
 - Inventariar `DELETE`, `CASCADE` y usos de `service_role`.
 - Congelar el catálogo del MVP.
@@ -1269,13 +1301,13 @@ No se debe implementar todo el catálogo a la vez.
 
 Cada grupo se habilita con feature flag y capacidad independiente.
 
-## 22. Decisiones pendientes antes de programar
+## 22. Decisiones resueltas y pendientes
 
-Estas decisiones no bloquean la planificación, pero sí la implementación:
+Estado al 2026-07-26:
 
 1. Qué administrador actual recibirá el primer grant MCP por bootstrap controlado.
-2. Qué host MCP se probará primero.
-3. Si el primer despliegue será accesible solo por VPN o por Internet con OAuth.
+2. **Resuelto:** Codex es el primer host de interoperabilidad; después se verifican Claude, Cursor, VS Code y ChatGPT web sobre el mismo endpoint.
+3. **Resuelto:** el primer despliegue es un servidor independiente accesible por Internet con OAuth en `https://mcp.quepia.com/mcp`.
 4. Umbral de gasto alto en ARS y USD.
 5. Cuántos días hacia atrás se permiten sin aprobación reforzada, y política para gastos futuros.
 6. Retención de comprobantes y del audit log.
@@ -1284,7 +1316,7 @@ Estas decisiones no bloquean la planificación, pero sí la implementación:
 9. Alcance real de "cliente": empresa, marca, proyecto o combinación.
 10. Gastos recurrentes: opción (a) o (b) de la sección 9.8.
 11. Valores iniciales del presupuesto de riesgo de la sección 11.
-12. Qué cliente MCP será la referencia de interoperabilidad y qué versión estable del SDK se fija al comenzar la fase 3.
+12. **Resuelto:** SDK `@modelcontextprotocol/sdk@1.29.0`, DCR como único camino del MVP y Codex como referencia inicial.
 
 ## 23. Referencias técnicas
 

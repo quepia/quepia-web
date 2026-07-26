@@ -27,6 +27,7 @@ Mapa de lectura por si necesitás volver:
 | Qué hay realmente en el código hoy (verificado) | §2.1 |
 | Roles: compatibilidad y por qué no migrarlos en el MVP | §4.1 |
 | Claims OAuth y matriz de interoperabilidad | §4.2 y §6 |
+| Servidor remoto independiente, DCR y consentimiento con login admin existente | enmienda v3, §5.1 y §6.2–§6.4 |
 | Por qué RLS sola no alcanza y qué hay que `REVOKE` | §5.3 y §6.1 |
 | Requisitos de la spec de autorización MCP | §6.3 |
 | Tablas nuevas, idempotencia, audit log append-only | §7.1 |
@@ -55,13 +56,17 @@ Mapa de lectura por si necesitás volver:
 7. **Tests junto con el código, no después.** Cada fase entrega sus tests. Un invariante de §13 sin test no cuenta como implementado.
 8. **No resuelvas en silencio las decisiones de §22.** Si una te bloquea, preguntámela.
 9. **Reportá lo que no hiciste.** Si algo queda fuera, decilo explícitamente en el resumen de la fase en vez de dejarlo implícito.
+10. **El objetivo es remoto, no local.** El entregable instalable usa Streamable HTTP en `https://mcp.quepia.com/mcp`. Una prueba local puede complementar CI, pero no satisface interoperabilidad ni reemplaza la prueba OAuth remota.
+11. **DCR no equivale a autorización.** Un cliente dinámicamente registrado queda sin acceso de negocio hasta que Supabase devuelva su `client_id` en una solicitud válida y el login web directo existente de un `admin` activo apruebe el consentimiento. Conectar, listar o revocar no exige inscripción MFA. El MCP nunca puede provisionarse a sí mismo.
+12. **Aislá los tokens OAuth de la sesión web.** Todo JWT con `client_id` usa el rol técnico `mcp_authenticated`; no hereda los privilegios de `authenticated`. Un `pgrst.db_pre_request` solo permite los RPCs MCP exactos y las rutas protegidas de Next.js rechazan sesiones de cliente. Tanto el login de consentimiento como el access token pueden ser AAL1; AAL2 se conserva para aprobar operaciones contables preparadas.
+13. **Revocá ambos planos.** El grant interno sigue la vida del grant OAuth. Al revocar, iniciá en paralelo Auth y base de datos, conservá resultados parciales e impedí que un fallo o timeout de un plano evite intentar el otro.
 
 ### 3. Arranque — Fase 0
 
 Empezá por la **Fase 0** de §20 y no avances sin mi confirmación. Concretamente:
 
 1. **Reconciliá migraciones antes de diseñar tablas.** Compará historia local/remota y esquema real; detectá los dos `055_*` y objetos aplicados fuera del historial. No ejecutes `migration repair` ni cambios remotos sin autorización explícita.
-2. **Probá OAuth en staging**, no solo un claim: discovery, PKCE, `resource` en authorization/token, `aud` canónico mediante Custom Access Token Hook, `client_id`, `session_id`, AAL2, refresh rotation, revocación y respuesta 2xx.
+2. **Probá OAuth en staging**, no solo un claim: discovery, DCR, PKCE, `resource` en authorization/token, `aud` y rol técnico mediante Custom Access Token Hook, `client_id`, `session_id`, login web directo AAL1 del `admin`, AAL1 en el access token intercambiado, refresh rotation, revocación y respuesta 2xx. El administrador configura solo la URL del MCP; no copia un `client_id` ni un secreto. Verificá por separado que aprobar una operación contable sigue exigiendo AAL2.
 3. **Inventariá y traeme tres listas:**
    - todos los `.delete()` sobre tablas núcleo en `lib/sistema/hooks/**` y `components/**`;
    - todas las foreign keys `ON DELETE CASCADE` sobre entidades principales;

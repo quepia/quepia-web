@@ -52,7 +52,8 @@ function metadata(config: AppConfig): object {
 
 function bearerChallenge(
   config: AppConfig,
-  errorCode?: string,
+  status?: number,
+  internalCode?: string,
 ): string {
   const parameters = [
     `resource_metadata="${config.resourceMetadataUri}"`,
@@ -60,8 +61,10 @@ function bearerChallenge(
   if (config.oauthScopes.length > 0) {
     parameters.push(`scope="${config.oauthScopes.join(" ")}"`);
   }
-  if (errorCode) {
-    parameters.push(`error="${errorCode}"`);
+  if (status === 401 && internalCode !== "missing_token") {
+    parameters.push('error="invalid_token"');
+  } else if (status === 403) {
+    parameters.push('error="insufficient_scope"');
   }
   return `Bearer ${parameters.join(", ")}`;
 }
@@ -330,10 +333,13 @@ export function createApp(dependencies: AppDependencies): express.Express {
       error instanceof HttpError
         ? error
         : new HttpError(500, "internal_error", "Internal server error");
-    if (httpError.status === 401 || httpError.status === 403) {
+    const isBearerAuthFailure =
+      httpError.status === 401 ||
+      (httpError.status === 403 && httpError.code !== "invalid_origin");
+    if (isBearerAuthFailure) {
       response.setHeader(
         "WWW-Authenticate",
-        bearerChallenge(config, httpError.code),
+        bearerChallenge(config, httpError.status, httpError.code),
       );
     }
     if (httpError.status >= 500) {

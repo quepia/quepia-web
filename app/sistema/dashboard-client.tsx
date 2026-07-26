@@ -292,7 +292,11 @@ function formatLocalDateKey(date: Date) {
     return `${year}-${month}-${day}`
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({
+    showMcpSetup = false,
+}: {
+    showMcpSetup?: boolean
+}) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const initialProjectId = searchParams.get("project")
@@ -912,6 +916,7 @@ export default function DashboardPage() {
                         projects={projects}
                         mostVisitedProjectId={mostVisitedProjectId}
                         userRole={sistemaUser?.role}
+                        showMcpSetup={showMcpSetup}
                     />
                 )
         }
@@ -939,6 +944,7 @@ export default function DashboardPage() {
         sistemaUser?.role,
         sistemaUsers,
         sistemaUsersLoading,
+        showMcpSetup,
         user?.id,
         workloadUsers,
     ])

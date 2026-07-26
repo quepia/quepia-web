@@ -31,6 +31,7 @@ async function token(
     client_id: "test-client",
     session_id: sessionId,
     aal: "aal1",
+    role: "mcp_authenticated",
   })
     .setProtectedHeader({ alg: "ES256", kid: "test-key" })
     .setIssuer("https://project.supabase.co/auth/v1")
@@ -92,6 +93,29 @@ describe("Supabase OAuth JWT verification", () => {
     await expect(
       verifier(await token(attacker.privateKey)),
     ).rejects.toMatchObject({
+      status: 401,
+      code: "invalid_token",
+    });
+  });
+
+  it("rejects a valid user token that does not use the isolated MCP role", async () => {
+    const keys = await keyMaterial();
+    const verifier = createTokenVerifier(testConfig(), keys.resolver);
+    const ordinaryUserToken = await new SignJWT({
+      client_id: "test-client",
+      session_id: sessionId,
+      aal: "aal1",
+      role: "authenticated",
+    })
+      .setProtectedHeader({ alg: "ES256", kid: "test-key" })
+      .setIssuer("https://project.supabase.co/auth/v1")
+      .setAudience("https://mcp.quepia.test/mcp")
+      .setSubject(subject)
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(keys.privateKey);
+
+    await expect(verifier(ordinaryUserToken)).rejects.toMatchObject({
       status: 401,
       code: "invalid_token",
     });

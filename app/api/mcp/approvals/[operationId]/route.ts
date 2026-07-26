@@ -197,7 +197,7 @@ export async function POST(
       return errorResponse(error)
     }
 
-    console.error("[MCP approval] Unexpected error", error)
+    console.error("[MCP approval] Unexpected internal error")
     return errorResponse(
       new McpWebError(
         "INTERNAL_ERROR",

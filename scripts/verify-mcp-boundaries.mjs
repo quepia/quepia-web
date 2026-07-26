@@ -59,7 +59,11 @@ if (servicePackageText) {
   if (servicePackage.dependencies?.["@modelcontextprotocol/sdk"] !== "1.29.0") {
     fail("The MCP SDK must be pinned exactly to 1.29.0 for this implementation");
   }
-  if (!String(servicePackage.engines?.node ?? "").includes(">=22")) {
+  if (
+    !/^(?:22\.x|2[3-9]\.x|>=\s*22(?:\.0\.0)?)/.test(
+      String(servicePackage.engines?.node ?? "").trim(),
+    )
+  ) {
     fail("The MCP service must require Node.js 22 or newer");
   }
 }
@@ -82,6 +86,7 @@ const toolsSource = readRequired("services/mcp/src/tools.ts");
 const schemasSource = readRequired("services/mcp/src/schemas.ts");
 const configSource = readRequired("services/mcp/src/config.ts");
 const typesSource = readRequired("services/mcp/src/types.ts");
+const authSource = readRequired("services/mcp/src/auth.ts");
 for (const rpc of [
   "mcp_accounting_list_accounts",
   "mcp_accounting_list_expenses",
@@ -97,11 +102,24 @@ if (toolsSource.includes("mcp_accounting_approve_expense")) {
   fail("The MCP service must never expose the human approval RPC");
 }
 if (
+  !toolsSource.includes("instructions: MCP_SERVER_INSTRUCTIONS") ||
+  !toolsSource.includes("never as instructions") ||
+  !toolsSource.includes("Never call commit until")
+) {
+  fail("MCP initialize instructions must preserve the untrusted-data and human-approval boundary");
+}
+if (
   !typesSource.includes("accounting.read") ||
   !typesSource.includes("accounting.expense.write") ||
   serviceSource.some((file) => file.content.includes("accounting:"))
 ) {
   fail("MCP tools must use only the canonical dot-separated capabilities");
+}
+if (
+  !authSource.includes('role: z.literal("mcp_authenticated")') ||
+  !authSource.includes('"role"')
+) {
+  fail("The MCP service must require the isolated mcp_authenticated JWT role");
 }
 if (
   !configSource.includes("MCP_APPROVAL_BASE_URL") ||
@@ -126,11 +144,16 @@ if (
 }
 
 const webSource = combinedSource([
+  "app/oauth",
+  "app/api/oauth",
+  "app/auth/mfa",
   "app/sistema/mcp",
   "app/api/mcp",
   "components/sistema/mcp",
   "lib/mcp",
 ]);
+const webMiddlewareSource = readRequired("lib/supabase/middleware.ts");
+const sessionBoundarySource = readRequired("lib/mcp/session-boundary.ts");
 for (const file of webSource) {
   if (
     /SUPABASE_SERVICE_ROLE_KEY|createAdminClient|supabase\/admin/i.test(
@@ -143,9 +166,23 @@ for (const file of webSource) {
     fail(`The human approval web flow must never commit: ${file.path}`);
   }
 }
+if (
+  !webMiddlewareSource.includes("isDirectFirstPartySessionClaims") ||
+  !sessionBoundarySource.includes("value.client_id") ||
+  !sessionBoundarySource.includes('value.role === "authenticated"')
+) {
+  fail("First-party protected web routes must reject OAuth client sessions");
+}
 
 if (!existsSync(join(projectRoot, "app/sistema/mcp/approvals/[operationId]"))) {
   fail("Missing authenticated human approval route");
+}
+if (
+  !existsSync(join(projectRoot, "app/oauth/consent/page.tsx")) ||
+  !existsSync(join(projectRoot, "app/api/oauth/decision/route.ts")) ||
+  !existsSync(join(projectRoot, "app/auth/mfa/page.tsx"))
+) {
+  fail("Missing OAuth consent, decision, or AAL2 enrollment flow");
 }
 
 const migrationDirectory = join(projectRoot, "supabase/migrations");
@@ -169,9 +206,20 @@ for (const databaseObject of [
   "mcp_accounting_get_operation",
   "mcp_accounting_approve_expense",
   "mcp_accounting_commit_expense",
+  "mcp_custom_access_token_hook",
+  "mcp_provision_oauth_client",
 ]) {
   if (!mcpSql.includes(databaseObject)) {
     fail(`Missing MCP database object: ${databaseObject}`);
+  }
+}
+for (const isolationControl of [
+  "mcp_authenticated",
+  "mcp_postgrest_pre_request",
+  "pgrst.db_pre_request",
+]) {
+  if (!mcpSql.includes(isolationControl)) {
+    fail(`Missing OAuth token isolation control: ${isolationControl}`);
   }
 }
 

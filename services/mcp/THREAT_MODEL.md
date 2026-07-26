@@ -52,8 +52,11 @@ business rule. In particular:
   `auth.sessions` row for the JWT `session_id`;
 - every domain RPC must repeat the relevant client/session/grant/capability and
   global kill-switch checks;
+- OAuth JWTs must use the isolated `mcp_authenticated` Postgres role;
+- every Data API request with `client_id` must be gated to the exact MCP RPC
+  allowlist, so public tables and unrelated RPCs are unreachable;
 - privileged functions must use a fixed `search_path`, revoke execute from
-  `PUBLIC`/`anon`, and grant only to the intended authenticated role;
+  `PUBLIC`/`anon`, and grant only to the intended web or MCP role;
 - RPC identity must come from verified JWT claims, never from `p_request`;
 - prepare must canonicalize and hash its immutable server payload;
 - human approval must be recorded server-side, with expiry and one-time use;

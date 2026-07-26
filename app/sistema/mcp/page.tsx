@@ -1,19 +1,29 @@
 import { redirect } from "next/navigation"
 import {
-  CircleDot,
-  KeyRound,
+  AlertTriangle,
+  CheckCircle2,
   Link2,
   LockKeyhole,
   UserRoundCheck,
 } from "lucide-react"
 import { McpShell } from "@/components/sistema/mcp/mcp-shell"
+import { OAuthLifecycleList } from "@/components/sistema/mcp/oauth-lifecycle-list"
 import { StatusCard } from "@/components/sistema/mcp/status-card"
 import { McpWebError } from "@/lib/mcp/errors"
+import { getMcpOAuthLifecycle } from "@/lib/mcp/oauth-server"
 import { getMcpWebSession } from "@/lib/mcp/server"
 
 export const dynamic = "force-dynamic"
 
-export default async function McpControlPage() {
+export default async function McpControlPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    status?: string | string[]
+    error?: string | string[]
+  }>
+}) {
+  const query = await searchParams
   let session: Awaited<ReturnType<typeof getMcpWebSession>>
   try {
     session = await getMcpWebSession()
@@ -24,56 +34,200 @@ export default async function McpControlPage() {
     throw error
   }
 
+  let lifecycle: Awaited<ReturnType<typeof getMcpOAuthLifecycle>>
+  try {
+    lifecycle = await getMcpOAuthLifecycle(session)
+  } catch (error) {
+    if (error instanceof McpWebError) {
+      if (error.code === "UNAUTHENTICATED") {
+        redirect("/auth/login?redirectTo=%2Fsistema%2Fmcp")
+      }
+
+      if (error.code === "FORBIDDEN") {
+        return (
+          <LifecycleError
+            title="Acceso denegado"
+            message="El RPC no reconoce esta sesión web como administradora global habilitada."
+          />
+        )
+      }
+
+      if (
+        error.code === "CONTROL_PLANE_UNAVAILABLE" ||
+        error.code === "INVALID_RESPONSE"
+      ) {
+        return (
+          <LifecycleError
+            title="Lifecycle no disponible"
+            message="No fue posible obtener el estado mediante mcp_list_oauth_clients. No se consultaron tablas privadas ni se mostró información simulada."
+          />
+        )
+      }
+
+      return (
+        <LifecycleError
+          title="Lifecycle no disponible"
+          message="El control plane no pudo validar esta sesión ni devolver un estado confiable."
+        />
+      )
+    }
+
+    throw error
+  }
+
+  const notice = lifecycleNotice(query.status, query.error)
+
   return (
     <McpShell
       eyebrow="Seguridad y conexiones"
       title="Control del acceso MCP"
       description="Este panel separa la sesión web humana del cliente MCP. No utiliza service_role y no concede permisos implícitos."
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      {notice ? (
+        <StatusCard
+          icon={notice.tone === "success" ? CheckCircle2 : AlertTriangle}
+          title={notice.title}
+          tone={notice.tone}
+        >
+          {notice.message}
+        </StatusCard>
+      ) : null}
+
+      <div className={`grid gap-4 md:grid-cols-2 ${notice ? "mt-4" : ""}`}>
         <StatusCard
           icon={UserRoundCheck}
           title="Sesión web verificada"
           tone="success"
         >
           <p className="break-all">{session.user.email ?? session.user.id}</p>
-          <p className="mt-1">Nivel actual: {session.aal ?? "no disponible"}</p>
+          <p className="mt-1">
+            Administrador global validado por RPC.
+          </p>
         </StatusCard>
 
-        <StatusCard icon={LockKeyhole} title="Aprobaciones separadas" tone="info">
-          El navegador solo puede aprobar una preparación vigente. Nunca ejecuta
-          el commit del gasto ni recibe el nonce de aprobación. El nonce existe
-          únicamente de forma efímera dentro del handler, entre dos llamadas a la
-          base.
-        </StatusCard>
-
-        <StatusCard icon={Link2} title="Conexiones MCP" tone="neutral">
-          La migración MVP no expone todavía un RPC web dedicado para listar o
-          revocar conexiones. Este panel no consulta tablas privadas directamente.
-        </StatusCard>
-
-        <StatusCard icon={KeyRound} title="Capacidades" tone="neutral">
-          El contexto del servicio se obtiene mediante{" "}
-          <code className="font-mono text-xs text-white/80">mcp_get_context</code>,
-          ligado al JWT OAuth. Una sesión web normal no suplanta ese contexto.
+        <StatusCard icon={Link2} title="Recurso protegido" tone="info">
+          <p className="break-all font-mono text-xs">
+            {lifecycle.resourceUri}
+          </p>
+          <p className="mt-1">
+            Clientes y grants se obtienen por RPC con tu sesión web directa.
+          </p>
         </StatusCard>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-5">
-        <div className="flex items-start gap-3">
-          <CircleDot className="mt-1 h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
-          <div>
-            <h2 className="text-sm font-semibold text-amber-100">
-              Estado honesto del MVP
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-amber-100/65">
-              El flujo de revisión humana está implementado. La administración de
-              grants, conexiones y el kill switch requiere un RPC web específico
-              antes de habilitar controles en esta pantalla.
-            </p>
-          </div>
-        </div>
-      </section>
+      <OAuthLifecycleList lifecycle={lifecycle} />
+
+      <StatusCard
+        icon={LockKeyhole}
+        title="Límite de visibilidad"
+        tone="neutral"
+      >
+        El RPC expone clientes y el grant propio, pero no enumera sesiones de
+        conexión individuales. Al revocar, la base sí marca las conexiones
+        activas del mismo usuario y cliente como revocadas.
+      </StatusCard>
     </McpShell>
   )
+}
+
+function LifecycleError({
+  title,
+  message,
+}: {
+  title: string
+  message: string
+}) {
+  return (
+    <McpShell
+      eyebrow="Seguridad y conexiones"
+      title="Control del acceso MCP"
+      description="El panel permanece cerrado si no puede obtener estado autorizado desde el control plane."
+    >
+      <StatusCard icon={AlertTriangle} title={title} tone="warning">
+        {message}
+      </StatusCard>
+    </McpShell>
+  )
+}
+
+function firstQueryValue(
+  value: string | string[] | undefined,
+): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function lifecycleNotice(
+  statusValue: string | string[] | undefined,
+  errorValue: string | string[] | undefined,
+): {
+  title: string
+  message: string
+  tone: "success" | "warning" | "danger"
+} | null {
+  const error = firstQueryValue(errorValue)
+  if (error === "forbidden") {
+    return {
+      title: "Revocación rechazada",
+      message: "Tu sesión no tiene permiso para administrar este grant.",
+      tone: "danger",
+    }
+  }
+  if (error === "control_plane_unavailable") {
+    return {
+      title: "Control plane no disponible",
+      message: "No se modificó ningún grant.",
+      tone: "warning",
+    }
+  }
+  if (error) {
+    return {
+      title: "No se pudo revocar",
+      message: "El acceso conserva el estado mostrado por el RPC.",
+      tone: "danger",
+    }
+  }
+
+  const status = firstQueryValue(statusValue)
+  if (status === "revoked") {
+    return {
+      title: "Acceso revocado",
+      message:
+        "Se revocó el grant MCP, se cortaron sus conexiones activas y Supabase Auth invalidó el grant OAuth.",
+      tone: "success",
+    }
+  }
+  if (status === "already_revoked") {
+    return {
+      title: "Acceso ya revocado",
+      message:
+        "No había un grant MCP activo y se invalidó cualquier grant OAuth restante.",
+      tone: "success",
+    }
+  }
+  if (status === "revoked_db_only") {
+    return {
+      title: "Kill switch MCP aplicado",
+      message:
+        "El grant y las conexiones MCP quedaron revocados, pero Supabase Auth no confirmó la invalidación de sus tokens OAuth. El hook ya no emitirá la audiencia MCP, por lo que esos tokens no obtienen acceso; reintentá la revocación para eliminar también consentimiento, sesiones y refresh tokens.",
+      tone: "warning",
+    }
+  }
+  if (status === "revoked_auth_only") {
+    return {
+      title: "OAuth revocado; falta confirmar MCP",
+      message:
+        "Supabase Auth revocó consentimiento, sesiones y refresh tokens, pero el RPC no confirmó el grant MCP. Las sesiones OAuth revocadas no pueden usar el servicio; reintentá para completar el kill switch y su auditoría DB.",
+      tone: "warning",
+    }
+  }
+  if (status === "revocation_failed") {
+    return {
+      title: "Revocación no confirmada",
+      message:
+        "Ni Supabase Auth ni el control plane confirmaron la revocación. El estado no se da por modificado: reintentá desde el mismo cliente.",
+      tone: "danger",
+    }
+  }
+
+  return null
 }
