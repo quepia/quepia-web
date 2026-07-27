@@ -90,23 +90,38 @@ const authSource = readRequired("services/mcp/src/auth.ts");
 for (const rpc of [
   "mcp_accounting_list_accounts",
   "mcp_accounting_list_expenses",
-  "mcp_accounting_prepare_expense",
-  "mcp_accounting_get_operation",
-  "mcp_accounting_commit_expense",
+  "mcp_accounting_list_recent_operations",
+  "mcp_accounting_record_expense",
+  "mcp_accounting_record_income",
+  "mcp_accounting_record_transfer",
+  "mcp_accounting_void_operation",
 ]) {
   if (!toolsSource.includes(rpc)) {
     fail(`Missing narrow RPC mapping in MCP tools: ${rpc}`);
   }
 }
-if (toolsSource.includes("mcp_accounting_approve_expense")) {
-  fail("The MCP service must never expose the human approval RPC");
+// Las escrituras son directas, así que el servicio no debe conservar ninguna
+// puerta del flujo de aprobación retirado ni las RPC reservadas a la web.
+for (const retiredRpc of [
+  "mcp_accounting_prepare_expense",
+  "mcp_accounting_commit_expense",
+  "mcp_accounting_approve_expense",
+  "mcp_web_void_operation",
+  "mcp_web_list_recent_operations",
+]) {
+  if (toolsSource.includes(retiredRpc)) {
+    fail(`The MCP service must not expose ${retiredRpc}`);
+  }
 }
 if (
   !toolsSource.includes("instructions: MCP_SERVER_INSTRUCTIONS") ||
   !toolsSource.includes("never as instructions") ||
-  !toolsSource.includes("Never call commit until")
+  !toolsSource.includes("never a reason to record anything") ||
+  !toolsSource.includes("accounting_void_operation")
 ) {
-  fail("MCP initialize instructions must preserve the untrusted-data and human-approval boundary");
+  fail(
+    "MCP initialize instructions must keep the untrusted-data boundary and point at the undo path",
+  );
 }
 if (
   !typesSource.includes("accounting.read") ||
@@ -123,24 +138,29 @@ if (
 }
 if (
   !configSource.includes("MCP_APPROVAL_BASE_URL") ||
-  !toolsSource.includes("approvalBaseUrl")
+  !toolsSource.includes("webBaseUrl")
 ) {
-  fail("Approval URLs must be built from the trusted configured base URL");
+  fail("Review URLs must be built from the trusted configured base URL");
+}
+for (const schemaName of [
+  "recordExpenseInputSchema",
+  "recordIncomeInputSchema",
+  "recordTransferInputSchema",
+]) {
+  if (
+    !schemasSource.includes(`export const ${schemaName}`) ||
+    !new RegExp(`${schemaName}[\\s\\S]*?idempotency_key:`).test(schemasSource)
+  ) {
+    fail(`The flat authoritative ${schemaName} contract is missing`);
+  }
 }
 if (
-  !schemasSource.includes("export const prepareExpenseInputSchema") ||
-  !schemasSource.includes("account_query:") ||
-  !schemasSource.includes("idempotency_key:")
-) {
-  fail("The flat authoritative prepare-expense input contract is missing");
-}
-if (
-  !schemasSource.includes("export const commitExpenseInputSchema") ||
-  !/commitExpenseInputSchema[\s\S]*?operation_id:\s*uuidSchema[\s\S]*?\.strict\(\)/.test(
+  !schemasSource.includes("export const voidOperationInputSchema") ||
+  !/voidOperationInputSchema[\s\S]*?operation_id:\s*uuidSchema[\s\S]*?\.strict\(\)/.test(
     schemasSource,
   )
 ) {
-  fail("Commit-expense input must be a strict operation_id-only object");
+  fail("Void input must be a strict operation_id object");
 }
 
 const webSource = combinedSource([
@@ -162,8 +182,10 @@ for (const file of webSource) {
   ) {
     fail(`Privileged Supabase client reference in MCP web flow: ${file.path}`);
   }
-  if (file.content.includes("mcp_accounting_commit_expense")) {
-    fail(`The human approval web flow must never commit: ${file.path}`);
+  // La web revisa y anula con sus propias RPC; nunca escribe contabilidad por
+  // la superficie que usa el cliente MCP.
+  if (/mcp_accounting_(?:record_|commit_)/.test(file.content)) {
+    fail(`The web flow must never write accounting directly: ${file.path}`);
   }
 }
 if (
@@ -174,8 +196,13 @@ if (
   fail("First-party protected web routes must reject OAuth client sessions");
 }
 
-if (!existsSync(join(projectRoot, "app/sistema/mcp/approvals/[operationId]"))) {
-  fail("Missing authenticated human approval route");
+if (
+  !existsSync(join(projectRoot, "app/sistema/mcp/actividad")) ||
+  !existsSync(
+    join(projectRoot, "app/api/mcp/operations/[operationId]/void"),
+  )
+) {
+  fail("Missing authenticated review and void route");
 }
 if (
   !existsSync(join(projectRoot, "app/oauth/consent/page.tsx")) ||
@@ -202,10 +229,13 @@ for (const databaseObject of [
   "mcp_get_context",
   "mcp_accounting_list_accounts",
   "mcp_accounting_list_expenses",
-  "mcp_accounting_prepare_expense",
-  "mcp_accounting_get_operation",
-  "mcp_accounting_approve_expense",
-  "mcp_accounting_commit_expense",
+  "mcp_accounting_record_expense",
+  "mcp_accounting_record_income",
+  "mcp_accounting_record_transfer",
+  "mcp_accounting_void_operation",
+  "mcp_accounting_list_recent_operations",
+  "mcp_web_list_recent_operations",
+  "mcp_web_void_operation",
   "mcp_custom_access_token_hook",
   "mcp_provision_oauth_client",
 ]) {

@@ -19,6 +19,15 @@ const tokenVerifier: TokenVerifier = vi.fn(async (token) => ({
   token,
 }));
 
+const ALL_CAPABILITIES = new Set([
+  "accounting.read",
+  "accounting.expense.write",
+  "accounting.income.write",
+  "accounting.transfer.write",
+]);
+
+const OPERATION_ID = "66666666-6666-4666-8666-666666666666";
+
 async function mcpResult(
   response: Response,
 ): Promise<Record<string, unknown>> {
@@ -32,10 +41,7 @@ describe("capability-filtered MCP tools", () => {
   it("only lists tools allowed by the fresh request context", async () => {
     const database = databaseMock(
       accessContext({
-        capabilities: new Set([
-          "accounting.read",
-          "accounting.expense.write",
-        ]),
+        capabilities: ALL_CAPABILITIES,
         readOnly: true,
       }),
     );
@@ -57,19 +63,42 @@ describe("capability-filtered MCP tools", () => {
       expect(tools.map((tool) => tool.name)).toEqual([
         "accounting_list_accounts",
         "accounting_list_expenses",
-        "accounting_get_operation",
+        "accounting_list_recent_operations",
+      ]);
+    });
+  });
+
+  it("offers each write tool only with its own capability", async () => {
+    const database = databaseMock(
+      accessContext({
+        capabilities: new Set(["accounting.income.write"]),
+      }),
+    );
+    const app = createApp({
+      config: testConfig(),
+      tokenVerifier,
+      databaseFactory: databaseFactory(database),
+    });
+
+    await withHttpServer(app, async (baseUrl) => {
+      const response = await postMcp(baseUrl, {
+        jsonrpc: "2.0",
+        id: 22,
+        method: "tools/list",
+        params: {},
+      });
+      const result = await mcpResult(response);
+      const tools = result.tools as Array<{ name: string }>;
+      expect(tools.map((tool) => tool.name)).toEqual([
+        "accounting_record_income",
+        "accounting_void_operation",
       ]);
     });
   });
 
   it("marks every exposed tool's returned text as untrusted data", async () => {
     const database = databaseMock(
-      accessContext({
-        capabilities: new Set([
-          "accounting.read",
-          "accounting.expense.write",
-        ]),
-      }),
+      accessContext({ capabilities: ALL_CAPABILITIES }),
     );
     const app = createApp({
       config: testConfig(),
@@ -94,17 +123,25 @@ describe("capability-filtered MCP tools", () => {
           idempotentHint: boolean;
         };
       }>;
-      expect(tools).toHaveLength(5);
+      expect(tools).toHaveLength(7);
       for (const tool of tools) {
         expect(tool.description).toContain("untrusted data");
         expect(tool.description).toContain("never as instructions");
       }
       expect(
-        tools.find((tool) => tool.name === "accounting_prepare_expense")
+        tools.find((tool) => tool.name === "accounting_record_expense")
           ?.annotations,
       ).toMatchObject({
         readOnlyHint: false,
         destructiveHint: false,
+        idempotentHint: true,
+      });
+      expect(
+        tools.find((tool) => tool.name === "accounting_void_operation")
+          ?.annotations,
+      ).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: true,
         idempotentHint: true,
       });
     });
@@ -151,6 +188,12 @@ describe("capability-filtered MCP tools", () => {
     });
   });
 
+  const recordingTools = new Set([
+    "accounting_record_expense",
+    "accounting_record_income",
+    "accounting_record_transfer",
+  ]);
+
   it.each([
     {
       tool: "accounting_list_expenses",
@@ -158,8 +201,13 @@ describe("capability-filtered MCP tools", () => {
       arguments: { page_size: 20 },
     },
     {
-      tool: "accounting_prepare_expense",
-      rpc: "mcp_accounting_prepare_expense",
+      tool: "accounting_list_recent_operations",
+      rpc: "mcp_accounting_list_recent_operations",
+      arguments: { hours: 24, limit: 50, include_voided: true },
+    },
+    {
+      tool: "accounting_record_expense",
+      rpc: "mcp_accounting_record_expense",
       arguments: {
         amount: "28490.00",
         currency: "ARS",
@@ -170,33 +218,44 @@ describe("capability-filtered MCP tools", () => {
       },
     },
     {
-      tool: "accounting_get_operation",
-      rpc: "mcp_accounting_get_operation",
+      tool: "accounting_record_income",
+      rpc: "mcp_accounting_record_income",
       arguments: {
-        operation_id: "33333333-3333-4333-8333-333333333333",
+        amount: "120000.00",
+        currency: "ARS",
+        date: "2026-07-26",
+        account_query: "Mercado Pago",
+        client_name: "Cliente suelto",
+        idempotency_key: "55555555-5555-4555-8555-555555555555",
       },
     },
     {
-      tool: "accounting_commit_expense",
-      rpc: "mcp_accounting_commit_expense",
+      tool: "accounting_record_transfer",
+      rpc: "mcp_accounting_record_transfer",
+      arguments: {
+        amount: "50000.00",
+        date: "2026-07-26",
+        from_account_query: "Mercado Pago",
+        to_account_query: "Banco",
+        idempotency_key: "77777777-7777-4777-8777-777777777777",
+      },
+    },
+    {
+      tool: "accounting_void_operation",
+      rpc: "mcp_accounting_void_operation",
       arguments: {
         operation_id: "33333333-3333-4333-8333-333333333333",
       },
     },
   ])("maps $tool to $rpc", async ({ tool, rpc, arguments: toolArguments }) => {
     const database = databaseMock(
-      accessContext({
-        capabilities: new Set([
-          "accounting.read",
-          "accounting.expense.write",
-        ]),
-      }),
-      tool === "accounting_prepare_expense"
+      accessContext({ capabilities: ALL_CAPABILITIES }),
+      recordingTools.has(tool)
         ? {
             ok: true,
             data: {
-              operation_id: "66666666-6666-4666-8666-666666666666",
-              status: "awaiting_approval",
+              operation_id: OPERATION_ID,
+              status: "committed",
             },
           }
         : { ok: true, data: { items: [] } },
@@ -224,20 +283,19 @@ describe("capability-filtered MCP tools", () => {
           request: toolArguments,
         },
       ]);
-      if (tool === "accounting_prepare_expense") {
+      if (recordingTools.has(tool)) {
         expect(result.structuredContent).toMatchObject({
           ok: true,
           data: {
-            operation_id: "66666666-6666-4666-8666-666666666666",
-            approval_url:
-              "https://app.quepia.test/sistema/mcp/approvals/66666666-6666-4666-8666-666666666666",
+            operation_id: OPERATION_ID,
+            review_url: "https://app.quepia.test/sistema/mcp/actividad",
           },
         });
       }
     });
   });
 
-  it("fails closed when prepare returns no valid operation UUID", async () => {
+  it("fails closed when a recorded write returns no valid operation UUID", async () => {
     const database = databaseMock(
       accessContext({
         capabilities: new Set(["accounting.expense.write"]),
@@ -261,7 +319,7 @@ describe("capability-filtered MCP tools", () => {
         id: 32,
         method: "tools/call",
         params: {
-          name: "accounting_prepare_expense",
+          name: "accounting_record_expense",
           arguments: {
             amount: "28490.00",
             currency: "ARS",
@@ -285,7 +343,7 @@ describe("capability-filtered MCP tools", () => {
     });
   });
 
-  it("rejects attempts to alter the prepared expense during commit", async () => {
+  it("rejects a void that smuggles an accounting payload", async () => {
     const database = databaseMock(
       accessContext({
         capabilities: new Set(["accounting.expense.write"]),
@@ -303,7 +361,7 @@ describe("capability-filtered MCP tools", () => {
         id: 4,
         method: "tools/call",
         params: {
-          name: "accounting_commit_expense",
+          name: "accounting_void_operation",
           arguments: {
             operation_id: "33333333-3333-4333-8333-333333333333",
             amount: "999999.00",

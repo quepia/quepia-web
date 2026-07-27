@@ -121,7 +121,7 @@ describe("HTTP security and discovery", () => {
             },
           },
           instructions: expect.stringContaining(
-            "Never call commit until accounting_get_operation reports the operation as approved",
+            "never a reason to record anything",
           ),
         },
       });

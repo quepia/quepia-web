@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  commitExpenseInputSchema,
   currencySchema,
   cursorSchema,
   moneySchema,
-  prepareExpenseInputSchema,
+  recordExpenseInputSchema,
+  recordIncomeInputSchema,
+  recordTransferInputSchema,
+  voidOperationInputSchema,
 } from "../src/schemas.js";
+
+const ACCOUNT_ID = "55555555-5555-4555-8555-555555555555";
+const OTHER_ACCOUNT_ID = "88888888-8888-4888-8888-888888888888";
+const IDEMPOTENCY_KEY = "44444444-4444-4444-8444-444444444444";
 
 describe("tool input schemas", () => {
   it.each([
@@ -32,7 +38,7 @@ describe("tool input schemas", () => {
   );
 
   it("requires an account selector and a UUID idempotency key", () => {
-    const result = prepareExpenseInputSchema.safeParse({
+    const result = recordExpenseInputSchema.safeParse({
       amount: "28490.00",
       currency: "ARS",
       date: "2026-07-26",
@@ -43,13 +49,13 @@ describe("tool input schemas", () => {
   });
 
   it("rejects ambiguous duplicate entity selectors before the RPC", () => {
-    const result = prepareExpenseInputSchema.safeParse({
+    const result = recordExpenseInputSchema.safeParse({
       amount: "28490.00",
       currency: "ARS",
       date: "2026-07-26",
       description: "Adobe",
-      idempotency_key: "44444444-4444-4444-8444-444444444444",
-      account_id: "55555555-5555-4555-8555-555555555555",
+      idempotency_key: IDEMPOTENCY_KEY,
+      account_id: ACCOUNT_ID,
       account_query: "Mercado Pago",
       category_id: "66666666-6666-4666-8666-666666666666",
       category_query: "Software",
@@ -66,8 +72,99 @@ describe("tool input schemas", () => {
     }
   });
 
-  it("prevents payload tampering during commit", () => {
-    const result = commitExpenseInputSchema.safeParse({
+  it("accepts a complete expense", () => {
+    const result = recordExpenseInputSchema.safeParse({
+      amount: "28490.00",
+      currency: "ARS",
+      date: "2026-07-26",
+      description: "Adobe",
+      account_query: "Mercado Pago",
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("requires exactly one payer on an income", () => {
+    const withoutPayer = recordIncomeInputSchema.safeParse({
+      amount: "120000.00",
+      currency: "ARS",
+      date: "2026-07-26",
+      account_id: ACCOUNT_ID,
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(withoutPayer.success).toBe(false);
+
+    const withBothPayers = recordIncomeInputSchema.safeParse({
+      amount: "120000.00",
+      currency: "ARS",
+      date: "2026-07-26",
+      account_id: ACCOUNT_ID,
+      project_query: "Quepia",
+      client_name: "Cliente suelto",
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(withBothPayers.success).toBe(false);
+
+    const withOnePayer = recordIncomeInputSchema.safeParse({
+      amount: "120000.00",
+      currency: "ARS",
+      date: "2026-07-26",
+      account_id: ACCOUNT_ID,
+      client_name: "Cliente suelto",
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(withOnePayer.success).toBe(true);
+  });
+
+  it("rejects an income period that is not a real month", () => {
+    const result = recordIncomeInputSchema.safeParse({
+      amount: "120000.00",
+      currency: "ARS",
+      date: "2026-07-26",
+      period: "2026-13",
+      account_id: ACCOUNT_ID,
+      client_name: "Cliente suelto",
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a transfer that points at a single account", () => {
+    const result = recordTransferInputSchema.safeParse({
+      amount: "50000.00",
+      date: "2026-07-26",
+      from_account_id: ACCOUNT_ID,
+      to_account_id: ACCOUNT_ID,
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts zero fees but rejects a malformed exchange rate", () => {
+    const withFees = recordTransferInputSchema.safeParse({
+      amount: "50000.00",
+      date: "2026-07-26",
+      from_account_id: ACCOUNT_ID,
+      to_account_id: OTHER_ACCOUNT_ID,
+      commission: "0.00",
+      tax: "0.00",
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(withFees.success).toBe(true);
+
+    const withBadRate = recordTransferInputSchema.safeParse({
+      amount: "50000.00",
+      date: "2026-07-26",
+      from_account_id: ACCOUNT_ID,
+      to_account_id: OTHER_ACCOUNT_ID,
+      exchange_rate: "0.0",
+      idempotency_key: IDEMPOTENCY_KEY,
+    });
+    expect(withBadRate.success).toBe(false);
+  });
+
+  it("prevents smuggling a payload into a void", () => {
+    const result = voidOperationInputSchema.safeParse({
       operation_id: "33333333-3333-4333-8333-333333333333",
       amount: "999999.00",
     });

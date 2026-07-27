@@ -13,6 +13,7 @@ const expectedMigrationSuffixes = [
   "_create_mcp_accounting_control_plane.sql",
   "_mcp_oauth_onboarding.sql",
   "_mcp_hook_clock_timestamp.sql",
+  "_mcp_direct_accounting_writes.sql",
 ];
 // These migrations are already applied remotely and must remain byte-for-byte
 // immutable. Further fixes belong in a new forward-only migration.

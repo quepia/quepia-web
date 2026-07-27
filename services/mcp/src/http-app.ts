@@ -306,7 +306,7 @@ export function createApp(dependencies: AppDependencies): express.Express {
     const server = createMcpServer(
       security.access,
       security.database,
-      config.approvalBaseUrl,
+      config.webBaseUrl,
     );
     const transport = new StreamableHTTPServerTransport({
       enableJsonResponse: true,

@@ -29,7 +29,10 @@ export interface AppConfig {
   port: number;
   resourceUri: string;
   resourceMetadataUri: string;
-  approvalBaseUrl: string;
+  // Origen de la web del sistema. La variable conserva el nombre histórico
+  // MCP_APPROVAL_BASE_URL, pero ya no apunta a una pantalla de aprobación:
+  // los registros son inmediatos y se revisan o anulan después.
+  webBaseUrl: string;
   allowedOrigins: ReadonlySet<string>;
   allowedHosts: ReadonlySet<string>;
   protocolVersions: ReadonlySet<string>;
@@ -206,7 +209,7 @@ export function loadConfig(
     port: parsed.PORT,
     resourceUri,
     resourceMetadataUri: metadataUriFor(resource),
-    approvalBaseUrl: approvalBase.origin,
+    webBaseUrl: approvalBase.origin,
     allowedOrigins,
     allowedHosts,
     protocolVersions,

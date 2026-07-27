@@ -19,7 +19,7 @@ export function testConfig(
     resourceUri: "https://mcp.quepia.test/mcp",
     resourceMetadataUri:
       "https://mcp.quepia.test/.well-known/oauth-protected-resource/mcp",
-    approvalBaseUrl: "https://app.quepia.test",
+    webBaseUrl: "https://app.quepia.test",
     allowedOrigins: new Set(["https://app.quepia.test"]),
     allowedHosts: new Set(["mcp.quepia.test", "127.0.0.1"]),
     protocolVersions: new Set([

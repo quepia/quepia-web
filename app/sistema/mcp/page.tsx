@@ -1,7 +1,9 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 import {
   AlertTriangle,
   CheckCircle2,
+  History,
   Link2,
   LockKeyhole,
   UserRoundCheck,
@@ -114,6 +116,19 @@ export default async function McpControlPage({
           </p>
         </StatusCard>
       </div>
+
+      <StatusCard icon={History} title="Actividad contable" tone="neutral">
+        <p>
+          Los movimientos que registra el MCP se escriben al instante, sin
+          aprobación previa.
+        </p>
+        <Link
+          href="/sistema/mcp/actividad"
+          className="mt-2 inline-flex text-quepia-cyan underline underline-offset-4 hover:text-[#63efed]"
+        >
+          Revisar y anular lo registrado
+        </Link>
+      </StatusCard>
 
       <OAuthLifecycleList lifecycle={lifecycle} />
 

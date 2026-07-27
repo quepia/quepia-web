@@ -8,7 +8,7 @@ SET LOCAL search_path = public, extensions;
 -- production keeps mcp_authenticated without extensions schema usage.
 GRANT USAGE ON SCHEMA extensions TO mcp_authenticated;
 
-SELECT plan(97);
+SELECT plan(112);
 
 INSERT INTO auth.users(id, email, aud, role, created_at, updated_at)
 VALUES
@@ -2071,6 +2071,283 @@ SELECT ok(
     ) ->> 'ok'
   )::BOOLEAN,
   'opaque account cursor loads the next page'
+);
+
+-- Escrituras contables directas: sin aprobación previa, con anulación acotada
+-- a lo que escribió el propio MCP.
+RESET ROLE;
+
+INSERT INTO private.mcp_client_capabilities(client_id, capability)
+VALUES
+  ('00000000-0000-4000-8000-000000000201', 'accounting.income.write'),
+  ('00000000-0000-4000-8000-000000000201', 'accounting.transfer.write')
+ON CONFLICT (client_id, capability) DO NOTHING;
+
+INSERT INTO private.mcp_access_grant_capabilities(grant_id, capability)
+VALUES
+  ('00000000-0000-4000-8000-000000000501', 'accounting.income.write'),
+  ('00000000-0000-4000-8000-000000000501', 'accounting.transfer.write')
+ON CONFLICT (grant_id, capability) DO NOTHING;
+
+-- Un gasto cargado por una persona desde la web, fuera del alcance del MCP.
+INSERT INTO public.accounting_expenses(
+  id,
+  date,
+  description,
+  amount,
+  currency,
+  account_id,
+  created_by
+)
+VALUES (
+  '00000000-0000-4000-8000-000000000901',
+  CURRENT_DATE,
+  'Gasto cargado a mano',
+  1500.00,
+  'ARS',
+  '00000000-0000-4000-8000-000000000401',
+  '00000000-0000-4000-8000-000000000101'
+);
+
+SELECT set_config(
+  'request.jwt.claims',
+  jsonb_build_object(
+    'sub', '00000000-0000-4000-8000-000000000101',
+    'role', 'mcp_authenticated',
+    'client_id', '00000000-0000-4000-8000-000000000201',
+    'session_id', '00000000-0000-4000-8000-000000000301',
+    'aal', 'aal1',
+    'aud', 'https://mcp.quepia.example.test/mcp'
+  )::TEXT,
+  true
+);
+SET LOCAL ROLE mcp_authenticated;
+
+INSERT INTO mcp_test_state(key, value)
+VALUES (
+  'direct_expense',
+  public.mcp_accounting_record_expense(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000801',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'description', 'Suscripcion directa',
+      'amount', '1200.00',
+      'currency', 'ARS',
+      'account_id', '00000000-0000-4000-8000-000000000401'
+    )
+  )
+);
+
+SELECT is(
+  (
+    SELECT value -> 'data' ->> 'status'
+    FROM mcp_test_state
+    WHERE key = 'direct_expense'
+  ),
+  'committed'::TEXT,
+  'an expense is recorded without any separate human approval'::TEXT
+);
+
+SELECT is(
+  (
+    SELECT COUNT(*)::INTEGER
+    FROM public.accounting_expenses AS expense
+    WHERE expense.id = (
+      SELECT (value -> 'data' ->> 'entity_id')::UUID
+      FROM mcp_test_state
+      WHERE key = 'direct_expense'
+    )
+  ),
+  1,
+  'the recorded expense exists in accounting right away'::TEXT
+);
+
+SELECT is(
+  public.mcp_accounting_record_expense(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000801',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'description', 'Suscripcion directa',
+      'amount', '1200.00',
+      'currency', 'ARS',
+      'account_id', '00000000-0000-4000-8000-000000000401'
+    )
+  ) -> 'data' ->> 'idempotent_replay',
+  'true'::TEXT,
+  'replaying the idempotency key does not record a second expense'::TEXT
+);
+
+SELECT is(
+  (
+    SELECT COUNT(*)::INTEGER
+    FROM public.accounting_expenses AS expense
+    WHERE expense.description = 'Suscripcion directa'
+  ),
+  1,
+  'the replayed expense left a single accounting row'::TEXT
+);
+
+SELECT is(
+  public.mcp_accounting_record_expense(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000802',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'description', 'Moneda que no coincide',
+      'amount', '1200.00',
+      'currency', 'USD',
+      'account_id', '00000000-0000-4000-8000-000000000401'
+    )
+  ) -> 'error' ->> 'code',
+  'invalid_account'::TEXT,
+  'an expense cannot be recorded against an account of another currency'::TEXT
+);
+
+INSERT INTO mcp_test_state(key, value)
+VALUES (
+  'direct_income',
+  public.mcp_accounting_record_income(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000811',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'amount', '95000.00',
+      'currency', 'ARS',
+      'account_id', '00000000-0000-4000-8000-000000000401',
+      'client_name', 'Cliente ocasional'
+    )
+  )
+);
+
+SELECT is(
+  (
+    SELECT value -> 'data' ->> 'status'
+    FROM mcp_test_state
+    WHERE key = 'direct_income'
+  ),
+  'committed'::TEXT,
+  'a client payment is recorded without any separate human approval'::TEXT
+);
+
+SELECT is(
+  public.mcp_accounting_record_income(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000812',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'amount', '95000.00',
+      'currency', 'ARS',
+      'account_id', '00000000-0000-4000-8000-000000000401'
+    )
+  ) -> 'error' ->> 'code',
+  'invalid_client'::TEXT,
+  'a client payment needs exactly one payer'::TEXT
+);
+
+INSERT INTO mcp_test_state(key, value)
+VALUES (
+  'direct_transfer',
+  public.mcp_accounting_record_transfer(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000821',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'amount', '5000.00',
+      'from_account_id', '00000000-0000-4000-8000-000000000401',
+      'to_account_id', '00000000-0000-4000-8000-000000000402'
+    )
+  )
+);
+
+SELECT is(
+  (
+    SELECT value -> 'data' ->> 'status'
+    FROM mcp_test_state
+    WHERE key = 'direct_transfer'
+  ),
+  'committed'::TEXT,
+  'a transfer between same-currency accounts is recorded directly'::TEXT
+);
+
+SELECT is(
+  public.mcp_accounting_record_transfer(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000822',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'amount', '5000.00',
+      'from_account_id', '00000000-0000-4000-8000-000000000401',
+      'to_account_id', '00000000-0000-4000-8000-000000000401'
+    )
+  ) -> 'error' ->> 'code',
+  'invalid_transfer'::TEXT,
+  'a transfer cannot start and end in the same account'::TEXT
+);
+
+SELECT is(
+  public.mcp_accounting_record_transfer(
+    jsonb_build_object(
+      'idempotency_key', '00000000-0000-4000-8000-000000000823',
+      'date', to_char(CURRENT_DATE, 'YYYY-MM-DD'),
+      'amount', '5000.00',
+      'from_account_id', '00000000-0000-4000-8000-000000000401',
+      'to_account_id', '00000000-0000-4000-8000-000000000402',
+      'exchange_rate', '1000.0000'
+    )
+  ) -> 'error' ->> 'code',
+  'unexpected_exchange_rate'::TEXT,
+  'a same-currency transfer refuses an exchange rate'::TEXT
+);
+
+SELECT ok(
+  (
+    public.mcp_accounting_list_recent_operations(
+      jsonb_build_object('hours', 24, 'limit', 50)
+    ) ->> 'ok'
+  )::BOOLEAN,
+  'the MCP can review what it recorded in the last day'
+);
+
+SELECT is(
+  public.mcp_accounting_void_operation(
+    jsonb_build_object(
+      'operation_id', '00000000-0000-4000-8000-000000000899',
+      'reason', 'no existe'
+    )
+  ) -> 'error' ->> 'code',
+  'operation_not_found'::TEXT,
+  'voiding an unknown operation is refused'::TEXT
+);
+
+SELECT is(
+  public.mcp_accounting_void_operation(
+    jsonb_build_object(
+      'operation_id',
+      (
+        SELECT value -> 'data' ->> 'operation_id'
+        FROM mcp_test_state
+        WHERE key = 'direct_expense'
+      ),
+      'reason', 'cargado por error'
+    )
+  ) -> 'data' ->> 'status',
+  'voided'::TEXT,
+  'the recording client can undo its own expense'::TEXT
+);
+
+SELECT is(
+  (
+    SELECT COUNT(*)::INTEGER
+    FROM public.accounting_expenses AS expense
+    WHERE expense.description = 'Suscripcion directa'
+  ),
+  0,
+  'voiding removes the accounting row it created and restores the balance'::TEXT
+);
+
+SELECT is(
+  (
+    SELECT COUNT(*)::INTEGER
+    FROM public.accounting_expenses AS expense
+    WHERE expense.id = '00000000-0000-4000-8000-000000000901'
+  ),
+  1,
+  'voiding never touches accounting entered by a person'::TEXT
 );
 
 RESET ROLE;

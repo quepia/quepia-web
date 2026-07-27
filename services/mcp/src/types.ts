@@ -1,7 +1,15 @@
 export const CAPABILITIES = {
   accountingRead: "accounting.read",
   accountingExpenseWrite: "accounting.expense.write",
+  accountingIncomeWrite: "accounting.income.write",
+  accountingTransferWrite: "accounting.transfer.write",
 } as const;
+
+export const ACCOUNTING_WRITE_CAPABILITIES = [
+  CAPABILITIES.accountingExpenseWrite,
+  CAPABILITIES.accountingIncomeWrite,
+  CAPABILITIES.accountingTransferWrite,
+] as const;
 
 export type AssuranceLevel = "aal1" | "aal2";
 
