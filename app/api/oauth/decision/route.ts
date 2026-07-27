@@ -202,6 +202,19 @@ export async function POST(request: NextRequest) {
       return oauthRedirect(authorization.redirectUrl)
     }
 
+    // El consentimiento registrado en el servidor OAuth es la fuente de verdad,
+    // así que se provisiona después de confirmarlo. Al revés, cada decisión que
+    // no llegaba a registrarse dejaba igual un grant de acceso permanente para
+    // una conexión que nunca existió. El cliente recién canjea el código cuando
+    // recibe el redirect que se devuelve más abajo, de modo que el grant ya está
+    // creado para cuando se emite el primer token.
+    stage = "consent_decision"
+    const redirectUrl = await resolveOAuthDecisionRedirect(
+      session,
+      decisionRequest.authorizationId,
+      decisionRequest.decision,
+    )
+
     if (decisionRequest.decision === "approve") {
       stage = "client_provisioning"
       await provisionMcpOAuthClient(
@@ -209,13 +222,6 @@ export async function POST(request: NextRequest) {
         authorization.details.client.id,
       )
     }
-
-    stage = "consent_decision"
-    const redirectUrl = await resolveOAuthDecisionRedirect(
-      session,
-      decisionRequest.authorizationId,
-      decisionRequest.decision,
-    )
 
     // El destino final decide si el cliente OAuth recibe un código o un error,
     // y hasta acá era invisible: la pantalla de retorno se ve igual en ambos
