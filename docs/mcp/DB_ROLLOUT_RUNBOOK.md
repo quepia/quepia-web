@@ -219,7 +219,9 @@ only when:
 - the signed JWT role is exactly `mcp_authenticated`;
 - `request.method` is `POST`; and
 - `request.path` is one of the exact machine RPC paths such as
-  `rpc/mcp_get_context` (PostgREST supplies no leading slash).
+  `rpc/mcp_get_context`. PostgREST 11 and later report `request.path` with a
+  leading slash, so the gate strips it before matching and accepts either
+  spelling; the allowlist still matches the RPC name exactly.
 
 If `authenticator` already has a different `pgrst.db_pre_request`, the migration
 fails instead of overwriting it. Compose both behaviors in one reviewed

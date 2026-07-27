@@ -8,7 +8,7 @@ SET LOCAL search_path = public, extensions;
 -- production keeps mcp_authenticated without extensions schema usage.
 GRANT USAGE ON SCHEMA extensions TO mcp_authenticated;
 
-SELECT plan(95);
+SELECT plan(97);
 
 INSERT INTO auth.users(id, email, aud, role, created_at, updated_at)
 VALUES
@@ -653,12 +653,32 @@ SELECT throws_ok(
   'PostgREST rejects the human approval RPC for OAuth tokens'
 );
 
+-- PostgREST 11+ reports request.path with a leading slash, so rejecting that
+-- spelling blocked every real OAuth request while this test still passed.
 SELECT set_config('request.path', '/rpc/mcp_get_context', true);
+SELECT lives_ok(
+  $$ SELECT public.mcp_postgrest_pre_request() $$,
+  'PostgREST allows the MCP machine RPC path with a leading slash'
+);
+
+SELECT set_config('request.path', '/sistema_users', true);
 SELECT throws_ok(
   $$ SELECT public.mcp_postgrest_pre_request() $$,
   '42501',
   NULL,
-  'PostgREST route matching is exact and rejects a leading slash'
+  'tolerating the leading slash still rejects table access'
+);
+
+SELECT set_config(
+  'request.path',
+  '/rpc/mcp_accounting_approve_expense',
+  true
+);
+SELECT throws_ok(
+  $$ SELECT public.mcp_postgrest_pre_request() $$,
+  '42501',
+  NULL,
+  'tolerating the leading slash still rejects the human approval RPC'
 );
 
 RESET ROLE;
