@@ -25,11 +25,37 @@ export async function getOAuthAuthorization(
     )
 
   if (error || !data) {
-    const status = "status" in (error ?? {}) ? error?.status : undefined
-    if (status === 404) {
+    const status =
+      typeof (error as { status?: unknown } | null)?.status === "number"
+        ? (error as { status: number }).status
+        : undefined
+    console.error(
+      "[OAuth authorization] Lookup failed",
+      JSON.stringify({
+        status: status ?? null,
+        code:
+          typeof (error as { code?: unknown } | null)?.code === "string"
+            ? (error as { code: string }).code
+            : null,
+      }),
+    )
+
+    if (status === 401) {
+      throw new McpWebError(
+        "UNAUTHENTICATED",
+        "La sesión web no es válida para el servidor OAuth.",
+        401,
+      )
+    }
+
+    // Una autorización vencida, ya consumida o desconocida no siempre vuelve
+    // como 404: el servidor OAuth también responde 400/403/410 según el estado.
+    // Todas describen la misma situación operativa, así que se tratan igual y
+    // el usuario recibe la única acción útil: reiniciar la conexión.
+    if (typeof status === "number" && status >= 400 && status < 500) {
       throw new McpWebError(
         "NOT_FOUND",
-        "La solicitud OAuth no existe, venció o el servidor OAuth está deshabilitado.",
+        "La solicitud OAuth no existe, venció o ya fue utilizada.",
         404,
       )
     }
@@ -48,6 +74,9 @@ export async function getOAuthAuthorization(
       session.user.id,
     )
   } catch {
+    console.error(
+      "[OAuth authorization] Unexpected authorization payload",
+    )
     throw new McpWebError(
       "INVALID_RESPONSE",
       "El servidor OAuth devolvió una autorización inválida.",
@@ -317,6 +346,21 @@ export async function resolveOAuthDecisionRedirect(
   }
 
   if (!response.ok) {
+    console.error(
+      "[OAuth decision] Consent endpoint rejected the decision",
+      JSON.stringify({
+        status: response.status,
+        errorCode:
+          typeof payload === "object" &&
+          payload !== null &&
+          "error_code" in payload &&
+          typeof (payload as { error_code?: unknown }).error_code ===
+            "string"
+            ? (payload as { error_code: string }).error_code
+            : null,
+      }),
+    )
+
     if (response.status === 401) {
       throw new McpWebError(
         "UNAUTHENTICATED",
@@ -331,7 +375,9 @@ export async function resolveOAuthDecisionRedirect(
         403,
       )
     }
-    if (response.status === 404) {
+    // 400/404/410 describen una autorización vencida, ya consumida o
+    // desconocida. La acción útil es siempre reiniciar la conexión.
+    if (response.status >= 400 && response.status < 500) {
       throw new McpWebError(
         "NOT_FOUND",
         "La solicitud OAuth ya no está disponible.",

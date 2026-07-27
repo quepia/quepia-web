@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   buildOAuthConsentPath,
+  buildOAuthRedirectDocument,
   parseOAuthDecisionRequest,
 } from "@/lib/mcp/oauth"
 import {
@@ -66,10 +67,17 @@ function internalRedirect(
   })
 }
 
+// Devuelve un documento same-origin en vez de un 303 cross-origin: la CSP del
+// sitio declara `form-action 'self'` y los navegadores la aplican también al
+// redirect que sigue al envío del formulario, de modo que el retorno al cliente
+// OAuth quedaría bloqueado sin ningún error visible.
 function oauthRedirect(url: string): NextResponse {
-  return NextResponse.redirect(url, {
-    status: 303,
-    headers: NO_STORE_HEADERS,
+  return new NextResponse(buildOAuthRedirectDocument(url), {
+    status: 200,
+    headers: {
+      ...NO_STORE_HEADERS,
+      "Content-Type": "text/html; charset=utf-8",
+    },
   })
 }
 

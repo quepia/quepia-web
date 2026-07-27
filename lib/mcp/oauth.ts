@@ -244,6 +244,50 @@ export function isAllowedOAuthRedirect(value: unknown): value is string {
   }
 }
 
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+// El consentimiento se envía por formulario y la respuesta debe llevar al
+// redirect_uri del cliente OAuth, que es cross-origin. La CSP del sitio declara
+// `form-action 'self'`, y Chrome y Safari aplican esa directiva también a los
+// redirects que siguen al envío del formulario: un 303 hacia el cliente queda
+// bloqueado sin error visible. Un documento same-origin con meta refresh no
+// está sujeto a form-action, así que la navegación final funciona para
+// cualquier cliente registrado sin depender de una allowlist estática.
+export function buildOAuthRedirectDocument(redirectUrl: string): string {
+  if (!isAllowedOAuthRedirect(redirectUrl)) {
+    throw new Error("INVALID_OAUTH_REDIRECT")
+  }
+
+  const safeUrl = escapeHtmlAttribute(redirectUrl)
+
+  return `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="refresh" content="0; url=${safeUrl}">
+<title>Volviendo a la aplicación</title>
+</head>
+<body style="margin:0;background:#05060a;color:#f5f5f5;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px">
+<main style="max-width:32rem;text-align:center">
+<p style="font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:rgba(245,245,245,0.45);margin:0 0 12px">Autorización OAuth 2.1</p>
+<h1 style="font-size:1.5rem;font-weight:600;margin:0 0 12px">Volviendo a la aplicación</h1>
+<p style="font-size:0.95rem;line-height:1.6;color:rgba(245,245,245,0.6);margin:0 0 20px">Estamos devolviendo la decisión al cliente que solicitó la conexión.</p>
+<p style="margin:0"><a href="${safeUrl}" style="color:#5ad1e6;font-weight:600">Continuar manualmente</a></p>
+</main>
+</body>
+</html>`
+}
+
 export function parseOAuthAuthorizationResult(
   value: unknown,
   expectedAuthorizationId: string,

@@ -121,7 +121,7 @@ export default async function OAuthConsentPage({
           <ConsentError
             icon={SearchX}
             title="Solicitud no disponible"
-            message="La autorización venció, ya fue utilizada o el servidor OAuth todavía no está habilitado."
+            message="Esta autorización venció o ya fue utilizada. Volvé a iniciar la conexión desde la aplicación de IA para generar una solicitud nueva."
           />
         )
       }
