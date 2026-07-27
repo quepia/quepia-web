@@ -61,6 +61,20 @@ async function invokeRpc(
     .abortSignal(signal);
 
   if (error) {
+    // PostgREST explica en `code`/`hint` si rechazó el rol, el pre-request o
+    // los permisos de ejecución, y descartar ese detalle dejaba un 502 idéntico
+    // para causas que no tienen nada que ver entre sí.
+    console.error(
+      JSON.stringify({
+        level: "error",
+        event: "mcp.rpc_failed",
+        rpc: rpcName,
+        code: error.code ?? null,
+        message: error.message ?? null,
+        details: error.details ?? null,
+        hint: error.hint ?? null,
+      }),
+    );
     throw new HttpError(
       502,
       "database_rpc_failed",
