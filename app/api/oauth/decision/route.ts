@@ -191,6 +191,14 @@ export async function POST(request: NextRequest) {
     )
 
     if (authorization.kind === "redirect") {
+      // Salida temprana: la autorización ya venía resuelta, así que no se
+      // provisiona ni se registra decisión alguna. Produce la misma pantalla de
+      // retorno que el camino normal, y sin este registro las dos rutas eran
+      // imposibles de distinguir desde afuera.
+      console.info(
+        "[OAuth decision] Autorización ya resuelta por el servidor OAuth",
+        JSON.stringify({ decision: decisionRequest.decision }),
+      )
       return oauthRedirect(authorization.redirectUrl)
     }
 
@@ -208,6 +216,26 @@ export async function POST(request: NextRequest) {
       decisionRequest.authorizationId,
       decisionRequest.decision,
     )
+
+    // El destino final decide si el cliente OAuth recibe un código o un error,
+    // y hasta acá era invisible: la pantalla de retorno se ve igual en ambos
+    // casos. Se registran los nombres de los parámetros y el origen, nunca el
+    // código de autorización ni el state.
+    try {
+      const target = new URL(redirectUrl)
+      console.info(
+        "[OAuth decision] Redirigiendo al cliente",
+        JSON.stringify({
+          decision: decisionRequest.decision,
+          targetOrigin: target.origin,
+          params: [...target.searchParams.keys()].sort(),
+          hasCode: target.searchParams.has("code"),
+          error: target.searchParams.get("error"),
+        }),
+      )
+    } catch {
+      console.warn("[OAuth decision] Destino de redirect ilegible")
+    }
 
     return oauthRedirect(redirectUrl)
   } catch (error) {

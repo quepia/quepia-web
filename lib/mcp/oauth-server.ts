@@ -167,6 +167,17 @@ export async function getMcpOAuthLifecycle(
   try {
     const oauthGrants = await session.supabase.auth.oauth.listGrants()
     if (oauthGrants.error || !oauthGrants.data) {
+      console.warn(
+        "[OAuth lifecycle] listGrants no devolvió datos",
+        JSON.stringify({
+          hasError: Boolean(oauthGrants.error),
+          errorCode:
+            typeof (oauthGrants.error as { code?: unknown } | null)?.code ===
+            "string"
+              ? (oauthGrants.error as { code: string }).code
+              : null,
+        }),
+      )
       return {
         ...lifecycle,
         oauthGrantStateAvailable: false,
@@ -174,7 +185,17 @@ export async function getMcpOAuthLifecycle(
     }
 
     return mergeMcpOAuthServerGrants(lifecycle, oauthGrants.data)
-  } catch {
+  } catch (error) {
+    // Un merge fallido degradaba el panel entero a "sin grant OAuth" sin dejar
+    // rastro, de modo que un simple desajuste en la forma del payload era
+    // indistinguible de una ausencia real de consentimientos. Se registra la
+    // forma recibida —nunca los valores— para poder diferenciarlos.
+    console.warn(
+      "[OAuth lifecycle] No se pudo interpretar el estado de grants OAuth",
+      JSON.stringify({
+        reason: error instanceof Error ? error.message : "unknown",
+      }),
+    )
     return {
       ...lifecycle,
       oauthGrantStateAvailable: false,

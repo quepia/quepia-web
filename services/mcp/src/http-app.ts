@@ -398,6 +398,20 @@ export function createApp(dependencies: AppDependencies): express.Express {
           message: errorMessage(httpError),
         }),
       );
+    } else if (httpError.status === 401 || httpError.status === 403) {
+      // Los rechazos de autorización son el modo de falla habitual de este
+      // servicio y el único síntoma que ve el cliente es un "no se pudo
+      // conectar". Registrar el código concreto —invalid_host, invalid_origin,
+      // missing_token, access_denied, context_mismatch, grant_expired— es lo
+      // que distingue un diagnóstico de una conjetura.
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          event: "mcp.request_rejected",
+          status: httpError.status,
+          code: httpError.code,
+        }),
+      );
     }
     response
       .status(httpError.status)
