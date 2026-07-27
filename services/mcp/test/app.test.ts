@@ -134,6 +134,89 @@ describe("HTTP security and discovery", () => {
     });
   });
 
+  it("answers the browser preflight for an allowlisted Origin", async () => {
+    const app = createApp({
+      config: testConfig(),
+      tokenVerifier,
+      databaseFactory: databaseFactory(databaseMock(accessContext())),
+    });
+
+    await withHttpServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/mcp`, {
+        method: "OPTIONS",
+        headers: {
+          Host: "mcp.quepia.test",
+          Origin: "https://app.quepia.test",
+          "Access-Control-Request-Method": "POST",
+          "Access-Control-Request-Headers":
+            "authorization,content-type,mcp-protocol-version",
+        },
+      });
+      expect(response.status).toBe(204);
+      expect(response.headers.get("access-control-allow-origin")).toBe(
+        "https://app.quepia.test",
+      );
+      expect(response.headers.get("access-control-allow-methods")).toContain(
+        "POST",
+      );
+      const allowedHeaders =
+        response.headers.get("access-control-allow-headers")?.toLowerCase() ??
+        "";
+      for (const header of [
+        "authorization",
+        "content-type",
+        "mcp-protocol-version",
+      ]) {
+        expect(allowedHeaders).toContain(header);
+      }
+      expect(response.headers.get("vary")?.toLowerCase()).toContain("origin");
+    });
+  });
+
+  it("denies the browser preflight for a non-allowlisted Origin", async () => {
+    const app = createApp({
+      config: testConfig(),
+      tokenVerifier,
+      databaseFactory: databaseFactory(databaseMock(accessContext())),
+    });
+
+    await withHttpServer(app, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/mcp`, {
+        method: "OPTIONS",
+        headers: {
+          Host: "mcp.quepia.test",
+          Origin: "https://evil.example",
+          "Access-Control-Request-Method": "POST",
+        },
+      });
+      expect(response.status).toBe(403);
+      expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    });
+  });
+
+  it("exposes the Bearer challenge to an allowlisted browser Origin", async () => {
+    const config = testConfig();
+    const app = createApp({
+      config,
+      tokenVerifier,
+      databaseFactory: databaseFactory(databaseMock(accessContext())),
+    });
+
+    await withHttpServer(app, async (baseUrl) => {
+      const response = await postMcp(baseUrl, initializeRequest(), {
+        Origin: "https://app.quepia.test",
+        Authorization: "",
+      });
+      expect(response.status).toBe(401);
+      expect(response.headers.get("access-control-allow-origin")).toBe(
+        "https://app.quepia.test",
+      );
+      expect(
+        response.headers.get("access-control-expose-headers")?.toLowerCase(),
+      ).toContain("www-authenticate");
+    });
+  });
+
   it("uses only registered Bearer error codes in authentication challenges", async () => {
     const config = testConfig();
     const database = databaseMock(accessContext());

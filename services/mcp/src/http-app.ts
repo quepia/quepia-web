@@ -28,9 +28,27 @@ declare global {
     interface Request {
       securityContext?: RequestSecurityContext;
       requestId?: string;
+      allowedOrigin?: string;
     }
   }
 }
+
+const CORS_ALLOWED_METHODS = "GET, POST, DELETE, OPTIONS";
+
+const CORS_ALLOWED_HEADERS = [
+  "Authorization",
+  "Content-Type",
+  "Accept",
+  "MCP-Protocol-Version",
+  "Mcp-Session-Id",
+  "Last-Event-ID",
+].join(", ");
+
+const CORS_EXPOSED_HEADERS = [
+  "WWW-Authenticate",
+  "MCP-Protocol-Version",
+  "Mcp-Session-Id",
+].join(", ");
 
 function jsonRpcError(message: string, code = -32_000): object {
   return {
@@ -97,10 +115,13 @@ function validateHost(config: AppConfig, request: Request): void {
   }
 }
 
-function validateOrigin(config: AppConfig, request: Request): void {
+function validateOrigin(
+  config: AppConfig,
+  request: Request,
+): string | undefined {
   const origin = request.headers.origin;
   if (origin === undefined) {
-    return;
+    return undefined;
   }
   let normalized: string;
   try {
@@ -115,6 +136,7 @@ function validateOrigin(config: AppConfig, request: Request): void {
   if (!config.allowedOrigins.has(normalized)) {
     throw new HttpError(403, "invalid_origin", "Origin is not allowed");
   }
+  return normalized;
 }
 
 function validateProtocolVersion(config: AppConfig, request: Request): void {
@@ -152,7 +174,16 @@ function securityMiddleware(config: AppConfig) {
     try {
       request.requestId = randomUUID();
       validateHost(config, request);
-      validateOrigin(config, request);
+      response.vary("Origin");
+      const allowedOrigin = validateOrigin(config, request);
+      if (allowedOrigin) {
+        request.allowedOrigin = allowedOrigin;
+        response.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+        response.setHeader(
+          "Access-Control-Expose-Headers",
+          CORS_EXPOSED_HEADERS,
+        );
+      }
       validateProtocolVersion(config, request);
       validateContentLength(config, request);
       response.setHeader("Cache-Control", "no-store");
@@ -173,6 +204,22 @@ function securityMiddleware(config: AppConfig) {
     } catch (error) {
       next(error);
     }
+  };
+}
+
+function preflightMiddleware() {
+  return (request: Request, response: Response, next: NextFunction): void => {
+    if (request.method !== "OPTIONS") {
+      next();
+      return;
+    }
+    response.setHeader("Allow", CORS_ALLOWED_METHODS);
+    if (request.allowedOrigin) {
+      response.setHeader("Access-Control-Allow-Methods", CORS_ALLOWED_METHODS);
+      response.setHeader("Access-Control-Allow-Headers", CORS_ALLOWED_HEADERS);
+      response.setHeader("Access-Control-Max-Age", "600");
+    }
+    response.status(204).end();
   };
 }
 
@@ -221,6 +268,7 @@ export function createApp(dependencies: AppDependencies): express.Express {
   app.disable("x-powered-by");
 
   app.use(securityMiddleware(config));
+  app.use(preflightMiddleware());
 
   app.get("/health", (_request, response) => {
     response.json({

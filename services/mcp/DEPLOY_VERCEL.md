@@ -31,7 +31,10 @@ At minimum:
 - `MCP_RESOURCE_URI=https://<stable-mcp-domain>/mcp`
 - `MCP_APPROVAL_BASE_URL=https://<first-party-web-domain>`
 - `MCP_ALLOWED_HOSTS=<stable-mcp-domain>`
-- `MCP_ALLOWED_ORIGINS=<explicit-browser-origin-if-needed>`
+- `MCP_ALLOWED_ORIGINS=<explicit-browser-origins>` — must include
+  `https://claude.ai` (and `https://claude.com`) for Claude web and desktop to
+  connect. A missing origin fails the CORS preflight with `403`, which those
+  clients surface as "Couldn't connect to the server".
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
 

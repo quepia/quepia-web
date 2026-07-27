@@ -147,7 +147,11 @@ production rules:
   JWT. The process fails closed for secret keys or privileged legacy JWTs.
 - `MCP_ALLOWED_HOSTS` defaults to the resource URI's host.
 - An absent `Origin` is accepted for non-browser clients. A supplied `Origin`
-  must exactly match `MCP_ALLOWED_ORIGINS`.
+  must exactly match `MCP_ALLOWED_ORIGINS`. Allowlisted origins receive CORS
+  headers and a `204` preflight response; every other origin is rejected with
+  `403` and no CORS headers, which is what a browser client reports as a failed
+  connection. Claude web and desktop connect from `https://claude.ai`, so that
+  origin must be listed for them to reach the server.
 - The reverse proxy must preserve a validated Host, terminate TLS, impose its
   own connection/rate limits, and not log Authorization headers.
 
