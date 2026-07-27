@@ -60,18 +60,46 @@ function errorQuery(error: McpWebError): string {
   return "error=revoke_failed"
 }
 
+function originFromHeader(value: string | null): string | null {
+  if (!value) return null
+
+  try {
+    return new URL(value).origin
+  } catch {
+    return value === "null" ? "null" : "invalid"
+  }
+}
+
 export async function POST(request: Request) {
   const allowedOrigins = parseAllowedOrigins(
     process.env.MCP_WEB_ALLOWED_ORIGINS,
   )
+  const origin = request.headers.get("origin")
+  const secFetchSite = request.headers.get("sec-fetch-site")
   if (
     !validateSameOriginRequest({
       requestUrl: request.url,
-      origin: request.headers.get("origin"),
-      secFetchSite: request.headers.get("sec-fetch-site"),
+      origin,
+      secFetchSite,
       additionalAllowedOrigins: allowedOrigins,
     })
   ) {
+    // El mismo diagnóstico que ya registra el endpoint de consentimiento: el
+    // rechazo depende de cómo se comparan el origen de la petición, el header
+    // Origin y el host reenviado por el proxy, y sin esos valores un 403 no
+    // dice cuál de los tres no coincide.
+    console.warn(
+      "[OAuth revoke] Request origin rejected",
+      JSON.stringify({
+        requestOrigin: originFromHeader(request.url),
+        origin: originFromHeader(origin),
+        refererOrigin: originFromHeader(request.headers.get("referer")),
+        secFetchSite,
+        host: request.headers.get("host"),
+        forwardedHost: request.headers.get("x-forwarded-host"),
+        allowedOriginsConfigured: allowedOrigins.length,
+      }),
+    )
     return textResponse("Solicitud cross-site rechazada.", 403)
   }
 
