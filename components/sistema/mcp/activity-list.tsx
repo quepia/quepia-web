@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation"
 import {
   ArrowLeftRight,
   Ban,
+  Columns3,
+  FolderPlus,
+  Layers,
+  Link2,
+  ListChecks,
   LoaderCircle,
+  MessageSquare,
+  Pencil,
   ReceiptText,
+  SquareCheck,
   TrendingUp,
 } from "lucide-react"
 import type { McpActivityEntry, McpActivityKind } from "@/lib/mcp/activity"
@@ -21,12 +29,32 @@ const KIND_LABELS: Record<McpActivityKind, string> = {
   "accounting.create_expense": "Gasto",
   "accounting.create_income": "Cobro",
   "accounting.create_transfer": "Transferencia",
+  "tasks.create_task": "Tarea nueva",
+  "tasks.create_tasks_batch": "Lote de tareas",
+  "tasks.update_task": "Tarea editada",
+  "tasks.create_subtasks": "Subtareas",
+  "tasks.update_subtask": "Subtarea editada",
+  "tasks.set_dependencies": "Bloqueos",
+  "tasks.add_links": "Links",
+  "tasks.post_update": "Aviso",
+  "tasks.create_column": "Columna nueva",
+  "tasks.create_project": "Proyecto nuevo",
 }
 
 const KIND_ICONS: Record<McpActivityKind, typeof ReceiptText> = {
   "accounting.create_expense": ReceiptText,
   "accounting.create_income": TrendingUp,
   "accounting.create_transfer": ArrowLeftRight,
+  "tasks.create_task": SquareCheck,
+  "tasks.create_tasks_batch": Layers,
+  "tasks.update_task": Pencil,
+  "tasks.create_subtasks": ListChecks,
+  "tasks.update_subtask": ListChecks,
+  "tasks.set_dependencies": ArrowLeftRight,
+  "tasks.add_links": Link2,
+  "tasks.post_update": MessageSquare,
+  "tasks.create_column": Columns3,
+  "tasks.create_project": FolderPlus,
 }
 
 function formatAmount(amount: string | null, currency: string | null): string {
@@ -74,7 +102,7 @@ export function ActivityList({
   if (entries.length === 0) {
     return (
       <p className="mt-6 rounded-xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">
-        El MCP no registró movimientos en las últimas {windowHours} horas.
+        El MCP no escribió nada en las últimas {windowHours} horas.
       </p>
     )
   }
@@ -164,19 +192,37 @@ function ActivityRow({ entry }: { entry: McpActivityEntry }) {
           </div>
 
           <p className="mt-1 text-base font-semibold text-white">
-            {formatAmount(entry.amount, entry.currency)}
+            {entry.module === "tasks"
+              ? (entry.description ?? entry.taskTitle ?? "Sin detalle")
+              : formatAmount(entry.amount, entry.currency)}
           </p>
 
-          <p className="mt-1 break-words text-sm text-white/70">
-            {entry.description ??
-              entry.clientName ??
-              entry.projectName ??
-              "Sin detalle"}
-          </p>
+          {entry.module === "tasks" ? (
+            entry.taskTitle && entry.taskTitle !== entry.description ? (
+              <p className="mt-1 break-words text-sm text-white/70">
+                {entry.taskTitle}
+              </p>
+            ) : null
+          ) : (
+            <p className="mt-1 break-words text-sm text-white/70">
+              {entry.description ??
+                entry.clientName ??
+                entry.projectName ??
+                "Sin detalle"}
+            </p>
+          )}
 
           <p className="mt-1 text-xs text-white/40">
-            {entry.date ?? "—"}
-            {entry.accountName ? ` · ${entry.accountName}` : ""}
+            {entry.module === "tasks"
+              ? (entry.projectName ?? "Sin proyecto")
+              : (entry.date ?? "—")}
+            {entry.module === "tasks"
+              ? entry.rowCount && entry.rowCount > 1
+                ? ` · ${entry.rowCount} filas`
+                : ""
+              : entry.accountName
+                ? ` · ${entry.accountName}`
+                : ""}
             {` · registrado ${formatTimestamp(entry.recordedAt)}`}
           </p>
         </div>

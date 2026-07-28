@@ -28,6 +28,16 @@ Estas decisiones prevalecen sobre cualquier frase incompatible que haya quedado 
 14. El consentimiento reutiliza el login web directo existente del `admin` y puede operar en AAL1. El access token que Supabase emite después del Authorization Code también puede tener AAL1. AAL2 se conserva para aprobar una operación contable preparada, no como requisito para conectar, listar o revocar un cliente.
 15. El grant interno acompaña la vigencia del grant OAuth y no introduce un TTL independiente. La revocación inicia en paralelo en Supabase Auth y en el plano de control de Quepia.
 
+### Enmienda de implementación v3.1 — tareas (2026-07-27)
+
+Prevalece sobre las secciones 8.4 y 8.6 en lo que las contradiga.
+
+16. **El módulo de tareas escribe directo y se controla después**, igual que contabilidad desde la enmienda de julio. No hay aprobación previa: cada escritura queda registrada como operación, aparece en `/sistema/mcp/actividad` y se deshace por `operation_id`.
+17. **Se levanta la prohibición de escritura masiva solo para crear tareas.** `tasks_create_tasks_batch` acepta hasta `tasks_batch_max` tareas (50 por defecto, configurable en `private.mcp_config`) de un mismo proyecto, las valida todas antes de escribir una sola fila y las escribe en la misma transacción. El motivo es concreto: convertir una planificación en tarjetas de a una llamada por tarjeta no es usable. No se extiende el permiso a actualizar ni a borrar en masa.
+18. **Deshacer una escritura de tareas no es borrar una fila.** `private.mcp_operation_undo` guarda, por operación, qué filas borrar, cuáles restaurar a su estado previo y cuáles reponer. La anulación se niega —sin tocar nada— si una persona editó la tarea después de la escritura del MCP, o si la columna o el proyecto que habría que borrar ya recibió trabajo.
+19. **Avisar es una operación propia y pedida.** `tasks_post_update` deja el comentario, crea la notificación en la app y encola el correo; no se dispara como efecto colateral de otra escritura ni por un texto que aparezca dentro de una tarea, un comentario o un documento. El correo lo envía la web desde `sistema_notification_email_outbox`, porque Postgres no habla SMTP.
+20. **La estructura del tablero tiene su propia capacidad.** Crear proyectos y columnas usa `tasks.structure.write`, separada de `tasks.write`, para poder concederse o quitarse sin afectar el trabajo diario sobre tarjetas.
+
 ## 1. Decisión principal
 
 La aplicación no debe conectar una IA directamente a PostgreSQL ni al MCP genérico de Supabase en producción. Se construirá un **MCP de negocio propio**, con herramientas pequeñas y explícitas como:
@@ -657,17 +667,29 @@ No habrá `accounting_delete_expense`.
 
 ### 8.4 Tareas
 
-| Herramienta | Función | Confirmación |
-|---|---|---|
-| `tasks_search` | Buscar dentro del alcance del usuario | No |
-| `tasks_get` | Ver detalle | No |
-| `tasks_create` | Crear una tarea en proyecto/columna exactos | Sí |
-| `tasks_update` | Cambiar campos permitidos de una tarea | Sí |
-| `tasks_complete` | Completar una tarea | Sí |
-| `tasks_reopen` | Reabrir | Sí |
-| `tasks_archive` | Archivar, nunca borrar | Reforzada |
+Implementado el 2026-07-27 con escritura directa y control posterior, igual que contabilidad. La confirmación previa que anticipaba esta tabla fue reemplazada por revisión y anulación después del hecho (enmienda v3.1).
 
-No se aceptarán filtros amplios en herramientas de escritura. Toda mutación afectará exactamente un ID.
+| Herramienta | Capacidad | Función |
+|---|---|---|
+| `tasks_list_projects` | `tasks.read` | Proyectos con su carga abierta |
+| `tasks_list_columns` | `tasks.read` | Columnas de un proyecto en orden de tablero |
+| `tasks_list_members` | `tasks.read` | Personas asignables y su carga |
+| `tasks_search_tasks` | `tasks.read` | Buscar con filtros acotados y cursor |
+| `tasks_get_task` | `tasks.read` | Detalle con subtareas, links, bloqueos y comentarios |
+| `tasks_list_recent_operations` | `tasks.read` | Qué escribió el MCP en el tablero |
+| `tasks_create_task` | `tasks.write` | Crear una tarea |
+| `tasks_create_tasks_batch` | `tasks.write` | Crear hasta 50 tareas, todo o nada |
+| `tasks_update_task` | `tasks.write` | Campos, columna y estado de una tarea |
+| `tasks_add_subtasks` | `tasks.write` | Subtareas de una tarea |
+| `tasks_update_subtask` | `tasks.write` | Título, responsable o estado de una subtarea |
+| `tasks_set_dependencies` | `tasks.write` | Reemplazar los bloqueos de una tarea |
+| `tasks_add_links` | `tasks.write` | Adjuntar links http(s) |
+| `tasks_create_column` | `tasks.structure.write` | Columna nueva en un tablero existente |
+| `tasks_create_project` | `tasks.structure.write` | Proyecto con su tablero inicial |
+| `tasks_post_update` | `tasks.notify` | Comentar y avisar al responsable |
+| `tasks_void_operation` | cualquiera de escritura | Deshacer lo que escribió una operación |
+
+No se aceptan filtros amplios en herramientas de escritura. Salvo el lote y las colecciones colgadas de una tarea (subtareas, links, dependencias), toda mutación afecta exactamente un ID. No existe borrado físico de tareas: lo que el MCP creó se deshace por `operation_id` y lo que cargó una persona queda fuera de su alcance.
 
 ### 8.5 Clientes y CRM
 
@@ -692,7 +714,7 @@ Convertir lead a proyecto deberá ser un flujo preparado porque hoy crea proyect
 - Concesión de acceso MCP.
 - Borrado físico.
 - "Borrar completadas".
-- Actualización masiva.
+- Actualización masiva. La única excepción es `tasks_create_tasks_batch`, acotada por la enmienda v3.1: un solo proyecto, tope configurable, todo o nada, y una sola operación anulable. No existe un lote equivalente para actualizar ni para borrar.
 - Exportación sin límites.
 - Envío de emails o mensajes mezclado dentro de otra operación.
 

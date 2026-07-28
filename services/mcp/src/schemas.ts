@@ -267,3 +267,361 @@ export const listRecentOperationsInputSchema = z
     include_voided: z.boolean().default(true),
   })
   .strict();
+
+// --------------------------------------------------------------------------
+// Tareas
+// --------------------------------------------------------------------------
+
+export const TASK_BATCH_MAX = 50;
+export const TASK_SUBTASK_BATCH_MAX = 50;
+export const TASK_LINK_BATCH_MAX = 20;
+export const TASK_DEPENDENCY_MAX = 20;
+
+const selectorTextSchema = z.string().trim().min(1).max(200);
+const taskTitleSchema = z.string().trim().min(1).max(300);
+const prioritySchema = z.enum(["P1", "P2", "P3", "P4"]);
+// Una fecha sola se ancla al mediodia del dia, que es la convencion de la
+// tabla; un instante ISO se respeta tal cual.
+const deadlineSchema = z.union([isoDateSchema, z.iso.datetime({ offset: true })]);
+const labelsSchema = z.array(z.string().trim().min(1).max(60)).max(10);
+const estimatedHoursSchema = z.number().min(0).max(9_999.9);
+const linkUrlSchema = z
+  .string()
+  .trim()
+  .min(8)
+  .max(2048)
+  .regex(
+    /^https?:\/\/[^\s/@]+(\/[^\s]*)?$/,
+    "url must be an http(s) address without embedded credentials",
+  );
+
+function rejectBothSelectors(
+  context: z.RefinementCtx,
+  value: Record<string, unknown>,
+  idKey: string,
+  queryKey: string,
+): void {
+  rejectBoth(context, value[idKey], value[queryKey], idKey, queryKey);
+}
+
+function requireOneSelector(
+  context: z.RefinementCtx,
+  value: Record<string, unknown>,
+  idKey: string,
+  queryKey: string,
+): void {
+  requireExactlyOne(context, value[idKey], value[queryKey], idKey, queryKey);
+}
+
+export const listProjectsInputSchema = z
+  .object({
+    query: selectorTextSchema.optional(),
+    page_size: z.number().int().min(1).max(100).default(50),
+    cursor: cursorSchema.optional(),
+  })
+  .strict();
+
+export const listColumnsInputSchema = z
+  .object({
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "project_id", "project_query");
+  });
+
+export const listMembersInputSchema = z
+  .object({
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    rejectBothSelectors(context, value, "project_id", "project_query");
+  });
+
+export const searchTasksInputSchema = z
+  .object({
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+    column_id: uuidSchema.optional(),
+    column_query: selectorTextSchema.optional(),
+    assignee_id: uuidSchema.optional(),
+    assignee_query: selectorTextSchema.optional(),
+    completed: z.boolean().optional(),
+    priority: prioritySchema.optional(),
+    deadline_from: deadlineSchema.optional(),
+    deadline_to: deadlineSchema.optional(),
+    query: selectorTextSchema.optional(),
+    page_size: z.number().int().min(1).max(100).default(50),
+    cursor: cursorSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    rejectBothSelectors(context, value, "project_id", "project_query");
+    rejectBothSelectors(context, value, "column_id", "column_query");
+    rejectBothSelectors(context, value, "assignee_id", "assignee_query");
+    if (
+      value.deadline_from &&
+      value.deadline_to &&
+      value.deadline_from > value.deadline_to
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "deadline_from must not be after deadline_to",
+        path: ["deadline_from"],
+      });
+    }
+  });
+
+export const getTaskInputSchema = z
+  .object({
+    task_id: uuidSchema.optional(),
+    task_query: selectorTextSchema.optional(),
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "task_id", "task_query");
+    rejectBothSelectors(context, value, "project_id", "project_query");
+  });
+
+export const createTaskInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+    column_id: uuidSchema.optional(),
+    column_query: selectorTextSchema.optional(),
+    title: taskTitleSchema,
+    description: z.string().trim().max(5_000).optional(),
+    social_copy: z.string().trim().max(5_000).optional(),
+    priority: prioritySchema.optional(),
+    deadline: deadlineSchema.optional(),
+    labels: labelsSchema.optional(),
+    assignee_id: uuidSchema.optional(),
+    assignee_query: selectorTextSchema.optional(),
+    estimated_hours: estimatedHoursSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "project_id", "project_query");
+    rejectBothSelectors(context, value, "column_id", "column_query");
+    rejectBothSelectors(context, value, "assignee_id", "assignee_query");
+  });
+
+const batchTaskSchema = z
+  .object({
+    title: taskTitleSchema,
+    description: z.string().trim().max(5_000).optional(),
+    social_copy: z.string().trim().max(5_000).optional(),
+    priority: prioritySchema.optional(),
+    deadline: deadlineSchema.optional(),
+    labels: labelsSchema.optional(),
+    assignee_id: uuidSchema.optional(),
+    assignee_query: selectorTextSchema.optional(),
+    column_id: uuidSchema.optional(),
+    column_query: selectorTextSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    rejectBothSelectors(context, value, "assignee_id", "assignee_query");
+    rejectBothSelectors(context, value, "column_id", "column_query");
+  });
+
+export const createTasksBatchInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+    column_id: uuidSchema.optional(),
+    column_query: selectorTextSchema.optional(),
+    tasks: z.array(batchTaskSchema).min(1).max(TASK_BATCH_MAX),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "project_id", "project_query");
+    rejectBothSelectors(context, value, "column_id", "column_query");
+  });
+
+export const updateTaskInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    task_id: uuidSchema.optional(),
+    task_query: selectorTextSchema.optional(),
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+    title: taskTitleSchema.optional(),
+    // null limpia el campo; omitirlo lo deja como esta.
+    description: z.string().trim().max(5_000).nullable().optional(),
+    social_copy: z.string().trim().max(5_000).nullable().optional(),
+    priority: prioritySchema.optional(),
+    deadline: deadlineSchema.nullable().optional(),
+    labels: labelsSchema.optional(),
+    assignee_id: uuidSchema.nullable().optional(),
+    assignee_query: selectorTextSchema.optional(),
+    estimated_hours: estimatedHoursSchema.nullable().optional(),
+    column_id: uuidSchema.optional(),
+    column_query: selectorTextSchema.optional(),
+    completed: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "task_id", "task_query");
+    rejectBothSelectors(context, value, "project_id", "project_query");
+    rejectBothSelectors(context, value, "assignee_id", "assignee_query");
+    rejectBothSelectors(context, value, "column_id", "column_query");
+
+    const changesTask = [
+      "title",
+      "description",
+      "social_copy",
+      "priority",
+      "deadline",
+      "labels",
+      "assignee_id",
+      "assignee_query",
+      "estimated_hours",
+      "column_id",
+      "column_query",
+      "completed",
+    ].some((key) => key in value);
+    if (!changesTask) {
+      context.addIssue({
+        code: "custom",
+        message: "Supply at least one field to change",
+        path: ["title"],
+      });
+    }
+  });
+
+const subtaskSchema = z
+  .object({
+    title: taskTitleSchema,
+    assignee_id: uuidSchema.optional(),
+    assignee_query: selectorTextSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    rejectBothSelectors(context, value, "assignee_id", "assignee_query");
+  });
+
+export const addSubtasksInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    task_id: uuidSchema.optional(),
+    task_query: selectorTextSchema.optional(),
+    subtasks: z.array(subtaskSchema).min(1).max(TASK_SUBTASK_BATCH_MAX),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "task_id", "task_query");
+  });
+
+export const updateSubtaskInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    subtask_id: uuidSchema,
+    title: taskTitleSchema.optional(),
+    completed: z.boolean().optional(),
+    assignee_id: uuidSchema.nullable().optional(),
+    assignee_query: selectorTextSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    rejectBothSelectors(context, value, "assignee_id", "assignee_query");
+    const changesSubtask = [
+      "title",
+      "completed",
+      "assignee_id",
+      "assignee_query",
+    ].some((key) => key in value);
+    if (!changesSubtask) {
+      context.addIssue({
+        code: "custom",
+        message: "Supply at least one field to change",
+        path: ["title"],
+      });
+    }
+  });
+
+export const setDependenciesInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    task_id: uuidSchema.optional(),
+    task_query: selectorTextSchema.optional(),
+    depends_on_task_ids: z.array(uuidSchema).max(TASK_DEPENDENCY_MAX),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "task_id", "task_query");
+  });
+
+const taskLinkSchema = z
+  .object({
+    url: linkUrlSchema,
+    title: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+
+export const addLinksInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    task_id: uuidSchema.optional(),
+    task_query: selectorTextSchema.optional(),
+    links: z.array(taskLinkSchema).min(1).max(TASK_LINK_BATCH_MAX),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "task_id", "task_query");
+  });
+
+export const createColumnInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+    name: z.string().trim().min(1).max(120),
+    wip_limit: z.number().int().min(1).max(999).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "project_id", "project_query");
+  });
+
+export const createProjectInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    name: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(2_000).optional(),
+    parent_project_id: uuidSchema.optional(),
+    parent_project_query: selectorTextSchema.optional(),
+    columns: z.array(z.string().trim().min(1).max(120)).min(1).max(12).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    rejectBothSelectors(
+      context,
+      value,
+      "parent_project_id",
+      "parent_project_query",
+    );
+  });
+
+export const postTaskUpdateInputSchema = z
+  .object({
+    idempotency_key: idempotencyKeySchema,
+    task_id: uuidSchema.optional(),
+    task_query: selectorTextSchema.optional(),
+    message: z.string().trim().min(1).max(2_000),
+    notify: z.boolean().optional(),
+    recipient_id: uuidSchema.optional(),
+    recipient_query: selectorTextSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "task_id", "task_query");
+    rejectBothSelectors(context, value, "recipient_id", "recipient_query");
+  });

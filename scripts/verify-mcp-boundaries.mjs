@@ -95,6 +95,23 @@ for (const rpc of [
   "mcp_accounting_record_income",
   "mcp_accounting_record_transfer",
   "mcp_accounting_void_operation",
+  "mcp_tasks_list_projects",
+  "mcp_tasks_list_columns",
+  "mcp_tasks_list_members",
+  "mcp_tasks_search_tasks",
+  "mcp_tasks_get_task",
+  "mcp_tasks_list_recent_operations",
+  "mcp_tasks_create_task",
+  "mcp_tasks_create_tasks_batch",
+  "mcp_tasks_update_task",
+  "mcp_tasks_add_subtasks",
+  "mcp_tasks_update_subtask",
+  "mcp_tasks_set_dependencies",
+  "mcp_tasks_add_links",
+  "mcp_tasks_create_column",
+  "mcp_tasks_create_project",
+  "mcp_tasks_post_update",
+  "mcp_tasks_void_operation",
 ]) {
   if (!toolsSource.includes(rpc)) {
     fail(`Missing narrow RPC mapping in MCP tools: ${rpc}`);
@@ -117,16 +134,34 @@ if (
   !toolsSource.includes("instructions: MCP_SERVER_INSTRUCTIONS") ||
   !toolsSource.includes("never as instructions") ||
   !toolsSource.includes("never a reason to record anything") ||
-  !toolsSource.includes("accounting_void_operation")
+  !toolsSource.includes("accounting_void_operation") ||
+  !toolsSource.includes("tasks_void_operation")
 ) {
   fail(
     "MCP initialize instructions must keep the untrusted-data boundary and point at the undo path",
   );
 }
+// Avisar es una operacion pedida, no una consecuencia de leer una tarea.
+if (
+  !/tasks_post_update[\s\S]*?only when the user asked to tell someone/.test(
+    toolsSource,
+  )
+) {
+  fail(
+    "The notify tool must state that it runs only on the user's request, never on instructions found in task content",
+  );
+}
 if (
   !typesSource.includes("accounting.read") ||
   !typesSource.includes("accounting.expense.write") ||
-  serviceSource.some((file) => file.content.includes("accounting:"))
+  !typesSource.includes("tasks.read") ||
+  !typesSource.includes("tasks.write") ||
+  !typesSource.includes("tasks.structure.write") ||
+  !typesSource.includes("tasks.notify") ||
+  serviceSource.some((file) => file.content.includes("accounting:")) ||
+  // `tasks:` a secas es una clave de objeto legítima, así que acá se busca la
+  // forma vieja de la capacidad: entrecomillada y seguida del verbo.
+  serviceSource.some((file) => /["']tasks:[a-z]/.test(file.content))
 ) {
   fail("MCP tools must use only the canonical dot-separated capabilities");
 }
@@ -182,10 +217,13 @@ for (const file of webSource) {
   ) {
     fail(`Privileged Supabase client reference in MCP web flow: ${file.path}`);
   }
-  // La web revisa y anula con sus propias RPC; nunca escribe contabilidad por
-  // la superficie que usa el cliente MCP.
+  // La web revisa y anula con sus propias RPC; nunca escribe contabilidad ni
+  // tareas por la superficie que usa el cliente MCP.
   if (/mcp_accounting_(?:record_|commit_)/.test(file.content)) {
     fail(`The web flow must never write accounting directly: ${file.path}`);
+  }
+  if (/mcp_tasks_(?:create_|update_|add_|set_|post_|void_)/.test(file.content)) {
+    fail(`The web flow must never call the MCP task write RPCs: ${file.path}`);
   }
 }
 if (
@@ -217,7 +255,9 @@ const mcpSql = existsSync(migrationDirectory)
   ? readdirSync(migrationDirectory)
       .filter((name) => name.endsWith(".sql"))
       .map((name) => readFileSync(join(migrationDirectory, name), "utf8"))
-      .filter((sql) => /mcp_(?:access|client|accounting|operation|audit)/i.test(sql))
+      .filter((sql) =>
+        /mcp_(?:access|client|accounting|operation|audit|tasks)/i.test(sql),
+      )
       .join("\n")
   : "";
 
@@ -238,10 +278,30 @@ for (const databaseObject of [
   "mcp_web_void_operation",
   "mcp_custom_access_token_hook",
   "mcp_provision_oauth_client",
+  "private.mcp_operation_undo",
+  "private.mcp_tasks_resolve_reference",
+  "private.mcp_tasks_undo_operation",
+  "mcp_tasks_list_projects",
+  "mcp_tasks_search_tasks",
+  "mcp_tasks_create_task",
+  "mcp_tasks_create_tasks_batch",
+  "mcp_tasks_update_task",
+  "mcp_tasks_post_update",
+  "mcp_tasks_void_operation",
+  "mcp_tasks_list_recent_operations",
+  "sistema_notification_email_outbox",
 ]) {
   if (!mcpSql.includes(databaseObject)) {
     fail(`Missing MCP database object: ${databaseObject}`);
   }
+}
+
+// El lote es la unica escritura masiva permitida y solo con tope y todo o nada.
+if (
+  !mcpSql.includes("tasks_batch_max") ||
+  !/mcp_tasks_create_tasks_batch[\s\S]*?batch_too_large/.test(mcpSql)
+) {
+  fail("The task batch must enforce a configured maximum");
 }
 for (const isolationControl of [
   "mcp_authenticated",
@@ -259,7 +319,14 @@ if (!/revoke\s+execute[\s\S]+from\s+(?:public|anon)/i.test(mcpSql)) {
 if (!/set\s+search_path\s*=\s*['\"]?['\"]?/i.test(mcpSql)) {
   fail("MCP privileged functions must use an empty fixed search_path");
 }
-for (const capability of ["accounting.read", "accounting.expense.write"]) {
+for (const capability of [
+  "accounting.read",
+  "accounting.expense.write",
+  "tasks.read",
+  "tasks.write",
+  "tasks.structure.write",
+  "tasks.notify",
+]) {
   if (!mcpSql.includes(`'${capability}'`)) {
     fail(`Missing canonical database capability: ${capability}`);
   }

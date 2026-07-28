@@ -100,6 +100,19 @@ editing the migration.
    - `20260726131541_create_mcp_accounting_control_plane.sql`
    - `20260726145759_mcp_oauth_onboarding.sql`
    - `20260726170443_mcp_hook_clock_timestamp.sql`
+   - `20260727131500_mcp_pre_request_leading_slash.sql`
+   - `20260727163000_mcp_direct_accounting_writes.sql`
+   - `20260727190000_mcp_direct_writes_role_grants_and_allowlist.sql`
+   - `20260727210000_mcp_tasks_control_plane.sql`
+   - `20260727211000_mcp_tasks_read_rpcs.sql`
+   - `20260727212000_mcp_tasks_write_rpcs.sql`
+   - `20260727213000_mcp_tasks_detail_rpcs.sql`
+   - `20260727214000_mcp_tasks_notifications_and_access.sql`
+   The task migrations add a restrictive OAuth fence to the `sistema_*`
+   tables. First-party browser sessions carry no `client_id`, so the web app is
+   unaffected, but confirm the board, the task modal and the notifications
+   still work in staging before promoting.
+
 5. Keep `private.mcp_config.enabled = false` while configuring the
    per-environment resource URI, OAuth clients, grants, hooks and the MCP
    deployment.

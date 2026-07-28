@@ -75,6 +75,37 @@ Hasta contar con un RPC web dedicado para listar/revocar grants y conexiones,
 `/sistema/mcp` muestra un estado explícitamente incompleto y no consulta tablas
 privadas de forma directa.
 
+## Módulo de tareas (2026-07-27)
+
+- **Cuatro capacidades, no una.** `tasks.read`, `tasks.write`,
+  `tasks.structure.write` y `tasks.notify`. Separar estructura y aviso permite
+  dar control del tablero sin dar control de los proyectos, y viceversa. Las
+  cuatro entran por `granted_by_default`, así que los clientes ya autorizados no
+  se reconectan.
+- **El lote es la única escritura masiva.** Todo o nada, un solo proyecto y tope
+  en `private.mcp_config.tasks_batch_max`. El error identifica la posición del
+  lote que fue rechazada, para que se corrija esa tarea y se reintente con la
+  misma `idempotency_key`.
+- **Anular necesita más que `entity_id`.** Una operación de tareas toca varias
+  filas y algunas de sus escrituras son actualizaciones, no altas. El rastro
+  vive en `private.mcp_operation_undo` con tres acciones —borrar lo creado,
+  restaurar lo cambiado, reponer lo borrado— y se aplica en orden inverso.
+- **La anulación se detiene antes de pisar trabajo ajeno.** Si `updated_at` de
+  la tarea es posterior al `committed_at` de la operación, la anulación
+  devuelve `undo_superseded` y no cambia nada. Si la columna o el proyecto que
+  habría que borrar ya tiene tareas, devuelve `undo_blocked`.
+- **La búsqueda pagina por `created_at`, no por el orden del tablero.** El orden
+  del tablero cambia cada vez que alguien arrastra una tarjeta, y un cursor
+  sobre una clave inestable saltea o repite filas entre páginas.
+- **El correo sale de la web, no de la base.** Postgres no puede enviar mail y
+  el proyecto no tiene `pg_net`. La RPC encola en
+  `sistema_notification_email_outbox` y `/api/tasks/notification-emails`,
+  protegida por `CRON_SECRET`, la vacía con Resend cada cinco minutos. La
+  notificación dentro de la app sí se crea en la misma transacción.
+- **La pantalla de actividad tolera tipos que no conoce.** Una operación de un
+  tipo que esa versión del front no entiende se descarta de la lista en lugar de
+  romper la revisión de las demás.
+
 ## Referencias normativas
 
 - [Supabase OAuth token security](https://supabase.com/docs/guides/auth/oauth-server/token-security)

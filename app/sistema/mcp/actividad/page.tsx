@@ -19,17 +19,17 @@ export default async function McpActivityPage() {
     return (
       <McpShell
         eyebrow="Control posterior"
-        title="Actividad contable del MCP"
-        description="Los movimientos se registran al instante, sin aprobación previa. Acá revisás lo que quedó escrito y anulás lo que no corresponda."
+        title="Actividad del MCP"
+        description="Los movimientos contables y los cambios en el tablero se escriben al instante, sin aprobación previa. Acá revisás lo que quedó escrito y anulás lo que no corresponda."
       >
         <StatusCard
           icon={History}
           title={`Últimas ${activity.windowHours} horas`}
           tone="info"
         >
-          Anular elimina la fila que creó esa operación y corrige el saldo. Solo
-          alcanza lo que registró el MCP: la contabilidad cargada a mano queda
-          fuera de su alcance.
+          Anular deshace lo que esa operación escribió: elimina las filas que
+          creó y devuelve a su estado previo las que cambió. Solo alcanza lo que
+          escribió el MCP, y se detiene si una persona editó la tarea después.
         </StatusCard>
 
         <ActivityList
@@ -49,7 +49,7 @@ export default async function McpActivityPage() {
           <ActivityError
             icon={ShieldX}
             title="Acceso denegado"
-            message="La sesión está autenticada, pero el control plane no la reconoce como administradora de contabilidad."
+            message="La sesión está autenticada, pero el control plane no la reconoce como administradora del sistema."
             tone="danger"
           />
         )
@@ -87,7 +87,7 @@ function ActivityError({
   return (
     <McpShell
       eyebrow="Control posterior"
-      title="Actividad contable del MCP"
+      title="Actividad del MCP"
       description="El panel permanece cerrado si no puede obtener actividad autorizada desde el control plane."
     >
       <StatusCard icon={icon} title={title} tone={tone}>

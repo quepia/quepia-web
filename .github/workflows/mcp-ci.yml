@@ -11,6 +11,7 @@ on:
       - "app/auth/callback/**"
       - "app/sistema/mcp/**"
       - "app/api/mcp/**"
+      - "app/api/tasks/notification-emails/**"
       - "components/sistema/mcp/**"
       - "lib/mcp/**"
       - "lib/supabase/middleware.ts"
@@ -20,6 +21,7 @@ on:
       - "scripts/verify-mcp-boundaries.mjs"
       - "scripts/verify-mcp-sql-syntax.mjs"
       - "docs/mcp/**"
+      - "vercel.json"
       - "MCP_BUSINESS_CONTROL_PLAN.md"
       - "MCP_IMPLEMENTATION_PROMPT.md"
       - "package.json"
@@ -41,6 +43,7 @@ on:
       - "app/auth/callback/**"
       - "app/sistema/mcp/**"
       - "app/api/mcp/**"
+      - "app/api/tasks/notification-emails/**"
       - "components/sistema/mcp/**"
       - "lib/mcp/**"
       - "lib/supabase/middleware.ts"
@@ -50,6 +53,7 @@ on:
       - "scripts/verify-mcp-boundaries.mjs"
       - "scripts/verify-mcp-sql-syntax.mjs"
       - "docs/mcp/**"
+      - "vercel.json"
       - "MCP_BUSINESS_CONTROL_PLAN.md"
       - "MCP_IMPLEMENTATION_PROMPT.md"
       - "package.json"
@@ -101,6 +105,7 @@ jobs:
           npx eslint
           app/api/mcp
           app/api/oauth
+          app/api/tasks/notification-emails
           app/auth/callback
           app/auth/login
           app/auth/mfa

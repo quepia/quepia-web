@@ -3,12 +3,24 @@ export const CAPABILITIES = {
   accountingExpenseWrite: "accounting.expense.write",
   accountingIncomeWrite: "accounting.income.write",
   accountingTransferWrite: "accounting.transfer.write",
+  tasksRead: "tasks.read",
+  tasksWrite: "tasks.write",
+  tasksStructureWrite: "tasks.structure.write",
+  tasksNotify: "tasks.notify",
 } as const;
 
 export const ACCOUNTING_WRITE_CAPABILITIES = [
   CAPABILITIES.accountingExpenseWrite,
   CAPABILITIES.accountingIncomeWrite,
   CAPABILITIES.accountingTransferWrite,
+] as const;
+
+// Anular alcanza cualquier escritura del modulo, asi que la herramienta se
+// ofrece a quien tenga alguna de las tres capacidades que escriben tareas.
+export const TASKS_WRITE_CAPABILITIES = [
+  CAPABILITIES.tasksWrite,
+  CAPABILITIES.tasksStructureWrite,
+  CAPABILITIES.tasksNotify,
 ] as const;
 
 export type AssuranceLevel = "aal1" | "aal2";

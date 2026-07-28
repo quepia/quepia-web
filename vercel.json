@@ -11,6 +11,10 @@
     {
       "path": "/api/client-notifications/process",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/tasks/notification-emails",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -72,12 +72,31 @@ Tool-to-RPC mapping:
 | --- | --- | --- |
 | `accounting_list_accounts` | `accounting.read` | `mcp_accounting_list_accounts` |
 | `accounting_list_expenses` | `accounting.read` | `mcp_accounting_list_expenses` |
-| `accounting_prepare_expense` | `accounting.expense.write` | `mcp_accounting_prepare_expense` |
-| `accounting_get_operation` | `accounting.expense.write` | `mcp_accounting_get_operation` |
-| `accounting_commit_expense` | `accounting.expense.write` | `mcp_accounting_commit_expense` |
+| `accounting_list_recent_operations` | `accounting.read` | `mcp_accounting_list_recent_operations` |
+| `accounting_record_expense` | `accounting.expense.write` | `mcp_accounting_record_expense` |
+| `accounting_record_income` | `accounting.income.write` | `mcp_accounting_record_income` |
+| `accounting_record_transfer` | `accounting.transfer.write` | `mcp_accounting_record_transfer` |
+| `accounting_void_operation` | any accounting write | `mcp_accounting_void_operation` |
+| `tasks_list_projects` | `tasks.read` | `mcp_tasks_list_projects` |
+| `tasks_list_columns` | `tasks.read` | `mcp_tasks_list_columns` |
+| `tasks_list_members` | `tasks.read` | `mcp_tasks_list_members` |
+| `tasks_search_tasks` | `tasks.read` | `mcp_tasks_search_tasks` |
+| `tasks_get_task` | `tasks.read` | `mcp_tasks_get_task` |
+| `tasks_list_recent_operations` | `tasks.read` | `mcp_tasks_list_recent_operations` |
+| `tasks_create_task` | `tasks.write` | `mcp_tasks_create_task` |
+| `tasks_create_tasks_batch` | `tasks.write` | `mcp_tasks_create_tasks_batch` |
+| `tasks_update_task` | `tasks.write` | `mcp_tasks_update_task` |
+| `tasks_add_subtasks` | `tasks.write` | `mcp_tasks_add_subtasks` |
+| `tasks_update_subtask` | `tasks.write` | `mcp_tasks_update_subtask` |
+| `tasks_set_dependencies` | `tasks.write` | `mcp_tasks_set_dependencies` |
+| `tasks_add_links` | `tasks.write` | `mcp_tasks_add_links` |
+| `tasks_create_column` | `tasks.structure.write` | `mcp_tasks_create_column` |
+| `tasks_create_project` | `tasks.structure.write` | `mcp_tasks_create_project` |
+| `tasks_post_update` | `tasks.notify` | `mcp_tasks_post_update` |
+| `tasks_void_operation` | any task write | `mcp_tasks_void_operation` |
 
-When `read_only` is active, prepare and commit disappear. Operation lookup
-remains available so an existing preparation can be inspected.
+When `read_only` is active every write tool disappears and only the read tools
+remain, including the two that list what the MCP wrote recently.
 
 Every tool RPC returns the same envelope:
 
@@ -100,13 +119,18 @@ digits and at most ten integer digits, matching `DECIMAL(12,2)`. Pagination
 cursors are opaque, bounded base64url strings and must be returned unchanged by
 clients.
 
-`mcp_accounting_prepare_expense` must return an operation and a server-hosted
-payload. The service validates its `operation_id` and adds `approval_url` from
-the trusted `MCP_APPROVAL_BASE_URL`; it never derives the URL from Host, tool
-input, or database output. Approval happens outside the model-controlled MCP exchange.
-`mcp_accounting_commit_expense` receives only `{ "operation_id": "uuid" }`;
-the database must lock the operation and require it to be approved, unexpired,
-unconsumed, payload-bound, and owned by the current user/client/session.
+Writes land immediately and are controlled afterwards. Every write RPC returns
+its operation; the service validates the `operation_id` and adds `review_url`
+from the trusted `MCP_APPROVAL_BASE_URL`, never deriving it from Host, tool
+input, or database output. `accounting_void_operation` and
+`tasks_void_operation` reverse one operation by id: the accounting one removes
+the row it created, and the task one replays that operation's undo trail, which
+can span several rows. Undo refuses to run when a person edited the task after
+the MCP wrote it, and it never touches work entered by a person.
+
+`tasks_create_tasks_batch` is the only bulk write in the surface. It is capped
+by `private.mcp_config.tasks_batch_max`, validates the whole batch before
+writing a single row, and is undone as a unit.
 
 ## OAuth and Supabase setup
 
