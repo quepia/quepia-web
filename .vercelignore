@@ -1,0 +1,25 @@
+# Qué NO se sube a Vercel.
+#
+# Los dos proyectos (quepia-web y quepia-mcp) despliegan desde esta raíz, así
+# que este archivo los alcanza a ambos: no excluir `services/`, que es el Root
+# Directory del servicio MCP.
+#
+# Sin esto el upload ronda los 600 MB y supera el límite de archivos, porque
+# arrastra dependencias instaladas y un proyecto anidado que no forma parte de
+# ningún build.
+
+node_modules
+node_modules 2
+.next
+.git
+
+# Proyecto anidado, ajeno a los dos deployments.
+ sistema de gestion de proyectos
+sistema de gestion de proyectos
+
+# Artefactos locales de build y logs.
+.vercel/output
+*.log
+build_log.txt
+debug_output.txt
+tsconfig.tsbuildinfo
