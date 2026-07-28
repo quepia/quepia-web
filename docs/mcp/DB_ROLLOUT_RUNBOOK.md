@@ -108,6 +108,7 @@ editing the migration.
    - `20260727212000_mcp_tasks_write_rpcs.sql`
    - `20260727213000_mcp_tasks_detail_rpcs.sql`
    - `20260727214000_mcp_tasks_notifications_and_access.sql`
+   - `20260727220000_mcp_tasks_notify_without_email.sql`
    The task migrations add a restrictive OAuth fence to the `sistema_*`
    tables. First-party browser sessions carry no `client_id`, so the web app is
    unaffected, but confirm the board, the task modal and the notifications

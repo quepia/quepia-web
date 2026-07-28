@@ -97,11 +97,13 @@ privadas de forma directa.
 - **La búsqueda pagina por `created_at`, no por el orden del tablero.** El orden
   del tablero cambia cada vez que alguien arrastra una tarjeta, y un cursor
   sobre una clave inestable saltea o repite filas entre páginas.
-- **El correo sale de la web, no de la base.** Postgres no puede enviar mail y
-  el proyecto no tiene `pg_net`. La RPC encola en
-  `sistema_notification_email_outbox` y `/api/tasks/notification-emails`,
-  protegida por `CRON_SECRET`, la vacía con Resend cada cinco minutos. La
-  notificación dentro de la app sí se crea en la misma transacción.
+- **El aviso se queda dentro de la app.** La primera versión encolaba también un
+  correo que una ruta de la web vaciaba por cron cada cinco minutos, pero el
+  plan Hobby de Vercel solo admite crons diarios y un aviso que puede tardar un
+  día no avisa nada. Se eligió el canal que ya era inmediato: comentario y
+  notificación en la app se escriben en la misma transacción que la operación y
+  se deshacen al anularla. La cola se eliminó en vez de dejarla acumulando datos
+  de personas sin consumidor.
 - **La pantalla de actividad tolera tipos que no conoce.** Una operación de un
   tipo que esa versión del front no entiende se descarta de la lista en lugar de
   romper la revisión de las demás.

@@ -358,7 +358,7 @@ export const TASK_TOOLS = [
     rpc: "mcp_tasks_post_update",
     title: "Post an update on a task",
     purpose:
-      "Writes a comment on a task and notifies the assignee in the app and by email. Send it only when the user asked to tell someone.",
+      "Writes a comment on a task and notifies the assignee inside the app. Send it only when the user asked to tell someone.",
     inputSchema: postTaskUpdateInputSchema,
     writes: true,
     destructive: false,

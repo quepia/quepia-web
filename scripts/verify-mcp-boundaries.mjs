@@ -289,7 +289,6 @@ for (const databaseObject of [
   "mcp_tasks_post_update",
   "mcp_tasks_void_operation",
   "mcp_tasks_list_recent_operations",
-  "sistema_notification_email_outbox",
 ]) {
   if (!mcpSql.includes(databaseObject)) {
     fail(`Missing MCP database object: ${databaseObject}`);

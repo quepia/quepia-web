@@ -21,6 +21,7 @@ const expectedMigrationSuffixes = [
   "_mcp_tasks_write_rpcs.sql",
   "_mcp_tasks_detail_rpcs.sql",
   "_mcp_tasks_notifications_and_access.sql",
+  "_mcp_tasks_notify_without_email.sql",
 ];
 // These migrations are already applied remotely and must remain byte-for-byte
 // immutable. Further fixes belong in a new forward-only migration.
