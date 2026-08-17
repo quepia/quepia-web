@@ -27,6 +27,7 @@ import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_ORDER, Priority, TASK_TYPE_L
 import { TaskContextMenu } from "@/components/sistema/quepia/task-context-menu"
 import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
 import { ProjectResources } from "@/components/sistema/quepia/project-resources"
+import { ZernioProjectControl } from "@/components/sistema/quepia/zernio-project-control"
 import { uploadAssetFile, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 import { useToast } from "@/components/ui/toast-provider"
 import { useConfirm } from "@/components/ui/confirm-provider"
@@ -411,6 +412,7 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                             </span>
                         )}
                     </button>
+                    {projectId && <ZernioProjectControl projectId={projectId} />}
                     {projectId && <ProjectResources projectId={projectId} />}
                 </div>
             </div>

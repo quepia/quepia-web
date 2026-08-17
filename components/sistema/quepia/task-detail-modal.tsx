@@ -36,6 +36,7 @@ import type { CommentSource, CommentWithUser, Priority, SistemaUser, Task, TaskL
 import { PRIORITY_COLORS, PRIORITY_LABELS, TASK_TYPE_LABELS, TASK_TYPE_COLORS } from "@/types/sistema"
 import { AssetPanel } from "./asset-panel"
 import { AssetDetailModal } from "./asset-detail-modal"
+import { ZernioPublishingPanel } from "./zernio-publishing-panel"
 
 interface TaskDetailModalProps {
     taskId?: string
@@ -1103,6 +1104,16 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                         </div>
                                     </div>
                                 )}
+
+                                <ZernioPublishingPanel
+                                    taskId={task.id}
+                                    projectId={task.project_id}
+                                    socialCopy={socialCopyValue}
+                                    onPublished={() => {
+                                        void refresh()
+                                        onUpdate?.()
+                                    }}
+                                />
 
                                 {/* Links */}
                                 {links.length > 0 && (
