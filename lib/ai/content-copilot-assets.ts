@@ -409,15 +409,19 @@ export function formatAssetAnalysisContext(contexts: TaskAssetContext[]) {
 
     return [[
       `Fuente visual ${index + 1}: ${label} · ${context.name}`,
-      `Resumen: ${analysis.summary}`,
+      "HECHOS OBSERVABLES — sí pueden usarse en el copy:",
       analysis.visibleText.length ? `Texto visible: ${analysis.visibleText.join(" | ")}` : "",
-      analysis.subjects.length ? `Sujetos y elementos: ${analysis.subjects.join(", ")}` : "",
-      analysis.mood ? `Tono observado: ${analysis.mood}` : "",
-      analysis.sequence.length ? `Secuencia: ${analysis.sequence.join(" → ")}` : "",
       analysis.supportedClaims.length ? `Datos respaldados: ${analysis.supportedClaims.join(" | ")}` : "Datos respaldados: ninguno detectado",
-      analysis.uncertainties.length ? `Dudas o inferencias: ${analysis.uncertainties.join(" | ")}` : "",
-      analysis.suggestedObjective ? `Objetivo probable (inferencia): ${analysis.suggestedObjective}` : "",
+      analysis.subjects.length ? `Sujetos y elementos: ${analysis.subjects.join(", ")}` : "",
+      `Resumen factual: ${analysis.summary}`,
+      analysis.sequence.length ? `Secuencia: ${analysis.sequence.join(" → ")}` : "",
       analysis.transcript ? `Audio / transcripción: ${analysis.transcript}` : "",
+      analysis.mood ? `Tono observado: ${analysis.mood}` : "",
+      analysis.uncertainties.length || analysis.suggestedObjective
+        ? "INFERENCIAS — no deben publicarse como hechos:"
+        : "",
+      analysis.uncertainties.length ? `Dudas o elementos no confirmados: ${analysis.uncertainties.join(" | ")}` : "",
+      analysis.suggestedObjective ? `Objetivo probable: ${analysis.suggestedObjective}` : "",
     ].filter(Boolean).join("\n")]
   }).join("\n\n")
 }

@@ -141,6 +141,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
     const [copilotMaxAssets, setCopilotMaxAssets] = useState(24)
     const [copilotAssetsUsed, setCopilotAssetsUsed] = useState(0)
     const [copilotAssetsFailed, setCopilotAssetsFailed] = useState(0)
+    const [copilotGroundingVerified, setCopilotGroundingVerified] = useState(false)
     const copilotAbortRef = useRef<AbortController | null>(null)
 
     const loadCopilotAssets = useCallback(async () => {
@@ -186,6 +187,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
         setCopilotFeedback("")
         setCopilotAssetsUsed(0)
         setCopilotAssetsFailed(0)
+        setCopilotGroundingVerified(false)
     }, [taskId])
 
     useEffect(() => {
@@ -593,6 +595,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
 
             setCopilotAssetsUsed(Number(response.headers.get("X-Copilot-Assets-Used") || 0))
             setCopilotAssetsFailed(Number(response.headers.get("X-Copilot-Assets-Failed") || 0))
+            setCopilotGroundingVerified(response.headers.get("X-Copilot-Grounding-Verified") === "true")
 
             const reader = response.body.getReader()
             const decoder = new TextDecoder()
@@ -851,6 +854,9 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                                         <p className="mt-2 text-[10px] leading-relaxed text-white/25">
                                                             Verde: análisis guardado. Amarillo: se analizará al generar. La versión más reciente de cada asset es la que se usa.
                                                         </p>
+                                                        <p className="mt-1.5 text-[10px] leading-relaxed text-quepia-cyan/60">
+                                                            Los assets seleccionados definen el tema y los datos del copy; el brief aporta tono y dirección.
+                                                        </p>
                                                     </>
                                                 ) : (
                                                     <p className="text-xs text-white/30">
@@ -937,7 +943,8 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId }: T
                                             )}
                                             {!copilotAction && (copilotAssetsUsed > 0 || copilotAssetsFailed > 0) && (
                                                 <p className="mt-2 text-[11px] text-white/30">
-                                                    {copilotAssetsUsed > 0 && `${copilotAssetsUsed} asset(s) usados como contexto.`}
+                                                    {copilotAssetsUsed > 0 && `${copilotAssetsUsed} asset(s) usados como fuente visual principal.`}
+                                                    {copilotGroundingVerified && " Copy verificado contra esos assets."}
                                                     {copilotAssetsFailed > 0 && ` ${copilotAssetsFailed} no pudieron analizarse.`}
                                                 </p>
                                             )}
