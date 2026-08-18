@@ -263,8 +263,8 @@ export async function POST(request: Request) {
         }),
       ])
 
-      const output = competitorGeneration.output
-      const strategyPack = strategyGeneration.output
+      const output = competitorAnalysisSchema.parse(competitorGeneration.output)
+      const strategyPack = strategyPackSchema.parse(strategyGeneration.output)
 
       const knownCompetitorNames = new Set(competitors.map((competitor) => competitor.name.toLocaleLowerCase("es")))
       const discoveredNames = new Set<string>()
