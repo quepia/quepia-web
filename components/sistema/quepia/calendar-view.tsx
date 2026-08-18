@@ -431,8 +431,13 @@ export function CalendarView({ tasks, events, loading, tasksLoading = false, cur
       <AICalendarModal
         isOpen={showAIModal}
         onClose={() => setShowAIModal(false)}
-        onImport={(imported) => {
+        projects={projects}
+        onImport={(imported, selectedProjectId) => {
           setShowAIModal(false)
+          if (selectedProjectId) {
+            handleImportToProject(imported, selectedProjectId)
+            return
+          }
           // If only one hash project, import directly; otherwise show picker
           const hashProjects = projects.filter(p => p.id) // all projects passed should be valid
           if (hashProjects.length === 1) {

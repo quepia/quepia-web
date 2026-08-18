@@ -11,19 +11,25 @@ export interface ImportedEvent {
   copy_suggestion: string
 }
 
+export interface AICalendarProject {
+  id: string
+  nombre: string
+}
+
 interface AICalendarModalProps {
   isOpen: boolean
   onClose: () => void
-  onImport: (events: ImportedEvent[]) => void
-  projectName?: string
+  onImport: (events: ImportedEvent[], projectId: string) => void
+  projects: AICalendarProject[]
 }
 
 const PLATFORMS = ["Instagram", "TikTok", "LinkedIn", "Twitter"] as const
 const FREQUENCIES = [2, 3, 4, 5, 7] as const
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 
-export default function AICalendarModal({ isOpen, onClose, onImport, projectName }: AICalendarModalProps) {
+export default function AICalendarModal({ isOpen, onClose, onImport, projects }: AICalendarModalProps) {
   const [step, setStep] = useState<1 | 2>(1)
+  const [selectedProjectId, setSelectedProjectId] = useState("")
   const [industry, setIndustry] = useState("")
   const [month, setMonth] = useState(new Date().getMonth())
   const [pillars, setPillars] = useState("")
@@ -35,6 +41,8 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
   const [error, setError] = useState("")
   const [generating, setGenerating] = useState(false)
   const [editingCell, setEditingCell] = useState<{ row: number; col: keyof ImportedEvent } | null>(null)
+  const [contextSummary, setContextSummary] = useState<{ briefConnected: boolean; activeStrategyCount: number } | null>(null)
+  const selectedProjectName = projects.find((project) => project.id === selectedProjectId)?.nombre || ""
 
   const generatedPrompt = useMemo(() => {
     const year = new Date().getFullYear()
@@ -43,12 +51,18 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
       `Plataformas: ${platforms.join(", ") || "por definir"}.`,
       `Frecuencia: exactamente ${postsPerWeek} publicaciones por semana, distribuidas de forma equilibrada.`,
       `Pilares o temas: ${pillars || "proponelos según la industria"}.`,
-      projectName ? `Proyecto: ${projectName}.` : "",
+      selectedProjectName ? `Cliente: ${selectedProjectName}.` : "",
       "Cada publicación debe incluir fecha, pilar, formato, tema concreto y una sugerencia de copy.",
     ].filter(Boolean).join("\n")
-  }, [industry, month, pillars, postsPerWeek, platforms, projectName])
+  }, [industry, month, pillars, postsPerWeek, platforms, selectedProjectName])
 
   useEffect(() => setEditablePrompt(generatedPrompt), [generatedPrompt])
+  useEffect(() => {
+    if (!isOpen) return
+    if (!projects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId(projects[0]?.id || "")
+    }
+  }, [isOpen, projects, selectedProjectId])
   useEffect(() => {
     if (!isOpen) {
       setStep(1)
@@ -56,6 +70,7 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
       setFeedback("")
       setError("")
       setGenerating(false)
+      setContextSummary(null)
     }
   }, [isOpen])
 
@@ -71,6 +86,7 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          projectId: selectedProjectId,
           prompt: editablePrompt,
           ...(isRevision ? { feedback, events } : {}),
         }),
@@ -79,6 +95,7 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
       if (!response.ok) throw new Error(data?.error || "No se pudo generar el calendario")
       if (!Array.isArray(data?.events) || data.events.length === 0) throw new Error("La IA no devolvió publicaciones")
       setEvents(data.events)
+      setContextSummary(data?.context || null)
       setFeedback("")
       setStep(2)
     } catch (caught) {
@@ -115,6 +132,15 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {step === 1 ? (
             <div className="space-y-4">
+              <Field label="Cliente">
+                <select value={selectedProjectId} onChange={(event) => setSelectedProjectId(event.target.value)} className="input-ai">
+                  {projects.length === 0 ? <option value="">No hay clientes disponibles</option> : null}
+                  {projects.map((project) => <option key={project.id} value={project.id}>{project.nombre}</option>)}
+                </select>
+              </Field>
+              <div className="rounded-xl border border-quepia-cyan/15 bg-quepia-cyan/[0.035] px-4 py-3 text-[11px] leading-5 text-white/40">
+                La IA va a usar automáticamente el brief y solo los documentos estratégicos revisados de este cliente. El pedido editable del calendario conserva prioridad.
+              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Industria / Rubro"><input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Ej: Gastronomía, Moda, Tech..." className="input-ai" /></Field>
                 <Field label="Mes"><select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="input-ai">{MONTHS.map((name, index) => <option key={name} value={index}>{name}</option>)}</select></Field>
@@ -131,6 +157,11 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
             </div>
           ) : (
             <div className="space-y-5">
+              {contextSummary ? (
+                <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.035] px-4 py-3 text-[11px] text-white/45">
+                  Contexto aplicado: {contextSummary.briefConnected ? "brief conectado" : "sin brief"} · {contextSummary.activeStrategyCount} documento(s) estratégico(s) activo(s).
+                </div>
+              ) : null}
               <div className="flex items-center gap-2 text-white/70"><Table2 className="h-4 w-4" /><span className="text-sm font-medium">Vista previa — {events.length} publicaciones</span><span className="text-xs text-white/35">Hacé clic en una celda para editarla</span></div>
               <div className="overflow-x-auto rounded-lg border border-white/10">
                 <table className="w-full min-w-[850px] text-sm">
@@ -152,7 +183,7 @@ export default function AICalendarModal({ isOpen, onClose, onImport, projectName
           <div>{step === 2 && <button onClick={() => setStep(1)} disabled={generating} className="flex items-center gap-1 rounded-lg border border-white/10 px-4 py-2 text-sm text-white/70 hover:text-white disabled:opacity-40"><ChevronLeft className="h-4 w-4" />Brief</button>}</div>
           <div className="flex gap-2">
             <button onClick={onClose} disabled={generating} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/70 hover:text-white disabled:opacity-40">Cancelar</button>
-            {step === 1 ? <button onClick={() => generateCalendar()} disabled={!editablePrompt.trim() || platforms.length === 0 || generating} className="flex items-center gap-2 rounded-lg bg-quepia-cyan px-4 py-2 text-sm font-semibold text-black hover:bg-quepia-cyan/90 disabled:cursor-not-allowed disabled:opacity-40">{generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{generating ? "Generando..." : "Generar calendario"}</button> : <button onClick={() => onImport(events)} disabled={generating || events.length === 0} className="flex items-center gap-1 rounded-lg bg-quepia-cyan px-4 py-2 text-sm font-semibold text-black hover:bg-quepia-cyan/90 disabled:opacity-40"><Check className="h-4 w-4" />Importar calendario</button>}
+            {step === 1 ? <button onClick={() => generateCalendar()} disabled={!selectedProjectId || !editablePrompt.trim() || platforms.length === 0 || generating} className="flex items-center gap-2 rounded-lg bg-quepia-cyan px-4 py-2 text-sm font-semibold text-black hover:bg-quepia-cyan/90 disabled:cursor-not-allowed disabled:opacity-40">{generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{generating ? "Generando..." : "Generar calendario"}</button> : <button onClick={() => onImport(events, selectedProjectId)} disabled={generating || events.length === 0 || !selectedProjectId} className="flex items-center gap-1 rounded-lg bg-quepia-cyan px-4 py-2 text-sm font-semibold text-black hover:bg-quepia-cyan/90 disabled:opacity-40"><Check className="h-4 w-4" />Importar calendario</button>}
           </div>
         </div>
       </div>

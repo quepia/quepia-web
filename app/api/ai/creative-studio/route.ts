@@ -155,9 +155,10 @@ export async function POST(request: Request) {
     const inlineReferences = getInlineReferences(body?.inlineReferences)
     const baseContext = [
       formatBrandGuidelines(source.brief),
+      source.activeStrategyContext,
       formatTaskContext(source.task),
       formatPieceContext(pieceContext),
-    ].join("\n\n")
+    ].filter(Boolean).join("\n\n")
 
     if (action === "directions") {
       const references = await getReferenceContext(supabase, taskId, selectedAssetIds, new URL(request.url).origin)
@@ -171,6 +172,7 @@ export async function POST(request: Request) {
         system: [
           "Sos director/a de arte senior de una agencia creativa argentina.",
           "La guía de marca es la fuente de verdad y no debe ser reescrita ni contradicha.",
+          "La estrategia aprobada es contexto operativo: debe orientar la solución sin contradecir el brief ni una instrucción explícita de esta tarea.",
           "Una excepción de campaña solo prevalece si el usuario la indicó explícitamente.",
           "Proponé exactamente tres rutas visuales sustancialmente distintas, no cambios cosméticos de una misma idea.",
           "Pensá primero como contenido de redes: debe detener el scroll, entenderse en menos de dos segundos y funcionar en pantalla móvil.",
@@ -221,6 +223,7 @@ export async function POST(request: Request) {
         system: [
           "Sos especialista senior en prompting visual y dirección de arte.",
           "Convertí la dirección elegida en un Prompt Pack preciso, producible y coherente con la guía de marca.",
+          "La estrategia aprobada es contexto operativo: debe orientar la solución sin contradecir el brief ni una instrucción explícita de esta tarea.",
           "El visualPrompt genera ÚNICAMENTE una imagen base limpia. Nunca debe pedir texto legible, titular, caption, CTA, hashtag, emoji, logotipo, marco, borde, placa, interfaz ni composición gráfica.",
           "El titular se entrega únicamente en exactCopy para que una persona lo agregue después en Canva, Figma o el editor de diseño.",
           "El copy/SEO de la tarea es caption y contexto conceptual: nunca lo copies dentro de visualPrompt ni de exactCopy.",
@@ -284,6 +287,7 @@ export async function POST(request: Request) {
       system: [
         "Sos director/a de arte y revisor/a de calidad visual.",
         "Evaluá únicamente lo observable en los archivos y comparalo con la guía, la tarea y el Prompt Pack.",
+        "Usá la estrategia aprobada para evaluar coherencia estratégica, sin convertirla en requisitos que contradigan el brief o la tarea explícita.",
         "La pregunta principal no es si la imagen es linda: es si la pieza está lista para publicar y cumple la intención concreta de la tarea.",
         "Penalizá con fuerza la estética artificial o genérica: personas posando sin motivo, piel o manos irreales, arquitectura imposible, luz excesivamente cinematográfica, lujo estéril, composición de stock y detalles geográficos falsos.",
         "Un caption completo, CTA largo, hashtags o varios párrafos dentro de la imagen hacen que la pieza no sea publicable, salvo pedido explícito. Un titular breve agregado en diseño sí es válido.",

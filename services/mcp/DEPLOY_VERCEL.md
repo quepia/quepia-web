@@ -18,7 +18,7 @@ Create or link a dedicated Vercel project with:
   `package-lock.json`
 - **Build Command:** automatic Express build; do not point it at the root
   Next.js build
-- **Node.js:** 22 or newer
+- **Node.js:** 22.x
 
 Do not add the MCP dependencies to the repository root. Do not set the web
 project's Root Directory to this service.

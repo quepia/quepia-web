@@ -321,6 +321,17 @@ export const listProjectsInputSchema = z
   })
   .strict();
 
+export const getProjectIntelligenceInputSchema = z
+  .object({
+    project_id: uuidSchema.optional(),
+    project_query: selectorTextSchema.optional(),
+    include_sources: z.boolean().default(true),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    requireOneSelector(context, value, "project_id", "project_query");
+  });
+
 export const listColumnsInputSchema = z
   .object({
     project_id: uuidSchema.optional(),

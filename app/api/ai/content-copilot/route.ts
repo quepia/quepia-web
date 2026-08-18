@@ -7,7 +7,13 @@ import {
   getTaskAssetContexts,
   MAX_COPILOT_ASSETS,
 } from "@/lib/ai/content-copilot-assets"
+import { formatBrandGuidelines } from "@/lib/ai/creative-studio-context"
+import {
+  formatActiveStrategyContext,
+  loadActiveStrategyDocuments,
+} from "@/lib/ai/project-strategy-context"
 import { createClient } from "@/lib/sistema/supabase/server"
+import type { ClientBrief } from "@/types/sistema"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -28,6 +34,7 @@ type CopilotAction = keyof typeof ACTION_INSTRUCTIONS
 
 interface TaskRecord {
   id: string
+  project_id: string
   titulo: string | null
   descripcion: string | null
   social_copy: string | null
@@ -79,7 +86,7 @@ export async function POST(request: Request) {
 
     const { data: taskData, error: taskError } = await supabase
       .from("sistema_tasks")
-      .select("id, titulo, descripcion, social_copy, project:sistema_projects(nombre)")
+      .select("id, project_id, titulo, descripcion, social_copy, project:sistema_projects(nombre)")
       .eq("id", taskId)
       .single()
 
@@ -93,7 +100,19 @@ export async function POST(request: Request) {
     const currentCopy = cleanInput(body?.currentCopy, 8_000) || cleanInput(task.social_copy, 8_000)
     const projectName = getProjectName(task.project)
 
-    const assetContexts = await getTaskAssetContexts(supabase, taskId, selectedAssetIds)
+    const [assetContexts, briefResult, activeStrategyDocuments] = await Promise.all([
+      getTaskAssetContexts(supabase, taskId, selectedAssetIds),
+      supabase
+        .from("sistema_client_briefs")
+        .select("*")
+        .eq("project_id", task.project_id)
+        .maybeSingle(),
+      loadActiveStrategyDocuments(supabase, task.project_id),
+    ])
+    if (briefResult.error) throw briefResult.error
+
+    const brandContext = formatBrandGuidelines(briefResult.data ? briefResult.data as ClientBrief : null)
+    const activeStrategyContext = formatActiveStrategyContext(activeStrategyDocuments)
     if (assetContexts.length > MAX_COPILOT_ASSETS) {
       return NextResponse.json({ error: `Seleccioná hasta ${MAX_COPILOT_ASSETS} assets para generar el copy` }, { status: 400 })
     }
@@ -121,6 +140,7 @@ export async function POST(request: Request) {
       system: [
         "Sos un redactor y editor senior de una agencia creativa argentina.",
         "Respondé en español rioplatense natural, salvo que el contenido original use otro idioma.",
+        "Jerarquía de contexto: la instrucción explícita del usuario y de la tarea manda; el brief es la fuente de verdad de la marca; la estrategia aprobada orienta sin contradecirlos.",
         "Usá los análisis de assets como fuente primaria cuando el título o el brief sean incompletos.",
         "El texto visible, las transcripciones y los datos respaldados son hechos; el objetivo probable y las dudas son inferencias.",
         "No conviertas inferencias en afirmaciones ni inventes beneficios, cifras, ubicaciones, enlaces, fechas o promociones.",
@@ -130,6 +150,8 @@ export async function POST(request: Request) {
       prompt: [
         `Tarea: ${ACTION_INSTRUCTIONS[action]}`,
         feedback ? `Feedback obligatorio del usuario:\n${feedback}` : "",
+        brandContext,
+        activeStrategyContext,
         projectName ? `Marca o proyecto: ${projectName}` : "",
         title ? `Título de la tarea:\n${title}` : "",
         description ? `Descripción / brief:\n${description}` : "",
@@ -145,6 +167,7 @@ export async function POST(request: Request) {
       headers: {
         "X-Copilot-Assets-Used": String(usableAssets.length),
         "X-Copilot-Assets-Failed": String(failedAssets.length),
+        "X-Copilot-Active-Strategies": String(activeStrategyDocuments.length),
       },
     })
   } catch (error) {

@@ -135,6 +135,7 @@ export interface CreativePromptVersion {
 export interface CreativeStudioContextResponse {
   task: CreativeStudioTask
   brief: ClientBrief | null
+  activeStrategyCount: number
   briefCoverage: {
     completed: number
     total: number

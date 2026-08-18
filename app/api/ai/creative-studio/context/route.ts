@@ -48,7 +48,9 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      ...source,
+      task: source.task,
+      brief: source.brief,
+      activeStrategyCount: source.activeStrategyCount,
       briefCoverage: getBriefCoverage(source.brief),
       assets,
       versions: (versionsResult.data || []) as CreativePromptVersion[],

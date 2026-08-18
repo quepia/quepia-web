@@ -12,6 +12,7 @@ import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { SistemaNotification } from "@/lib/sistema/hooks/useNotifications"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import type { ProjectWorkspaceSection } from "@/components/sistema/quepia/project-workspace-header"
 
 const GLOBAL_VIEWS = new Set([
     "dashboard",
@@ -116,6 +117,10 @@ const ModalFallback = () => (
 
 const KanbanBoard = dynamic(
     () => import("@/components/sistema/quepia/kanban-board").then((mod) => mod.KanbanBoard),
+    { loading: ViewFallback }
+)
+const ProjectIntelligenceView = dynamic(
+    () => import("@/components/sistema/quepia/project-intelligence-view").then((mod) => mod.ProjectIntelligenceView),
     { loading: ViewFallback }
 )
 const TaskDetailModal = dynamic(
@@ -306,6 +311,9 @@ export default function DashboardPage({
     const [activeView, setActiveView] = useState(initialView)
     const [calendarDate, setCalendarDate] = useState(() => new Date())
     const [activeProjectId, setActiveProjectId] = useState<string | null>(initialProjectId)
+    const [projectWorkspaceSection, setProjectWorkspaceSection] = useState<ProjectWorkspaceSection>(
+        searchParams.get("section") === "intelligence" ? "intelligence" : "production"
+    )
     const [mostVisitedProjectId, setMostVisitedProjectId] = useState<string | null>(null)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -417,9 +425,13 @@ export default function DashboardPage({
         [activeProjectId, activeView]
     )
     const breadcrumb = useMemo(() => {
-        if (isProjectView && activeProject) return ["Quepia", activeProject.nombre]
+        if (isProjectView && activeProject) {
+            return projectWorkspaceSection === "intelligence"
+                ? ["Quepia", activeProject.nombre, "Inteligencia"]
+                : ["Quepia", activeProject.nombre]
+        }
         return ["Quepia", VIEW_LABELS[activeView] || "Dashboard"]
-    }, [isProjectView, activeProject, activeView])
+    }, [isProjectView, activeProject, activeView, projectWorkspaceSection])
 
     const projectVisitsKey = user?.id ? `quepia:projectVisits:${user.id}` : null
 
@@ -499,12 +511,14 @@ export default function DashboardPage({
         const projectId = searchParams.get("project")
         const view = searchParams.get("view")
         if (projectId) {
+            const nextSection = searchParams.get("section") === "intelligence" ? "intelligence" : "production"
             if (projectId !== activeProjectId) {
                 setActiveProjectId(projectId)
             }
             if (activeView !== "project") {
                 setActiveView("project")
             }
+            setProjectWorkspaceSection((current) => current === nextSection ? current : nextSection)
             return
         }
         if (activeProjectId !== null) {
@@ -539,9 +553,11 @@ export default function DashboardPage({
         }
         setActiveView(view)
         setActiveProjectId(null)
+        setProjectWorkspaceSection("production")
         updateDashboardUrl((params) => {
             params.set("view", view)
             params.delete("project")
+            params.delete("section")
             if (view !== "docs") {
                 params.delete("docs")
             }
@@ -569,6 +585,7 @@ export default function DashboardPage({
                 params.delete("project")
                 params.set("view", "dashboard")
                 params.delete("docs")
+                params.delete("section")
             })
         }
     }
@@ -611,12 +628,29 @@ export default function DashboardPage({
     const handleProjectOpen = useCallback((projectId: string) => {
         setActiveProjectId(projectId)
         setActiveView("project")
+        setProjectWorkspaceSection("production")
         updateDashboardUrl((params) => {
             params.set("project", projectId)
             params.delete("view")
             params.delete("docs")
+            params.delete("section")
         })
     }, [updateDashboardUrl])
+
+    const handleProjectWorkspaceSectionChange = useCallback((section: ProjectWorkspaceSection) => {
+        if (!activeProjectId) return
+        setProjectWorkspaceSection(section)
+        updateDashboardUrl((params) => {
+            params.set("project", activeProjectId)
+            params.delete("view")
+            params.delete("docs")
+            if (section === "intelligence") {
+                params.set("section", "intelligence")
+            } else {
+                params.delete("section")
+            }
+        })
+    }, [activeProjectId, updateDashboardUrl])
 
     const closeMobileSidebar = useCallback(() => {
         setIsMobileSidebarOpen(false)
@@ -660,8 +694,12 @@ export default function DashboardPage({
     }, [handleViewChange])
 
     const openInsightsView = useCallback(() => {
+        if (isProjectView && activeProjectId) {
+            handleProjectWorkspaceSectionChange("intelligence")
+            return
+        }
         handleViewChange("dashboard")
-    }, [handleViewChange])
+    }, [activeProjectId, handleProjectWorkspaceSectionChange, handleViewChange, isProjectView])
 
     const openShareDialog = useCallback(() => {
         if (!activeProjectId) return
@@ -693,6 +731,7 @@ export default function DashboardPage({
             params.set("view", "docs")
             params.set("docs", targetSection)
             params.delete("project")
+            params.delete("section")
         })
     }, [activeView, isProjectView, updateDashboardUrl])
 
@@ -777,6 +816,18 @@ export default function DashboardPage({
 
     const content = useMemo(() => {
         if (isProjectView) {
+            if (projectWorkspaceSection === "intelligence" && activeProjectId) {
+                return (
+                    <ProjectIntelligenceView
+                        key={`${activeProjectId}-intelligence`}
+                        projectId={activeProjectId}
+                        projectName={activeProject?.nombre || "Proyecto"}
+                        activeWorkspaceSection={projectWorkspaceSection}
+                        onWorkspaceSectionChange={handleProjectWorkspaceSectionChange}
+                        onTaskCreated={refreshAllTasks}
+                    />
+                )
+            }
             return (
                 <KanbanBoard
                     key={activeProjectId || "project"}
@@ -785,6 +836,8 @@ export default function DashboardPage({
                     onTaskClick={handleTaskClick}
                     onRefreshRef={kanbanRefreshRef}
                     userId={user?.id}
+                    activeWorkspaceSection={projectWorkspaceSection}
+                    onWorkspaceSectionChange={handleProjectWorkspaceSectionChange}
                 />
             )
         }
@@ -936,6 +989,7 @@ export default function DashboardPage({
         isAdmin,
         isProjectView,
         mostVisitedProjectId,
+        projectWorkspaceSection,
         projects,
         projectsLoading,
         refreshAllEvents,
@@ -947,6 +1001,7 @@ export default function DashboardPage({
         showMcpSetup,
         user?.id,
         workloadUsers,
+        handleProjectWorkspaceSectionChange,
     ])
 
     // Show loading while checking auth

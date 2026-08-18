@@ -274,7 +274,7 @@ export function createApp(dependencies: AppDependencies): express.Express {
     response.json({
       ok: true,
       service: "quepia-business-control-mcp",
-      version: "0.1.0",
+      version: "0.3.0",
     });
   });
 

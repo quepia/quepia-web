@@ -1246,3 +1246,187 @@ export const EFEMERIDE_ESTADO_COLORS: Record<EfemerideProyectoEstado, string> = 
   lista: '#22c55e',
   publicada: '#6b7280',
 };
+
+// ============ PROJECT STRATEGY & COMPETITIVE INTELLIGENCE ============
+export type CompetitorCategory = 'direct' | 'indirect' | 'local' | 'aspirational';
+export type ResearchRunStatus = 'queued' | 'running' | 'completed' | 'failed';
+export type StrategyDocumentType =
+  | 'product_information'
+  | 'marketing_strategy'
+  | 'competitor_analysis'
+  | 'brand_voice'
+  | 'content_strategy';
+export type StrategyDocumentStatus = 'draft' | 'reviewed' | 'published' | 'archived';
+export type OpportunityLevel = 'high' | 'medium' | 'low';
+export type OpportunityStatus = 'open' | 'planned' | 'in_progress' | 'done' | 'dismissed';
+
+export interface ProjectCompetitor {
+  id: string;
+  project_id: string;
+  name: string;
+  website_url: string | null;
+  category: CompetitorCategory;
+  notes: string | null;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectCompetitorInsert {
+  project_id: string;
+  name: string;
+  website_url?: string | null;
+  category?: CompetitorCategory;
+  notes?: string | null;
+  created_by: string;
+}
+
+export interface CompetitorAnalysisCompetitor {
+  competitorId: string;
+  name: string;
+  website: string;
+  category: CompetitorCategory;
+  positioning: string;
+  targetAudience: string;
+  offer: string;
+  pricing: string;
+  channels: string[];
+  strengths: string[];
+  weaknesses: string[];
+  contentPatterns: string[];
+  differentiators: string[];
+  evidenceUrls: string[];
+  confidence: number;
+}
+
+export interface CompetitorComparisonDimension {
+  label: string;
+  clientValue: string;
+  competitorValues: Array<{
+    competitorId: string;
+    value: string;
+  }>;
+}
+
+export interface CompetitorAnalysisOpportunity {
+  title: string;
+  description: string;
+  impact: OpportunityLevel;
+  effort: OpportunityLevel;
+  confidence: number;
+  evidenceUrls: string[];
+  suggestedTask: string;
+}
+
+export interface CompetitorAnalysisContent {
+  executiveSummary: string;
+  marketPosition: string;
+  clientStrengths: string[];
+  clientRisks: string[];
+  competitors: CompetitorAnalysisCompetitor[];
+  comparisonDimensions: CompetitorComparisonDimension[];
+  opportunities: CompetitorAnalysisOpportunity[];
+  recommendedActions: string[];
+  limitations: string[];
+}
+
+export interface StrategyNarrativeSection {
+  title: string;
+  summary: string;
+  points: string[];
+  evidenceUrls: string[];
+}
+
+export interface StrategyNarrativeContent {
+  executiveSummary: string;
+  confidence: number;
+  sections: StrategyNarrativeSection[];
+  nextActions: string[];
+  limitations: string[];
+}
+
+export interface ResearchRun {
+  id: string;
+  project_id: string;
+  research_type: 'competitor_analysis';
+  status: ResearchRunStatus;
+  requested_by: string;
+  model_id: string | null;
+  input: Record<string, unknown>;
+  error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StrategyDocument<TContent = Record<string, unknown>> {
+  id: string;
+  project_id: string;
+  document_type: StrategyDocumentType;
+  title: string;
+  status: StrategyDocumentStatus;
+  version: number;
+  content: TContent;
+  source_run_id: string | null;
+  generated_by: string | null;
+  generated_at: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  published_by: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ResearchSource {
+  id: string;
+  project_id: string;
+  run_id: string;
+  title: string | null;
+  url: string;
+  source_type: 'web' | 'client_site' | 'competitor_site' | 'manual';
+  metadata: Record<string, unknown>;
+  accessed_at: string;
+  created_at: string;
+}
+
+export interface StrategyOpportunity {
+  id: string;
+  project_id: string;
+  document_id: string | null;
+  source_run_id: string | null;
+  title: string;
+  description: string;
+  impact: OpportunityLevel;
+  effort: OpportunityLevel;
+  confidence: number;
+  evidence: string[];
+  status: OpportunityStatus;
+  linked_task_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const COMPETITOR_CATEGORY_LABELS: Record<CompetitorCategory, string> = {
+  direct: 'Directo',
+  indirect: 'Indirecto',
+  local: 'Local',
+  aspirational: 'Aspiracional',
+};
+
+export const OPPORTUNITY_LEVEL_LABELS: Record<OpportunityLevel, string> = {
+  high: 'Alto',
+  medium: 'Medio',
+  low: 'Bajo',
+};
+
+export const STRATEGY_DOCUMENT_LABELS: Record<StrategyDocumentType, string> = {
+  product_information: 'Información de producto',
+  marketing_strategy: 'Estrategia de marketing',
+  competitor_analysis: 'Análisis competitivo',
+  brand_voice: 'Voz de marca',
+  content_strategy: 'Estrategia de contenido',
+};

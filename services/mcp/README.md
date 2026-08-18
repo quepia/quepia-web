@@ -1,7 +1,7 @@
 # Quepia Business Control MCP
 
-Remote, stateless Model Context Protocol server for Quepia's accounting
-operations. It targets MCP protocol `2025-11-25`, runs on Node.js 22 or newer,
+Remote, stateless Model Context Protocol server for Quepia's accounting,
+project operations, and client intelligence. It targets MCP protocol `2025-11-25`, runs on Node.js 22.x,
 and pins the production SDK to `@modelcontextprotocol/sdk@1.29.0`.
 
 `src/index.ts` default-exports the Express application for Vercel's native
@@ -94,6 +94,14 @@ Tool-to-RPC mapping:
 | `tasks_create_project` | `tasks.structure.write` | `mcp_tasks_create_project` |
 | `tasks_post_update` | `tasks.notify` | `mcp_tasks_post_update` |
 | `tasks_void_operation` | any task write | `mcp_tasks_void_operation` |
+| `intelligence_get_project_context` | `intelligence.read` | `mcp_intelligence_get_project_context` |
+
+`intelligence_get_project_context` is read-only and returns the selected
+client's brief, active human-reviewed strategy documents, newer-version status,
+competitors, opportunities, research freshness, and bounded evidence sources.
+Consumers such as Claude must apply the user's explicit request first, then the
+brief, then approved strategy, and finally research evidence. Draft documents
+are reported as pending updates but are not exposed as active strategy.
 
 When `read_only` is active every write tool disappears and only the read tools
 remain, including the two that list what the MCP wrote recently.

@@ -2,6 +2,10 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { getTaskAssetContexts } from "@/lib/ai/content-copilot-assets"
+import {
+  formatActiveStrategyContext,
+  loadActiveStrategyDocuments,
+} from "@/lib/ai/project-strategy-context"
 import type {
   CreativePieceContext,
   CreativeStudioAsset,
@@ -26,6 +30,8 @@ interface TaskSourceRecord {
 export interface CreativeStudioSource {
   task: CreativeStudioTask
   brief: ClientBrief | null
+  activeStrategyContext: string
+  activeStrategyCount: number
 }
 
 function cleanString(value: unknown, maxLength = 8_000) {
@@ -58,13 +64,16 @@ export async function loadCreativeStudioSource(
   if (taskError || !taskData) return null
   const source = taskData as unknown as TaskSourceRecord
 
-  const { data: briefData, error: briefError } = await supabase
-    .from("sistema_client_briefs")
-    .select("*")
-    .eq("project_id", source.project_id)
-    .maybeSingle()
+  const [briefResult, activeStrategyDocuments] = await Promise.all([
+    supabase
+      .from("sistema_client_briefs")
+      .select("*")
+      .eq("project_id", source.project_id)
+      .maybeSingle(),
+    loadActiveStrategyDocuments(supabase, source.project_id),
+  ])
 
-  if (briefError) throw briefError
+  if (briefResult.error) throw briefResult.error
 
   return {
     task: {
@@ -78,7 +87,9 @@ export async function loadCreativeStudioSource(
       labels: cleanStringArray(source.labels, 30, 100),
       typeMetadata: source.type_metadata && typeof source.type_metadata === "object" ? source.type_metadata : {},
     },
-    brief: briefData ? briefData as ClientBrief : null,
+    brief: briefResult.data ? briefResult.data as ClientBrief : null,
+    activeStrategyContext: formatActiveStrategyContext(activeStrategyDocuments),
+    activeStrategyCount: activeStrategyDocuments.length,
   }
 }
 

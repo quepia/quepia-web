@@ -695,6 +695,22 @@ function ContextStep({ context, value, onChange, selectedAssetIds, onToggleAsset
         )}
       </div>
 
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.035] p-4">
+        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+        <div>
+          <p className="text-xs font-medium text-white/75">
+            {context.activeStrategyCount > 0
+              ? `${context.activeStrategyCount} documento(s) estratégico(s) activo(s) en IA`
+              : "Sin documentos estratégicos activos"}
+          </p>
+          <p className="mt-1 text-[11px] leading-5 text-white/35">
+            {context.activeStrategyCount > 0
+              ? "Las decisiones revisadas de Inteligencia se aplican automáticamente a las direcciones, prompts y revisiones de esta pieza."
+              : "Revisá y activá documentos desde Inteligencia para que también orienten la producción creativa."}
+          </p>
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <StudioInput label="Tipo de entregable" value={value.deliverableType} onChange={(next) => update("deliverableType", next)} placeholder="Ej. post, portada, fotografía de producto" />
         <StudioInput label="Plataforma" value={value.platform} onChange={(next) => update("platform", next)} placeholder="Ej. Instagram" />

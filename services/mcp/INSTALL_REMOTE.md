@@ -130,6 +130,17 @@ For an individual account:
 5. Add the connector and select **Connect**.
 6. Complete Quepia OAuth.
 
+To verify the client context after connecting, start a new chat and ask Claude:
+
+```text
+Usá Quepia para buscar el proyecto Brandalise y cargá su contexto estratégico antes de proponer contenido.
+```
+
+Claude should resolve the project and call
+`intelligence_get_project_context`. The result includes the client brief and
+the latest human-reviewed strategy; newer drafts are reported as pending but
+do not replace the active version.
+
 For Team or Enterprise, an Owner or Primary Owner first adds the URL under
 **Organization settings → Connectors → Add → Custom → Web**. Users can then
 connect it from **Customize → Connectors**.

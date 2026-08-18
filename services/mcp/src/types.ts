@@ -7,6 +7,7 @@ export const CAPABILITIES = {
   tasksWrite: "tasks.write",
   tasksStructureWrite: "tasks.structure.write",
   tasksNotify: "tasks.notify",
+  intelligenceRead: "intelligence.read",
 } as const;
 
 export const ACCOUNTING_WRITE_CAPABILITIES = [

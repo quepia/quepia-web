@@ -27,6 +27,7 @@ import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_ORDER, Priority, TASK_TYPE_L
 import { TaskContextMenu } from "@/components/sistema/quepia/task-context-menu"
 import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
 import { ProjectResources } from "@/components/sistema/quepia/project-resources"
+import { ProjectWorkspaceHeader, type ProjectWorkspaceSection } from "@/components/sistema/quepia/project-workspace-header"
 import { ZernioProjectControl } from "@/components/sistema/quepia/zernio-project-control"
 import { uploadAssetFile, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 import { useToast } from "@/components/ui/toast-provider"
@@ -42,9 +43,19 @@ interface KanbanBoardProps {
     onTaskClick?: (task: Task) => void
     onRefreshRef?: React.MutableRefObject<(() => void) | null>
     userId?: string
+    activeWorkspaceSection: ProjectWorkspaceSection
+    onWorkspaceSectionChange: (section: ProjectWorkspaceSection) => void
 }
 
-export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef, userId }: KanbanBoardProps) {
+export function KanbanBoard({
+    projectId,
+    projectName,
+    onTaskClick,
+    onRefreshRef,
+    userId,
+    activeWorkspaceSection,
+    onWorkspaceSectionChange,
+}: KanbanBoardProps) {
     const { toast } = useToast()
     const { confirm } = useConfirm()
     const [showCompletedTasks, setShowCompletedTasks] = useState(false)
@@ -379,10 +390,12 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
 
     return (
         <div className="flex-1 overflow-hidden flex flex-col bg-[#0a0a0a]">
-            {/* Project Header */}
-            <div className="px-4 sm:px-6 py-3 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
-                <h1 className="text-lg font-semibold text-white truncate">{projectName}</h1>
-                <div className="w-full sm:w-auto flex items-center gap-2 sm:justify-end">
+            <ProjectWorkspaceHeader
+                projectName={projectName}
+                activeSection={activeWorkspaceSection}
+                onSectionChange={onWorkspaceSectionChange}
+                actions={(
+                    <>
                     <button
                         onClick={() => setShowCompletedTasks((prev) => !prev)}
                         className={cn(
@@ -414,8 +427,9 @@ export function KanbanBoard({ projectId, projectName, onTaskClick, onRefreshRef,
                     </button>
                     {projectId && <ZernioProjectControl projectId={projectId} />}
                     {projectId && <ProjectResources projectId={projectId} />}
-                </div>
-            </div>
+                    </>
+                )}
+            />
 
             {/* Kanban Columns */}
             <div className="flex-1 overflow-x-auto p-3 sm:p-6">
