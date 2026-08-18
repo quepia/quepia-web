@@ -1249,6 +1249,8 @@ export const EFEMERIDE_ESTADO_COLORS: Record<EfemerideProyectoEstado, string> = 
 
 // ============ PROJECT STRATEGY & COMPETITIVE INTELLIGENCE ============
 export type CompetitorCategory = 'direct' | 'indirect' | 'local' | 'aspirational';
+export type ResearchMarketScope = 'local' | 'regional' | 'national' | 'international';
+export type CompetitorGeographicFit = 'verified' | 'probable' | 'unverified';
 export type ResearchRunStatus = 'queued' | 'running' | 'completed' | 'failed';
 export type StrategyDocumentType =
   | 'product_information'
@@ -1298,6 +1300,17 @@ export interface CompetitorAnalysisCompetitor {
   differentiators: string[];
   evidenceUrls: string[];
   confidence: number;
+  location?: string;
+  inclusionReason?: string;
+  geographicFit?: CompetitorGeographicFit;
+}
+
+export interface CompetitorResearchContext {
+  businessDescription: string;
+  marketLocation: string;
+  marketScope: ResearchMarketScope;
+  targetAudience: string;
+  exclusions: string;
 }
 
 export interface CompetitorComparisonDimension {
@@ -1320,6 +1333,7 @@ export interface CompetitorAnalysisOpportunity {
 }
 
 export interface CompetitorAnalysisContent {
+  researchContext?: CompetitorResearchContext;
   executiveSummary: string;
   marketPosition: string;
   clientStrengths: string[];
@@ -1339,6 +1353,7 @@ export interface StrategyNarrativeSection {
 }
 
 export interface StrategyNarrativeContent {
+  researchContext?: CompetitorResearchContext;
   executiveSummary: string;
   confidence: number;
   sections: StrategyNarrativeSection[];

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
   ArrowRight,
@@ -17,6 +17,7 @@ import {
   Link2,
   ListChecks,
   Loader2,
+  MapPin,
   Megaphone,
   MessageSquareQuote,
   PackageSearch,
@@ -42,8 +43,10 @@ import {
   OPPORTUNITY_LEVEL_LABELS,
   type CompetitorAnalysisCompetitor,
   type CompetitorCategory,
+  type CompetitorResearchContext,
   type OpportunityLevel,
   type ProjectCompetitor,
+  type ResearchMarketScope,
   type StrategyDocumentType,
   type StrategyNarrativeContent,
   type StrategyOpportunity,
@@ -62,6 +65,35 @@ interface ProjectIntelligenceViewProps {
 }
 
 const CATEGORY_OPTIONS: CompetitorCategory[] = ["direct", "indirect", "local", "aspirational"]
+const MARKET_SCOPE_OPTIONS: Array<{ value: ResearchMarketScope; label: string; description: string }> = [
+  { value: "local", label: "Local", description: "Misma ciudad y alrededores inmediatos" },
+  { value: "regional", label: "Regional", description: "Provincia o región cercana" },
+  { value: "national", label: "Nacional", description: "Todo el país" },
+  { value: "international", label: "Internacional", description: "Referentes de otros países" },
+]
+
+function getResearchContext(input: Record<string, unknown> | null | undefined): CompetitorResearchContext | null {
+  const value = input?.researchContext
+  if (!value || typeof value !== "object") return null
+  const candidate = value as Record<string, unknown>
+  const marketScope = candidate.marketScope as ResearchMarketScope
+  if (
+    typeof candidate.businessDescription !== "string"
+    || typeof candidate.marketLocation !== "string"
+    || !MARKET_SCOPE_OPTIONS.some((option) => option.value === marketScope)
+  ) return null
+  return {
+    businessDescription: candidate.businessDescription,
+    marketLocation: candidate.marketLocation,
+    marketScope,
+    targetAudience: typeof candidate.targetAudience === "string" ? candidate.targetAudience : "",
+    exclusions: typeof candidate.exclusions === "string" ? candidate.exclusions : "",
+  }
+}
+
+function marketScopeLabel(scope: ResearchMarketScope) {
+  return MARKET_SCOPE_OPTIONS.find((option) => option.value === scope)?.label || scope
+}
 
 const STRATEGY_DOCUMENTS: Array<{
   type: StrategyDocumentType
@@ -169,7 +201,7 @@ function CompetitorManager({
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-white">Competidores</p>
-          <p className="mt-0.5 text-[11px] text-white/35">Marcas incluidas en la investigación</p>
+          <p className="mt-0.5 text-[11px] text-white/35">Confirmados por tu equipo para futuras investigaciones</p>
         </div>
         <button
           type="button"
@@ -293,7 +325,21 @@ function OpportunityCard({
   )
 }
 
-function CompetitorDeepDive({ competitor }: { competitor: CompetitorAnalysisCompetitor }) {
+function CompetitorDeepDive({
+  competitor,
+  onConfirm,
+}: {
+  competitor: CompetitorAnalysisCompetitor
+  onConfirm: (competitor: CompetitorAnalysisCompetitor) => void
+}) {
+  const isDiscovered = competitor.competitorId.startsWith("discovered:")
+  const fitLabel = competitor.geographicFit === "verified"
+    ? "Ubicación verificada"
+    : competitor.geographicFit === "probable"
+      ? "Ubicación probable"
+      : competitor.geographicFit === "unverified"
+        ? "Ubicación sin verificar"
+        : null
   return (
     <details className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] open:bg-white/[0.03]">
       <summary className="flex cursor-pointer list-none items-center gap-3 p-4 [&::-webkit-details-marker]:hidden">
@@ -306,6 +352,16 @@ function CompetitorDeepDive({ competitor }: { competitor: CompetitorAnalysisComp
             <span className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-wider text-white/35">
               {COMPETITOR_CATEGORY_LABELS[competitor.category]}
             </span>
+            {fitLabel ? (
+              <span className={cn(
+                "rounded-full border px-2 py-0.5 text-[9px] font-medium",
+                competitor.geographicFit === "verified"
+                  ? "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-300"
+                  : "border-amber-400/20 bg-amber-400/[0.06] text-amber-300",
+              )}>
+                {fitLabel}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 line-clamp-1 text-xs text-white/35">{competitor.positioning}</p>
         </div>
@@ -314,6 +370,16 @@ function CompetitorDeepDive({ competitor }: { competitor: CompetitorAnalysisComp
       </summary>
 
       <div className="grid gap-5 border-t border-white/[0.06] p-4 md:grid-cols-2">
+        {(competitor.location || competitor.inclusionReason) ? (
+          <div className="rounded-xl border border-[#41efec]/10 bg-[#41efec]/[0.025] p-3 md:col-span-2">
+            {competitor.location ? (
+              <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#41efec]/70">
+                <MapPin className="h-3.5 w-3.5" /> {competitor.location}
+              </p>
+            ) : null}
+            {competitor.inclusionReason ? <p className="mt-1.5 text-xs leading-5 text-white/50">Por qué compite: {competitor.inclusionReason}</p> : null}
+          </div>
+        ) : null}
         <div className="space-y-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">Posicionamiento</p>
@@ -350,6 +416,15 @@ function CompetitorDeepDive({ competitor }: { competitor: CompetitorAnalysisComp
             </a>
           ) : null}
           <span className="ml-auto text-[10px] text-white/25">{competitor.evidenceUrls.length} fuentes vinculadas</span>
+          {isDiscovered ? (
+            <button
+              type="button"
+              onClick={() => onConfirm(competitor)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#41efec]/20 bg-[#41efec]/[0.06] px-3 text-[10px] font-semibold text-[#41efec] hover:bg-[#41efec]/[0.1]"
+            >
+              <Check className="h-3.5 w-3.5" /> Confirmar competidor
+            </button>
+          ) : null}
         </div>
       </div>
     </details>
@@ -462,6 +537,160 @@ function NarrativeDocumentView({
         </section>
       ) : null}
     </main>
+  )
+}
+
+function ResearchContextDialog({
+  open,
+  onOpenChange,
+  projectName,
+  initialContext,
+  generating,
+  onSubmit,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projectName: string
+  initialContext: CompetitorResearchContext
+  generating: boolean
+  onSubmit: (context: CompetitorResearchContext) => Promise<boolean>
+}) {
+  const [businessDescription, setBusinessDescription] = useState(initialContext.businessDescription)
+  const [marketLocation, setMarketLocation] = useState(initialContext.marketLocation)
+  const [marketScope, setMarketScope] = useState<ResearchMarketScope>(initialContext.marketScope)
+  const [targetAudience, setTargetAudience] = useState(initialContext.targetAudience)
+  const [exclusions, setExclusions] = useState(initialContext.exclusions)
+
+  useEffect(() => {
+    if (!open) return
+    setBusinessDescription(initialContext.businessDescription)
+    setMarketLocation(initialContext.marketLocation)
+    setMarketScope(initialContext.marketScope)
+    setTargetAudience(initialContext.targetAudience)
+    setExclusions(initialContext.exclusions)
+  }, [initialContext, open])
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!businessDescription.trim() || !marketLocation.trim() || generating) return
+    const generated = await onSubmit({
+      businessDescription: businessDescription.trim(),
+      marketLocation: marketLocation.trim(),
+      marketScope,
+      targetAudience: targetAudience.trim(),
+      exclusions: exclusions.trim(),
+    })
+    if (generated) onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !generating && onOpenChange(nextOpen)}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-white/[0.08] bg-[#111318] sm:max-w-xl">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Definir el mercado antes de investigar</DialogTitle>
+            <p className="text-xs leading-5 text-white/40">
+              Estos datos desambiguan a {projectName} y evitan mezclar empresas homónimas, ciudades o países.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-xs font-medium text-white/65">¿Qué ofrece el cliente? *</span>
+              <textarea
+                value={businessDescription}
+                onChange={(event) => setBusinessDescription(event.target.value)}
+                placeholder="Ej. Camping familiar con parcelas, espacios verdes y acceso al río"
+                rows={3}
+                maxLength={2000}
+                autoFocus
+                className="mt-1.5 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#41efec]/45"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-medium text-white/65">¿Dónde compite? *</span>
+              <input
+                value={marketLocation}
+                onChange={(event) => setMarketLocation(event.target.value)}
+                placeholder="Ej. Villa Carlos Paz, Córdoba, Argentina"
+                maxLength={500}
+                className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#41efec]/45"
+              />
+              <span className="mt-1 block text-[10px] text-white/25">Incluí ciudad, provincia/estado y país.</span>
+            </label>
+
+            <fieldset>
+              <legend className="text-xs font-medium text-white/65">Alcance competitivo *</legend>
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                {MARKET_SCOPE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setMarketScope(option.value)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors",
+                      marketScope === option.value
+                        ? "border-[#41efec]/40 bg-[#41efec]/[0.07]"
+                        : "border-white/[0.08] bg-black/20 hover:border-white/[0.14]",
+                    )}
+                  >
+                    <span className={cn("block text-xs font-semibold", marketScope === option.value ? "text-[#41efec]" : "text-white/65")}>{option.label}</span>
+                    <span className="mt-1 block text-[10px] leading-4 text-white/30">{option.description}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <label className="block">
+              <span className="text-xs font-medium text-white/65">Público principal</span>
+              <input
+                value={targetAudience}
+                onChange={(event) => setTargetAudience(event.target.value)}
+                placeholder="Ej. Familias y grupos que visitan las sierras de Córdoba"
+                maxLength={1500}
+                className="mt-1.5 h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#41efec]/45"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-medium text-white/65">Qué excluir o priorizar</span>
+              <textarea
+                value={exclusions}
+                onChange={(event) => setExclusions(event.target.value)}
+                placeholder="Ej. No incluir campings de España; priorizar opciones a menos de 50 km"
+                rows={2}
+                maxLength={1500}
+                className="mt-1.5 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#41efec]/45"
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-[#41efec]/10 bg-[#41efec]/[0.035] p-3 text-[11px] leading-5 text-white/40">
+            La IA solo conservará competidores cuya ubicación pueda verificar con fuentes. Los descubiertos no quedarán confirmados automáticamente.
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              disabled={generating}
+              className="h-9 rounded-lg px-3 text-xs text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white/80 disabled:opacity-40"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={!businessDescription.trim() || !marketLocation.trim() || generating}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#41efec] px-4 text-xs font-semibold text-black transition-colors hover:bg-[#6ff4f1] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radar className="h-3.5 w-3.5" />}
+              {generating ? "Investigando…" : "Investigar con este contexto"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -584,6 +813,7 @@ export function ProjectIntelligenceView({
   const [activeTab, setActiveTab] = useState<IntelligenceTab>("overview")
   const [activeDocumentType, setActiveDocumentType] = useState<StrategyDocumentType>("competitor_analysis")
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [researchDialogOpen, setResearchDialogOpen] = useState(false)
   const { toast } = useToast()
   const { confirm } = useConfirm()
   const { brief, loading: briefLoading } = useClientBrief(projectId)
@@ -625,6 +855,9 @@ export function ProjectIntelligenceView({
   const selectedLimitations = activeDocumentType === "competitor_analysis"
     ? competitorContent?.limitations || []
     : narrativeContent?.limitations || []
+  const selectedDocumentContext = activeDocumentType === "competitor_analysis"
+    ? competitorContent?.researchContext
+    : narrativeContent?.researchContext
   const briefCoverage = brief ? [
     brief.value_proposition,
     brief.objectives,
@@ -635,13 +868,34 @@ export function ProjectIntelligenceView({
     brief.visual_style_keywords,
     brief.avoid_elements,
   ].filter((value) => Array.isArray(value) ? value.length > 0 : Boolean(value)).length : 0
+  const researchContext = useMemo(() => getResearchContext(latestRun?.input), [latestRun])
+  const initialResearchContext = useMemo<CompetitorResearchContext>(() => researchContext || ({
+    businessDescription: [brief?.brand_description, brief?.industry ? `Rubro: ${brief.industry}` : ""].filter(Boolean).join("\n"),
+    marketLocation: "",
+    marketScope: "local",
+    targetAudience: brief?.target_audience || "",
+    exclusions: "",
+  }), [brief, researchContext])
 
-  const handleGenerate = async () => {
-    const generated = await generateAnalysis()
+  const handleGenerate = () => setResearchDialogOpen(true)
+
+  const handleResearchGenerate = async (context: CompetitorResearchContext) => {
+    const generated = await generateAnalysis(context)
     if (generated) {
       setActiveTab("overview")
       toast({ title: "Paquete estratégico generado", description: "La IA creó cinco documentos con fuentes para revisión humana.", variant: "success" })
     }
+    return generated
+  }
+
+  const handleConfirmCompetitor = async (competitor: CompetitorAnalysisCompetitor) => {
+    const saved = await addCompetitor({
+      name: competitor.name,
+      website: competitor.website,
+      category: competitor.category,
+      notes: [competitor.location, competitor.inclusionReason].filter(Boolean).join(" · "),
+    })
+    if (saved) toast({ title: `${competitor.name} quedó confirmado`, description: "Se usará como competidor canónico en próximas investigaciones.", variant: "success" })
   }
 
   const handleRemoveCompetitor = async (competitor: ProjectCompetitor) => {
@@ -750,12 +1004,41 @@ export function ProjectIntelligenceView({
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <Metric label="Competidores" value={competitors.length} icon={Target} />
+              <Metric label="Competidores" value={competitorContent?.competitors.length ?? competitors.length} icon={Target} />
               <Metric label="Oportunidades" value={openOpportunities.length} icon={Lightbulb} accent />
               <Metric label="Fuentes" value={sources.length} icon={BookOpen} />
               <Metric label="Brief" value={briefLoading ? "…" : brief ? `${briefCoverage}/8` : "Sin brief"} icon={FileCheck2} accent={Boolean(brief)} />
               <Metric label="Versión" value={selectedDocument ? `v${selectedDocument.version}` : "—"} icon={FileSearch} />
             </div>
+          </div>
+
+          <div className={cn(
+            "mb-4 flex items-start gap-3 rounded-xl border px-4 py-3",
+            researchContext
+              ? "border-[#41efec]/15 bg-[#41efec]/[0.035]"
+              : "border-amber-400/20 bg-amber-400/[0.05]",
+          )}>
+            <MapPin className={cn("mt-0.5 h-4 w-4 shrink-0", researchContext ? "text-[#41efec]" : "text-amber-300")} />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-white/70">
+                {researchContext ? `Mercado ${marketScopeLabel(researchContext.marketScope).toLowerCase()}: ${researchContext.marketLocation}` : "Falta definir el mercado de investigación"}
+              </p>
+              <p className="mt-1 text-[11px] leading-5 text-white/35">
+                {researchContext
+                  ? researchContext.businessDescription
+                  : documents.length > 0
+                    ? "La versión actual se generó sin ubicación ni alcance y puede haber mezclado empresas homónimas. Definí el contexto y volvé a investigar."
+                    : "Antes de buscar competidores, indicá qué ofrece el cliente, su ubicación y hasta dónde compite."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setResearchDialogOpen(true)}
+              disabled={generating}
+              className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/55 transition-colors hover:bg-white/[0.05] hover:text-white disabled:opacity-40"
+            >
+              {researchContext ? "Editar contexto" : "Completar contexto"}
+            </button>
           </div>
 
           <div className={cn(
@@ -911,7 +1194,28 @@ export function ProjectIntelligenceView({
               </div>
 
               <div id="strategy-document-panel" role="tabpanel" aria-label={STRATEGY_DOCUMENT_LABELS[activeDocumentType]}>
-              {!selectedDocument ? (
+              {selectedDocument && !selectedDocumentContext ? (
+                <section className="flex min-h-[430px] items-center justify-center rounded-2xl border border-amber-400/15 bg-amber-400/[0.025] px-5 text-center">
+                  <div className="max-w-xl">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/[0.07]">
+                      <MapPin className="h-5 w-5 text-amber-300" />
+                    </div>
+                    <h3 className="mt-4 text-base font-semibold text-white">Esta versión no tiene un mercado verificable</h3>
+                    <p className="mt-2 text-sm leading-6 text-white/45">
+                      Fue generada antes de pedir ubicación y alcance competitivo, por lo que puede mezclar ciudades, países o empresas con el mismo nombre. Se conserva en el historial, pero no conviene usarla para tomar decisiones.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGenerate}
+                      disabled={generating}
+                      className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#41efec] px-4 text-xs font-semibold text-black hover:bg-[#6ff4f1] disabled:opacity-50"
+                    >
+                      {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
+                      Generar una versión confiable
+                    </button>
+                  </div>
+                </section>
+              ) : !selectedDocument ? (
                 <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
                   <CompetitorManager competitors={competitors} onAdd={() => setAddDialogOpen(true)} onRemove={handleRemoveCompetitor} />
                   <EmptyAnalysis hasCompetitors={competitors.length > 0} onAdd={() => setAddDialogOpen(true)} onGenerate={handleGenerate} generating={generating} />
@@ -978,7 +1282,13 @@ export function ProjectIntelligenceView({
                         <p className="mt-1 text-xs text-white/35">Oferta, comunicación y patrones observados en cada marca.</p>
                       </div>
                       <div className="space-y-2">
-                        {competitorContent.competitors.map((competitor) => <CompetitorDeepDive key={competitor.competitorId || competitor.name} competitor={competitor} />)}
+                        {competitorContent.competitors.map((competitor) => (
+                          <CompetitorDeepDive
+                            key={competitor.competitorId || competitor.name}
+                            competitor={competitor}
+                            onConfirm={(candidate) => void handleConfirmCompetitor(candidate)}
+                          />
+                        ))}
                       </div>
                     </section>
 
@@ -1072,6 +1382,14 @@ export function ProjectIntelligenceView({
         </div>
       </div>
 
+      <ResearchContextDialog
+        open={researchDialogOpen}
+        onOpenChange={setResearchDialogOpen}
+        projectName={projectName}
+        initialContext={initialResearchContext}
+        generating={generating}
+        onSubmit={handleResearchGenerate}
+      />
       <AddCompetitorDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} onSubmit={addCompetitor} />
     </div>
   )

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/sistema/supabase/client"
 import type {
   CompetitorAnalysisContent,
   CompetitorCategory,
+  CompetitorResearchContext,
   ProjectCompetitor,
   ResearchRun,
   ResearchSource,
@@ -251,7 +252,7 @@ export function useProjectIntelligence(projectId: string | null) {
     }
   }, [])
 
-  const generateAnalysis = useCallback(async () => {
+  const generateAnalysis = useCallback(async (researchContext: CompetitorResearchContext) => {
     if (!projectId || generating) return false
     setGenerating(true)
     setError(null)
@@ -259,7 +260,7 @@ export function useProjectIntelligence(projectId: string | null) {
       const response = await fetch("/api/ai/competitor-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, researchContext }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || "No se pudo generar el análisis.")

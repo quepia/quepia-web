@@ -21,6 +21,9 @@ export const competitorAnalysisSchema = z.object({
     differentiators: z.array(z.string().max(500)).max(8),
     evidenceUrls: z.array(z.string().max(2_048)).max(12),
     confidence: z.number().int().min(0).max(100),
+    location: z.string().min(1).max(500),
+    inclusionReason: z.string().min(1).max(1_000),
+    geographicFit: z.enum(["verified", "probable", "unverified"]),
   })).min(1).max(8),
   comparisonDimensions: z.array(z.object({
     label: z.string().max(200),
