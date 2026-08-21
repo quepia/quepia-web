@@ -461,6 +461,11 @@ export async function uploadAssetFileToDrive(params: {
   const { file, taskId, projectId, userId, assetId, assetName, currentVersion, notes, assetType, groupId, groupOrder, driveSubfolderName, onProgress } = params
   const uploadId = `drive-${file.name}-${Date.now()}`
 
+  if (file.size > MAX_FILE_SIZE) {
+    onProgress?.({ id: uploadId, fileName: file.name, percent: 0, stage: "error", message: "Archivo supera 100MB" })
+    throw new Error("Archivo supera 100MB")
+  }
+
   if (!isSupportedFile(file)) {
     onProgress?.({ id: uploadId, fileName: file.name, percent: 0, stage: "error", message: "Formato no soportado" })
     throw new Error("Formato no soportado")

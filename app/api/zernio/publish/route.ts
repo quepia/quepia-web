@@ -2,10 +2,20 @@ import crypto from "node:crypto"
 import path from "node:path"
 import { NextResponse } from "next/server"
 import { ASSET_BUCKET, createSignedUrl, isStoragePath, sanitizeFilename } from "@/lib/sistema/assets-storage"
+import { downloadDriveFile, extractGoogleDriveFileId } from "@/lib/sistema/google-drive-backup"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { uploadMediaToZernio, ZernioApiError, zernioRequest, toZernioMediaType } from "@/lib/zernio/client"
 import { type ZernioMediaEdit } from "@/lib/zernio/media-formats"
 import { normalizeZernioMediaEdit, prepareImageForZernio } from "@/lib/zernio/media-preparation"
+import { prepareReelForZernio } from "@/lib/zernio/reel-preparation"
+import {
+  buildZernioPlatformTargets,
+  buildZernioTimingFields,
+  scheduledForDatabaseValue as resolveScheduledForDatabaseValue,
+  validateMediaScheduleWindow,
+  validateReelAssets,
+  ZERNIO_TIME_ZONE,
+} from "@/lib/zernio/publishing-rules"
 import {
   apiErrorResponse,
   assertAdmin,
@@ -16,8 +26,8 @@ import {
   ZernioRouteError,
 } from "@/lib/zernio/server"
 
-const TIME_ZONE = "America/Argentina/Cordoba"
 const ACTIVE_PUBLICATION_STATUSES = new Set(["preparing", "scheduled", "publishing"])
+const MAX_ZERNIO_MEDIA_BYTES = 100 * 1024 * 1024
 
 type AssetVersionRow = {
   id: string
@@ -30,6 +40,7 @@ type AssetVersionRow = {
   thumbnail_path: string | null
   preview_path: string | null
   original_filename: string | null
+  drive_file_id: string | null
 }
 
 type AssetRow = {
@@ -52,6 +63,7 @@ type PublicationRow = {
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+export const maxDuration = 300
 
 function currentVersion(asset: AssetRow) {
   const versions = Array.isArray(asset.versions) ? asset.versions : []
@@ -59,22 +71,11 @@ function currentVersion(asset: AssetRow) {
 }
 
 function scheduledForDatabaseValue(value: string | null) {
-  if (!value) return null
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value)) {
-    throw new ZernioRouteError(400, "La fecha programada no tiene un formato válido")
+  try {
+    return resolveScheduledForDatabaseValue(value)
+  } catch (error) {
+    throw new ZernioRouteError(400, error instanceof Error ? error.message : "La fecha programada no es válida")
   }
-
-  // Zernio receives the local wall-clock value plus TIME_ZONE. Postgres receives
-  // the equivalent instant so the publication history remains unambiguous.
-  const argentinaOffsetValue = `${value.length === 16 ? `${value}:00` : value}-03:00`
-  const scheduledDate = new Date(argentinaOffsetValue)
-  if (Number.isNaN(scheduledDate.getTime())) {
-    throw new ZernioRouteError(400, "La fecha programada no es válida")
-  }
-  if (scheduledDate.getTime() <= Date.now()) {
-    throw new ZernioRouteError(400, "La fecha programada debe estar en el futuro")
-  }
-  return scheduledDate.toISOString()
 }
 
 function extensionForContentType(contentType: string) {
@@ -118,9 +119,12 @@ async function assetPreview(asset: AssetRow) {
   const version = currentVersion(asset)
   if (!version) return { previewUrl: null, fileType: null, editable: false }
   const reference = versionPreviewReference(version)
-  const previewUrl = isStoragePath(reference)
-    ? await createSignedUrl(reference, 60 * 60)
-    : (/^https:\/\//i.test(reference || "") ? reference : null)
+  const driveFileId = version.drive_file_id || extractGoogleDriveFileId(version.file_url)
+  const previewUrl = driveFileId
+    ? `/api/zernio/media-preview/${encodeURIComponent(version.id)}`
+    : isStoragePath(reference)
+      ? await createSignedUrl(reference, 60 * 60)
+      : (/^https:\/\//i.test(reference || "") ? reference : null)
   const fileType = version.file_type || "application/octet-stream"
 
   return {
@@ -134,36 +138,58 @@ async function toMediaItem(asset: AssetRow, edit?: ZernioMediaEdit | null) {
   const version = currentVersion(asset)
   if (!version) throw new ZernioRouteError(400, `El asset “${asset.nombre}” no tiene una versión disponible`)
 
-  const contentType = version.file_type || "application/octet-stream"
-  const mediaType = toZernioMediaType(contentType)
+  let contentType = version.file_type || "application/octet-stream"
   const storageReference = versionStorageReference(version)
+  const driveFileId = version.drive_file_id || extractGoogleDriveFileId(version.file_url)
 
   if (edit && edit.format !== "original" && !contentType.startsWith("image/")) {
     throw new ZernioRouteError(400, `El recorte solo está disponible para imágenes: “${asset.nombre}”`)
   }
 
-  if (!storageReference) {
+  if (!storageReference && !driveFileId) {
     if (edit && edit.format !== "original") {
       throw new ZernioRouteError(400, `“${asset.nombre}” no se puede recortar porque no está en el almacenamiento del sistema`)
     }
     if (/^https:\/\//i.test(version.file_url)) {
+      const mediaType = toZernioMediaType(contentType)
       return { type: mediaType, url: version.file_url }
     }
     throw new ZernioRouteError(400, `No se pudo localizar el archivo de “${asset.nombre}”`)
   }
 
-  const admin = createAdminClient()
-  const { data, error } = await admin.storage.from(ASSET_BUCKET).download(storageReference)
-  if (error || !data) {
-    throw new ZernioRouteError(500, error?.message || `No se pudo descargar “${asset.nombre}”`)
+  if (version.file_size && version.file_size > MAX_ZERNIO_MEDIA_BYTES) {
+    throw new ZernioRouteError(400, `“${asset.nombre}” supera el límite de 100 MB del sistema de publicación`)
   }
 
-  const sourceBytes = await data.arrayBuffer()
-  let prepared: Awaited<ReturnType<typeof prepareImageForZernio>> = null
+  let sourceBytes: ArrayBuffer
+  if (storageReference) {
+    const admin = createAdminClient()
+    const { data, error } = await admin.storage.from(ASSET_BUCKET).download(storageReference)
+    if (error || !data) {
+      throw new ZernioRouteError(500, error?.message || `No se pudo descargar “${asset.nombre}”`)
+    }
+    sourceBytes = await data.arrayBuffer()
+  } else {
+    try {
+      const driveFile = await downloadDriveFile(driveFileId!, MAX_ZERNIO_MEDIA_BYTES)
+      sourceBytes = driveFile.data.buffer.slice(
+        driveFile.data.byteOffset,
+        driveFile.data.byteOffset + driveFile.data.byteLength,
+      ) as ArrayBuffer
+      contentType = version.file_type || driveFile.mediaType || "application/octet-stream"
+    } catch (error) {
+      const detail = error instanceof Error ? `: ${error.message}` : ""
+      throw new ZernioRouteError(400, `No se pudo descargar “${asset.nombre}” desde Google Drive${detail}`)
+    }
+  }
+
+  let prepared: Awaited<ReturnType<typeof prepareImageForZernio>> | Awaited<ReturnType<typeof prepareReelForZernio>> = null
   try {
-    prepared = edit && edit.format !== "original"
-      ? await prepareImageForZernio({ bytes: sourceBytes, edit })
-      : null
+    prepared = asset.asset_type === "reel"
+      ? await prepareReelForZernio(sourceBytes)
+      : edit && edit.format !== "original"
+        ? await prepareImageForZernio({ bytes: sourceBytes, edit })
+        : null
   } catch (error) {
     const detail = error instanceof Error ? `: ${error.message}` : ""
     throw new ZernioRouteError(400, `No se pudo preparar “${asset.nombre}”${detail}`)
@@ -180,7 +206,7 @@ async function toMediaItem(asset: AssetRow, edit?: ZernioMediaEdit | null) {
         contentType,
       })
 
-  return { type: mediaType, url: publicUrl }
+  return { type: toZernioMediaType(prepared?.contentType || contentType), url: publicUrl }
 }
 
 async function loadTaskContext(taskId: string) {
@@ -219,7 +245,8 @@ async function loadAssets(taskId: string): Promise<AssetRow[]> {
         thumbnail_url,
         thumbnail_path,
         preview_path,
-        original_filename
+        original_filename,
+        drive_file_id
       )
     `)
     .eq("task_id", taskId)
@@ -340,6 +367,7 @@ export async function POST(request: Request) {
       (Array.isArray(body?.assetIds) ? body.assetIds : []).map((value: unknown) => String(value)).filter(Boolean),
     ))
     const rawMediaEdits = Array.isArray(body?.mediaEdits) ? body.mediaEdits : []
+    const shareToFeed = body?.shareToFeed !== false
 
     if (!taskId) return NextResponse.json({ error: "Falta taskId" }, { status: 400 })
     if (!content && assetIds.length === 0) {
@@ -349,15 +377,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Seleccioná al menos una cuenta social" }, { status: 400 })
     }
     const scheduledForDatabase = scheduledForDatabaseValue(scheduledFor)
-    if (
-      scheduledForDatabase
-      && assetIds.length > 0
-      && new Date(scheduledForDatabase).getTime() - Date.now() > 7 * 24 * 60 * 60 * 1000
-    ) {
-      throw new ZernioRouteError(
-        400,
-        "Las publicaciones con assets deben programarse dentro de los próximos 7 días por la vigencia temporal del archivo en Zernio",
-      )
+    try {
+      validateMediaScheduleWindow(scheduledForDatabase, assetIds.length > 0)
+    } catch (error) {
+      throw new ZernioRouteError(400, error instanceof Error ? error.message : "La fecha programada excede el límite permitido")
     }
 
     const { session, task } = await loadTaskContext(taskId)
@@ -386,6 +409,15 @@ export async function POST(request: Request) {
     if (selectedAssets.length !== assetIds.length) {
       throw new ZernioRouteError(400, "Uno de los assets seleccionados ya no está disponible")
     }
+    let isReel = false
+    try {
+      isReel = validateReelAssets(selectedAssets.map((asset) => ({
+        assetType: asset.asset_type,
+        fileType: currentVersion(asset)?.file_type || null,
+      })))
+    } catch (error) {
+      throw new ZernioRouteError(400, error instanceof Error ? error.message : "La selección del Reel no es válida")
+    }
     const mediaEdits = new Map<string, ZernioMediaEdit>()
     for (const assetId of assetIds) {
       const rawEdit = rawMediaEdits.find((value: unknown) => (
@@ -407,7 +439,7 @@ export async function POST(request: Request) {
         request_id: requestId,
         content,
         scheduled_for: scheduledForDatabase,
-        timezone: TIME_ZONE,
+        timezone: ZERNIO_TIME_ZONE,
         status: "preparing",
         account_ids: accountIds,
         asset_ids: assetIds,
@@ -430,25 +462,35 @@ export async function POST(request: Request) {
       ? String((youtubeMetadata as Record<string, unknown>).title)
       : task.titulo
 
+    const isInstagramReel = isReel && accounts.some((account) => account.platform.toLowerCase() === "instagram")
     const postBody: Record<string, unknown> = {
       title: youtubeTitle.slice(0, 100),
       content,
       mediaItems,
-      platforms: accounts.map((account) => ({
-        platform: account.platform,
-        accountId: account.zernio_account_id,
-      })),
-      timezone: TIME_ZONE,
+      platforms: buildZernioPlatformTargets(accounts, { isInstagramReel, shareToFeed }),
+      timezone: ZERNIO_TIME_ZONE,
       metadata: {
         source: "quepia",
         projectId: task.project_id,
         taskId,
         localPublicationId,
+        publicationKind: isReel ? "reel" : "post",
         mediaEdits: Array.from(mediaEdits.values()),
       },
+      ...buildZernioTimingFields(scheduledFor),
     }
-    if (scheduledFor) postBody.scheduledFor = scheduledFor
-    else postBody.publishNow = true
+
+    const validation = await zernioRequest<{
+      valid?: boolean
+      errors?: Array<{ error?: string; message?: string }>
+    }>("/tools/validate/post", {
+      method: "POST",
+      body: postBody,
+    })
+    if (validation.valid === false) {
+      const firstError = validation.errors?.[0]
+      throw new ZernioRouteError(400, firstError?.error || firstError?.message || "Zernio rechazó la validación de la publicación")
+    }
 
     const response = await zernioRequest<{
       post?: Record<string, unknown>

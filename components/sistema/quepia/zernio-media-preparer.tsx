@@ -3,11 +3,14 @@
 import Image from "next/image"
 import { useEffect, useMemo, useState } from "react"
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Crop,
+  Film,
   ImageIcon,
   RotateCcw,
   X,
@@ -26,6 +29,7 @@ export type ZernioPreviewAsset = {
   previewUrl: string | null
   fileType: string | null
   editable: boolean
+  assetType: string
 }
 
 type Props = {
@@ -41,7 +45,21 @@ type Props = {
 
 const FORMAT_ORDER: ZernioMediaFormat[] = ["original", "portrait", "square", "landscape"]
 
-function MediaFrame({ asset, edit }: { asset: ZernioPreviewAsset; edit: ZernioMediaEdit }) {
+type VideoMetadata = {
+  duration: number
+  width: number
+  height: number
+}
+
+function MediaFrame({
+  asset,
+  edit,
+  onVideoMetadata,
+}: {
+  asset: ZernioPreviewAsset
+  edit: ZernioMediaEdit
+  onVideoMetadata?: (metadata: VideoMetadata) => void
+}) {
   const preset = ZERNIO_MEDIA_FORMATS[edit.format]
   const cropped = Boolean(preset.width && preset.height && asset.editable)
 
@@ -55,7 +73,23 @@ function MediaFrame({ asset, edit }: { asset: ZernioPreviewAsset; edit: ZernioMe
   }
 
   if (asset.fileType?.startsWith("video/")) {
-    return <video src={asset.previewUrl} controls preload="metadata" className="h-full w-full object-contain" />
+    return (
+      <video
+        src={asset.previewUrl}
+        controls
+        playsInline
+        preload="metadata"
+        className="h-full w-full object-contain"
+        onLoadedMetadata={(event) => {
+          const video = event.currentTarget
+          onVideoMetadata?.({
+            duration: video.duration,
+            width: video.videoWidth,
+            height: video.videoHeight,
+          })
+        }}
+      />
+    )
   }
 
   return (
@@ -89,6 +123,7 @@ export function ZernioMediaPreparer({
   onClose,
 }: Props) {
   const [activeAssetId, setActiveAssetId] = useState<string | null>(assets[0]?.id || null)
+  const [videoMetadata, setVideoMetadata] = useState<Record<string, VideoMetadata>>({})
 
   useEffect(() => {
     if (!assets.some((asset) => asset.id === activeAssetId)) setActiveAssetId(assets[0]?.id || null)
@@ -98,6 +133,15 @@ export function ZernioMediaPreparer({
   const activeAsset = assets[activeIndex] || null
   const activeEdit = activeAsset
     ? edits[activeAsset.id] || defaultZernioMediaEdit(activeAsset.id)
+    : null
+  const isReel = assets.length === 1 && assets[0]?.assetType === "reel"
+  const activeVideoMetadata = activeAsset ? videoMetadata[activeAsset.id] : null
+  const reelFileTypeValid = Boolean(activeAsset?.fileType && ["video/mp4", "video/quicktime"].includes(activeAsset.fileType))
+  const reelDurationValid = activeVideoMetadata
+    ? activeVideoMetadata.duration >= 3 && activeVideoMetadata.duration <= 90
+    : null
+  const reelAspectValid = activeVideoMetadata
+    ? Math.abs((activeVideoMetadata.width / activeVideoMetadata.height) - (9 / 16)) < 0.02
     : null
   const commonFormat = useMemo(() => {
     const firstEditable = assets.find((asset) => asset.editable)
@@ -132,7 +176,11 @@ export function ZernioMediaPreparer({
   }
 
   const preset = activeEdit ? ZERNIO_MEDIA_FORMATS[activeEdit.format] : ZERNIO_MEDIA_FORMATS.original
-  const aspectRatio = preset.width && preset.height ? `${preset.width} / ${preset.height}` : "4 / 5"
+  const aspectRatio = isReel
+    ? "9 / 16"
+    : preset.width && preset.height
+      ? `${preset.width} / ${preset.height}`
+      : "4 / 5"
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center sm:p-4">
@@ -142,27 +190,41 @@ export function ZernioMediaPreparer({
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <Crop className="h-4 w-4 text-quepia-cyan" />
-                <h2 className="text-sm font-semibold text-white">Previsualización del post</h2>
+                {isReel ? <Film className="h-4 w-4 text-quepia-cyan" /> : <Crop className="h-4 w-4 text-quepia-cyan" />}
+                <h2 className="text-sm font-semibold text-white">Previsualización del {isReel ? "Reel" : "post"}</h2>
               </div>
-              <p className="mt-1 text-[11px] text-white/35">El original no se modifica. El recorte se genera al publicar.</p>
+              <p className="mt-1 text-[11px] text-white/35">
+                {isReel ? "Vista 9:16 sin recorte; al publicar se normaliza a MP4/H.264." : "El original no se modifica. El recorte se genera al publicar."}
+              </p>
             </div>
             <button type="button" onClick={onClose} className="rounded-lg p-2 hover:bg-white/8">
               <X className="h-4 w-4 text-white/50" />
             </button>
           </div>
 
-          <div className="mx-auto max-w-[520px] overflow-hidden rounded-xl border border-white/10 bg-[#0e0e0e] shadow-xl">
+          <div className={cn("mx-auto overflow-hidden rounded-xl border border-white/10 bg-[#0e0e0e] shadow-xl", isReel ? "max-w-[360px]" : "max-w-[520px]")}>
             <div className="flex items-center gap-2.5 px-3 py-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-quepia-cyan/80 to-fuchsia-500/70 text-[10px] font-bold text-black">Q</div>
               <div>
                 <p className="text-xs font-medium text-white/85">{accountLabel || "Cuenta seleccionada"}</p>
-                <p className="text-[10px] text-white/30">Vista previa aproximada del feed</p>
+                <p className="text-[10px] text-white/30">Vista previa aproximada del {isReel ? "Reel · 9:16" : "feed"}</p>
               </div>
             </div>
 
             <div className="relative overflow-hidden bg-black" style={{ aspectRatio }}>
-              {activeAsset && activeEdit ? <MediaFrame asset={activeAsset} edit={activeEdit} /> : (
+              {activeAsset && activeEdit ? (
+                <MediaFrame
+                  asset={activeAsset}
+                  edit={activeEdit}
+                  onVideoMetadata={(metadata) => setVideoMetadata((current) => (
+                    current[activeAsset.id]?.duration === metadata.duration
+                      && current[activeAsset.id]?.width === metadata.width
+                      && current[activeAsset.id]?.height === metadata.height
+                      ? current
+                      : { ...current, [activeAsset.id]: metadata }
+                  ))}
+                />
+              ) : (
                 <div className="flex h-full items-center justify-center text-xs text-white/25">Seleccioná al menos un asset</div>
               )}
               {assets.length > 1 && (
@@ -194,40 +256,83 @@ export function ZernioMediaPreparer({
 
         <aside className="max-h-[36svh] overflow-y-auto p-4 sm:max-h-[90svh] sm:p-6">
           <div className="space-y-5">
-            <div>
-              <p className="mb-2 text-xs font-medium text-white/60">Formato común del carrusel</p>
-              <div className="grid grid-cols-2 gap-2">
-                {FORMAT_ORDER.map((format) => {
-                  const item = ZERNIO_MEDIA_FORMATS[format]
-                  return (
-                    <button key={format} type="button" onClick={() => applyFormat(format)} className={cn(
-                      "rounded-lg border px-3 py-2 text-left transition-colors",
-                      commonFormat === format ? "border-quepia-cyan/45 bg-quepia-cyan/8" : "border-white/8 bg-white/[0.02] hover:border-white/15",
-                    )}>
-                      <span className={cn("block text-xs", commonFormat === format ? "text-quepia-cyan" : "text-white/65")}>{item.label}</span>
-                      <span className="mt-0.5 block text-[10px] text-white/28">{item.hint}</span>
-                    </button>
-                  )
-                })}
+            {isReel ? (
+              <div className="rounded-xl border border-quepia-cyan/20 bg-quepia-cyan/[0.04] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-quepia-cyan/10 text-quepia-cyan"><Film className="h-4 w-4" /></div>
+                  <div>
+                    <p className="text-xs font-medium text-white/75">Reel vertical · 9:16</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-white/38">Instagram publicará este único video como Reel. No se aplican recortes de carrusel.</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 text-[11px] text-white/45">
+                  <span className="flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-quepia-cyan/70" />Un único archivo de video</span>
+                  <span className="flex items-center gap-2">
+                    {reelFileTypeValid ? <CheckCircle2 className="h-3.5 w-3.5 text-quepia-cyan/70" /> : <AlertTriangle className="h-3.5 w-3.5 text-amber-300/75" />}
+                    {reelFileTypeValid ? "Formato MP4 o MOV compatible" : "El archivo debe ser MP4 o MOV"}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {reelDurationValid === false
+                      ? <AlertTriangle className="h-3.5 w-3.5 text-amber-300/75" />
+                      : reelDurationValid
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-quepia-cyan/70" />
+                        : <span className="h-3.5 w-3.5 rounded-full border border-white/25" />}
+                    {activeVideoMetadata
+                      ? `${activeVideoMetadata.duration.toFixed(1)} s · ${reelDurationValid ? "duración compatible" : "debe durar entre 3 y 90 s"}`
+                      : "Duración: se verificará al cargar el video"}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    {reelAspectValid === false
+                      ? <AlertTriangle className="h-3.5 w-3.5 text-amber-300/75" />
+                      : reelAspectValid
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-quepia-cyan/70" />
+                        : <span className="h-3.5 w-3.5 rounded-full border border-white/25" />}
+                    {activeVideoMetadata
+                      ? `${activeVideoMetadata.width} × ${activeVideoMetadata.height} · ${reelAspectValid ? "vertical 9:16" : "se adaptará a 1080 × 1920"}`
+                      : "Resolución: se verificará al cargar el video"}
+                  </span>
+                </div>
               </div>
-              {assets.length > 1 && commonFormat === "original" && (
-                <p className="mt-2 text-[10px] leading-relaxed text-amber-200/60">En Instagram, la primera placa define la proporción de todo el carrusel. Elegí un formato común para evitar recortes automáticos.</p>
-              )}
-            </div>
+            ) : (
+              <div>
+                <p className="mb-2 text-xs font-medium text-white/60">Formato común del carrusel</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {FORMAT_ORDER.map((format) => {
+                    const item = ZERNIO_MEDIA_FORMATS[format]
+                    return (
+                      <button key={format} type="button" onClick={() => applyFormat(format)} className={cn(
+                        "rounded-lg border px-3 py-2 text-left transition-colors",
+                        commonFormat === format ? "border-quepia-cyan/45 bg-quepia-cyan/8" : "border-white/8 bg-white/[0.02] hover:border-white/15",
+                      )}>
+                        <span className={cn("block text-xs", commonFormat === format ? "text-quepia-cyan" : "text-white/65")}>{item.label}</span>
+                        <span className="mt-0.5 block text-[10px] text-white/28">{item.hint}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+                {assets.length > 1 && commonFormat === "original" && (
+                  <p className="mt-2 text-[10px] leading-relaxed text-amber-200/60">En Instagram, la primera placa define la proporción de todo el carrusel. Elegí un formato común para evitar recortes automáticos.</p>
+                )}
+              </div>
+            )}
 
             {activeAsset && activeEdit && (
               <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-white/75">Placa {activeIndex + 1}: {activeAsset.name}</p>
-                    <p className="mt-0.5 text-[10px] text-white/30">Ajustes individuales de encuadre</p>
+                    <p className="truncate text-xs font-medium text-white/75">{isReel ? "Video" : `Placa ${activeIndex + 1}`}: {activeAsset.name}</p>
+                    <p className="mt-0.5 text-[10px] text-white/30">{isReel ? "Archivo original del Reel" : "Ajustes individuales de encuadre"}</p>
                   </div>
-                  <button type="button" onClick={() => onEditChange(activeAsset.id, { ...defaultZernioMediaEdit(activeAsset.id), format: commonFormat })} className="rounded-md p-1.5 text-white/35 hover:bg-white/8 hover:text-white/65" title="Restablecer encuadre">
-                    <RotateCcw className="h-3.5 w-3.5" />
-                  </button>
+                  {!isReel && (
+                    <button type="button" onClick={() => onEditChange(activeAsset.id, { ...defaultZernioMediaEdit(activeAsset.id), format: commonFormat })} className="rounded-md p-1.5 text-white/35 hover:bg-white/8 hover:text-white/65" title="Restablecer encuadre">
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
 
-                {!activeAsset.editable ? (
+                {isReel ? (
+                  <p className="text-[11px] leading-relaxed text-white/35">El contenido completo se conserva dentro del marco 9:16. Antes de enviarlo, el sistema lo convierte a MP4/H.264, 1080 × 1920 y 30 fps.</p>
+                ) : !activeAsset.editable ? (
                   <p className="text-[11px] text-white/35">Este archivo puede previsualizarse, pero el recorte de esta fase está disponible para imágenes almacenadas en el sistema.</p>
                 ) : activeEdit.format === "original" ? (
                   <p className="text-[11px] text-white/35">Elegí 4:5, 1:1 o 1.91:1 para habilitar zoom y posición.</p>
@@ -250,7 +355,7 @@ export function ZernioMediaPreparer({
               </div>
             )}
 
-            <div>
+            {!isReel && assets.length > 1 && <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-medium text-white/60">Orden de placas</p>
                 <span className="text-[10px] text-white/25">{assets.length} seleccionadas</span>
@@ -272,14 +377,14 @@ export function ZernioMediaPreparer({
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
-            <div className="flex gap-2 pt-1">
+            {!isReel && assets.length > 1 && <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => moveActive(-1)} disabled={activeIndex === 0 || assets.length < 2} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/50 disabled:opacity-25"><ArrowLeft className="h-3.5 w-3.5" />Mover</button>
               <button type="button" onClick={() => moveActive(1)} disabled={activeIndex === assets.length - 1 || assets.length < 2} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/50 disabled:opacity-25">Mover<ArrowRight className="h-3.5 w-3.5" /></button>
-            </div>
+            </div>}
 
-            <button type="button" onClick={onClose} className="w-full rounded-lg bg-quepia-cyan px-4 py-2.5 text-sm font-semibold text-black">Usar esta preparación</button>
+            <button type="button" onClick={onClose} className="w-full rounded-lg bg-quepia-cyan px-4 py-2.5 text-sm font-semibold text-black">Usar esta {isReel ? "previsualización" : "preparación"}</button>
           </div>
         </aside>
       </div>

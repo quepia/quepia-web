@@ -2,9 +2,10 @@
 
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, CheckCircle2, Crop, ExternalLink, Loader2, Plus, Radio, RefreshCw, Send, Timer } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Crop, ExternalLink, Film, Loader2, Plus, Radio, RefreshCw, Send, Timer } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { defaultZernioMediaEdit, type ZernioMediaEdit } from "@/lib/zernio/media-formats"
+import { ZERNIO_TIME_ZONE } from "@/lib/zernio/publishing-rules"
 
 const ZernioMediaPreparer = dynamic(
   () => import("@/components/sistema/quepia/zernio-media-preparer").then((module) => module.ZernioMediaPreparer),
@@ -79,11 +80,35 @@ const ASSET_STATUS_LABELS: Record<string, string> = {
   published: "Publicado",
 }
 
+function dateTimeLocalValue(timestamp: number) {
+  const date = new Date(Math.ceil(timestamp / (5 * 60_000)) * 5 * 60_000)
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: ZERNIO_TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  )
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
+}
+
 function defaultScheduleValue() {
-  const date = new Date(Date.now() + 60 * 60 * 1000)
-  date.setMinutes(Math.ceil(date.getMinutes() / 5) * 5, 0, 0)
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
+  return dateTimeLocalValue(Date.now() + 60 * 60 * 1000)
+}
+
+function minimumScheduleValue() {
+  return dateTimeLocalValue(Date.now() + 5 * 60 * 1000)
+}
+
+function maximumMediaScheduleValue() {
+  return dateTimeLocalValue(Date.now() + (7 * 24 * 60 * 60 * 1000) - (5 * 60 * 1000))
 }
 
 function findPublicationUrls(value: unknown): string[] {
@@ -132,6 +157,9 @@ export function ZernioPublishingPanel({
   const [preparerOpen, setPreparerOpen] = useState(false)
   const [mode, setMode] = useState<"now" | "schedule">("now")
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue)
+  const [scheduleMinimum, setScheduleMinimum] = useState(minimumScheduleValue)
+  const [scheduleMaximum, setScheduleMaximum] = useState(maximumMediaScheduleValue)
+  const [shareToFeed, setShareToFeed] = useState(true)
   const initializedAssetTaskRef = useRef<string | null>(null)
 
   const load = useCallback(async () => {
@@ -152,7 +180,8 @@ export function ZernioPublishingPanel({
         const available = new Set(next.assets.map((asset) => asset.id))
         if (initializedAssetTaskRef.current !== taskId) {
           initializedAssetTaskRef.current = taskId
-          return next.assets.map((asset) => asset.id)
+          const firstReel = next.assets.find((asset) => asset.assetType === "reel")
+          return firstReel ? [firstReel.id] : next.assets.map((asset) => asset.id)
         }
         return current.filter((id) => available.has(id))
       })
@@ -191,7 +220,17 @@ export function ZernioPublishingPanel({
       .join(" · "),
     [context?.accounts, selectedAccounts],
   )
+  const selectedIsReel = selectedPreviewAssets.length === 1 && selectedPreviewAssets[0]?.assetType === "reel"
+  const selectedHasInstagram = selectedAccounts.some((accountId) => (
+    context?.accounts.find((account) => account.zernio_account_id === accountId)?.platform.toLowerCase() === "instagram"
+  ))
+  const selectedIsInstagramReel = selectedIsReel && selectedHasInstagram
   const preparedAssetsCount = selectedAssets.filter((assetId) => mediaEdits[assetId]?.format !== "original").length
+  const scheduleIsValid = mode !== "schedule" || (
+    Boolean(scheduledFor)
+    && scheduledFor >= scheduleMinimum
+    && (selectedAssets.length === 0 || scheduledFor <= scheduleMaximum)
+  )
 
   const activate = async () => {
     setAction("activate")
@@ -251,6 +290,7 @@ export function ZernioPublishingPanel({
           assetIds: selectedAssets,
           mediaEdits: selectedAssets.map((assetId) => mediaEdits[assetId] || defaultZernioMediaEdit(assetId)),
           scheduledFor: mode === "schedule" ? scheduledFor : null,
+          shareToFeed,
         }),
       })
       const data = await response.json().catch(() => null)
@@ -267,6 +307,24 @@ export function ZernioPublishingPanel({
 
   const toggle = (value: string, current: string[], setter: (next: string[]) => void) => {
     setter(current.includes(value) ? current.filter((item) => item !== value) : [...current, value])
+  }
+
+  const toggleAsset = (asset: Asset) => {
+    setSelectedAssets((current) => {
+      if (current.includes(asset.id)) return current.filter((item) => item !== asset.id)
+      const currentHasReel = current.some((assetId) => context?.assets.find((item) => item.id === assetId)?.assetType === "reel")
+      if (asset.assetType === "reel" || currentHasReel) return [asset.id]
+      return [...current, asset.id]
+    })
+  }
+
+  const selectScheduleMode = () => {
+    const minimum = minimumScheduleValue()
+    const maximum = maximumMediaScheduleValue()
+    setScheduleMinimum(minimum)
+    setScheduleMaximum(maximum)
+    setScheduledFor((current) => current >= minimum ? current : defaultScheduleValue())
+    setMode("schedule")
   }
 
   const reorderSelectedAssets = (orderedIds: string[]) => {
@@ -378,8 +436,8 @@ export function ZernioPublishingPanel({
               </div>
               {selectedAssets.length > 0 && (
                 <button type="button" onClick={() => setPreparerOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-quepia-cyan/25 bg-quepia-cyan/[0.06] px-2.5 py-1.5 text-[11px] text-quepia-cyan hover:bg-quepia-cyan/10">
-                  <Crop className="h-3.5 w-3.5" />
-                  Previsualizar y preparar
+                  {selectedIsReel ? <Film className="h-3.5 w-3.5" /> : <Crop className="h-3.5 w-3.5" />}
+                  {selectedIsReel ? "Previsualizar Reel" : "Previsualizar y preparar"}
                 </button>
               )}
             </div>
@@ -397,10 +455,12 @@ export function ZernioPublishingPanel({
                       <input
                         type="checkbox"
                         checked={selectedAssets.includes(asset.id)}
-                        onChange={() => toggle(asset.id, selectedAssets, setSelectedAssets)}
+                        onChange={() => toggleAsset(asset)}
                         className="accent-[#2ae7e4]"
                       />
+                      {asset.assetType === "reel" && <Film className="h-3.5 w-3.5 shrink-0 text-pink-300/70" />}
                       <span className="min-w-0 flex-1 truncate text-white/70">{asset.name} · v{asset.currentVersion}</span>
+                      {asset.assetType === "reel" && <span className="rounded-full bg-pink-400/8 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-pink-200/65">Reel</span>}
                       <span className={approved ? "text-emerald-300/70" : "text-amber-300/70"}>
                         {ASSET_STATUS_LABELS[asset.approvalStatus] || asset.approvalStatus}
                       </span>
@@ -418,6 +478,15 @@ export function ZernioPublishingPanel({
             {preparedAssetsCount > 0 && (
               <p className="mt-2 text-[11px] text-quepia-cyan/70">{preparedAssetsCount} imagen(es) se enviarán con el recorte preparado. Los originales quedan intactos.</p>
             )}
+            {selectedIsInstagramReel && (
+              <label className="mt-2 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-pink-300/12 bg-pink-300/[0.035] px-3 py-2.5">
+                <span>
+                  <span className="block text-xs text-white/65">Mostrar también en el feed</span>
+                  <span className="mt-0.5 block text-[10px] text-white/30">Si se desactiva, aparecerá solamente en la pestaña Reels.</span>
+                </span>
+                <input type="checkbox" checked={shareToFeed} onChange={(event) => setShareToFeed(event.target.checked)} className="accent-[#2ae7e4]" />
+              </label>
+            )}
           </div>
 
           <div>
@@ -431,7 +500,7 @@ export function ZernioPublishingPanel({
               </button>
               <button
                 type="button"
-                onClick={() => setMode("schedule")}
+                onClick={selectScheduleMode}
                 className={cn("rounded-lg border px-3 py-1.5 text-xs", mode === "schedule" ? "border-quepia-cyan/35 bg-quepia-cyan/10 text-quepia-cyan" : "border-white/10 text-white/45")}
               >
                 Programar
@@ -443,22 +512,33 @@ export function ZernioPublishingPanel({
                 <input
                   type="datetime-local"
                   value={scheduledFor}
+                  min={scheduleMinimum}
+                  max={selectedAssets.length > 0 ? scheduleMaximum : undefined}
                   onChange={(event) => setScheduledFor(event.target.value)}
                   className="flex-1 bg-transparent text-xs text-white/70 outline-none [color-scheme:dark]"
                 />
                 <span className="text-[10px] text-white/25">Córdoba</span>
               </label>
             )}
+            {mode === "schedule" && (
+              <p className={cn("mt-1.5 text-[10px]", scheduleIsValid ? "text-white/25" : "text-red-300/70")}>
+                {scheduleIsValid
+                  ? "Los contenidos con archivos pueden programarse hasta 7 días por la vigencia temporal en Zernio."
+                  : selectedAssets.length > 0 && scheduledFor > scheduleMaximum
+                    ? "Con archivos, elegí una fecha dentro de los próximos 7 días."
+                    : "Elegí una fecha futura en horario de Córdoba."}
+              </p>
+            )}
           </div>
 
           <button
             type="button"
             onClick={() => void publish()}
-            disabled={action === "publish" || selectedAccounts.length === 0 || (!content.trim() && selectedAssets.length === 0) || (mode === "schedule" && !scheduledFor)}
+            disabled={action === "publish" || selectedAccounts.length === 0 || (!content.trim() && selectedAssets.length === 0) || !scheduleIsValid}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-quepia-cyan px-4 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {action === "publish" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {mode === "now" ? "Publicar ahora" : "Programar publicación"}
+            {mode === "now" ? `Publicar ${selectedIsReel ? "Reel" : "ahora"}` : `Programar ${selectedIsReel ? "Reel" : "publicación"}`}
           </button>
         </div>
       )}
@@ -490,6 +570,9 @@ export function ZernioPublishingPanel({
                     <span className="text-[10px] text-white/25">{new Date(publication.created_at).toLocaleString("es-AR")}</span>
                   </div>
                   {publication.error_message && <p className="mt-1 text-[11px] text-red-300/75">{publication.error_message}</p>}
+                  {publication.scheduled_for && publication.status === "scheduled" && (
+                    <p className="mt-1 text-[11px] text-white/40">Programada para {new Date(publication.scheduled_for).toLocaleString("es-AR", { timeZone: ZERNIO_TIME_ZONE })}</p>
+                  )}
                   {urls.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-2">
                       {urls.slice(0, 4).map((url, index) => (

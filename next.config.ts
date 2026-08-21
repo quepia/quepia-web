@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
     '/api/ai/content-copilot/media/[versionId]': [
       './vendor/ffmpeg*',
     ],
+    '/api/zernio/publish': [
+      './vendor/ffmpeg*',
+    ],
   },
   async headers() {
     // Avoid custom security headers during local development,
