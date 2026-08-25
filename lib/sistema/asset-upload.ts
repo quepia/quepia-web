@@ -4,7 +4,7 @@ import { createClient } from "@/lib/sistema/supabase/client"
 import { serverCreateAsset, serverAddVersion } from "@/lib/sistema/actions/assets"
 import { ASSET_BUCKET, sanitizeFilename } from "@/lib/sistema/assets-storage"
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024
+const MAX_SUPABASE_FILE_SIZE = 100 * 1024 * 1024
 const DRIVE_CHUNK_SIZE = 3 * 1024 * 1024
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"]
@@ -197,7 +197,7 @@ export async function uploadAssetFile(params: {
   const { file, taskId, projectId, userId, assetId, assetName, currentVersion, notes, assetType, groupId, groupOrder, onProgress } = params
   const uploadId = `${file.name}-${Date.now()}`
 
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > MAX_SUPABASE_FILE_SIZE) {
     onProgress?.({ id: uploadId, fileName: file.name, percent: 0, stage: "error", message: "Archivo supera 100MB" })
     throw new Error("Archivo supera 100MB")
   }
@@ -460,11 +460,6 @@ export async function uploadAssetFileToDrive(params: {
 }) {
   const { file, taskId, projectId, userId, assetId, assetName, currentVersion, notes, assetType, groupId, groupOrder, driveSubfolderName, onProgress } = params
   const uploadId = `drive-${file.name}-${Date.now()}`
-
-  if (file.size > MAX_FILE_SIZE) {
-    onProgress?.({ id: uploadId, fileName: file.name, percent: 0, stage: "error", message: "Archivo supera 100MB" })
-    throw new Error("Archivo supera 100MB")
-  }
 
   if (!isSupportedFile(file)) {
     onProgress?.({ id: uploadId, fileName: file.name, percent: 0, stage: "error", message: "Formato no soportado" })
