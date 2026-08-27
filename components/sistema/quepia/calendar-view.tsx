@@ -112,6 +112,17 @@ export function CalendarView({ tasks, events, loading, tasksLoading = false, cur
     })
   }, [events, month, year])
 
+  const navigableEvents = useMemo(() => {
+    return events
+      .filter((event) => event.source !== "efemeride")
+      .slice()
+      .sort((first, second) => {
+        const byDate = first.fecha_inicio.localeCompare(second.fecha_inicio)
+        if (byDate !== 0) return byDate
+        return first.created_at.localeCompare(second.created_at)
+      })
+  }, [events])
+
   const filteredMonthEvents = useMemo(() => {
     const deletableEvents = monthEvents.filter((event) => event.source !== "efemeride")
     if (bulkDeleteProjectFilter === "all") return deletableEvents
@@ -423,9 +434,13 @@ export function CalendarView({ tasks, events, loading, tasksLoading = false, cur
         onClose={() => setSelectedEvent(null)}
         onUpdate={() => {
           onRefresh?.()
-          setSelectedEvent(null)
         }}
         userId={userId}
+        navigationEvents={navigableEvents}
+        onNavigate={(event) => {
+          setSelectedEvent(event)
+          setSelectedDate(event.fecha_inicio.split("T")[0])
+        }}
       />
 
       <AICalendarModal

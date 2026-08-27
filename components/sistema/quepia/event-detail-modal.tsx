@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/lib/sistema/supabase/client"
 import { toTaskDeadlineTimestamp } from "@/lib/sistema/task-deadlines"
 import {
@@ -13,7 +13,9 @@ import {
     CheckSquare,
     Loader2,
     ArrowRight,
-    Send
+    Send,
+    ChevronLeft,
+    ChevronRight
 } from "lucide-react"
 import {
     EVENT_TYPE_COLORS,
@@ -43,9 +45,12 @@ interface EventDetailModalProps {
     onClose: () => void
     onUpdate: () => void
     userId?: string
+    /** Planificaciones ordenadas cronológicamente para recorrer sin cerrar el modal. */
+    navigationEvents?: CalendarEventWithDetails[]
+    onNavigate?: (event: CalendarEventWithDetails) => void
 }
 
-export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: EventDetailModalProps) {
+export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId, navigationEvents = [], onNavigate }: EventDetailModalProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [loading, setLoading] = useState(false)
     const [converting, setConverting] = useState(false)
@@ -61,8 +66,22 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
     const [newComment, setNewComment] = useState("")
     const [sendingComment, setSendingComment] = useState(false)
     const [comments, setComments] = useState<CalendarComment[]>([])
+    const commentsRequestRef = useRef(0)
+
+    const navigationIndex = event ? navigationEvents.findIndex((item) => item.id === event.id) : -1
+    const previousEvent = navigationIndex > 0 ? navigationEvents[navigationIndex - 1] : null
+    const nextEvent = navigationIndex >= 0 && navigationIndex < navigationEvents.length - 1
+        ? navigationEvents[navigationIndex + 1]
+        : null
+
+    const goToEvent = (destination: CalendarEventWithDetails | null) => {
+        if (!destination || isEditing) return
+        onNavigate?.(destination)
+    }
 
     const fetchComments = async (eventId: string) => {
+        const requestId = commentsRequestRef.current + 1
+        commentsRequestRef.current = requestId
         try {
             const supabase = createClient()
             const { data, error } = await supabase
@@ -72,7 +91,9 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
                 .order('created_at', { ascending: true })
 
             if (error) throw error
-            setComments((data as CalendarComment[]) || [])
+            if (requestId === commentsRequestRef.current) {
+                setComments((data as CalendarComment[]) || [])
+            }
         } catch (err) {
             console.error("Error fetching event comments:", err)
         }
@@ -80,6 +101,7 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
 
     useEffect(() => {
         if (event) {
+            setIsEditing(false)
             setFormData({
                 titulo: event.titulo,
                 descripcion: event.descripcion || "",
@@ -94,6 +116,30 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
             fetchComments(event.id)
         }
     }, [event])
+
+    useEffect(() => {
+        if (!isOpen) return
+
+        const handleKeyboardNavigation = (keyboardEvent: KeyboardEvent) => {
+            if (keyboardEvent.key === "Escape") {
+                onClose()
+                return
+            }
+            if (isEditing || (keyboardEvent.key !== "ArrowLeft" && keyboardEvent.key !== "ArrowRight")) return
+            if (keyboardEvent.metaKey || keyboardEvent.ctrlKey || keyboardEvent.altKey) return
+
+            const target = keyboardEvent.target as HTMLElement | null
+            if (target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))) return
+
+            const destination = keyboardEvent.key === "ArrowLeft" ? previousEvent : nextEvent
+            if (!destination) return
+            keyboardEvent.preventDefault()
+            onNavigate?.(destination)
+        }
+
+        window.addEventListener("keydown", handleKeyboardNavigation)
+        return () => window.removeEventListener("keydown", handleKeyboardNavigation)
+    }, [isEditing, isOpen, nextEvent, onClose, onNavigate, previousEvent])
 
     const handleSendComment = async () => {
         if (!event || !newComment.trim()) return
@@ -240,245 +286,272 @@ export function EventDetailModal({ event, isOpen, onClose, onUpdate, userId }: E
         }
     }
 
-    return (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-                onClick={onClose}
-            />
+    const eventDate = new Date(`${formData.fecha_inicio}T12:00:00`)
 
-            <div className="relative z-[70] w-full h-[100svh] sm:h-auto sm:max-w-lg bg-[#1a1a1a] border-0 sm:border sm:border-white/10 rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col sm:max-h-[90vh]">
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-white/10">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full mt-0.5`} style={{ backgroundColor: formData.color }} />
+    return (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-5">
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-[3px]" onClick={onClose} />
+
+            <div className="relative z-[70] flex h-[100svh] w-full flex-col overflow-hidden border-0 bg-[#0d1014] shadow-[0_28px_90px_rgba(0,0,0,0.58)] sm:h-auto sm:max-h-[92vh] sm:max-w-3xl sm:rounded-2xl sm:border sm:border-[#2a3038]">
+                <div className="flex min-h-14 items-center justify-between gap-3 border-b border-[#252b33] bg-[#101318] px-4 sm:px-6">
+                    <div className="flex min-w-0 items-center gap-2 text-sm text-white/60">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-violet-400/25 bg-violet-400/[0.09]">
+                            <CalendarIcon className="h-4 w-4 text-violet-300" />
+                        </div>
+                        <span className="shrink-0 font-medium text-violet-300">Planificación</span>
+                        {event.project && (
+                            <>
+                                <span className="text-white/20">/</span>
+                                <span className="truncate font-medium text-white/70">{event.project.nombre}</span>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1">
+                        {navigationEvents.length > 1 && (
+                            <div className="mr-1 flex items-center gap-0.5 border-r border-white/[0.08] pr-2">
+                                <button
+                                    onClick={() => goToEvent(previousEvent)}
+                                    disabled={!previousEvent || isEditing}
+                                    className="rounded-lg p-1.5 text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:bg-transparent"
+                                    title="Planificación anterior (←)"
+                                    aria-label="Planificación anterior"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+                                {navigationIndex >= 0 && (
+                                    <span className="px-1 font-mono text-[11px] tabular-nums text-white/30">
+                                        {navigationIndex + 1}/{navigationEvents.length}
+                                    </span>
+                                )}
+                                <button
+                                    onClick={() => goToEvent(nextEvent)}
+                                    disabled={!nextEvent || isEditing}
+                                    className="rounded-lg p-1.5 text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:bg-transparent"
+                                    title="Planificación siguiente (→)"
+                                    aria-label="Planificación siguiente"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="rounded-lg p-2 text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white"
+                            aria-label="Cerrar planificación"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-7 lg:p-8">
+                    <div className="mb-7">
+                        <div className="mb-3 flex items-center gap-2">
+                            <span className="rounded-md border border-violet-400/20 bg-violet-400/[0.08] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-300">
+                                Planificación
+                            </span>
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: formData.color }} />
+                        </div>
                         {isEditing ? (
                             <input
                                 value={formData.titulo}
-                                onChange={e => setFormData(prev => ({ ...prev, titulo: e.target.value }))}
-                                className="bg-transparent text-lg font-semibold text-white outline-none placeholder:text-white/30 w-full"
-                                placeholder="Título del evento"
+                                onChange={(inputEvent) => setFormData((previous) => ({ ...previous, titulo: inputEvent.target.value }))}
+                                className="w-full border-b border-violet-400/40 bg-transparent pb-2 text-2xl font-semibold text-white outline-none placeholder:text-white/30"
+                                placeholder="Título de la planificación"
                                 autoFocus
                             />
                         ) : (
-                            <h2 className="text-lg font-semibold text-white">{event.titulo}</h2>
+                            <h2 className="text-2xl font-semibold leading-tight text-white sm:text-3xl">{formData.titulo}</h2>
                         )}
                     </div>
-                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
 
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
-                    {/* Project Info */}
-                    {event.project && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="text-white/40">Proyecto:</span>
-                            <span
-                                className="px-2 py-0.5 rounded textxs font-medium"
-                                style={{ backgroundColor: event.project.color + "20", color: event.project.color }}
-                            >
-                                {event.project.nombre}
+                    <div className="mb-7 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl border border-[#252b33] bg-[#101318] p-3.5">
+                            <span className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/35">
+                                <CalendarIcon className="h-3.5 w-3.5 text-violet-300/80" /> Fecha
                             </span>
-                        </div>
-                    )}
-
-                    {/* Date & Type */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs text-white/40 flex items-center gap-1.5">
-                                <CalendarIcon className="h-3.5 w-3.5" /> Fecha
-                            </label>
                             {isEditing ? (
                                 <input
                                     type="date"
                                     value={formData.fecha_inicio}
-                                    onChange={e => setFormData(prev => ({ ...prev, fecha_inicio: e.target.value }))}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-quepia-cyan outline-none"
+                                    onChange={(inputEvent) => setFormData((previous) => ({ ...previous, fecha_inicio: inputEvent.target.value }))}
+                                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-sm text-white outline-none focus:border-violet-400/50"
                                 />
                             ) : (
-                                <div className="text-sm text-white/80">
-                                    {new Date(event.fecha_inicio).toLocaleDateString("es-AR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                </div>
+                                <p className="text-sm font-medium capitalize text-white/75">
+                                    {eventDate.toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+                                </p>
                             )}
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-xs text-white/40 flex items-center gap-1.5">
-                                <Tag className="h-3.5 w-3.5" /> Tipo
-                            </label>
+                        <div className="rounded-xl border border-[#252b33] bg-[#101318] p-3.5">
+                            <span className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/35">
+                                <Tag className="h-3.5 w-3.5 text-violet-300/80" /> Tipo
+                            </span>
                             {isEditing ? (
                                 <select
                                     value={formData.tipo}
-                                    onChange={e => setFormData(prev => ({ ...prev, tipo: e.target.value as CalendarEventType }))}
-                                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-quepia-cyan outline-none"
+                                    onChange={(selectEvent) => setFormData((previous) => ({ ...previous, tipo: selectEvent.target.value as CalendarEventType }))}
+                                    className="w-full rounded-lg border border-white/10 bg-[#151920] px-2.5 py-2 text-sm text-white outline-none focus:border-violet-400/50"
                                 >
                                     {Object.entries(EVENT_TYPE_LABELS).map(([key, label]) => (
                                         <option key={key} value={key}>{label}</option>
                                     ))}
                                 </select>
                             ) : (
-                                <div className="text-sm text-white/80 flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS[event.tipo] }} />
-                                    {EVENT_TYPE_LABELS[event.tipo]}
-                                </div>
+                                <p className="flex items-center gap-2 text-sm font-medium text-white/75">
+                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: EVENT_TYPE_COLORS[formData.tipo] }} />
+                                    {EVENT_TYPE_LABELS[formData.tipo]}
+                                </p>
                             )}
+                        </div>
+
+                        <div className="rounded-xl border border-[#252b33] bg-[#101318] p-3.5">
+                            <span className="mb-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/35">Proyecto</span>
+                            <p className="truncate text-sm font-medium text-white/75">{event.project?.nombre || "Sin proyecto"}</p>
                         </div>
                     </div>
 
-                    {/* Color (only editing) */}
                     {isEditing && (
-                        <div className="space-y-1.5">
-                            <label className="text-xs text-white/40">Color</label>
-                            <div className="flex gap-2 flex-wrap">
-                                {Object.values(EVENT_TYPE_COLORS).map(c => (
+                        <div className="mb-7 rounded-xl border border-[#252b33] bg-[#101318] p-3.5">
+                            <span className="mb-3 block text-[10px] font-semibold uppercase tracking-[0.1em] text-white/35">Color del evento</span>
+                            <div className="flex flex-wrap gap-2">
+                                {Object.values(EVENT_TYPE_COLORS).map((color) => (
                                     <button
-                                        key={c}
-                                        onClick={() => setFormData(prev => ({ ...prev, color: c }))}
-                                        className={`w-6 h-6 rounded-full transition-transform ${formData.color === c ? "scale-110 ring-2 ring-white" : ""}`}
-                                        style={{ backgroundColor: c }}
+                                        key={color}
+                                        onClick={() => setFormData((previous) => ({ ...previous, color }))}
+                                        className={`h-7 w-7 rounded-full transition-transform ${formData.color === color ? "scale-110 ring-2 ring-white/80 ring-offset-2 ring-offset-[#101318]" : "hover:scale-105"}`}
+                                        style={{ backgroundColor: color }}
+                                        aria-label={`Usar color ${color}`}
                                     />
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Description */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs text-white/40 flex items-center gap-1.5">
+                    <div className="mb-7">
+                        <span className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/35">
                             <AlignLeft className="h-3.5 w-3.5" /> Descripción / Info
-                        </label>
+                        </span>
                         {isEditing ? (
                             <textarea
                                 value={formData.descripcion}
-                                onChange={e => setFormData(prev => ({ ...prev, descripcion: e.target.value }))}
-                                className="w-full h-40 bg-white/5 border border-white/10 rounded p-3 text-sm text-white focus:border-quepia-cyan outline-none resize-none"
-                                placeholder="Detalles del evento..."
+                                onChange={(textareaEvent) => setFormData((previous) => ({ ...previous, descripcion: textareaEvent.target.value }))}
+                                className="h-44 w-full resize-none rounded-xl border border-white/10 bg-[#101318] p-4 text-sm leading-6 text-white outline-none focus:border-violet-400/50"
+                                placeholder="Detalles de la planificación..."
                             />
                         ) : (
-                            <div className="w-full bg-white/[0.02] rounded-lg p-3 text-sm text-white/80 whitespace-pre-wrap min-h-[100px]">
-                                {event.descripcion || <span className="text-white/30 italic">Sin descripción</span>}
+                            <div className="min-h-28 w-full whitespace-pre-wrap rounded-xl border border-[#252b33] bg-[#101318] p-4 text-sm leading-6 text-white/75">
+                                {formData.descripcion || <span className="italic text-white/30">Sin descripción</span>}
                             </div>
                         )}
                     </div>
 
-                    {/* Comments Section */}
-                    <div className="pt-4 border-t border-white/10 space-y-4">
-                        <div className="flex items-center gap-2">
-                            <label className="text-xs text-white/40 flex items-center gap-1.5">
-                                <ArrowRight className="h-3.5 w-3.5" /> Comentarios del Cliente
-                            </label>
+                    <div className="rounded-xl border border-[#252b33] bg-[#101318] p-4">
+                        <div className="mb-4 flex items-center gap-2">
+                            <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/35">
+                                <ArrowRight className="h-3.5 w-3.5 text-violet-300/80" /> Comentarios del cliente
+                            </span>
                             {comments.length > 0 && (
-                                <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full text-white/60">
-                                    {comments.length}
-                                </span>
+                                <span className="rounded-full bg-white/[0.07] px-1.5 py-0.5 text-[10px] text-white/55">{comments.length}</span>
                             )}
                         </div>
 
-                        {/* Comment List */}
-                        <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                            {comments.length > 0 ? (
-                                comments.map((comment) => (
-                                    <div key={comment.id} className={`flex flex-col ${!comment.is_client ? "items-end" : "items-start"}`}>
-                                        <div className={`px-3 py-2 rounded-lg max-w-[85%] text-sm ${!comment.is_client
-                                            ? "bg-quepia-cyan/10 text-white border border-quepia-cyan/20"
-                                            : "bg-white/5 text-white/80 border border-white/10"
-                                            }`}>
-                                            <p>{comment.content}</p>
-                                        </div>
-                                        <span className="text-[10px] text-white/30 mt-1 px-1">
-                                            {comment.author_name} • {new Date(comment.created_at).toLocaleString("es-AR")}
-                                        </span>
+                        <div className="mb-4 max-h-60 space-y-3 overflow-y-auto pr-2">
+                            {comments.length > 0 ? comments.map((comment) => (
+                                <div key={comment.id} className={`flex flex-col ${comment.is_client ? "items-start" : "items-end"}`}>
+                                    <div className={`max-w-[85%] rounded-xl border px-3 py-2 text-sm ${comment.is_client
+                                        ? "border-white/10 bg-white/[0.04] text-white/80"
+                                        : "border-violet-400/20 bg-violet-400/[0.08] text-white"
+                                        }`}>
+                                        <p>{comment.content}</p>
                                     </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-white/30 text-center py-2">No hay comentarios.</p>
+                                    <span className="mt-1 px-1 text-[10px] text-white/30">
+                                        {comment.author_name} • {new Date(comment.created_at).toLocaleString("es-AR")}
+                                    </span>
+                                </div>
+                            )) : (
+                                <p className="py-2 text-center text-sm text-white/30">No hay comentarios.</p>
                             )}
                         </div>
 
-                        {/* Comment Input */}
-                        <div className="flex gap-2 pt-2">
+                        <div className="relative">
                             <input
                                 type="text"
                                 value={newComment}
-                                onChange={(e) => setNewComment(e.target.value)}
+                                onChange={(inputEvent) => setNewComment(inputEvent.target.value)}
                                 placeholder="Escribe una respuesta..."
-                                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-quepia-cyan outline-none"
-                                onKeyDown={(e) => e.key === "Enter" && handleSendComment()}
+                                className="w-full rounded-xl border border-white/[0.09] bg-black/10 px-3 py-2.5 pr-12 text-sm text-white outline-none transition-colors placeholder:text-white/35 focus:border-violet-400/50"
+                                onKeyDown={(keyboardEvent) => keyboardEvent.key === "Enter" && handleSendComment()}
                             />
                             <button
                                 onClick={handleSendComment}
                                 disabled={!newComment.trim() || sendingComment}
-                                className="p-2 rounded-lg bg-quepia-cyan text-black hover:bg-quepia-cyan/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-violet-300 transition-colors hover:bg-violet-400/10 disabled:opacity-30"
+                                aria-label="Enviar comentario"
                             >
                                 {sendingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                             </button>
                         </div>
                     </div>
-
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-white/10 flex justify-between items-center bg-[#1a1a1a]">
+                <div className="flex min-h-16 items-center justify-between gap-3 border-t border-[#252b33] bg-[#101318] px-4 py-3 sm:px-6">
                     {isEditing ? (
                         <>
                             <button
-                                onClick={() => handleDelete()}
-                                className="flex items-center gap-2 text-red-500 hover:text-red-400 p-2 rounded hover:bg-red-500/10 transition-colors text-sm"
+                                onClick={handleDelete}
+                                className="flex items-center gap-2 rounded-lg p-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
                                 disabled={loading}
                             >
-                                <Trash2 className="h-4 w-4" />
-                                Eliminar
+                                <Trash2 className="h-4 w-4" /> Eliminar
                             </button>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setIsEditing(false)}
-                                    className="px-4 py-2 rounded-lg hover:bg-white/5 text-white/60 text-sm transition-colors"
+                                    className="rounded-lg px-4 py-2 text-sm text-white/55 transition-colors hover:bg-white/[0.05] hover:text-white"
                                     disabled={loading}
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    className="px-4 py-2 rounded-lg bg-quepia-cyan text-black font-medium text-sm hover:bg-quepia-cyan/90 transition-colors flex items-center gap-2"
+                                    className="flex items-center gap-2 rounded-lg bg-violet-400 px-4 py-2 text-sm font-semibold text-[#101318] transition-colors hover:bg-violet-300 disabled:opacity-50"
                                     disabled={loading}
                                 >
-                                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                                    Guardar
+                                    {loading && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
                                 </button>
                             </div>
                         </>
                     ) : (
                         <>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="p-2 rounded-lg hover:bg-white/5 text-white/60 hover:text-white transition-colors"
-                                    title="Editar"
+                                    className="rounded-lg p-2 text-white/40 transition-colors hover:bg-white/[0.05] hover:text-white"
+                                    title="Editar planificación"
+                                    aria-label="Editar planificación"
                                 >
                                     <Edit2 className="h-4 w-4" />
                                 </button>
                                 <button
                                     onClick={handleDelete}
-                                    className="p-2 rounded-lg hover:bg-red-500/10 text-white/60 hover:text-red-500 transition-colors"
-                                    title="Eliminar"
+                                    className="rounded-lg p-2 text-white/40 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                                    title="Eliminar planificación"
+                                    aria-label="Eliminar planificación"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </button>
                             </div>
-
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={handleConvertToTask}
-                                    disabled={converting}
-                                    className="px-3 py-2 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors text-sm flex items-center gap-2 border border-indigo-500/20"
-                                >
-                                    {converting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
-                                    Convertir a Tarea
-                                </button>
-                            </div>
+                            <button
+                                onClick={handleConvertToTask}
+                                disabled={converting}
+                                className="flex items-center gap-2 rounded-lg border border-violet-400/25 bg-violet-400/[0.08] px-3 py-2 text-sm font-medium text-violet-300 transition-colors hover:bg-violet-400/[0.14] hover:text-violet-200 disabled:opacity-50"
+                            >
+                                {converting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
+                                Convertir a tarea
+                            </button>
                         </>
                     )}
                 </div>

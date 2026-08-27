@@ -12,6 +12,7 @@ import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { SistemaNotification } from "@/lib/sistema/hooks/useNotifications"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { ProjectWorkspaceSection } from "@/components/sistema/quepia/project-workspace-header"
 
 const GLOBAL_VIEWS = new Set([
@@ -385,6 +386,15 @@ export default function DashboardPage({
         from: activeView === "calendar" ? eventWindow?.from : undefined,
         to: activeView === "calendar" ? eventWindow?.to : undefined,
     })
+    const calendarTaskIds = useMemo(() => allTasks
+        .filter((task) => !task.completed && getTaskDeadlineDateKey(task))
+        .slice()
+        .sort((first, second) => {
+            const byDate = (getTaskDeadlineDateKey(first) || "").localeCompare(getTaskDeadlineDateKey(second) || "")
+            if (byDate !== 0) return byDate
+            return first.created_at.localeCompare(second.created_at)
+        })
+        .map((task) => task.id), [allTasks])
     const { events: allEvents, loading: allEventsLoading, refresh: refreshAllEvents } = useAllCalendarEvents(user?.id, {
         enabled: shouldLoadAllEvents,
         from: eventWindow?.from,
@@ -1587,6 +1597,7 @@ export default function DashboardPage({
                     onClose={handleCloseModal}
                     onUpdate={handleModalUpdate}
                     userId={user?.id}
+                    taskIds={activeView === "calendar" ? calendarTaskIds : undefined}
                 />
             )}
 
