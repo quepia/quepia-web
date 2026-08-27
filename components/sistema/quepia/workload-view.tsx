@@ -6,6 +6,7 @@ import { cn } from "@/lib/sistema/utils"
 import { getTaskDeadlineDateKey } from "@/lib/sistema/task-deadlines"
 import type { TaskWithProject } from "@/lib/sistema/hooks/useAllTasks"
 import type { SistemaUser } from "@/types/sistema"
+import { UserAvatar } from "./user-avatar"
 
 interface WorkloadViewProps {
   tasks: TaskWithProject[]
@@ -113,16 +114,6 @@ function formatHours(value: number) {
   if (value === 0) return "0h"
   const rounded = Math.round(value * 10) / 10
   return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}h`
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
 }
 
 function formatMetricValue(metric: MetricKey, value: number) {
@@ -525,9 +516,14 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
                       <tr key={item.user.id} className="border-b border-white/[0.04] last:border-b-0">
                         <td className="py-3 pr-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80 text-[10px] font-semibold text-white">
-                              {getInitials(item.user.nombre)}
-                            </div>
+                            <UserAvatar
+                              name={item.user.nombre}
+                              avatarUrl={item.user.avatar_url}
+                              size={32}
+                              fontSize={10}
+                              fallbackClassName="bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80"
+                              className="font-semibold"
+                            />
                             <div className="min-w-0">
                               <p className="truncate text-sm text-white">{item.user.nombre}</p>
                               <p className="text-xs text-white/35">#{index + 1} del ranking</p>
@@ -600,9 +596,13 @@ export function WorkloadView({ tasks, users, loading, onTaskClick }: WorkloadVie
                     <tr key={user.id}>
                       <td className="pr-4 py-1">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80 text-[9px] font-medium text-white">
-                            {getInitials(user.nombre)}
-                          </div>
+                          <UserAvatar
+                            name={user.nombre}
+                            avatarUrl={user.avatar_url}
+                            size={24}
+                            fontSize={9}
+                            fallbackClassName="bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80"
+                          />
                           <span className="truncate text-[11px] text-white/70 sm:text-xs">{user.nombre}</span>
                           {isWarningRow && (
                             <span title="Revisar" className="flex shrink-0">

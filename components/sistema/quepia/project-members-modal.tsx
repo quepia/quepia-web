@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { X, Users, Loader2, Trash2, UserPlus, Shield, ShieldCheck, Eye, User, Crown } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { SistemaUser } from "@/types/sistema"
+import { UserAvatar } from "./user-avatar"
 
 interface ProjectMemberWithUser {
     id: string
@@ -190,16 +191,13 @@ export function ProjectMembersModal({
                 "flex items-center gap-3 px-3 py-3 rounded-lg transition-colors",
                 options?.editable ? "hover:bg-white/[0.02]" : "bg-white/[0.02]"
             )}>
-                {user.avatar_url ? (
-                    <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-                ) : (
-                    <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium text-white",
-                        badge.bgColor
-                    )}>
-                        {user.nombre.charAt(0).toUpperCase()}
-                    </div>
-                )}
+                <UserAvatar
+                    name={user.nombre}
+                    avatarUrl={user.avatar_url}
+                    size={32}
+                    fontSize={12}
+                    fallbackClassName={badge.bgColor}
+                />
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">
                         {user.nombre}

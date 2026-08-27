@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/image"
 import { AlertTriangle, Loader2, Search, Shield, ShieldCheck, ShieldOff, Trash2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { SistemaUser } from "@/types/sistema"
+import { UserAvatar } from "./user-avatar"
 
 interface AdminUsersViewProps {
     users: SistemaUser[]
@@ -230,19 +230,13 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
                                 <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            {user.avatar_url ? (
-                                                <Image
-                                                    src={user.avatar_url}
-                                                    alt=""
-                                                    width={32}
-                                                    height={32}
-                                                    className="h-8 w-8 rounded-full object-cover"
-                                                />
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xs font-medium">
-                                                    {user.nombre.charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
+                                            <UserAvatar
+                                                name={user.nombre}
+                                                avatarUrl={user.avatar_url}
+                                                size={32}
+                                                fontSize={12}
+                                                fallbackClassName="bg-gradient-to-br from-gray-700 to-gray-600"
+                                            />
                                             <span className="font-medium text-white/90">{user.nombre}</span>
                                             {user.id === currentUserId && (
                                                 <span className="text-[10px] bg-white/[0.1] px-2 py-0.5 rounded-full text-white/50">Tú</span>
