@@ -18,8 +18,12 @@ import {
     GitBranch,
     CloudUpload,
     Paperclip,
+    GripVertical,
+    ArrowLeft,
+    ArrowRight,
 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { UserAvatar } from "./user-avatar"
 import { getTaskDeadlineDateKey, toTaskDeadlineTimestamp } from "@/lib/sistema/task-deadlines"
 import { useTasks, useColumns } from "@/lib/sistema/hooks"
 import type { Task, ColumnWithTasks, SistemaUser, TaskType, Subtask } from "@/types/sistema"
@@ -29,6 +33,7 @@ import { SendReviewModal } from "@/components/sistema/quepia/send-review-modal"
 import { ProjectResources } from "@/components/sistema/quepia/project-resources"
 import { ProjectWorkspaceHeader, type ProjectWorkspaceSection } from "@/components/sistema/quepia/project-workspace-header"
 import { ZernioProjectControl } from "@/components/sistema/quepia/zernio-project-control"
+import { descriptionPreview } from "@/components/sistema/quepia/task-description"
 import { uploadAssetFile, type UploadProgressUpdate } from "@/lib/sistema/asset-upload"
 import { useToast } from "@/components/ui/toast-provider"
 import { useConfirm } from "@/components/ui/confirm-provider"
@@ -59,7 +64,7 @@ export function KanbanBoard({
     const { toast } = useToast()
     const { confirm } = useConfirm()
     const [showCompletedTasks, setShowCompletedTasks] = useState(false)
-    const { columns, loading, error, createTask, updateTask, moveTask, duplicateTask, deleteTask, clearCompletedTasks, silentRefresh } = useTasks(projectId, {
+    const { columns, loading, error, createTask, updateTask, moveTask, reorderColumns, duplicateTask, deleteTask, clearCompletedTasks, silentRefresh } = useTasks(projectId, {
         includeCompletedThumbnails: showCompletedTasks,
     })
 
@@ -84,6 +89,8 @@ export function KanbanBoard({
     const [creatingTaskColumn, setCreatingTaskColumn] = useState<string | null>(null)
     const [draggedTask, setDraggedTask] = useState<Task | null>(null)
     const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
+    const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null)
+    const [dragOverColumnOrderId, setDragOverColumnOrderId] = useState<string | null>(null)
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null)
     const [editingColumnName, setEditingColumnName] = useState("")
     const [isAddingColumn, setIsAddingColumn] = useState(false)
@@ -264,17 +271,88 @@ export function KanbanBoard({
         setDragOverColumn(null)
     }
 
+    const persistColumnMove = async (columnId: string, targetIndex: number) => {
+        const sourceIndex = columns.findIndex((column) => column.id === columnId)
+        const boundedTargetIndex = Math.max(0, Math.min(targetIndex, columns.length - 1))
+        if (sourceIndex < 0 || sourceIndex === boundedTargetIndex) return true
+
+        const reordered = [...columns]
+        const [movedColumn] = reordered.splice(sourceIndex, 1)
+        reordered.splice(boundedTargetIndex, 0, movedColumn)
+
+        const didSave = await reorderColumns(reordered.map((column) => column.id))
+        if (!didSave) {
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se pudo mover la columna",
+                description: "El orden anterior fue restaurado. Intenta nuevamente.",
+                variant: "error",
+            })
+        }
+        return didSave
+    }
+
+    const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
+        setDraggedTask(null)
+        setDragOverColumn(null)
+        setDraggedColumnId(columnId)
+        e.dataTransfer.effectAllowed = "move"
+        e.dataTransfer.setData("application/x-quepia-kanban-column", columnId)
+        e.dataTransfer.setData("text/plain", columnId)
+    }
+
+    const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
+        if (!draggedColumnId || draggedColumnId === columnId) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = "move"
+        setDragOverColumnOrderId(columnId)
+    }
+
+    const handleColumnDrop = async (e: React.DragEvent, targetColumnId: string) => {
+        e.preventDefault()
+        const columnId = draggedColumnId || e.dataTransfer.getData("application/x-quepia-kanban-column")
+        const targetIndex = columns.findIndex((column) => column.id === targetColumnId)
+
+        setDraggedColumnId(null)
+        setDragOverColumnOrderId(null)
+
+        if (!columnId || targetIndex < 0 || columnId === targetColumnId) return
+        await persistColumnMove(columnId, targetIndex)
+    }
+
+    const handleColumnDragEnd = () => {
+        setDraggedColumnId(null)
+        setDragOverColumnOrderId(null)
+    }
+
+    const handleMoveColumnBy = async (columnId: string, offset: -1 | 1) => {
+        const currentIndex = columns.findIndex((column) => column.id === columnId)
+        if (currentIndex < 0) return
+        await persistColumnMove(columnId, currentIndex + offset)
+    }
+
     const handleEditColumn = (column: ColumnWithTasks) => {
         setEditingColumnId(column.id)
         setEditingColumnName(column.nombre)
     }
 
     const handleSaveColumnEdit = async (columnId: string) => {
-        if (!editingColumnName.trim()) return
-        await updateColumn(columnId, editingColumnName.trim())
+        const nextName = editingColumnName.trim()
+        if (!nextName) return
+
+        const didSave = await updateColumn(columnId, nextName)
+        if (!didSave) {
+            trackExperienceMetric("errors_shown")
+            toast({
+                title: "No se pudo cambiar el nombre",
+                description: "La columna conserva su nombre anterior.",
+                variant: "error",
+            })
+            return
+        }
+
         setEditingColumnId(null)
         setEditingColumnName("")
-        // Column name updated optimistically via useColumns, silently sync tasks
         await silentRefresh()
     }
 
@@ -434,7 +512,7 @@ export function KanbanBoard({
             {/* Kanban Columns */}
             <div className="flex-1 overflow-x-auto p-3 sm:p-6">
                 <div className="flex gap-4 h-full min-w-max snap-x snap-mandatory">
-                    {columns.map((column) => (
+                    {columns.map((column, columnIndex) => (
                         <KanbanColumn
                             key={column.id}
                             column={column}
@@ -457,6 +535,17 @@ export function KanbanBoard({
                             onDragEnd={handleDragEnd}
                             isDragOver={dragOverColumn === column.id}
                             draggedTaskId={draggedTask?.id}
+                            isColumnReordering={Boolean(draggedColumnId)}
+                            isColumnDragging={draggedColumnId === column.id}
+                            isColumnDragTarget={dragOverColumnOrderId === column.id}
+                            onColumnDragStart={(e) => handleColumnDragStart(e, column.id)}
+                            onColumnDragOver={(e) => handleColumnDragOver(e, column.id)}
+                            onColumnDrop={(e) => handleColumnDrop(e, column.id)}
+                            onColumnDragEnd={handleColumnDragEnd}
+                            canMoveColumnLeft={columnIndex > 0}
+                            canMoveColumnRight={columnIndex < columns.length - 1}
+                            onMoveColumnLeft={() => handleMoveColumnBy(column.id, -1)}
+                            onMoveColumnRight={() => handleMoveColumnBy(column.id, 1)}
                             isEditing={editingColumnId === column.id}
                             editingName={editingColumnName}
                             onEditingNameChange={setEditingColumnName}
@@ -556,6 +645,17 @@ interface KanbanColumnProps {
     onDragEnd: () => void
     isDragOver: boolean
     draggedTaskId?: string
+    isColumnReordering: boolean
+    isColumnDragging: boolean
+    isColumnDragTarget: boolean
+    onColumnDragStart: (e: React.DragEvent) => void
+    onColumnDragOver: (e: React.DragEvent) => void
+    onColumnDrop: (e: React.DragEvent) => void
+    onColumnDragEnd: () => void
+    canMoveColumnLeft: boolean
+    canMoveColumnRight: boolean
+    onMoveColumnLeft: () => void
+    onMoveColumnRight: () => void
     isEditing: boolean
     editingName: string
     onEditingNameChange: (value: string) => void
@@ -592,6 +692,17 @@ function KanbanColumn({
     onDrop,
     onDragEnd,
     isDragOver,
+    isColumnReordering,
+    isColumnDragging,
+    isColumnDragTarget,
+    onColumnDragStart,
+    onColumnDragOver,
+    onColumnDrop,
+    onColumnDragEnd,
+    canMoveColumnLeft,
+    canMoveColumnRight,
+    onMoveColumnLeft,
+    onMoveColumnRight,
     isEditing,
     editingName,
     onEditingNameChange,
@@ -677,11 +788,15 @@ function KanbanColumn({
             className={cn(
                 "w-[280px] sm:w-[320px] flex flex-col shrink-0 rounded-2xl border border-[#1f232b] bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.008))] p-3 sm:p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all snap-start",
                 isDragOver && !isAtWipLimit && "bg-[rgba(42,231,228,0.08)]",
-                isDragOver && isAtWipLimit && "bg-red-500/10"
+                isDragOver && isAtWipLimit && "bg-red-500/10",
+                isColumnDragging && "scale-[0.98] opacity-45",
+                isColumnDragTarget && "border-[#2ae7e4] bg-[rgba(42,231,228,0.06)] ring-1 ring-[rgba(42,231,228,0.22)]"
             )}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
+            onDragOver={(e) => isColumnReordering ? onColumnDragOver(e) : onDragOver(e)}
+            onDragLeave={() => {
+                if (!isColumnReordering) onDragLeave()
+            }}
+            onDrop={(e) => isColumnReordering ? onColumnDrop(e) : onDrop(e)}
         >
             {/* Column Header */}
             <div className="flex items-center justify-between mb-3 group">
@@ -713,9 +828,27 @@ function KanbanColumn({
                     </div>
                 ) : (
                     <>
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-semibold text-white/60 uppercase tracking-wide">
-                                {column.nombre}
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                            <button
+                                type="button"
+                                draggable
+                                onDragStart={onColumnDragStart}
+                                onDragEnd={onColumnDragEnd}
+                                aria-label={`Mover columna ${column.nombre}`}
+                                title="Arrastrar para mover la columna"
+                                className="-ml-1 flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-white/25 transition-colors hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
+                            >
+                                <GripVertical className="h-4 w-4" />
+                            </button>
+                            <h2 className="min-w-0 text-sm font-semibold text-white/60 uppercase tracking-wide">
+                                <button
+                                    type="button"
+                                    onDoubleClick={onEditClick}
+                                    title="Doble clic para cambiar el nombre"
+                                    className="max-w-[150px] cursor-text truncate rounded px-0.5 text-left outline-none transition-colors hover:text-white/80 focus-visible:ring-1 focus-visible:ring-quepia-cyan"
+                                >
+                                    {column.nombre}
+                                </button>
                             </h2>
                             <span className={cn(
                                 "text-sm",
@@ -735,13 +868,15 @@ function KanbanColumn({
                         </div>
                         <div className="relative">
                             <button
+                                type="button"
                                 onClick={() => setShowMenu(!showMenu)}
-                                className="p-1 hover:bg-white/10 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                aria-label={`Opciones de la columna ${column.nombre}`}
+                                className="p-1 hover:bg-white/10 rounded transition-colors opacity-60 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
                             >
                                 <MoreHorizontal className="h-4 w-4 text-white/40" />
                             </button>
                             {showMenu && (
-                                <div className="absolute right-0 top-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl py-1 z-10 min-w-[140px]">
+                                <div className="absolute right-0 top-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-xl py-1 z-10 min-w-[190px]">
                                     <button
                                         onClick={() => {
                                             setShowMenu(false)
@@ -751,6 +886,30 @@ function KanbanColumn({
                                     >
                                         <Pencil className="h-4 w-4" />
                                         Editar nombre
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={!canMoveColumnLeft}
+                                        onClick={() => {
+                                            setShowMenu(false)
+                                            onMoveColumnLeft()
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+                                    >
+                                        <ArrowLeft className="h-4 w-4" />
+                                        Mover a la izquierda
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={!canMoveColumnRight}
+                                        onClick={() => {
+                                            setShowMenu(false)
+                                            onMoveColumnRight()
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white/80 hover:bg-white/5 transition-colors disabled:cursor-not-allowed disabled:opacity-30"
+                                    >
+                                        <ArrowRight className="h-4 w-4" />
+                                        Mover a la derecha
                                     </button>
                                     <button
                                         onClick={() => {
@@ -824,7 +983,7 @@ function KanbanColumn({
             )}
 
             {/* Tasks */}
-            <div className="flex-1 space-y-3 overflow-y-auto pb-4 pt-1">
+            <div className="flex-1 space-y-2 overflow-y-auto pb-4 pt-1">
                 {organizedTasks.length === 0 && !showCompletedTasks && hiddenCompletedCount > 0 && (
                     <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-2 text-xs text-white/40">
                         Esta columna tiene solo tareas completadas.
@@ -884,7 +1043,7 @@ function KanbanColumn({
                                 />
                             </TaskContextMenu>
                             {!isChild && visibleSubtasks.length > 0 && (
-                                <div className="mt-2 space-y-2">
+                                <div className="mt-2 space-y-1.5">
                                     {visibleSubtasks.map((subtask) => (
                                         <SubtaskPreviewCard
                                             key={subtask.id}
@@ -986,52 +1145,111 @@ function startOfLocalDay(date: Date): Date {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
 
+// --- Card design tokens -----------------------------------------------------
+// Flat surfaces, 1px borders and a hover that only shifts background/border.
+// No elevation or translate: cards must read as rows of a list, not floating chips.
+const CARD_BASE =
+    "group relative cursor-pointer rounded-lg border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[rgba(42,231,228,0.45)]"
+const CARD_SURFACE = "border-white/[0.07] bg-[#141619] hover:border-white/[0.14] hover:bg-[#191c21]"
+const CARD_SURFACE_NESTED = "border-white/[0.06] bg-[#111316] hover:border-white/[0.12] hover:bg-[#16191d]"
+// Tree rail for nested cards (children and subtasks).
+const CARD_NESTED_LAYOUT =
+    "ml-5 w-[calc(100%-20px)] before:absolute before:inset-y-0 before:-left-3 before:w-px before:bg-white/[0.09]"
+const META_ROW = "mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] leading-none text-white/40"
+const GHOST_ACTION =
+    "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white/35 opacity-0 transition-all duration-150 hover:bg-white/[0.07] hover:text-quepia-cyan focus-visible:opacity-100 group-hover:opacity-100"
+
+const PRIORITY_LEVELS: Record<Priority, number> = { P1: 3, P2: 3, P3: 2, P4: 1 }
+
+/** Linear-style priority glyph: three bars filled up to the priority level. */
+function PriorityGlyph({ priority }: { priority: Priority }) {
+    const level = PRIORITY_LEVELS[priority] ?? 1
+    const color = PRIORITY_COLORS[priority]
+    return (
+        <span
+            className="inline-flex items-end gap-[2px]"
+            title={`Prioridad: ${PRIORITY_LABELS[priority]}`}
+            aria-label={`Prioridad ${PRIORITY_LABELS[priority]}`}
+        >
+            {[0, 1, 2].map((i) => (
+                <span
+                    key={i}
+                    className="w-[3px] rounded-[1px]"
+                    style={{
+                        height: `${4 + i * 2.5}px`,
+                        backgroundColor: i < level ? color : "rgba(255,255,255,0.16)"
+                    }}
+                />
+            ))}
+        </span>
+    )
+}
+
+/** Renders *emphasis* markers inside a task title. */
+function renderTaskTitle(title: string) {
+    return title.split(/(\*[^*]+\*)/).map((part, i) => {
+        if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+            return (
+                <span key={i} className="font-semibold text-quepia-cyan">
+                    {part.slice(1, -1)}
+                </span>
+            )
+        }
+        return <span key={i}>{part}</span>
+    })
+}
+
 function SubtaskPreviewCard({ subtask, parentTitle, parentDescription, onClick }: SubtaskPreviewCardProps) {
+    const context = parentTitle || parentDescription
+
     return (
         <div
             onClick={onClick}
             className={cn(
-                "relative cursor-pointer overflow-hidden rounded-xl border border-[#263841] bg-[linear-gradient(180deg,rgba(24,41,46,0.55),rgba(18,27,33,0.55))] px-3.5 py-3 text-left shadow-[0_6px_18px_rgba(0,0,0,0.22)] transition-all duration-200 hover:-translate-y-[1px] hover:border-[#32717a] hover:bg-[linear-gradient(180deg,rgba(24,41,46,0.7),rgba(18,27,33,0.7))] ml-6 w-[calc(100%-24px)] before:absolute before:bottom-3 before:left-0 before:top-3 before:w-[2px] before:rounded-full before:bg-[rgba(42,231,228,0.3)]",
-                subtask.completed && "opacity-70"
+                CARD_BASE,
+                CARD_SURFACE_NESTED,
+                CARD_NESTED_LAYOUT,
+                subtask.completed && "opacity-55"
             )}
         >
-            <div className="flex items-start gap-3">
-                <div className="mt-0.5 shrink-0">
+            <div className="flex items-start gap-2.5">
+                <div className="mt-[1px] shrink-0">
                     {subtask.completed ? (
-                        <CheckCircle2 className="h-[18px] w-[18px] text-white/45" />
+                        <CheckCircle2 className="h-[15px] w-[15px] text-white/30" />
                     ) : (
-                        <Circle className="h-[18px] w-[18px] text-quepia-cyan/70" />
+                        <Circle className="h-[15px] w-[15px] text-white/25 transition-colors group-hover:text-quepia-cyan/60" />
                     )}
                 </div>
-                <div className="flex-1 min-w-0">
+
+                <div className="min-w-0 flex-1">
                     <p className={cn(
-                        "text-[15px] font-medium leading-snug mb-1",
-                        subtask.completed ? "text-white/45 line-through decoration-white/20" : "text-white/85"
+                        "text-[13px] font-medium leading-[1.35]",
+                        subtask.completed ? "text-white/40 line-through decoration-white/20" : "text-white/85"
                     )}>
                         {subtask.titulo}
                     </p>
-                    {(parentDescription || parentTitle) && (
-                        <p className="text-xs text-white/35 line-clamp-1 mb-2">
-                            {parentDescription || parentTitle}
-                        </p>
+                    {context && (
+                        <p className="mt-0.5 truncate text-[11px] leading-none text-white/30">{context}</p>
                     )}
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(42,231,228,0.38)] bg-[rgba(42,231,228,0.1)] px-2 py-0.5 text-[10px] font-medium text-[#5cf5f2]">
+                    <div className={META_ROW}>
+                        <span className="inline-flex items-center gap-1 text-white/30">
                             <GitBranch className="h-3 w-3" />
                             Subtarea
                         </span>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onClick?.()
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-[rgba(42,231,228,0.32)] bg-[rgba(42,231,228,0.08)] px-2.5 py-1 text-[11px] text-[#41efec] transition-all duration-200 hover:border-[rgba(42,231,228,0.5)] hover:bg-[rgba(42,231,228,0.14)]"
-                        >
-                            <CloudUpload className="h-3 w-3" />
-                            Subir assets
-                        </button>
                     </div>
                 </div>
+
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onClick?.()
+                    }}
+                    className={GHOST_ACTION}
+                    title="Subir assets"
+                    aria-label="Subir assets"
+                >
+                    <CloudUpload className="h-3.5 w-3.5" />
+                </button>
             </div>
         </div>
     )
@@ -1061,11 +1279,6 @@ const TaskCard = React.memo(function TaskCard({
     const [uploadQueue, setUploadQueue] = useState<UploadProgressUpdate[]>([])
     const [isFileDragOver, setIsFileDragOver] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
-
-    // Reset state when entering edit mode
-    if (isEditing && editTitle === task.titulo && editTitle === "") {
-        // This is just a safeguard, usually we rely on init
-    }
 
     const handleSave = (e: React.MouseEvent) => {
         e.stopPropagation()
@@ -1123,15 +1336,14 @@ const TaskCard = React.memo(function TaskCard({
         onAssetsUploaded?.()
     }
 
-    const priorityColor = PRIORITY_COLORS[task.priority as Priority] || PRIORITY_COLORS["P4"]
-    const isHighPriority = task.priority === "P1"
+    const priority = (task.priority as Priority) || "P4"
 
     if (isEditing) {
         return (
             <div
                 className={cn(
-                    "w-full text-left bg-[#1a1a1a] border border-white/10 rounded-lg p-3 cursor-default shadow-lg",
-                    isChild && "ml-4"
+                    "w-full cursor-default rounded-lg border border-white/[0.12] bg-[#16191d] p-3 text-left ring-1 ring-[rgba(42,231,228,0.18)]",
+                    isChild && "ml-5 w-[calc(100%-20px)]"
                 )}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
@@ -1145,19 +1357,19 @@ const TaskCard = React.memo(function TaskCard({
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full bg-transparent text-[15px] font-medium text-white placeholder:text-white/30 border-none outline-none mb-3 p-0"
+                    className="mb-3 w-full border-none bg-transparent p-0 text-[13.5px] font-medium leading-[1.35] text-white outline-none placeholder:text-white/25"
                     placeholder="Nombre de la tarea"
                     autoFocus
                 />
 
-                <div className="flex items-center gap-2 mb-3">
+                <div className="mb-3 flex items-center gap-2">
                     <select
                         value={editPriority}
                         onChange={(e) => setEditPriority(e.target.value as Priority)}
-                        className="bg-white/[0.05] text-[11px] text-white/80 border border-white/10 rounded px-2 py-1 outline-none appearance-none hover:bg-white/10 transition-colors cursor-pointer"
+                        className="cursor-pointer appearance-none rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 outline-none transition-colors hover:bg-white/[0.08]"
                     >
                         {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
-                            <option key={key} value={key} className="bg-[#1a1a1a]">
+                            <option key={key} value={key} className="bg-[#16191d]">
                                 {label}
                             </option>
                         ))}
@@ -1167,20 +1379,20 @@ const TaskCard = React.memo(function TaskCard({
                         type="date"
                         value={editDeadlineDate}
                         onChange={(e) => setEditDeadlineDate(e.target.value)}
-                        className="bg-white/[0.05] text-[11px] text-white/80 border border-white/10 rounded px-2 py-1 outline-none hover:bg-white/10 transition-colors cursor-pointer [color-scheme:dark]"
+                        className="cursor-pointer rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/75 outline-none transition-colors hover:bg-white/[0.08] [color-scheme:dark]"
                     />
                 </div>
 
-                <div className="flex justify-end gap-2 border-t border-white/5 pt-2">
+                <div className="flex justify-end gap-2 border-t border-white/[0.06] pt-2.5">
                     <button
                         onClick={handleCancel}
-                        className="px-3 py-1.5 text-xs text-white/60 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        className="rounded-md px-2.5 py-1.5 text-[11px] text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white/80"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleSave}
-                        className="px-3 py-1.5 text-xs bg-quepia-cyan text-black font-medium rounded hover:opacity-90 transition-opacity"
+                        className="rounded-md bg-quepia-cyan px-3 py-1.5 text-[11px] font-medium text-black transition-opacity hover:opacity-90"
                     >
                         Guardar
                     </button>
@@ -1197,18 +1409,24 @@ const TaskCard = React.memo(function TaskCard({
     const isOverdue = dueDayOffset !== null && dueDayOffset < 0 && !task.completed
     const isDueSoon = dueDayOffset !== null && dueDayOffset >= 0 && dueDayOffset <= 2 && !task.completed
 
-    const formatDueDate = (date: string) => {
-        const dueDate = parseTaskDate(date)
-        const offset = Math.round((startOfLocalDay(dueDate).getTime() - startOfLocalDay(new Date()).getTime()) / DAY_IN_MS)
-
+    const formatDueDate = (offset: number, date: Date) => {
         if (offset === 0) return "Hoy"
         if (offset === 1) return "Mañana"
-        return dueDate.toLocaleDateString("es-AR", { day: "numeric", month: "short" })
+        if (offset === -1) return "Ayer"
+        return date.toLocaleDateString("es-AR", { day: "numeric", month: "short" })
     }
 
-    // Check if this task has a parent (was converted from subtask)
-    const isChildTask = !!task.parent_task_id
-    const assetThumbs = (task.assets || []).map(a => a.thumbnail_url).filter(Boolean).slice(0, 3) as string[]
+    // Structured briefs start with an uppercase heading; show the first real lines instead.
+    const descriptionSummary = task.descripcion ? descriptionPreview(task.descripcion) : ""
+
+    const assets = Array.isArray(task.assets) ? task.assets : []
+    const assetThumbs = assets.map(a => a.thumbnail_url).filter(Boolean).slice(0, 4) as string[]
+    const pendingAssets = assets.filter(a => a.approval_status === "pending_review").length
+    const changesRequestedAssets = assets.filter(a => a.approval_status === "changes_requested").length
+    const approvedAssets = assets.filter(a => ["approved_internal", "approved_final", "published"].includes(a.approval_status)).length
+    const hasCarousel = assets.some(a => a.asset_type === "carousel")
+    const hasReel = assets.some(a => a.asset_type === "reel")
+
     const taskTypeMetadata = task.type_metadata && typeof task.type_metadata === "object"
         ? (task.type_metadata as Record<string, unknown>)
         : null
@@ -1218,6 +1436,11 @@ const TaskCard = React.memo(function TaskCard({
     const youtubeThumbUrl = youtubeMeta && typeof youtubeMeta.thumbnail_url === "string" ? youtubeMeta.thumbnail_url : null
     const youtubePublishedUrl = youtubeMeta && typeof youtubeMeta.published_url === "string" ? youtubeMeta.published_url : null
     const youtubeSourceUrl = youtubeMeta && typeof youtubeMeta.source_url === "string" ? youtubeMeta.source_url : null
+
+    // Breadcrumb shown above the title when the task hangs from a parent.
+    const parentLabel = task.parent_task?.titulo || parentTask?.titulo || (task.parent_task_id ? "Subtarea" : null)
+    const visibleLabels = task.labels?.slice(0, 2) ?? []
+    const extraLabels = (task.labels?.length ?? 0) - visibleLabels.length
 
     return (
         <div
@@ -1245,23 +1468,19 @@ const TaskCard = React.memo(function TaskCard({
                 handleFilesUpload(e.dataTransfer.files)
             }}
             className={cn(
-                "relative cursor-pointer overflow-hidden rounded-xl border border-[#252a33] bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.015))] px-3.5 py-3 text-left shadow-[0_10px_24px_rgba(0,0,0,0.24)] transition-all duration-200 group hover:-translate-y-[1px] hover:border-[#3a4350] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] hover:shadow-[0_16px_30px_rgba(0,0,0,0.35)]",
-                isDragging && "opacity-50 scale-95 shadow-xl ring-1 ring-[rgba(42,231,228,0.45)]",
-                task.completed && "opacity-60",
-                // Child task styling: compact and connected to parent with a subtle accent rail.
-                isChild && [
-                    "ml-6 w-[calc(100%-24px)] border-[#263841] bg-[linear-gradient(180deg,rgba(24,41,46,0.55),rgba(18,27,33,0.55))] shadow-[0_6px_18px_rgba(0,0,0,0.22)]",
-                    "before:absolute before:bottom-3 before:left-0 before:top-3 before:w-[2px] before:rounded-full before:bg-[rgba(42,231,228,0.3)]"
-                ],
-                // Parent task with children styling
-                !isChild && isChildTask && "border-l border-l-[rgba(42,231,228,0.35)]",
-                isFileDragOver && "border-[#2ae7e4] bg-[rgba(42,231,228,0.12)] before:bg-[#2ae7e4]"
+                CARD_BASE,
+                isChild ? cn(CARD_SURFACE_NESTED, CARD_NESTED_LAYOUT) : CARD_SURFACE,
+                isDragging && "opacity-40 border-[rgba(42,231,228,0.45)]",
+                task.completed && "opacity-55",
+                // Overdue is the only state that earns a full-height accent rail.
+                isOverdue && "after:absolute after:inset-y-2 after:left-0 after:w-[2px] after:rounded-r-full after:bg-red-500/70",
+                isFileDragOver && "border-[#2ae7e4] bg-[rgba(42,231,228,0.08)]"
             )}
         >
             {isFileDragOver && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-[rgba(42,231,228,0.65)] bg-black/40 pointer-events-none">
-                    <div className="flex items-center gap-2 text-[11px] text-white/80">
-                        <CloudUpload className="h-4 w-4 text-quepia-cyan" />
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border border-dashed border-[rgba(42,231,228,0.6)] bg-[#0a0a0a]/80">
+                    <div className="flex items-center gap-1.5 text-[11px] text-white/75">
+                        <CloudUpload className="h-3.5 w-3.5 text-quepia-cyan" />
                         Soltá para subir assets
                     </div>
                 </div>
@@ -1277,230 +1496,161 @@ const TaskCard = React.memo(function TaskCard({
                     if (e.target.files) handleFilesUpload(e.target.files)
                 }}
             />
-            {/* Parent connector removed to avoid visual artifacts in compact cards */}
-            <div className="flex items-start gap-3">
-                {/* Circular Checkbox (Todoist Style) */}
+
+            <div className="flex items-start gap-2.5">
+                {/* Complete toggle — neutral by default so it never competes with the title. */}
                 <button
                     onClick={(e) => {
                         e.stopPropagation()
                         onToggleComplete?.(task.id)
                     }}
-                    className="mt-0.5 shrink-0 group/check relative"
+                    className="group/check mt-[1px] shrink-0"
+                    title={task.completed ? "Marcar como pendiente" : "Marcar como completada"}
+                    aria-label={task.completed ? "Marcar como pendiente" : "Marcar como completada"}
                 >
                     {task.completed ? (
-                        <div className="h-[18px] w-[18px] rounded-full bg-white/20 flex items-center justify-center transition-colors">
-                            <Check className="h-3 w-3 text-white" />
+                        <div className="flex h-[15px] w-[15px] items-center justify-center rounded-full bg-white/20">
+                            <Check className="h-2.5 w-2.5 text-white/80" />
                         </div>
                     ) : (
-                        <div
-                            className="h-[18px] w-[18px] rounded-full border-2 transition-all flex items-center justify-center group-hover/check:bg-opacity-10"
-                            style={{
-                                borderColor: priorityColor,
-                                backgroundColor: 'transparent'
-                            }}
-                        >
-                            <div className="h-full w-full rounded-full opacity-0 group-hover/check:opacity-20" style={{ backgroundColor: priorityColor }} />
-                            <Check className="h-2.5 w-2.5 opacity-0 group-hover/check:opacity-100 transition-opacity" style={{ color: priorityColor }} />
+                        <div className="flex h-[15px] w-[15px] items-center justify-center rounded-full border border-white/25 transition-colors group-hover/check:border-quepia-cyan group-hover/check:bg-[rgba(42,231,228,0.12)]">
+                            <Check className="h-2 w-2 text-quepia-cyan opacity-0 transition-opacity group-hover/check:opacity-100" />
                         </div>
                     )}
                 </button>
 
-                <div className="flex-1 min-w-0">
-                    {youtubeThumbUrl && (
-                        <div className="mb-2 overflow-hidden rounded-md border border-white/10 bg-black/20">
-                            <img
-                                src={youtubeThumbUrl}
-                                alt="YouTube thumbnail"
-                                className="h-24 w-full object-cover"
-                                loading="lazy"
-                            />
+                <div className="min-w-0 flex-1">
+                    {parentLabel && (
+                        <div className="mb-1 flex items-center gap-1 text-[11px] leading-none text-white/30">
+                            <GitBranch className="h-3 w-3 shrink-0" />
+                            <span className="truncate" title={parentLabel}>{parentLabel}</span>
                         </div>
                     )}
 
-                    {/* Title */}
                     <p className={cn(
-                        "text-[15px] font-medium leading-snug mb-0.5",
+                        "text-[13.5px] font-medium leading-[1.35]",
                         task.completed ? "text-white/40 line-through decoration-white/20" : "text-white/90"
                     )}>
-                        {task.titulo.split(/(\*[^*]+\*)/).map((part, i) => {
-                            if (part.startsWith("*") && part.endsWith("*")) {
-                                return (
-                                    <span key={i} className="font-semibold text-quepia-cyan">
-                                        {part.slice(1, -1)}
-                                    </span>
-                                )
-                            }
-                            return <span key={i}>{part}</span>
-                        })}
+                        {renderTaskTitle(task.titulo)}
                     </p>
 
-                    {/* Description */}
-                    {task.descripcion && (
-                        <p className={cn(
-                            "line-clamp-2 mb-2.5 font-normal leading-relaxed text-white/45",
-                            isChild ? "text-[11px]" : "text-xs"
-                        )}>
-                            {task.descripcion}
+                    {descriptionSummary && (
+                        <p className="mt-1 line-clamp-2 text-[12px] font-normal leading-[1.45] text-white/40">
+                            {descriptionSummary}
                         </p>
                     )}
 
-                    {/* Meta Chips Row */}
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                        {/* Due Date Chip */}
-                        {deadlineDate && (
-                            <span className={cn(
-                                "inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-medium transition-colors",
-                                isOverdue ? "text-red-400 bg-red-500/10" :
-                                    isDueSoon ? "text-amber-400 bg-amber-500/10" :
-                                        "text-white/50 bg-white/[0.04]"
-                            )}>
-                                <Calendar className="h-3 w-3" />
-                                {formatDueDate(deadlineDate)}
-                            </span>
-                        )}
+                    {/* Media preview: YouTube frame wins over the asset strip. */}
+                    {youtubeThumbUrl ? (
+                        <div className="mt-2 overflow-hidden rounded-md border border-white/[0.07] bg-black/30">
+                            <img
+                                src={youtubeThumbUrl}
+                                alt=""
+                                className="h-20 w-full object-cover"
+                                loading="lazy"
+                            />
+                        </div>
+                    ) : assetThumbs.length > 0 && (
+                        <div className="mt-2 flex items-center gap-1">
+                            {assetThumbs.map((url, idx) => (
+                                <div
+                                    key={`${url}-${idx}`}
+                                    className="relative h-7 w-7 overflow-hidden rounded-[5px] border border-white/[0.08] bg-white/[0.04]"
+                                >
+                                    <img src={url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                                    {idx === 0 && (hasCarousel || hasReel) && (
+                                        <span className="absolute bottom-0 right-0 flex h-3 w-3 items-center justify-center rounded-tl-[4px] bg-black/70">
+                                            {hasCarousel
+                                                ? <LayoutGrid className="h-2 w-2 text-white/70" />
+                                                : <GitBranch className="h-2 w-2 text-white/70" />}
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                            {assets.length > assetThumbs.length && (
+                                <span className="ml-0.5 text-[10px] text-white/30">+{assets.length - assetThumbs.length}</span>
+                            )}
+                        </div>
+                    )}
 
-                        {/* Priority Chip (Only if not P4/Gray) */}
-                        {task.priority && task.priority !== "P4" && (
+                    {/* Metadata: one flat row, colour reserved for what needs action. */}
+                    <div className={META_ROW}>
+                        {priority !== "P4" && <PriorityGlyph priority={priority} />}
+
+                        {deadlineDate && dueDayOffset !== null && (
                             <span
                                 className={cn(
-                                    "inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md font-medium",
-                                    isHighPriority ? "bg-red-500/20 text-red-400" : "bg-white/[0.04]"
+                                    "inline-flex items-center gap-1",
+                                    isOverdue ? "font-medium text-red-400" : isDueSoon ? "text-amber-400" : "text-white/40"
                                 )}
-                                style={!isHighPriority ? { color: priorityColor } : undefined}
+                                title={parseTaskDate(deadlineDate).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
                             >
-                                <Flag className="h-3 w-3" fill={isHighPriority ? "currentColor" : "none"} />
-                                {PRIORITY_LABELS[task.priority as Priority]}
+                                <Calendar className="h-3 w-3" />
+                                {formatDueDate(dueDayOffset, parseTaskDate(deadlineDate))}
                             </span>
                         )}
 
-                        {/* Task Type Chip */}
                         {task.task_type && (
-                            <span
-                                className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded-md font-medium bg-white/[0.04]"
-                                style={{ color: TASK_TYPE_COLORS[task.task_type as TaskType] }}
-                            >
+                            <span className="inline-flex items-center gap-1.5 text-white/45">
+                                <span
+                                    className="h-1.5 w-1.5 rounded-full"
+                                    style={{ backgroundColor: TASK_TYPE_COLORS[task.task_type as TaskType] }}
+                                />
                                 {TASK_TYPE_LABELS[task.task_type as TaskType]}
                             </span>
                         )}
 
-                        {/* Labels Chips */}
-                        {task.labels && task.labels.length > 0 && task.labels.slice(0, 2).map((label, i) => (
-                            <span key={i} className="text-[11px] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-white/40">
+                        {assets.length > 0 && (
+                            <span className="inline-flex items-center gap-1 text-white/40" title={`${assets.length} asset(s) · ${approvedAssets} aprobado(s)`}>
+                                <Paperclip className="h-3 w-3" />
+                                {assets.length}
+                            </span>
+                        )}
+
+                        {/* A single review signal: blockers first, then pending. */}
+                        {changesRequestedAssets > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-red-400/85" title="Assets con cambios pedidos">
+                                <span className="h-1.5 w-1.5 rounded-full bg-red-400/85" />
+                                {changesRequestedAssets}
+                            </span>
+                        ) : pendingAssets > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-amber-400/85" title="Assets esperando revisión">
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400/85" />
+                                {pendingAssets}
+                            </span>
+                        ) : assets.length > 0 && approvedAssets === assets.length ? (
+                            <Check className="h-3 w-3 text-emerald-400/80" aria-label="Assets aprobados" />
+                        ) : null}
+
+                        {visibleLabels.map((label, i) => (
+                            <span key={i} className="rounded border border-white/[0.09] px-1.5 py-px text-[10px] leading-[14px] text-white/45">
                                 {label}
                             </span>
                         ))}
-                        {task.labels && task.labels.length > 2 && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-white/30">
-                                +{task.labels.length - 2}
-                            </span>
+                        {extraLabels > 0 && (
+                            <span className="text-[10px] text-white/30">+{extraLabels}</span>
                         )}
 
-                        {/* Estimated Hours */}
                         {task.estimated_hours && (
-                            <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.04] text-white/30 font-mono">
-                                {task.estimated_hours}h
-                            </span>
+                            <span className="font-mono text-[10px] text-white/30">{task.estimated_hours}h</span>
                         )}
 
-                        {/* Link Indicator */}
-                        {task.link && (
-                            <Link2 className="h-3 w-3 text-quepia-cyan/60 ml-0.5" />
-                        )}
+                        {task.link && <Link2 className="h-3 w-3 text-white/30" aria-label="Tiene enlace" />}
 
-                        {/* YouTube links indicator */}
                         {(youtubePublishedUrl || youtubeSourceUrl) && (
-                            <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/10 text-red-300 font-medium">
-                                YouTube
-                            </span>
-                        )}
-
-                        {/* Parent Task Indicator - Shows when task was converted from subtask */}
-                        {task.parent_task_id && (
-                            <span
-                                className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(42,231,228,0.38)] bg-[rgba(42,231,228,0.1)] px-2 py-0.5 text-[10px] font-medium text-[#5cf5f2]"
-                                title={task.parent_task?.titulo ? `Subtarea de: ${task.parent_task.titulo}` : 'Tarea convertida desde subtarea'}
-                            >
-                                <GitBranch className="h-3 w-3" />
-                                <span className="max-w-[100px] truncate">
-                                    {task.parent_task?.titulo ? `↳ ${task.parent_task.titulo}` : 'Subtarea'}
-                                </span>
-                            </span>
+                            <span className="text-[10px] font-medium text-red-400/70">YouTube</span>
                         )}
                     </div>
 
-                    {/* Assets Summary + Upload */}
-                    {Array.isArray(task.assets) && task.assets.length > 0 && (() => {
-                        const carouselCount = new Set(task.assets!.filter(a => a.asset_type === 'carousel' && a.group_id).map(a => a.group_id)).size
-                        const reelCount = task.assets!.filter(a => a.asset_type === 'reel').length
-                        const singleCount = task.assets!.filter(a => !a.asset_type || a.asset_type === 'single').length
-                        return (
-                            <div className="mt-2 flex items-center gap-3 text-[10px] text-white/40 flex-wrap">
-                                {assetThumbs.length > 0 && (
-                                    <div className="flex items-center -space-x-1">
-                                        {assetThumbs.map((url, idx) => (
-                                            <div key={`${url}-${idx}`} className="w-5 h-5 rounded-md border border-black/30 overflow-hidden bg-white/5">
-                                                <img src={url} alt="" className="w-full h-full object-cover" />
-                                            </div>
-                                        ))}
-                                        {task.assets!.length > assetThumbs.length && (
-                                            <span className="text-[9px] text-white/40 ml-2">+{task.assets!.length - assetThumbs.length}</span>
-                                        )}
-                                    </div>
-                                )}
-                                <span className="inline-flex items-center gap-1">
-                                    <Paperclip className="h-3 w-3 text-white/30" />
-                                    {task.assets!.length}
-                                </span>
-                                {carouselCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 text-purple-300/80 text-[9px]">
-                                        <LayoutGrid className="h-2.5 w-2.5" />
-                                        {carouselCount}
-                                    </span>
-                                )}
-                                {reelCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 text-pink-300/80 text-[9px]">
-                                        <GitBranch className="h-2.5 w-2.5" />
-                                        {reelCount}
-                                    </span>
-                                )}
-                                <span className="inline-flex items-center gap-1 text-emerald-400/80">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
-                                    {task.assets!.filter(a => ['approved_internal', 'approved_final', 'published'].includes(a.approval_status)).length}
-                                </span>
-                                <span className="inline-flex items-center gap-1 text-amber-400/80">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
-                                    {task.assets!.filter(a => a.approval_status === 'pending_review').length}
-                                </span>
-                                <span className="inline-flex items-center gap-1 text-red-400/80">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-red-400/80" />
-                                    {task.assets!.filter(a => a.approval_status === 'changes_requested').length}
-                                </span>
-                            </div>
-                        )
-                    })()}
-
-                    {userId && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                fileInputRef.current?.click()
-                            }}
-                            className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-[rgba(42,231,228,0.32)] bg-[rgba(42,231,228,0.08)] px-2.5 py-1 text-[11px] text-[#41efec] transition-all duration-200 hover:border-[rgba(42,231,228,0.5)] hover:bg-[rgba(42,231,228,0.14)]"
-                        >
-                            <CloudUpload className="h-3 w-3" />
-                            Subir assets
-                        </button>
-                    )}
-
                     {uploadQueue.length > 0 && (
-                        <div className="mt-2 space-y-1">
+                        <div className="mt-2 space-y-1.5">
                             {uploadQueue.slice(0, 2).map((u) => (
-                                <div key={u.id} className="bg-white/[0.03] border border-white/[0.06] rounded p-1.5">
-                                    <div className="flex items-center justify-between text-[10px] text-white/50 mb-1">
-                                        <span className="truncate max-w-[140px]">{u.fileName || u.id}</span>
+                                <div key={u.id}>
+                                    <div className="mb-1 flex items-center justify-between text-[10px] leading-none text-white/40">
+                                        <span className="max-w-[150px] truncate">{u.fileName || u.id}</span>
                                         <span>{u.stage === "error" ? "Error" : `${u.percent}%`}</span>
                                     </div>
-                                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/[0.07]">
                                         <div
                                             className={cn(
                                                 "h-full transition-all",
@@ -1518,12 +1668,32 @@ const TaskCard = React.memo(function TaskCard({
                     )}
                 </div>
 
-                {/* Assignee Avatar */}
-                {task.assignee && (
-                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-quepia-cyan/80 to-quepia-magenta/80 flex items-center justify-center text-[9px] text-white font-medium shrink-0 shadow-sm mt-0.5 border border-black/20" title={task.assignee.nombre}>
-                        {task.assignee.nombre.split(" ").map(n => n[0]).join("").toUpperCase()}
-                    </div>
-                )}
+                {/* Trailing rail: hover-only actions, then the persistent assignee. */}
+                <div className="flex shrink-0 items-center gap-1">
+                    {userId && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                fileInputRef.current?.click()
+                            }}
+                            className={GHOST_ACTION}
+                            title="Subir assets"
+                            aria-label="Subir assets"
+                        >
+                            <CloudUpload className="h-3.5 w-3.5" />
+                        </button>
+                    )}
+
+                    {task.assignee && (
+                        <UserAvatar
+                            name={task.assignee.nombre}
+                            avatarUrl={task.assignee.avatar_url}
+                            size={20}
+                            fontSize={9}
+                            className="border border-black/30"
+                        />
+                    )}
+                </div>
             </div>
         </div>
     )

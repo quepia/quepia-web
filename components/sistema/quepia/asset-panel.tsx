@@ -628,10 +628,15 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider">
-          Assets ({assets.length})
-        </h3>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Folder className="h-4 w-4 text-white/45" />
+            <h3 className="text-sm font-semibold text-white/90">Assets</h3>
+            <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-white/45">{assets.length}</span>
+          </div>
+          <p className="mt-1 text-xs text-white/35">Archivos, versiones y entregas de esta tarea.</p>
+        </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
@@ -646,6 +651,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           <button
             onClick={handleSendAssetsToTelegram}
             disabled={isSendingTelegramAssets || telegramEligibleAssetCount === 0}
+            title={telegramEligibleAssetCount === 0 ? "Disponible cuando la tarea tenga assets" : "Enviar assets a Telegram"}
             className={cn(
               "text-xs flex items-center gap-1 rounded-md border px-2.5 py-1 transition-colors",
               isSendingTelegramAssets || telegramEligibleAssetCount === 0
@@ -663,6 +669,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
           <button
             onClick={handleNotifyClient}
             disabled={isSendingDeliveryNotification || notifiableAssetCount === 0}
+            title={notifiableAssetCount === 0 ? "Disponible cuando haya assets nuevos para notificar" : "Notificar al cliente"}
             className={cn(
               "text-xs flex items-center gap-1 rounded-md border px-2.5 py-1 transition-colors",
               isSendingDeliveryNotification || notifiableAssetCount === 0
@@ -682,9 +689,9 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
               setIsAdding(true)
               fileInputRef.current?.click()
             }}
-            className="text-xs text-quepia-cyan hover:underline flex items-center gap-1"
+            className="order-first flex items-center gap-1.5 rounded-lg bg-quepia-cyan px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-quepia-cyan/90"
           >
-            <Plus className="h-3 w-3" /> Agregar
+            <Plus className="h-3.5 w-3.5" /> Agregar asset
           </button>
         </div>
       </div>
@@ -953,7 +960,10 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
 
       {/* Asset list */}
       {assets.length === 0 && !isAdding ? (
-        <p className="text-xs text-white/25 text-center py-3">Sin assets</p>
+        <div className="rounded-xl border border-dashed border-white/[0.09] bg-black/10 px-4 py-4 text-center">
+          <p className="text-xs font-medium text-white/50">Todavía no hay assets</p>
+          <p className="mt-1 text-[11px] text-white/30">Agregá el primer archivo para comenzar la entrega o revisión.</p>
+        </div>
       ) : (
         <div className="space-y-2">
           {(() => {

@@ -766,6 +766,61 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
     }
   };
 
+  const reorderColumns = async (columnIds: string[]): Promise<boolean> => {
+    if (!projectId || columnIds.length !== columns.length) return false;
+
+    const currentIds = new Set(columns.map((column) => column.id));
+    const hasEveryColumn = columnIds.every((id) => currentIds.has(id));
+    if (!hasEveryColumn || new Set(columnIds).size !== columnIds.length) return false;
+
+    const previousColumns = columns;
+    const orderById = new Map(columnIds.map((id, index) => [id, index]));
+
+    // Reflect the new position immediately while Supabase persists the order.
+    setColumns((current) =>
+      [...current]
+        .map((column) => ({ ...column, orden: orderById.get(column.id) ?? column.orden }))
+        .sort((a, b) => a.orden - b.orden)
+    );
+
+    try {
+      const supabase = createClient();
+      const results = await Promise.all(
+        columnIds.map((id, index) =>
+          supabase
+            .from('sistema_columns')
+            .update({ orden: index })
+            .eq('id', id)
+            .eq('project_id', projectId)
+            .select('id')
+        )
+      );
+      const failedUpdate = results.find(({ data, error }) => error || data?.length !== 1);
+
+      if (failedUpdate) {
+        // A multi-row reorder can partially succeed. Restore the prior order on a
+        // best-effort basis before refreshing the source of truth.
+        await Promise.all(
+          previousColumns.map((column) =>
+            supabase
+              .from('sistema_columns')
+              .update({ orden: column.orden })
+              .eq('id', column.id)
+              .eq('project_id', projectId)
+          )
+        );
+        throw failedUpdate.error ?? new Error('No se pudo guardar el orden de las columnas');
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Error reordering columns:', err);
+      setColumns(previousColumns);
+      await silentRefresh();
+      return false;
+    }
+  };
+
   const reorderTasks = async (
     columnId: string,
     taskIds: string[]
@@ -867,6 +922,7 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
     deleteTask,
     clearCompletedTasks,
     moveTask,
+    reorderColumns,
     reorderTasks,
     duplicateTask,
   };

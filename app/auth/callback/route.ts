@@ -30,7 +30,7 @@ export async function GET(request: Request) {
                 const admin = createAdminClient();
                 const { data: sistemaUser, error: accessError } = await admin
                     .from('sistema_users')
-                    .select('id, email, is_authorized, is_active, deleted_at')
+                    .select('id, email, is_authorized, is_active, deleted_at, avatar_url')
                     .eq('id', user.id)
                     .maybeSingle();
 
@@ -50,6 +50,29 @@ export async function GET(request: Request) {
                     return NextResponse.redirect(
                         new URL('/auth/access-denied', origin),
                     );
+                }
+
+                // El perfil lo administra un admin, pero si nunca se le cargó
+                // una foto usamos la del proveedor para que el avatar no quede
+                // vacío en el sistema. Nunca pisamos una foto ya elegida.
+                const providerAvatar =
+                    typeof user.user_metadata?.avatar_url === 'string'
+                        ? user.user_metadata.avatar_url
+                        : typeof user.user_metadata?.picture === 'string'
+                            ? user.user_metadata.picture
+                            : null;
+
+                if (providerAvatar && !sistemaUser?.avatar_url) {
+                    const { error: avatarError } = await admin
+                        .from('sistema_users')
+                        .update({ avatar_url: providerAvatar })
+                        .eq('id', user.id);
+
+                    if (avatarError) {
+                        console.error('[Auth Callback] Avatar sync failed', {
+                            code: avatarError.code,
+                        });
+                    }
                 }
 
                 return NextResponse.redirect(new URL(redirectTo, origin));

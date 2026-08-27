@@ -335,16 +335,16 @@ export function ZernioPublishingPanel({
   }
 
   return (
-    <div className="mb-6 rounded-xl border border-quepia-cyan/15 bg-quepia-cyan/[0.035] p-4">
+    <div className="mb-5 rounded-2xl border border-[#242a32] bg-[#12161b] p-4 sm:p-5">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-quepia-cyan" />
-            <h3 className="text-sm font-medium text-white">Publicar con Zernio</h3>
+            <Radio className="h-4 w-4 text-white/45" />
+            <h3 className="text-sm font-semibold text-white/90">Publicación con Zernio</h3>
           </div>
-          <p className="mt-1 text-[11px] text-white/35">Publicación manual o programada desde esta tarea.</p>
+          <p className="mt-1 text-xs text-white/35">Publicá o programá el contenido cuando esté listo.</p>
         </div>
-        <button type="button" onClick={() => void load()} disabled={loading} className="rounded-md p-1.5 hover:bg-white/5">
+        <button type="button" onClick={() => void load()} disabled={loading} className="rounded-lg p-1.5 hover:bg-white/5" aria-label="Actualizar estado de Zernio">
           <RefreshCw className={cn("h-3.5 w-3.5 text-white/40", loading && "animate-spin")} />
         </button>
       </div>
@@ -357,16 +357,19 @@ export function ZernioPublishingPanel({
           La publicación está reservada a operadores con rol administrador.
         </p>
       ) : !context.configured ? (
-        <div className="rounded-lg border border-dashed border-white/10 p-4 text-center">
-          <p className="text-xs text-white/50">Primero activá el perfil social de este proyecto.</p>
+        <div className="flex flex-col gap-3 rounded-xl border border-white/[0.08] bg-black/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-medium text-white/65">Zernio todavía no está conectado</p>
+            <p className="mt-0.5 text-[11px] text-white/35">Activá el perfil social del proyecto para publicar desde esta tarea.</p>
+          </div>
           <button
             type="button"
             onClick={() => void activate()}
             disabled={action === "activate"}
-            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-quepia-cyan px-3 py-2 text-xs font-semibold text-black disabled:opacity-50"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-quepia-cyan px-3 py-2 text-xs font-semibold text-black disabled:opacity-50"
           >
             {action === "activate" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Activar Zernio
+            Activar
           </button>
         </div>
       ) : context.accounts.length === 0 ? (

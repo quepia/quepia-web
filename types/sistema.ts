@@ -7,7 +7,7 @@ export type Priority = 'P1' | 'P2' | 'P3' | 'P4';
 export type TaskStatus = 'planificacion' | 'material-producir' | 'edicion' | 'listo-publicar' | 'completado';
 
 // Task types
-export type TaskType = 'diseno' | 'copy' | 'video' | 'strategy' | 'revision' | 'otro';
+export type TaskType = 'diseno' | 'copy' | 'video' | 'reel' | 'strategy' | 'revision' | 'otro';
 
 // Organization-level user roles
 export type OrgRole = 'superadmin' | 'admin_org' | 'team_member' | 'client_guest';
@@ -959,6 +959,7 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   diseno: 'Diseño',
   copy: 'Copy',
   video: 'Video',
+  reel: 'Reel',
   strategy: 'Estrategia',
   revision: 'Revisión',
   otro: 'Otro',
@@ -968,6 +969,7 @@ export const TASK_TYPE_COLORS: Record<TaskType, string> = {
   diseno: '#8b5cf6',
   copy: '#3b82f6',
   video: '#ec4899',
+  reel: '#fb7185',
   strategy: '#f97316',
   revision: '#eab308',
   otro: '#6b7280',

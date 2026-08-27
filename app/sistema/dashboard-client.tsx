@@ -52,6 +52,8 @@ const TASK_VIEWS = new Set([
 
 const EVENT_VIEWS = new Set(["dashboard", "calendar"])
 
+const SIDEBAR_COLLAPSED_KEY = "quepia:sistema:sidebar-collapsed"
+
 const ADMIN_VIEWS = new Set([
     "admin-users",
     "admin-projects",
@@ -343,6 +345,8 @@ export default function DashboardPage({
     const [creatingProject, setCreatingProject] = useState(false)
     const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+    const sidebarPrefHydrated = useRef(false)
     const [newProjectIcon, setNewProjectIcon] = useState<ProjectIcon | null>(null)
 
     const isAdmin = sistemaUser?.role === "admin"
@@ -438,6 +442,19 @@ export default function DashboardPage({
         const stored = readProjectVisits(projectVisitsKey)
         setMostVisitedProjectId(getMostVisitedProjectId(stored.counts))
     }, [projectVisitsKey])
+
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        setIsSidebarCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1")
+        sidebarPrefHydrated.current = true
+    }, [])
+
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        // Sin esta guarda el primer render pisaría la preferencia guardada.
+        if (!sidebarPrefHydrated.current) return
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, isSidebarCollapsed ? "1" : "0")
+    }, [isSidebarCollapsed])
 
     useEffect(() => {
         if (typeof window === "undefined") return
@@ -641,6 +658,20 @@ export default function DashboardPage({
 
     const openMobileSidebar = useCallback(() => {
         setIsMobileSidebarOpen(true)
+    }, [])
+
+    // El perfil de sistema puede no tener foto cargada: en ese caso usamos la
+    // del proveedor de login para que el avatar no quede siempre en iniciales.
+    const sidebarAvatarUrl = useMemo(() => {
+        const metadata = user?.user_metadata as Record<string, unknown> | undefined
+        const fromProvider = [metadata?.avatar_url, metadata?.picture].find(
+            (value): value is string => typeof value === "string" && value.length > 0
+        )
+        return sistemaUser?.avatar_url || fromProvider || null
+    }, [sistemaUser?.avatar_url, user?.user_metadata])
+
+    const toggleSidebarCollapsed = useCallback(() => {
+        setIsSidebarCollapsed((prev) => !prev)
     }, [])
 
     const handleSidebarViewChange = useCallback((view: string) => {
@@ -1502,7 +1533,7 @@ export default function DashboardPage({
                 userId={user?.id}
                 userName={sistemaUser?.nombre}
                 userEmail={user?.email}
-                userAvatar={sistemaUser?.avatar_url}
+                userAvatar={sidebarAvatarUrl}
                 userRole={sistemaUser?.role}
                 activeView={activeView}
                 onViewChange={handleSidebarViewChange}
@@ -1519,6 +1550,8 @@ export default function DashboardPage({
                 projects={projects}
                 projectsLoading={projectsLoading}
                 onClose={closeMobileSidebar}
+                collapsed={isSidebarCollapsed && !isMobileSidebarOpen}
+                onToggleCollapse={isMobileSidebarOpen ? closeMobileSidebar : toggleSidebarCollapsed}
             />
 
             {/* Main Content */}
