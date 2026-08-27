@@ -19,6 +19,29 @@ const PROJECT_IDS_CACHE_TTL_MS = 45_000
 const projectIdsCache = new Map<string, { projectIds: string[]; expiresAt: number }>()
 type ProjectIdRow = { id: string }
 type MemberProjectIdRow = { project_id: string }
+const SISTEMA_ROLES = new Set(["admin", "user", "manager"])
+
+function isActiveAuthorizedUser(user: {
+  is_authorized?: boolean | null
+  is_active?: boolean | null
+  deleted_at?: string | null
+} | null): boolean {
+  return Boolean(
+    user?.is_authorized === true &&
+    user.is_active === true &&
+    user.deleted_at === null,
+  )
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  })[character]!)
+}
 
 function getAdminClient() {
   return createSupabaseClient(
@@ -85,9 +108,12 @@ export async function GET(request: Request) {
 
       const { data: requester } = await supabase
         .from("sistema_users")
-        .select("role")
+        .select("role, is_authorized, is_active, deleted_at")
         .eq("id", authData.user.id)
         .single()
+      if (!isActiveAuthorizedUser(requester)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
       if (userId && userId !== authData.user.id && requester?.role !== "admin") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
@@ -429,9 +455,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     const userId = authData.user.id
+    const authorizationAdmin = getAdminClient()
+    const { data: authorizedRequester } = await authorizationAdmin
+      .from("sistema_users")
+      .select("role, is_authorized, is_active, deleted_at")
+      .eq("id", userId)
+      .maybeSingle()
+
+    if (!isActiveAuthorizedUser(authorizedRequester)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
 
     if (action === "update-role") {
       const supabase = getAdminClient()
+
+      if (!SISTEMA_ROLES.has(newRole)) {
+        return NextResponse.json({ error: "Invalid role" }, { status: 400 })
+      }
 
       // 1. Verify requester is admin
       const { data: requester } = await supabase
@@ -459,6 +499,14 @@ export async function POST(request: Request) {
 
     if (action === "create-user") {
       const supabase = getAdminClient()
+      const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : ""
+      const normalizedName = typeof nombre === "string" ? nombre.trim() : ""
+      const normalizedRole = SISTEMA_ROLES.has(role) ? role : "user"
+      const safeName = escapeHtml(normalizedName)
+
+      if (!normalizedEmail || !normalizedEmail.includes("@") || !normalizedName) {
+        return NextResponse.json({ error: "Invalid name or email" }, { status: 400 })
+      }
 
       // 1. Verify requester is admin
       const { data: requester } = await supabase
@@ -471,14 +519,87 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
       }
 
+      // An OAuth user may already exist because they previously attempted to
+      // sign in. In that case, authorizing the existing profile is the admin's
+      // explicit allowlist action; no new Auth identity is needed.
+      const { data: existingProfile, error: existingProfileError } = await supabase
+        .from("sistema_users")
+        .select("id")
+        .ilike("email", normalizedEmail)
+        .maybeSingle()
+
+      if (existingProfileError) {
+        return NextResponse.json({ error: existingProfileError.message }, { status: 500 })
+      }
+
+      if (existingProfile) {
+        const { error: authorizeError } = await supabase
+          .from("sistema_users")
+          .update({
+            email: normalizedEmail,
+            nombre: normalizedName,
+            role: normalizedRole,
+            is_authorized: true,
+            access_granted_at: new Date().toISOString(),
+            access_granted_by: userId,
+            is_active: true,
+            deleted_at: null,
+            deleted_by: null,
+          })
+          .eq("id", existingProfile.id)
+
+        if (authorizeError) {
+          return NextResponse.json({ error: authorizeError.message }, { status: 500 })
+        }
+
+        return NextResponse.json({ success: true, authorizedExistingUser: true })
+      }
+
+      const { data: authUsers, error: authUsersError } = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
+      })
+
+      if (authUsersError) {
+        return NextResponse.json({ error: authUsersError.message }, { status: 500 })
+      }
+
+      const existingAuthUser = authUsers.users.find(
+        (candidate) => candidate.email?.trim().toLowerCase() === normalizedEmail,
+      )
+
+      if (existingAuthUser) {
+        const { error: profileError } = await supabase
+          .from("sistema_users")
+          .upsert({
+            id: existingAuthUser.id,
+            email: normalizedEmail,
+            nombre: normalizedName,
+            role: normalizedRole,
+            avatar_url: existingAuthUser.user_metadata?.avatar_url || "",
+            is_authorized: true,
+            access_granted_at: new Date().toISOString(),
+            access_granted_by: userId,
+            is_active: true,
+            deleted_at: null,
+            deleted_by: null,
+          })
+
+        if (profileError) {
+          return NextResponse.json({ error: profileError.message }, { status: 500 })
+        }
+
+        return NextResponse.json({ success: true, authorizedExistingUser: true })
+      }
+
       // 2. Generate invite link (creates user if not exists)
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: 'invite',
-        email,
+        email: normalizedEmail,
         options: {
-          redirectTo: `${request.headers.get('origin')}/auth/callback?next=/sistema`,
+          redirectTo: `${new URL(request.url).origin}/auth/callback?redirectTo=/sistema`,
           data: {
-            full_name: nombre,
+            full_name: normalizedName,
           }
         }
       })
@@ -498,12 +619,12 @@ export async function POST(request: Request) {
       if (resend) {
         const { error: emailError } = await resend.emails.send({
           from: getEmailFromAddress(),
-          to: email,
+          to: normalizedEmail,
           subject: 'Te invitaron a colaborar en Quepia',
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
               <h1 style="color: #333;">Bienvenido a Quepia</h1>
-              <p>Hola ${nombre},</p>
+              <p>Hola ${safeName},</p>
               <p>Te han invitado a colaborar en el sistema de gestión de Quepia.</p>
               <p>Para comenzar, haz clic en el siguiente botón para configurar tu contraseña:</p>
               <a href="${actionLink}" style="display: inline-block; background-color: #7928ca; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px;">Aceptar Invitación</a>
@@ -525,10 +646,16 @@ export async function POST(request: Request) {
         .from("sistema_users")
         .upsert({
           id: linkData.user.id,
-          email: email,
-          nombre: nombre,
-          role: role || 'user',
-          avatar_url: ''
+          email: normalizedEmail,
+          nombre: normalizedName,
+          role: normalizedRole,
+          avatar_url: '',
+          is_authorized: true,
+          access_granted_at: new Date().toISOString(),
+          access_granted_by: userId,
+          is_active: true,
+          deleted_at: null,
+          deleted_by: null,
         })
 
       if (profileError) {
@@ -536,6 +663,52 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json({ success: true, user: linkData.user })
+    }
+
+    if (action === "set-user-authorization") {
+      const supabase = getAdminClient()
+      const shouldAuthorize = body.authorized === true
+
+      if (authorizedRequester?.role !== "admin") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
+      }
+
+      if (!targetUserId) {
+        return NextResponse.json({ error: "Missing targetUserId" }, { status: 400 })
+      }
+
+      if (targetUserId === userId && !shouldAuthorize) {
+        return NextResponse.json({ error: "Cannot revoke your own access" }, { status: 400 })
+      }
+
+      const { data: target, error: targetError } = await supabase
+        .from("sistema_users")
+        .select("id, is_active, deleted_at")
+        .eq("id", targetUserId)
+        .maybeSingle()
+
+      if (targetError) {
+        return NextResponse.json({ error: targetError.message }, { status: 500 })
+      }
+
+      if (!target || target.deleted_at || target.is_active === false) {
+        return NextResponse.json({ error: "Active user not found" }, { status: 404 })
+      }
+
+      const { error } = await supabase
+        .from("sistema_users")
+        .update({
+          is_authorized: shouldAuthorize,
+          access_granted_at: shouldAuthorize ? new Date().toISOString() : null,
+          access_granted_by: shouldAuthorize ? userId : null,
+        })
+        .eq("id", targetUserId)
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, authorized: shouldAuthorize })
     }
 
     if (action === "delete-user") {

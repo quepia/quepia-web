@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Shield, Trash2, AlertTriangle } from "lucide-react"
+import Image from "next/image"
+import { AlertTriangle, Loader2, Search, Shield, ShieldCheck, ShieldOff, Trash2 } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import type { SistemaUser } from "@/types/sistema"
-import { Loader2 } from "lucide-react"
 
 interface AdminUsersViewProps {
     users: SistemaUser[]
@@ -15,6 +15,7 @@ interface AdminUsersViewProps {
 export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
     const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
+    const [authorizationIds, setAuthorizationIds] = useState<Set<string>>(new Set())
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [userToDelete, setUserToDelete] = useState<SistemaUser | null>(null)
@@ -103,6 +104,41 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
         }
     }
 
+    const handleAuthorizationChange = async (targetUserId: string, authorized: boolean) => {
+        if (!currentUserId || (targetUserId === currentUserId && !authorized)) return
+
+        setAuthorizationIds(prev => new Set(prev).add(targetUserId))
+
+        try {
+            const res = await fetch('/api/sistema-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'set-user-authorization',
+                    targetUserId,
+                    authorized,
+                }),
+            })
+
+            const data = await res.json()
+            if (!res.ok) {
+                alert(data.error || 'Error updating access')
+                return
+            }
+
+            onRefresh()
+        } catch (err) {
+            console.error(err)
+            alert('Error updating access')
+        } finally {
+            setAuthorizationIds(prev => {
+                const next = new Set(prev)
+                next.delete(targetUserId)
+                return next
+            })
+        }
+    }
+
     const handleDeleteClick = (user: SistemaUser) => {
         setUserToDelete(user)
         setIsDeleteModalOpen(true)
@@ -178,13 +214,15 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
             {/* Table */}
             <div className="flex-1 overflow-auto p-4 sm:p-6">
                 <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
-                    <table className="w-full min-w-[700px] text-left text-sm">
+                    <table className="w-full min-w-[960px] text-left text-sm">
                         <thead className="bg-white/[0.02] border-b border-white/[0.06]">
                             <tr>
                                 <th className="px-6 py-4 font-medium text-white/40">Usuario</th>
                                 <th className="px-6 py-4 font-medium text-white/40">Email</th>
                                 <th className="px-6 py-4 font-medium text-white/40">Rol</th>
+                                <th className="px-6 py-4 font-medium text-white/40">Acceso</th>
                                 <th className="px-6 py-4 font-medium text-white/40">Fecha de Registro</th>
+                                <th className="px-6 py-4 font-medium text-white/40"><span className="sr-only">Acciones</span></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/[0.06]">
@@ -193,7 +231,13 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             {user.avatar_url ? (
-                                                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                                                <Image
+                                                    src={user.avatar_url}
+                                                    alt=""
+                                                    width={32}
+                                                    height={32}
+                                                    className="h-8 w-8 rounded-full object-cover"
+                                                />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-xs font-medium">
                                                     {user.nombre.charAt(0).toUpperCase()}
@@ -213,7 +257,7 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
                                             ) : (
                                                 <select
                                                     value={user.role || 'user'}
-                                                    onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
+                                                    onChange={(e) => handleRoleChange(user.id, e.target.value as SistemaUser['role'])}
                                                     disabled={user.id === currentUserId}
                                                     className={cn(
                                                         "bg-transparent border border-white/[0.1] rounded px-2 py-1 outline-none text-xs font-medium transition-colors cursor-pointer",
@@ -229,18 +273,57 @@ export function AdminUsersView({ users, currentUserId, onRefresh }: AdminUsersVi
                                             )}
                                         </div>
                                     </td>
+                                    <td className="px-6 py-4">
+                                        <span className={cn(
+                                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+                                            user.is_authorized
+                                                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                                                : "border-amber-300/20 bg-amber-300/10 text-amber-200",
+                                        )}>
+                                            {user.is_authorized ? (
+                                                <ShieldCheck className="h-3.5 w-3.5" />
+                                            ) : (
+                                                <ShieldOff className="h-3.5 w-3.5" />
+                                            )}
+                                            {user.is_authorized ? "Autorizado" : "Sin acceso"}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4 text-white/40 tabular-nums">
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        {user.id !== currentUserId && (
+                                        <div className="flex items-center justify-end gap-1">
                                             <button
-                                                onClick={() => handleDeleteClick(user)}
-                                                className="p-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                                type="button"
+                                                onClick={() => handleAuthorizationChange(user.id, !user.is_authorized)}
+                                                disabled={authorizationIds.has(user.id) || (user.id === currentUserId && user.is_authorized)}
+                                                title={user.is_authorized ? "Revocar acceso" : "Autorizar acceso"}
+                                                className={cn(
+                                                    "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35",
+                                                    user.is_authorized
+                                                        ? "text-amber-200 hover:bg-amber-300/10"
+                                                        : "bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20",
+                                                )}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                {authorizationIds.has(user.id) ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : user.is_authorized ? (
+                                                    <ShieldOff className="h-4 w-4" />
+                                                ) : (
+                                                    <ShieldCheck className="h-4 w-4" />
+                                                )}
+                                                {user.is_authorized ? "Bloquear" : "Autorizar"}
                                             </button>
-                                        )}
+                                            {user.id !== currentUserId && (
+                                                <button
+                                                    onClick={() => handleDeleteClick(user)}
+                                                    title="Desactivar usuario"
+                                                    className="p-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

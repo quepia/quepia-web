@@ -306,7 +306,7 @@ export default function DashboardPage({
     const searchParams = useSearchParams()
     const initialProjectId = searchParams.get("project")
     const initialView = initialProjectId ? "project" : searchParams.get("view") || "dashboard"
-    const { user, sistemaUser, loading: authLoading, isAuthenticated, tablesExist, setupError, createSistemaUser, signOut } = useAuth()
+    const { user, sistemaUser, loading: authLoading, isAuthenticated, tablesExist, signOut } = useAuth()
 
     const [activeView, setActiveView] = useState(initialView)
     const [calendarDate, setCalendarDate] = useState(() => new Date())
@@ -320,11 +320,6 @@ export default function DashboardPage({
     const kanbanRefreshRef = useRef<(() => void) | null>(null)
 
     const [theme, setTheme] = useState<"light" | "dark">("dark")
-
-    const [showSetupModal, setShowSetupModal] = useState(false)
-    const [setupName, setSetupName] = useState("")
-    const [settingUp, setSettingUp] = useState(false)
-    const [localError, setLocalError] = useState<string | null>(null)
 
     // Settings modal state
     const [showSettingsModal, setShowSettingsModal] = useState(false)
@@ -563,18 +558,6 @@ export default function DashboardPage({
             }
         })
     }, [activeProjectId, activeView, sistemaUser, updateDashboardUrl])
-
-    const handleSetupProfile = async () => {
-        if (!setupName.trim()) return
-        setSettingUp(true)
-        setLocalError(null)
-        const success = await createSistemaUser(setupName.trim())
-        if (success) {
-            setShowSetupModal(false)
-            setLocalError(null)
-        }
-        setSettingUp(false)
-    }
 
     const handleDeleteProject = async (projectId: string) => {
         await deleteProject(projectId)
@@ -1282,55 +1265,6 @@ export default function DashboardPage({
 
     return (
         <div className="flex h-[100svh] min-h-[100svh] overflow-hidden bg-[#0a0a0a] bg-[radial-gradient(circle_at_top,rgba(42,231,228,0.08),transparent_45%)]">
-            {/* Setup Profile Modal */}
-            {showSetupModal && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-                    <div className="relative w-full h-[100svh] overflow-y-auto rounded-t-2xl border-0 border-white/10 bg-[#1a1a1a]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:h-auto sm:max-w-md sm:rounded-2xl sm:border sm:p-6">
-                        <h2 className="text-xl font-bold text-white mb-2">Bienvenido al Sistema</h2>
-                        <p className="text-white/60 mb-6">Configura tu perfil para comenzar</p>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-white/80 mb-2">
-                                    Tu nombre
-                                </label>
-                                <input
-                                    type="text"
-                                    value={setupName}
-                                    onChange={(e) => setSetupName(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" && setupName.trim()) {
-                                            handleSetupProfile()
-                                        }
-                                    }}
-                                    placeholder="Ej: Juan Pérez"
-                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all duration-200 placeholder:text-white/40 focus:border-quepia-cyan focus:ring-1 focus:ring-quepia-cyan/30"
-                                />
-                            </div>
-
-                            {(setupError || localError) && (
-                                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                    <p className="text-sm text-red-400">{setupError || localError}</p>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={handleSetupProfile}
-                                disabled={!setupName.trim() || settingUp}
-                                className="min-h-11 w-full rounded-xl bg-gradient-to-r from-quepia-cyan to-quepia-magenta px-4 py-3 font-medium text-white shadow-sm transition-all duration-200 hover:opacity-90 disabled:opacity-50"
-                            >
-                                {settingUp ? (
-                                    <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-                                ) : (
-                                    "Comenzar"
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* Settings Modal */}
             {showSettingsModal && user?.id && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">

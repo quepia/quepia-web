@@ -37,13 +37,21 @@ VALUES
     clock_timestamp()
   );
 
-INSERT INTO public.sistema_users(id, email, nombre, role, is_active)
+INSERT INTO public.sistema_users(
+  id,
+  email,
+  nombre,
+  role,
+  is_active,
+  is_authorized
+)
 VALUES
   (
     '00000000-0000-4000-8000-000000000101',
     'mcp-admin@example.test',
     'MCP Admin',
     'admin',
+    true,
     true
   ),
   (
@@ -51,7 +59,16 @@ VALUES
     'mcp-non-admin@example.test',
     'MCP Non Admin',
     'user',
+    true,
     true
+  ),
+  (
+    '00000000-0000-4000-8000-000000000103',
+    'mcp-new-user@example.test',
+    'MCP New User',
+    'user',
+    true,
+    false
   );
 
 INSERT INTO auth.oauth_clients(
@@ -284,7 +301,7 @@ SELECT throws_ok(
   'a user cannot self-register with the admin role'
 );
 
-SELECT lives_ok(
+SELECT throws_ok(
   $$
     INSERT INTO public.sistema_users(id, email, nombre)
     VALUES (
@@ -293,27 +310,25 @@ SELECT lives_ok(
       'MCP New User'
     )
   $$,
-  'a user can self-register with the default role and privilege state'
-);
-
-SELECT throws_ok(
-  $$
-    UPDATE public.sistema_users
-    SET role = 'admin'
-    WHERE id = '00000000-0000-4000-8000-000000000103'
-  $$,
   '42501',
   NULL,
-  'a user cannot escalate their existing profile role'
+  'a user cannot self-register even with the default role'
 );
 
-SELECT lives_ok(
-  $$
-    UPDATE public.sistema_users
-    SET nombre = 'MCP New User Updated'
+SELECT is(
+  (
+    SELECT COUNT(*)
+    FROM public.sistema_users
     WHERE id = '00000000-0000-4000-8000-000000000103'
-  $$,
-  'the privilege guard preserves normal self profile updates'
+  ),
+  0::BIGINT,
+  'an unapproved user cannot read their pending profile'
+);
+
+SELECT is(
+  sistema_authorization.request_is_authorized(),
+  false,
+  'the request authorization helper rejects an unapproved user'
 );
 
 RESET ROLE;

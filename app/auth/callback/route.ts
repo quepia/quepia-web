@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeInternalRedirect } from '@/lib/mcp/oauth';
+import { createAdminClient } from '@/lib/sistema/supabase/admin';
+import {
+    isAuthorizedSistemaUser,
+    type SistemaAccessProfile,
+} from '@/lib/sistema/auth/authorization';
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url);
@@ -18,28 +23,33 @@ export async function GET(request: Request) {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                // Check if user exists in sistema_users
-                const { data: sistemaUser } = await supabase
+                // Authentication proves the Google identity, but authorization is
+                // controlled exclusively by the admin-managed sistema_users list.
+                // Use the server-only client so a denied user cannot influence or
+                // self-create the row used for this decision.
+                const admin = createAdminClient();
+                const { data: sistemaUser, error: accessError } = await admin
                     .from('sistema_users')
-                    .select('id')
+                    .select('id, email, is_authorized, is_active, deleted_at')
                     .eq('id', user.id)
-                    .single();
+                    .maybeSingle();
 
-                if (!sistemaUser) {
-                    // Auto-register new user
-                    const { error: createError } = await supabase
-                        .from('sistema_users')
-                        .insert({
-                            id: user.id,
-                            email: user.email!,
-                            nombre: user.user_metadata.full_name || user.email?.split('@')[0] || 'Usuario',
-                            avatar_url: user.user_metadata.avatar_url,
+                if (
+                    accessError ||
+                    !isAuthorizedSistemaUser(
+                        user,
+                        sistemaUser as SistemaAccessProfile | null,
+                    )
+                ) {
+                    if (accessError) {
+                        console.error('[Auth Callback] Authorization lookup failed', {
+                            code: accessError.code,
                         });
-
-                    if (createError) {
-                        console.error('[Auth Callback] Failed to create sistema user');
-                        // Optional: Redirect to error page or let them proceed (they might see setup modal)
                     }
+
+                    return NextResponse.redirect(
+                        new URL('/auth/access-denied', origin),
+                    );
                 }
 
                 return NextResponse.redirect(new URL(redirectTo, origin));

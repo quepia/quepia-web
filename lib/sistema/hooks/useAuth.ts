@@ -12,7 +12,6 @@ export function useAuth() {
   const [sistemaUser, setSistemaUser] = useState<SistemaUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [tablesExist, setTablesExist] = useState(true);
-  const [setupError, setSetupError] = useState<string | null>(null);
 
   const checkTablesExist = useCallback(async () => {
     try {
@@ -54,7 +53,11 @@ export function useAuth() {
         return;
       }
 
-      if (result.user && (result.user.deleted_at || result.user.is_active === false)) {
+      if (result.user && (
+        result.user.is_authorized !== true ||
+        result.user.deleted_at ||
+        result.user.is_active === false
+      )) {
         setSistemaUser(null);
         return;
       }
@@ -109,50 +112,6 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, [fetchSistemaUser, checkTablesExist, tablesExist]);
 
-  const createSistemaUser = async (nombre: string): Promise<boolean> => {
-    if (!user) {
-      setSetupError('No hay usuario autenticado');
-      return false;
-    }
-
-    if (!tablesExist) {
-      setSetupError('Las tablas del sistema no están configuradas. Ejecuta las migraciones SQL en Supabase.');
-      return false;
-    }
-
-    try {
-      setSetupError(null);
-      const supabase = createClient();
-      const { error } = await supabase.from('sistema_users').insert({
-        id: user.id,
-        email: user.email!,
-        nombre,
-      });
-
-      if (error) {
-        console.error('Error creating sistema user:', error);
-        if (error.code === '42P01') {
-          setSetupError('Las tablas del sistema no están configuradas. Ejecuta las migraciones SQL en Supabase.');
-          setTablesExist(false);
-        } else if (error.code === '23505') {
-          // Unique violation - user already exists, just fetch them
-          await fetchSistemaUser(user.id);
-          return true;
-        } else {
-          setSetupError(`Error: ${error.message}`);
-        }
-        return false;
-      }
-
-      await fetchSistemaUser(user.id);
-      return true;
-    } catch (err) {
-      console.error('Error creating sistema user:', err);
-      setSetupError('Error inesperado al crear el perfil');
-      return false;
-    }
-  };
-
   const updateSistemaUser = async (updates: Partial<SistemaUser>): Promise<boolean> => {
     if (!user) return false;
 
@@ -185,8 +144,6 @@ export function useAuth() {
     isAuthenticated: !!user,
     hasSistemaProfile: !!sistemaUser,
     tablesExist,
-    setupError,
-    createSistemaUser,
     updateSistemaUser,
     signOut,
     refresh: () => user && fetchSistemaUser(user.id),

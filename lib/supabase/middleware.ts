@@ -9,6 +9,10 @@ import {
     MCP_OAUTH_CSRF_COOKIE_MAX_AGE_SECONDS,
     MCP_OAUTH_CSRF_COOKIE_NAME,
 } from '@/lib/mcp/oauth-csrf-cookie';
+import {
+    isAuthorizedSistemaUser,
+    type SistemaAccessProfile,
+} from '@/lib/sistema/auth/authorization';
 
 export async function updateSession(request: NextRequest) {
     const shouldIssueOAuthCsrfCookie =
@@ -54,29 +58,6 @@ export async function updateSession(request: NextRequest) {
         }
     );
 
-    // Redirect /admin to /sistema
-    if (request.nextUrl.pathname.startsWith('/admin')) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/sistema';
-        
-        // Map admin paths to sistema views
-        if (request.nextUrl.pathname.includes('/proyectos')) {
-            url.searchParams.set('view', 'admin-projects');
-        } else if (request.nextUrl.pathname.includes('/servicios')) {
-            url.searchParams.set('view', 'admin-services');
-        } else if (request.nextUrl.pathname.includes('/configuracion')) {
-            url.searchParams.set('view', 'admin-config');
-        } else if (request.nextUrl.pathname.includes('/equipo')) {
-            url.searchParams.set('view', 'admin-team');
-        } else if (request.nextUrl.pathname.includes('/usuarios')) {
-            url.searchParams.set('view', 'admin-users');
-        } else {
-             // Default admin dashboard -> sistema dashboard (or admin-users if preferred, but dashboard is safer)
-        }
-        
-        return NextResponse.redirect(url);
-    }
-
     // Refresh and verify the direct first-party session. Supabase OAuth access
     // tokens are valid user JWTs too, so privileged web/API routes must reject
     // any session that carries client_id even when getUser() succeeds.
@@ -84,13 +65,23 @@ export async function updateSession(request: NextRequest) {
     const {
         data: { user },
     } = await supabase.auth.getUser();
+    const pathname = request.nextUrl.pathname;
+    const isProtectedPath = isFirstPartyProtectedPath(pathname);
+
+    const withSessionCookies = (response: NextResponse) => {
+        supabaseResponse.cookies.getAll().forEach((cookie) => {
+            response.cookies.set(cookie);
+        });
+        response.headers.set('Cache-Control', 'private, no-store');
+        return response;
+    };
 
     if (
         user &&
-        isFirstPartyProtectedPath(request.nextUrl.pathname) &&
+        isProtectedPath &&
         !isDirectFirstPartySessionClaims(claimsData?.claims)
     ) {
-        return NextResponse.json(
+        return withSessionCookies(NextResponse.json(
             { error: 'OAuth client tokens are not valid web sessions' },
             {
                 status: 403,
@@ -100,18 +91,73 @@ export async function updateSession(request: NextRequest) {
                     'X-Content-Type-Options': 'nosniff',
                 },
             }
-        );
+        ));
+    }
+
+    if (user && isProtectedPath) {
+        const { data: accessProfile, error: accessError } = await supabase
+            .from('sistema_users')
+            .select('id, email, is_authorized, is_active, deleted_at')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (
+            accessError ||
+            !isAuthorizedSistemaUser(
+                user,
+                accessProfile as SistemaAccessProfile | null,
+            )
+        ) {
+            if (pathname === '/api' || pathname.startsWith('/api/')) {
+                return withSessionCookies(NextResponse.json(
+                    { error: 'Forbidden: user is not authorized for Kepia' },
+                    {
+                        status: 403,
+                        headers: {
+                            'Referrer-Policy': 'no-referrer',
+                            'X-Content-Type-Options': 'nosniff',
+                        },
+                    },
+                ));
+            }
+
+            const url = request.nextUrl.clone();
+            url.pathname = '/auth/access-denied';
+            url.search = '';
+            return withSessionCookies(NextResponse.redirect(url));
+        }
     }
 
     // Protect /admin and /sistema routes
-    if (request.nextUrl.pathname.startsWith('/admin') || request.nextUrl.pathname.startsWith('/sistema')) {
+    if (pathname.startsWith('/admin') || pathname.startsWith('/sistema')) {
         if (!user) {
             // Not logged in, redirect to login
             const url = request.nextUrl.clone();
             url.pathname = '/auth/login';
             url.searchParams.set('redirectTo', request.nextUrl.pathname);
-            return NextResponse.redirect(url);
+            return withSessionCookies(NextResponse.redirect(url));
         }
+    }
+
+    // Redirect legacy /admin URLs only after authentication and authorization
+    // have both succeeded.
+    if (pathname.startsWith('/admin')) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/sistema';
+
+        if (pathname.includes('/proyectos')) {
+            url.searchParams.set('view', 'admin-projects');
+        } else if (pathname.includes('/servicios')) {
+            url.searchParams.set('view', 'admin-services');
+        } else if (pathname.includes('/configuracion')) {
+            url.searchParams.set('view', 'admin-config');
+        } else if (pathname.includes('/equipo')) {
+            url.searchParams.set('view', 'admin-team');
+        } else if (pathname.includes('/usuarios')) {
+            url.searchParams.set('view', 'admin-users');
+        }
+
+        return withSessionCookies(NextResponse.redirect(url));
     }
 
     if (oauthCsrfCookieSecret) {
@@ -128,5 +174,6 @@ export async function updateSession(request: NextRequest) {
         );
     }
 
+    supabaseResponse.headers.set('Cache-Control', 'private, no-store');
     return supabaseResponse;
 }
