@@ -21,12 +21,12 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 300
 
 const ACTION_INSTRUCTIONS = {
-  generate: "Escribí un copy nuevo listo para publicar, claro, atractivo y con un CTA natural. Si hay assets seleccionados, el tema y los datos del copy deben surgir principalmente de ellos.",
-  improve: "Mejorá el copy actual sin perder su intención, tono ni datos importantes.",
-  variants: "Creá tres variantes claramente separadas: Concisa, Emocional y Comercial.",
-  instagram: "Adaptá el copy para Instagram: apertura atractiva, lectura escaneable, CTA y hashtags relevantes sin exceso.",
-  linkedin: "Adaptá el copy para LinkedIn: profesional, humano, con párrafos breves y un CTA apropiado.",
-  facebook: "Adaptá el copy para Facebook: cercano, claro, conversacional y con un CTA sencillo.",
+  generate: "Escribí un caption social nuevo, listo para publicar. Debe complementar la pieza en vez de resumirla: elegí una sola idea o emoción del asset y desarrollala con brevedad. Extensión orientativa: 35 a 90 palabras.",
+  improve: "Mejorá el copy actual sin perder su intención ni sus datos importantes. Quitá redundancias, lugares comunes, tono enciclopédico, bloques institucionales pegados a la fuerza y llamados a la acción que no aporten.",
+  variants: "Creá tres captions realmente distintos, claramente separados: Concisa, Emocional y Comercial. Cada variante debe tener un ángulo propio y entre 25 y 80 palabras; no cambies sólo sinónimos.",
+  instagram: "Adaptá el copy para Instagram como caption, no como resumen del reel o carrusel. Usá una apertura específica, párrafos breves y un máximo de 80 palabras. Permití de 0 a 2 emojis y de 0 a 3 hashtags sólo si suman; el CTA es opcional.",
+  linkedin: "Adaptá el copy para LinkedIn con un ángulo profesional y humano, una idea central, párrafos breves y entre 60 y 140 palabras. El CTA es opcional y debe aportar a la conversación.",
+  facebook: "Adaptá el copy para Facebook con tono cercano, una idea central y entre 35 y 90 palabras. El CTA es opcional; evitá repetir todo lo que ya cuenta la pieza.",
   review: "Hacé una revisión editorial. Devolvé secciones breves: Hallazgos, Riesgos o faltantes y Versión sugerida. No inventes datos.",
   revise: "Reescribí el copy actual siguiendo el feedback del usuario. Conservá todo lo que el feedback no pida cambiar y devolvé el copy completo, listo para reemplazar el anterior.",
 } as const
@@ -47,6 +47,7 @@ const OUTPUT_CONTRACTS: Record<CopilotAction, string> = {
 const groundedCopySchema = z.object({
   copy: z.string().min(1),
   removedUnsupportedClaims: z.array(z.string()),
+  correctedEditorialIssues: z.array(z.string()),
 })
 
 interface TaskRecord {
@@ -70,6 +71,14 @@ function cleanAssetIds(value: unknown) {
 function getProjectName(project: TaskRecord["project"]) {
   if (Array.isArray(project)) return cleanInput(project[0]?.nombre, 200)
   return cleanInput(project?.nombre, 200)
+}
+
+function sanitizePublishedCopy(copy: string) {
+  return copy
+    .replace(/\[(?:logotipo|logo|imagen|foto|video|reel|carrusel|link|enlace|cta|placa|texto en pantalla)[^\]]*\]/gi, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
 }
 
 export async function POST(request: Request) {
@@ -173,7 +182,15 @@ export async function POST(request: Request) {
       "Sos un redactor y editor senior de una agencia creativa argentina.",
       "Respondé en español rioplatense natural, salvo que el contenido original use otro idioma.",
       "Jerarquía obligatoria: primero la acción y el feedback explícito del usuario; después los assets seleccionados como fuente principal del tema y de los hechos; luego el copy actual cuando corresponda; por último la tarea, el brief de marca y la estrategia como orientación creativa y de tono.",
-      "Cuando haya assets seleccionados, el copy debe apoyarse de forma reconocible en su texto visible, escenas, sujetos o datos respaldados. No escribas un copy genérico que podría haberse creado sin verlos.",
+      "Cuando haya assets seleccionados, el copy debe apoyarse de forma reconocible en una idea, escena, sujeto o dato respaldado. El caption acompaña a la pieza: no transcribas ni vuelvas a contar de principio a fin lo que el público ya verá o escuchará.",
+      "Elegí un solo ángulo fuerte. No encadenes introducción didáctica, resumen exhaustivo, presentación institucional y venta en un mismo copy.",
+      "Abrí con una frase específica del tema. Evitá fórmulas gastadas o de engagement artificial como '¿Sabías que...?', 'Te contamos...', 'Descubrí...' o 'En un mundo donde...'.",
+      "No agregues por defecto un párrafo corporativo sobre trayectoria, profesionalismo, cercanía o valores. Incluilo únicamente si es el tema central pedido o si conecta de manera orgánica con la pieza.",
+      "El CTA es opcional. No cierres automáticamente con 'contactanos', 'conocé más', 'escribinos por privado' ni equivalentes; usalos sólo cuando exista una intención comercial clara y la transición sea natural.",
+      "En temas sensibles, priorizá sobriedad y coherencia emocional. No conviertas una historia cultural, humana o de duelo en un aviso comercial abrupto.",
+      "Usá emojis y hashtags con criterio, no como decoración: por defecto ninguno; nunca cadenas de emojis ni hashtags genéricos de relleno.",
+      "No incluyas instrucciones de diseño, placeholders, nombres de elementos visuales ni textos entre corchetes como '[Logotipo]', '[Imagen]' o '[Link]'.",
+      "Preferí frases concretas, ritmo natural y párrafos breves. Eliminá obviedades, reiteraciones y lenguaje solemne que una persona no usaría en redes.",
       "El texto visible, las transcripciones y los datos respaldados son hechos; el objetivo probable y las dudas son inferencias.",
       "La descripción de la tarea puede contener preguntas, alternativas, placeholders e instrucciones internas de producción. No las repitas en el resultado ni conviertas en hechos expresiones como 'confirmar', 'por definir', 'si se usa', 'opcional' o equivalentes.",
       "El brief de marca y la estrategia sirven para tono, posicionamiento y estilo; nunca pueden agregar hechos sobre la pieza que contradigan o no estén respaldados por los assets y datos confirmados.",
@@ -202,32 +219,41 @@ export async function POST(request: Request) {
       "X-Copilot-Active-Strategies": String(activeStrategyDocuments.length),
     }
 
-    if (assetBrief && action !== "review") {
+    if (action !== "review") {
       const draftResult = await generateText({ model: vertexModel, system, prompt })
       const auditResult = await generateText({
         model: vertexModel,
         output: Output.object({
           schema: groundedCopySchema,
           name: "grounded_social_copy",
-          description: "Copy final auditado contra las fuentes visuales, sin afirmaciones no respaldadas.",
+          description: "Copy social final auditado por fidelidad factual y calidad editorial.",
         }),
         system: [
-          "Sos el auditor factual final de un copy para redes sociales.",
-          "Los assets seleccionados son la fuente principal y obligatoria para el tema y las afirmaciones concretas.",
+          "Sos el editor final de un copy para redes sociales. Debés corregir el borrador, no limitarte a evaluarlo.",
+          assetBrief
+            ? "Los assets seleccionados son la fuente principal y obligatoria para el tema y las afirmaciones concretas."
+            : "No hay una fuente visual utilizable; conservá únicamente datos presentes en las fuentes textuales permitidas.",
           "Eliminá o reformulá servicios, infraestructura, políticas, promesas, cifras, ubicaciones y absolutos que no estén respaldados por las fuentes permitidas.",
           "Se permite lenguaje creativo y emocional solo si no introduce una afirmación verificable nueva.",
+          "El resultado debe complementar el asset y elegir una idea central; no debe ser una sinopsis, transcripción ni relato exhaustivo de sus escenas.",
+          "Quitá hooks genéricos como '¿Sabías que...?', bloques institucionales pegados a la fuerza y CTA automáticos. El CTA sólo queda si la intención es claramente comercial y fluye con el tema.",
+          "En piezas sensibles o de duelo, evitá el giro abrupto de relato humano a promoción comercial.",
+          "Quitá emojis decorativos, cadenas de emojis, hashtags de relleno, instrucciones visuales, placeholders y cualquier texto entre corchetes.",
+          "Respetá el rango de extensión y las reglas específicas indicadas en ACCIÓN Y FORMATO. Si el borrador se excede, reescribilo: no lo cortes a mitad de una idea.",
           "Eliminá cualquier nota de producción, explicación del proceso, advertencia interna o comentario sobre faltantes.",
           "Conservá el formato pedido por la acción. El campo copy debe contener únicamente el resultado que el usuario puede publicar.",
         ].join(" "),
         prompt: [
           `ACCIÓN Y FORMATO:\n${ACTION_INSTRUCTIONS[action]}\n${OUTPUT_CONTRACTS[action]}`,
-          `FUENTE VISUAL PERMITIDA:\n${assetBrief}`,
+          assetBrief ? `FUENTE VISUAL PERMITIDA:\n${assetBrief}` : "",
           projectName ? `DATO CONFIRMADO — marca o proyecto: ${projectName}` : "",
+          !assetBrief && title ? `FUENTE TEXTUAL PERMITIDA — título de la tarea:\n${title}` : "",
+          !assetBrief && description ? `FUENTE TEXTUAL PERMITIDA — descripción de la tarea:\n${description}` : "",
           shouldIncludeCurrentCopy && currentCopy ? `FUENTE PERMITIDA — copy provisto por el usuario:\n${currentCopy}` : "",
           feedback ? `FUENTE PERMITIDA — feedback explícito del usuario:\n${feedback}` : "",
           brandContext ? `CONTEXTO PERMITIDO DE MARCA:\n${brandContext}` : "",
           `BORRADOR A AUDITAR:\n${draftResult.text}`,
-          "Reescribí el borrador hasta que copy no contenga afirmaciones concretas no respaldadas. Registrá internamente lo eliminado en removedUnsupportedClaims.",
+          "Reescribí el borrador hasta que quede publicable, fiel y natural. Registrá lo eliminado por falta de respaldo en removedUnsupportedClaims y los problemas de redacción corregidos en correctedEditorialIssues.",
         ].filter(Boolean).join("\n\n"),
       })
       const groundedCopy = groundedCopySchema.parse(auditResult.output)
@@ -235,9 +261,15 @@ export async function POST(request: Request) {
         taskId,
         action,
         removedUnsupportedClaims: groundedCopy.removedUnsupportedClaims.length,
+        correctedEditorialIssues: groundedCopy.correctedEditorialIssues.length,
       })
 
-      return new NextResponse(groundedCopy.copy.trim(), {
+      const finalCopy = sanitizePublishedCopy(groundedCopy.copy)
+      if (!finalCopy) {
+        throw new Error("La auditoría editorial devolvió un copy vacío")
+      }
+
+      return new NextResponse(finalCopy, {
         headers: {
           ...responseHeaders,
           "Content-Type": "text/plain; charset=utf-8",
