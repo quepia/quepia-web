@@ -22,6 +22,9 @@ const CONNECT_PLATFORMS = [
   { id: "threads", label: "Threads" },
 ] as const
 
+const HOURS_24 = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"))
+const MINUTES = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, "0"))
+
 type Account = {
   zernio_account_id: string
   platform: string
@@ -161,6 +164,19 @@ export function ZernioPublishingPanel({
   const [scheduleMaximum, setScheduleMaximum] = useState(maximumMediaScheduleValue)
   const [shareToFeed, setShareToFeed] = useState(true)
   const initializedAssetTaskRef = useRef<string | null>(null)
+
+  const scheduledDate = scheduledFor.slice(0, 10)
+  const scheduledHour = scheduledFor.slice(11, 13) || "00"
+  const scheduledMinute = scheduledFor.slice(14, 16) || "00"
+
+  const updateScheduledDate = (date: string) => {
+    setScheduledFor(date ? `${date}T${scheduledHour}:${scheduledMinute}` : "")
+  }
+
+  const updateScheduledTime = (hour: string, minute: string) => {
+    const date = scheduledDate || defaultScheduleValue().slice(0, 10)
+    setScheduledFor(`${date}T${hour}:${minute}`)
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -510,18 +526,38 @@ export function ZernioPublishingPanel({
               </button>
             </div>
             {mode === "schedule" && (
-              <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2">
                 <Timer className="h-3.5 w-3.5 text-white/35" />
                 <input
-                  type="datetime-local"
-                  value={scheduledFor}
-                  min={scheduleMinimum}
-                  max={selectedAssets.length > 0 ? scheduleMaximum : undefined}
-                  onChange={(event) => setScheduledFor(event.target.value)}
-                  className="flex-1 bg-transparent text-xs text-white/70 outline-none [color-scheme:dark]"
+                  type="date"
+                  aria-label="Fecha de publicación"
+                  value={scheduledDate}
+                  min={scheduleMinimum.slice(0, 10)}
+                  max={selectedAssets.length > 0 ? scheduleMaximum.slice(0, 10) : undefined}
+                  onChange={(event) => updateScheduledDate(event.target.value)}
+                  className="min-w-32 flex-1 bg-transparent text-xs text-white/70 outline-none [color-scheme:dark]"
                 />
-                <span className="text-[10px] text-white/25">Córdoba</span>
-              </label>
+                <div className="flex items-center gap-1" aria-label="Hora de publicación en formato de 24 horas">
+                  <select
+                    aria-label="Hora (00 a 23)"
+                    value={scheduledHour}
+                    onChange={(event) => updateScheduledTime(event.target.value, scheduledMinute)}
+                    className="rounded-md border border-white/10 bg-[#171717] px-1.5 py-1 text-xs text-white/70 outline-none focus:border-quepia-cyan/35"
+                  >
+                    {HOURS_24.map((hour) => <option key={hour} value={hour}>{hour}</option>)}
+                  </select>
+                  <span className="text-xs text-white/45">:</span>
+                  <select
+                    aria-label="Minutos (00 a 59)"
+                    value={scheduledMinute}
+                    onChange={(event) => updateScheduledTime(scheduledHour, event.target.value)}
+                    className="rounded-md border border-white/10 bg-[#171717] px-1.5 py-1 text-xs text-white/70 outline-none focus:border-quepia-cyan/35"
+                  >
+                    {MINUTES.map((minute) => <option key={minute} value={minute}>{minute}</option>)}
+                  </select>
+                </div>
+                <span className="text-[10px] text-white/25">24 h · Córdoba</span>
+              </div>
             )}
             {mode === "schedule" && (
               <p className={cn("mt-1.5 text-[10px]", scheduleIsValid ? "text-white/25" : "text-red-300/70")}>
