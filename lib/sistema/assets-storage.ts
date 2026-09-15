@@ -16,19 +16,24 @@ export async function createSignedUrl(path: string, expiresIn = ASSET_SIGNED_URL
 }
 
 export async function createSignedUrls(paths: string[], expiresIn = ASSET_SIGNED_URL_TTL) {
+  const uniquePaths = [...new Set(paths.filter(Boolean))]
+  if (uniquePaths.length === 0) return paths.map((path) => ({ path, url: null as string | null }))
+
   const supabase = createAdminClient()
-  const results = await Promise.all(
-    paths.map(async (path) => {
-      if (!path) return { path, url: null as string | null }
-      const { data, error } = await supabase.storage.from(ASSET_BUCKET).createSignedUrl(path, expiresIn)
-      if (error) {
-        console.error("[Assets] Error creating signed URL:", error)
-        return { path, url: null as string | null }
-      }
-      return { path, url: data?.signedUrl || null }
-    })
-  )
-  return results
+  const { data, error } = await supabase.storage.from(ASSET_BUCKET).createSignedUrls(uniquePaths, expiresIn)
+  if (error) {
+    console.error("[Assets] Error creating signed URLs:", error)
+    return paths.map((path) => ({ path, url: null as string | null }))
+  }
+
+  // Match by path: Storage can fail individual files within a successful batch.
+  const urlsByPath = new Map<string, string | null>()
+  for (const result of data || []) {
+    if (result.error) console.error("[Assets] Error creating signed URL:", result.error)
+    if (result.path) urlsByPath.set(result.path, result.error ? null : result.signedUrl || null)
+  }
+  // Preserve the callers' order and duplicates, including empty or missing paths.
+  return paths.map((path) => ({ path, url: urlsByPath.get(path) || null }))
 }
 
 export function isStoragePath(value?: string | null) {

@@ -1,129 +1,143 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/sistema/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import type { SistemaUser } from '@/types/sistema';
 
 const sistemaUserLoads = new Map<string, Promise<{ ok: boolean; result: { exists?: boolean; user?: SistemaUser | null; error?: string } }>>();
 
+async function loadProfile(userId: string) {
+  const existing = sistemaUserLoads.get(userId);
+  if (existing) return existing;
+  const load = fetch(`/api/sistema-data?userId=${encodeURIComponent(userId)}&type=user`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(10_000),
+  }).then(async (res) => ({ ok: res.ok, result: await res.json() }));
+  sistemaUserLoads.set(userId, load);
+  try {
+    return await load;
+  } finally {
+    if (sistemaUserLoads.get(userId) === load) sistemaUserLoads.delete(userId);
+  }
+}
+
+async function readSession() {
+  // getSession can wait on token refresh or the SDK lock before fetch starts.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      createClient().auth.getSession(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('La sesión tardó demasiado en responder.')), 8_000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [sistemaUser, setSistemaUser] = useState<SistemaUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [tablesExist, setTablesExist] = useState(true);
-
-  const checkTablesExist = useCallback(async () => {
-    try {
-      const res = await fetch('/api/sistema-data?type=check-tables');
-      const result = await res.json();
-      if (!result.exists) {
-        setTablesExist(false);
-        return false;
-      }
-      return true;
-    } catch {
-      setTablesExist(false);
-      return false;
-    }
-  }, []);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const mounted = useRef(false);
+  const activeUserId = useRef<string | null>(null);
+  const profileRequest = useRef(0);
+  const sessionVersion = useRef(0);
 
   const fetchSistemaUser = useCallback(async (userId: string) => {
+    const request = ++profileRequest.current;
+    const isCurrent = () => mounted.current && activeUserId.current === userId && profileRequest.current === request;
     try {
-      let load = sistemaUserLoads.get(userId);
-      if (!load) {
-        load = fetch(`/api/sistema-data?userId=${userId}&type=user`, {
-          cache: 'no-store'
-        }).then(async (res) => ({ ok: res.ok, result: await res.json() }));
-        sistemaUserLoads.set(userId, load);
-        void load.then(
-          () => window.setTimeout(() => sistemaUserLoads.delete(userId), 1_000),
-          () => window.setTimeout(() => sistemaUserLoads.delete(userId), 1_000),
-        );
-      }
-      const { ok, result } = await load;
-
-      if (result.exists === false) {
+      const { ok, result } = await loadProfile(userId);
+      if (!isCurrent()) return;
+      // Only an explicit schema response means missing tables; never infer it
+      // from a 502, timeout, malformed JSON or missing profile.
+      if (ok && result.exists === false) {
         setTablesExist(false);
-        return;
-      }
-
-      if (!ok) {
-        console.error('Error fetching sistema user:', result.error);
-        return;
-      }
-
-      if (result.user && (
-        result.user.is_authorized !== true ||
-        result.user.deleted_at ||
-        result.user.is_active === false
-      )) {
         setSistemaUser(null);
+        setAuthError(null);
         return;
       }
-
-      setSistemaUser(result.user || null);
-    } catch (err) {
-      console.error('Error fetching sistema user:', err);
+      if (!ok) throw new Error('No pudimos verificar tu acceso. Volvé a intentarlo.');
+      setTablesExist(true);
+      const profile = result.user;
+      if (!profile || profile.is_authorized !== true || profile.deleted_at || profile.is_active === false) {
+        setSistemaUser(null);
+        setAuthError('Tu perfil no está disponible o no tiene acceso al sistema.');
+        return;
+      }
+      setSistemaUser(profile);
+      setAuthError(null);
+    } catch {
+      if (!isCurrent()) return;
+      setSistemaUser(null);
+      setAuthError('No pudimos verificar tu acceso. Volvé a intentarlo.');
     }
   }, []);
 
-  useEffect(() => {
-    const supabase = createClient();
-
-    const initAuth = async () => {
-      try {
-        const [
-          exists,
-          { data: { session }, error: sessionError },
-        ] = await Promise.all([
-          checkTablesExist(),
-          supabase.auth.getSession(),
-        ]);
-
-        if (sessionError) console.error("Session error:", sessionError);
-
-        setUser(session?.user ?? null);
-
-        if (session?.user && exists) {
-          await fetchSistemaUser(session.user.id);
-        }
-      } catch (err) {
-        console.error("Auth initialization error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+  const retryAuth = useCallback(async () => {
+    const version = ++sessionVersion.current;
+    setLoading(true);
+    setAuthError(null);
+    try {
+      const { data: { session }, error } = await readSession();
+      if (!mounted.current || sessionVersion.current !== version) return;
+      if (error) throw error;
+      activeUserId.current = session?.user.id ?? null;
       setUser(session?.user ?? null);
-      if (session?.user && tablesExist) {
-        await fetchSistemaUser(session.user.id);
+      setSistemaUser(null);
+      if (session?.user) await fetchSistemaUser(session.user.id);
+    } catch {
+      if (mounted.current && sessionVersion.current === version) {
+        setAuthError('No pudimos recuperar tu sesión. Volvé a intentarlo.');
+      }
+    } finally {
+      if (mounted.current && sessionVersion.current === version) setLoading(false);
+    }
+  }, [fetchSistemaUser]);
+
+  useEffect(() => {
+    mounted.current = true;
+    const supabase = createClient();
+    void retryAuth();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // retryAuth already handles the initial session; avoid a duplicate profile load.
+      if (event === 'INITIAL_SESSION') return;
+      const version = ++sessionVersion.current;
+      profileRequest.current += 1;
+      const nextUserId = session?.user.id ?? null;
+      if (activeUserId.current !== nextUserId) setSistemaUser(null);
+      activeUserId.current = nextUserId;
+      setUser(session?.user ?? null);
+      setAuthError(null);
+      if (session?.user) {
+        // Return immediately: the SDK awaits subscribers under its session lock.
+        void fetchSistemaUser(session.user.id).finally(() => {
+          if (mounted.current && sessionVersion.current === version) setLoading(false);
+        });
       } else {
         setSistemaUser(null);
+        setLoading(false);
+        sistemaUserLoads.clear();
       }
     });
-
-    return () => subscription.unsubscribe();
-  }, [fetchSistemaUser, checkTablesExist, tablesExist]);
+    return () => {
+      mounted.current = false;
+      sessionVersion.current += 1;
+      profileRequest.current += 1;
+      subscription.unsubscribe();
+    };
+  }, [fetchSistemaUser, retryAuth]);
 
   const updateSistemaUser = async (updates: Partial<SistemaUser>): Promise<boolean> => {
     if (!user) return false;
-
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('sistema_users')
-        .update(updates)
-        .eq('id', user.id);
-
+      const { error } = await createClient().from('sistema_users').update(updates).eq('id', user.id);
       if (error) throw error;
-
       await fetchSistemaUser(user.id);
       return true;
     } catch (err) {
@@ -132,20 +146,11 @@ export function useAuth() {
     }
   };
 
-  const signOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-  };
-
+  const signOut = async () => { await createClient().auth.signOut(); };
   return {
-    user,
-    sistemaUser,
-    loading,
-    isAuthenticated: !!user,
-    hasSistemaProfile: !!sistemaUser,
-    tablesExist,
-    updateSistemaUser,
-    signOut,
+    user, sistemaUser, loading, authError, retryAuth,
+    isAuthenticated: !!user, hasSistemaProfile: !!sistemaUser, tablesExist,
+    updateSistemaUser, signOut,
     refresh: () => user && fetchSistemaUser(user.id),
   };
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/sistema/supabase/client';
 import { getDateKeyFromValue, toTaskDeadlineTimestamp } from '@/lib/sistema/task-deadlines';
+import { prepareTaskThumbnails } from '@/lib/sistema/task-thumbnails';
 import type {
   Task,
   TaskInsert,
@@ -25,6 +26,10 @@ import { sendNotification, notifyTaskAssignment, notifyTaskComment } from '@/lib
 type ProjectTaskLoadResult = {
   columns: ColumnWithTasks[];
   error: string | null;
+  previews?: {
+    urls: Promise<Record<string, string | null>>;
+    hydrate: ReturnType<typeof prepareTaskThumbnails>['hydrate'];
+  };
 };
 
 // React Strict Mode mounts effects twice in development. Share the in-flight
@@ -272,15 +277,24 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
     }
 
     const loadKey = `${targetProjectId}:${includeCompletedThumbnails ? 'all-thumbnails' : 'active-thumbnails'}`;
+    const applyResult = (result: ProjectTaskLoadResult) => {
+      if (isStaleRequest(requestId, targetProjectId)) return;
+      setColumns(result.columns);
+      setError(result.error);
+      initialLoadDone.current = true;
+      setLoading(false);
+      const previews = result.previews;
+      if (previews) {
+        void previews.urls.then((urls) => {
+          if (isStaleRequest(requestId, targetProjectId)) return;
+          // Patch current state: never restore deleted tasks or undo edits made while signing.
+          setColumns((current) => previews.hydrate(current, urls));
+        });
+      }
+    };
     const existingLoad = inFlightProjectTaskLoads.get(loadKey);
     if (existingLoad) {
-      const result = await existingLoad;
-      if (!isStaleRequest(requestId, targetProjectId)) {
-        setColumns(result.columns);
-        setError(result.error);
-        initialLoadDone.current = true;
-        setLoading(false);
-      }
+      applyResult(await existingLoad);
       return;
     }
 
@@ -290,6 +304,7 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
     });
     inFlightProjectTaskLoads.set(loadKey, sharedLoad);
 
+    const loadSignal = AbortSignal.timeout(15_000);
     try {
       // Only show loading on initial load, not on refetches
       if (!silent && !initialLoadDone.current) {
@@ -306,7 +321,8 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
           .from('sistema_columns')
           .select('*')
           .eq('project_id', targetProjectId)
-          .order('orden', { ascending: true }),
+          .order('orden', { ascending: true })
+          .abortSignal(loadSignal),
         supabase
           .from('sistema_tasks')
           .select(`
@@ -324,7 +340,8 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
             )
           `)
           .eq('project_id', targetProjectId)
-          .order('orden', { ascending: true }),
+          .order('orden', { ascending: true })
+          .abortSignal(loadSignal),
       ]);
 
       if (columnsError) throw columnsError;
@@ -340,7 +357,8 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
           .from('sistema_subtasks')
           .select('id, task_id, titulo, completed, assignee_id, orden, created_at')
           .in('task_id', taskIds)
-          .order('orden', { ascending: true });
+          .order('orden', { ascending: true })
+          .abortSignal(loadSignal);
 
         if (subtasksError) throw subtasksError;
 
@@ -407,79 +425,57 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
         return { ...taskRecord, assets, subtasks } as Task;
       });
 
-      let signedMap: Record<string, string | null> = {};
       const storageThumbPaths = Array.from(new Set(thumbPaths)).filter(
         (path) => !/^https?:\/\//i.test(path),
       );
-      if (storageThumbPaths.length > 0) {
+      const prepared = prepareTaskThumbnails(tasksWithThumbs);
+      // Publish useful content immediately. Signing is optional and must not hold up the board.
+      const urls = (async (): Promise<Record<string, string | null>> => {
+        if (storageThumbPaths.length === 0) return {};
         try {
           const res = await fetch("/api/assets/sign", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ paths: storageThumbPaths }),
+            signal: AbortSignal.timeout(8_000),
           });
+          if (!res.ok) return {};
           const data = await res.json();
-          signedMap = data?.urls || {};
-        } catch (err) {
-          console.warn("Error signing asset thumbnails:", err);
+          return data?.urls && typeof data.urls === 'object' ? data.urls : {};
+        } catch {
+          // Unavailable previews leave placeholders; tasks stay usable.
+          return {};
         }
-      }
-
-      const hydratedTasks: Task[] = tasksWithThumbs.map((task) => {
-        const taskAssets = Array.isArray(task.assets) ? task.assets : [];
-        const typeMetadata = task.type_metadata;
-
-        return {
-          ...task,
-          assets: taskAssets.map((asset) => {
-            const thumbRef = typeof asset.thumbnail_url === "string" ? asset.thumbnail_url : null;
-            return {
-              ...asset,
-              thumbnail_url: thumbRef ? (signedMap[thumbRef] || thumbRef) : null,
-            };
-          }),
-          type_metadata: (() => {
-            if (!typeMetadata || typeof typeMetadata !== "object") return typeMetadata;
-            const next = { ...(typeMetadata as Record<string, unknown>) };
-            const youtube = next.youtube;
-            if (!youtube || typeof youtube !== "object") return next;
-            const youtubeRecord = youtube as Record<string, unknown>;
-            const youtubeThumb =
-              (typeof youtubeRecord.thumbnail_path === "string" ? youtubeRecord.thumbnail_path : null) ||
-              (typeof youtubeRecord.thumbnail_url === "string" ? youtubeRecord.thumbnail_url : null);
-            next.youtube = {
-              ...youtubeRecord,
-              thumbnail_url: youtubeThumb ? (signedMap[youtubeThumb] || youtubeThumb) : null,
-            };
-            return next;
-          })(),
-        } as Task;
-      });
-
-      // Combine columns with their tasks
+      })();
       const columnsWithTasks: ColumnWithTasks[] = (columnsData || []).map((column: Column) => ({
         ...column,
-        tasks: hydratedTasks.filter((task: Task) => task.column_id === column.id),
+        tasks: prepared.tasks.filter((task: Task) => task.column_id === column.id),
       }));
-
-      completeSharedLoad({ columns: columnsWithTasks, error: null });
-
-      if (isStaleRequest(requestId, targetProjectId)) return;
-      setColumns(columnsWithTasks);
-      setError(null);
-      initialLoadDone.current = true;
+      const result = {
+        columns: columnsWithTasks,
+        error: null,
+        previews: { urls, hydrate: prepared.hydrate },
+      };
+      completeSharedLoad(result);
+      applyResult(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error fetching tasks';
+      const message = loadSignal.aborted
+        ? 'La carga tardó demasiado. Volvé a intentarlo.'
+        : err instanceof Error ? err.message : 'No se pudieron cargar las tareas.';
       completeSharedLoad({ columns: [], error: message });
+      // A retry must start a new request rather than reuse the failed result.
+      if (inFlightProjectTaskLoads.get(loadKey) === sharedLoad) {
+        inFlightProjectTaskLoads.delete(loadKey);
+      }
       if (isStaleRequest(requestId, targetProjectId)) return;
       console.error('Error fetching tasks:', err);
       setError(message);
     } finally {
-      window.setTimeout(() => {
-        if (inFlightProjectTaskLoads.get(loadKey) === sharedLoad) {
-          inFlightProjectTaskLoads.delete(loadKey);
-        }
-      }, 1_000);
+      // Share concurrent loads only. Reusing a completed snapshot can undo an
+      // optimistic edit when its post-mutation refresh happens immediately.
+      if (inFlightProjectTaskLoads.get(loadKey) === sharedLoad) {
+        inFlightProjectTaskLoads.delete(loadKey);
+      }
       if (isStaleRequest(requestId, targetProjectId)) return;
       setLoading(false);
     }
@@ -497,6 +493,10 @@ export function useTasks(projectId?: string, options?: { includeCompletedThumbna
     setError(null);
     setLoading(Boolean(projectId));
     void fetchTasks();
+    return () => {
+      // Invalidate background previews on project changes and unmounts.
+      requestIdRef.current += 1;
+    };
   }, [fetchTasks, projectId]);
 
   const createTask = async (task: TaskInsert): Promise<Task | null> => {

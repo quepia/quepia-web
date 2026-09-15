@@ -446,8 +446,15 @@ export function KanbanBoard({
 
     if (error) {
         return (
-            <div className="flex-1 flex items-center justify-center">
-                <p className="text-red-400">Error: {error}</p>
+            <div className="flex-1 flex flex-col items-center justify-center gap-4" role="alert">
+                <p className="text-red-400">{error}</p>
+                <button
+                    type="button"
+                    onClick={() => { void silentRefresh() }}
+                    className="rounded-lg border border-white/15 px-4 py-2 text-sm text-white hover:bg-white/10"
+                >
+                    Volver a intentar
+                </button>
             </div>
         )
     }

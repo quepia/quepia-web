@@ -309,7 +309,7 @@ export default function DashboardPage({
     const searchParams = useSearchParams()
     const initialProjectId = searchParams.get("project")
     const initialView = initialProjectId ? "project" : searchParams.get("view") || "dashboard"
-    const { user, sistemaUser, loading: authLoading, isAuthenticated, tablesExist, signOut } = useAuth()
+    const { user, sistemaUser, loading: authLoading, isAuthenticated, tablesExist, signOut, authError, retryAuth } = useAuth()
 
     const [activeView, setActiveView] = useState(initialView)
     const [calendarDate, setCalendarDate] = useState(() => new Date())
@@ -1056,6 +1056,20 @@ export default function DashboardPage({
                     />
                     <span className="text-white/40 text-sm">Cargando...</span>
                 </motion.div>
+            </div>
+        )
+    }
+
+    if (authError) {
+        return (
+            <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0a0a0a] px-6 text-center" role="alert">
+                <p className="text-white/80">{authError}</p>
+                <button type="button" onClick={() => { void retryAuth() }} className="rounded-lg border border-white/20 px-4 py-2 text-white hover:bg-white/10">
+                    Volver a intentar
+                </button>
+                <button type="button" onClick={() => { void signOut() }} className="text-sm text-white/50 hover:text-white">
+                    Volver a iniciar sesión
+                </button>
             </div>
         )
     }

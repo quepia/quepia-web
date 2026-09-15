@@ -98,6 +98,15 @@ export async function GET(request: Request) {
     }
 
     const supabase = getAdminClient()
+    let requesterId: string | undefined
+    let requesterProfile: {
+      role?: string
+      is_authorized?: boolean | null
+      is_active?: boolean | null
+      deleted_at?: string | null
+      [key: string]: unknown
+    } | null = null
+    const privateHeaders = { "Cache-Control": "private, no-store" }
 
     if (type !== "check-tables") {
       const authClient = await createServerClient()
@@ -106,11 +115,20 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
       }
 
-      const { data: requester } = await supabase
-        .from("sistema_users")
-        .select("role, is_authorized, is_active, deleted_at")
-        .eq("id", authData.user.id)
+      requesterId = authData.user.id
+      const requesterQuery = type === "user" && (!userId || userId === requesterId)
+        ? supabase.from("sistema_users").select("*")
+        : supabase.from("sistema_users").select("role, is_authorized, is_active, deleted_at")
+      const { data: requester, error: requesterError } = await requesterQuery
+        .eq("id", requesterId)
         .single()
+      if (requesterError && requesterError.code !== "PGRST116") {
+        if (type === "user" && requesterError.code === "42P01") {
+          return NextResponse.json({ exists: false, user: null }, { headers: privateHeaders })
+        }
+        return NextResponse.json({ error: "Unable to load user profile" }, { status: 500, headers: privateHeaders })
+      }
+      requesterProfile = requester
       if (!isActiveAuthorizedUser(requester)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
@@ -127,15 +145,19 @@ export async function GET(request: Request) {
         return cachedProjectIds
       }
 
-      // 1. Get user role
-      const { data: user, error: userError } = await supabase
-        .from("sistema_users")
-        .select("role")
-        .eq("id", userId)
-        .single()
-
-      if (userError && userError.code !== "PGRST116") {
-        throw userError
+      // Reuse only the authenticated requester's role. An admin querying another
+      // user's projects must still resolve that target user's own permissions.
+      let user = requesterProfile
+      if (userId !== requesterId) {
+        const { data: targetUser, error: userError } = await supabase
+          .from("sistema_users")
+          .select("role")
+          .eq("id", userId)
+          .single()
+        if (userError && userError.code !== "PGRST116") {
+          throw userError
+        }
+        user = targetUser
       }
 
       // 2. If Admin, get ALL project IDs
@@ -183,10 +205,16 @@ export async function GET(request: Request) {
       if (error && error.code === "42P01") {
         return NextResponse.json({ exists: false })
       }
+      if (error) {
+        return NextResponse.json({ error: "Unable to check system tables" }, { status: 500 })
+      }
       return NextResponse.json({ exists: true })
     }
 
     if (type === "user") {
+      if (userId === requesterId) {
+        return NextResponse.json({ exists: true, user: requesterProfile }, { headers: privateHeaders })
+      }
       const { data, error } = await supabase
         .from("sistema_users")
         .select("*")
@@ -195,12 +223,12 @@ export async function GET(request: Request) {
 
       if (error && error.code !== "PGRST116") {
         if (error.code === "42P01") {
-          return NextResponse.json({ exists: false, user: null })
+          return NextResponse.json({ exists: false, user: null }, { headers: privateHeaders })
         }
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
-      return NextResponse.json({ exists: true, user: data || null })
+      return NextResponse.json({ exists: true, user: data || null }, { headers: privateHeaders })
     }
 
     if (type === "tasks") {
