@@ -1,5 +1,28 @@
 # Auditoría de velocidad del sistema Quepia — revisión y correcciones
 
+## Publicado y medido después del push
+
+Estado al 15/09/2026 02:11 UTC: mejoras subidas a main en `79759bd7071ed6d89af8ccfbb833440bd550526d`. Vercel confirmó READY para `dpl_HuXSE7vJZWTbnwSjcDs8p4qWyoVt`, asociado a quepia.com. Build local de producción aprobado y 35 pruebas aprobadas. Esta sección reemplaza como estado actual las notas históricas de «cambios locales» que siguen abajo.
+
+Medición posterior sobre la sesión real, con recarga para obtener la versión publicada. Mismo criterio de disponibilidad de controles del tablero y sobrecarga de automatización; tres muestras, sin throttling ni limpieza de caché. Las rondas anterior y posterior ocurrieron en momentos diferentes, por lo que red, caché y estado del servicio pueden influir.
+
+| Operación | Muestras posteriores (ms) | Mediana anterior | Mediana posterior | Cambio observado |
+|---|---|---:|---:|---:|
+| Recarga completa | 5.396 / 4.419 / 4.383 | 5.374 ms | 4.419 ms | −17,8% |
+| Camping | 2.221 / 1.129 / 657 | 1.013 ms | 1.129 ms | +11,5% |
+| Brandalise | 2.107 / 662 / 1.021 | 2.174 ms | 1.021 ms | −53,0% |
+
+La muestra demuestra mejores medianas observadas en recarga y Brandalise, **no una mejora uniforme ni causalmente aislada en todos los proyectos**. Camping no mejoró en esta comparación. La primera visita posterior a cada proyecto fue más lenta que los regresos, pero sigue sin haberse agregado caché persistente por proyecto; no atribuir el resultado a una caché nueva.
+
+Antes de las tres recargas válidas, se observó una pantalla de error de acceso transitorio, y luego la sesión volvió a mostrar el tablero. Esa observación se conserva como fallo separado, no como carga rápida ni como muestra exitosa. Las tres recargas tabuladas no mostraron ese error. No se determinó la causa exacta de ese primer fallo.
+
+Consulta de logs del deployment, filtro error/fatal, 15/09 02:01–02:11 UTC: sin resultados. Esto no descarta errores de cliente o requests cancelados; los logs de información incluyeron peticiones con estado 0 durante la recuperación. No hay una traza de red autenticada completa para atribuirlos.
+
+Conclusión de publicación: cambios de rendimiento implementados y disponibles; reducción de firma y de consultas comprobada; mejora observada en dos de tres escenarios. Pendientes: estabilidad de acceso intermitente, caché por proyecto con invalidación segura, carga de completadas bajo demanda y una muestra mayor con instrumentación por etapa.
+
+---
+
+
 ## Segunda ronda y preparación de publicación
 
 Actualización: 15/09/2026 02:05 UTC (14/09, 23:05 Argentina). Los cambios se validan contra la base `2aad7e5`; en la nueva medición previa, Vercel todavía publicaba `dpl_6vTEFLmbWtx4PWoX79GcguQAF38S`. El usuario autorizó el push a main después de verificar las mejoras.
@@ -34,7 +57,7 @@ Las observaciones de estado local y pendientes en las secciones anteriores se co
 
 Fecha: 14 de septiembre de 2026. Base del código local: `2aad7e5`. Primera auditoría: aproximadamente 13:29–13:44 UTC. Revisión y validación de correcciones: aproximadamente 19:00–19:20 UTC. Producción observada en la primera auditoría: `quepia.com`, deployment `dpl_6vTEFLmbWtx4PWoX79GcguQAF38S`.
 
-**Estado actual:** correcciones implementadas y probadas en el repositorio local. No se desplegó, no se cambiaron permisos ni se modificaron datos de negocio. Los tiempos de navegación de la primera auditoría son la línea base, no resultados del código corregido. No se ha demostrado todavía una mejora porcentual del tiempo total autenticado en producción.
+**Estado de la primera revisión (histórico):** correcciones implementadas y probadas en el repositorio local. No se desplegó, no se cambiaron permisos ni se modificaron datos de negocio. Los tiempos de navegación de la primera auditoría son la línea base, no resultados del código corregido. No se ha demostrado todavía una mejora porcentual del tiempo total autenticado en producción.
 
 ## Correcciones implementadas
 
