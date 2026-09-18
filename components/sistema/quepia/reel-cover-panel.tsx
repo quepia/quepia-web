@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Camera, Film, ImageUp, Loader2, RefreshCw } from "lucide-react"
+import { Camera, Film, ImageUp, Instagram, Loader2, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 
 /**
@@ -54,10 +54,14 @@ export function ReelCoverPanel({
     taskId,
     projectId,
     onCoverChanged,
+    embedded = false,
+    assetId,
 }: {
     taskId: string
     projectId: string
     onCoverChanged?: () => void
+    embedded?: boolean
+    assetId?: string
 }) {
     const [assets, setAssets] = useState<ReelAsset[]>([])
     const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -90,7 +94,7 @@ export function ReelCoverPanel({
 
             if (queryError) throw new Error(queryError.message)
 
-            const rows = (data || []) as unknown as RawAsset[]
+            const rows = ((data || []) as unknown as RawAsset[]).filter((asset) => !assetId || asset.id === assetId)
             const references: string[] = []
             const prepared = rows.map((asset) => {
                 const version = pickVersion(asset)
@@ -134,7 +138,7 @@ export function ReelCoverPanel({
         } finally {
             setLoading(false)
         }
-    }, [taskId])
+    }, [assetId, taskId])
 
     useEffect(() => { void load() }, [load])
 
@@ -198,7 +202,7 @@ export function ReelCoverPanel({
 
     if (loading) {
         return (
-            <div className="mb-5 flex items-center gap-2 rounded-2xl border border-[#242a32] bg-[#12161b] px-4 py-3 text-xs text-white/35">
+            <div className={cn("flex items-center gap-2 rounded-2xl border border-[#242a32] bg-[#12161b] px-4 py-3 text-xs text-white/35", !embedded && "mb-5")}>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Buscando reels de la tarea…
             </div>
@@ -206,7 +210,7 @@ export function ReelCoverPanel({
     }
 
     return (
-        <div className="mb-5 rounded-2xl border border-[#242a32] bg-[#12161b] p-4 sm:p-5">
+        <div className={cn("rounded-2xl border border-[#242a32] bg-[#12161b] p-4 sm:p-5", !embedded && "mb-5")}>
             <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
@@ -309,20 +313,29 @@ export function ReelCoverPanel({
                             </div>
                         </div>
 
-                        <div className="shrink-0 sm:w-32">
-                            <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-white/35">Portada</p>
-                            {selected?.coverUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={selected.coverUrl}
-                                    alt="Portada del reel"
-                                    className="aspect-[9/16] w-full rounded-lg border border-white/[0.08] object-cover"
-                                />
-                            ) : (
-                                <div className="flex aspect-[9/16] w-full items-center justify-center rounded-lg border border-dashed border-white/15 px-2 text-center text-[11px] text-white/30">
-                                    Sin portada
-                                </div>
-                            )}
+                        <div className="grid shrink-0 grid-cols-2 gap-2 sm:w-64">
+                            <div>
+                                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-white/35">Reel 9:16</p>
+                                {selected?.coverUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={selected.coverUrl} alt="Portada vertical del Reel" className="aspect-[9/16] w-full rounded-lg border border-white/[0.08] object-cover" />
+                                ) : (
+                                    <div className="flex aspect-[9/16] w-full items-center justify-center rounded-lg border border-dashed border-white/15 px-2 text-center text-[11px] text-white/30">Sin portada</div>
+                                )}
+                            </div>
+                            <div>
+                                <p className="mb-1.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-white/35"><Instagram className="h-3 w-3" />Feed 4:5</p>
+                                {selected?.coverUrl ? (
+                                    <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-black">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={selected.coverUrl} alt="Vista previa de la portada en el feed" className="aspect-[4/5] w-full object-cover object-center" />
+                                        <div className="flex items-center gap-1.5 px-1.5 py-1"><span className="h-3 w-3 rounded-full bg-white/15" /><span className="text-[8px] text-white/45">Vista del feed</span></div>
+                                    </div>
+                                ) : (
+                                    <div className="flex aspect-[4/5] w-full items-center justify-center rounded-lg border border-dashed border-white/15 px-2 text-center text-[11px] text-white/30">Sin vista previa</div>
+                                )}
+                                <p className="mt-1 text-[8px] leading-tight text-white/20">Recorte central aproximado.</p>
+                            </div>
                         </div>
                     </div>
                 </>

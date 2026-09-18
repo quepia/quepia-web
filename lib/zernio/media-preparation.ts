@@ -77,3 +77,14 @@ export async function prepareImageForZernio(input: {
     suffix: `${input.edit.format}-${preset.width}x${preset.height}.jpg`,
   }
 }
+
+export async function prepareReelCoverForZernio(bytes: ArrayBuffer) {
+  const output = await sharp(Buffer.from(bytes), { failOn: "error" })
+    .rotate()
+    .resize(1080, 1920, { fit: "cover", position: "centre" })
+    .toColorspace("srgb")
+    .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
+    .toBuffer()
+
+  return output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer
+}

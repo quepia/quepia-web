@@ -27,6 +27,9 @@ export async function POST(request: Request) {
     const projectId = String(body?.projectId || "").trim()
     const platform = String(body?.platform || "").trim().toLowerCase()
     const taskId = typeof body?.taskId === "string" ? body.taskId.trim() : ""
+    const loginMethod = platform === "instagram" && body?.loginMethod !== "instagram_login"
+      ? "facebook_login"
+      : null
 
     if (!projectId) return NextResponse.json({ error: "Falta projectId" }, { status: 400 })
     if (!SUPPORTED_PLATFORMS.has(platform)) {
@@ -51,6 +54,7 @@ export async function POST(request: Request) {
       profileId: String(integration.zernio_profile_id),
       redirect_url: redirectUrl.toString(),
     })
+    if (loginMethod) query.set("loginMethod", loginMethod)
     const response = await zernioRequest<{ authUrl: string; state?: string }>(
       `/connect/${encodeURIComponent(platform)}?${query.toString()}`,
     )

@@ -6,7 +6,7 @@ import { downloadDriveFile, extractGoogleDriveFileId } from "@/lib/sistema/googl
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { uploadMediaToZernio, ZernioApiError, zernioRequest, toZernioMediaType } from "@/lib/zernio/client"
 import { type ZernioMediaEdit } from "@/lib/zernio/media-formats"
-import { normalizeZernioMediaEdit, prepareImageForZernio } from "@/lib/zernio/media-preparation"
+import { normalizeZernioMediaEdit, prepareImageForZernio, prepareReelCoverForZernio } from "@/lib/zernio/media-preparation"
 import { prepareReelForZernio } from "@/lib/zernio/reel-preparation"
 import {
   buildZernioPlatformTargets,
@@ -14,6 +14,7 @@ import {
   scheduledForDatabaseValue as resolveScheduledForDatabaseValue,
   validateMediaScheduleWindow,
   validateReelAssets,
+  type InstagramPublishingOptions,
   ZERNIO_TIME_ZONE,
 } from "@/lib/zernio/publishing-rules"
 import {
@@ -78,6 +79,87 @@ function scheduledForDatabaseValue(value: string | null) {
   }
 }
 
+function instagramUsername(value: unknown) {
+  const username = String(value || "").trim().replace(/^@+/, "")
+  if (!username) return ""
+  if (!/^[A-Za-z0-9._]{1,30}$/.test(username)) {
+    throw new ZernioRouteError(400, `El usuario de Instagram “${username}” no es válido`)
+  }
+  return username
+}
+
+function uniqueUsernames(value: unknown, maximum: number, label: string) {
+  const usernames = Array.from(new Set(
+    (Array.isArray(value) ? value : []).map(instagramUsername).filter(Boolean),
+  ))
+  if (usernames.length > maximum) {
+    throw new ZernioRouteError(400, `${label} admite hasta ${maximum} cuenta(s)`)
+  }
+  return usernames
+}
+
+function volume(value: unknown, fallback: number) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(100, Math.max(0, Math.round(parsed)))
+}
+
+function normalizeInstagramOptions(value: unknown, isReel: boolean, mediaCount: number): InstagramPublishingOptions {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {}
+  const locationId = String(raw.locationId || "").trim()
+  if (locationId && !/^\d+$/.test(locationId)) {
+    throw new ZernioRouteError(400, "La ubicación debe ser el ID numérico de una página de Facebook con dirección")
+  }
+
+  const collaborators = uniqueUsernames(raw.collaborators, 3, "Instagram")
+  const brandedContentSponsors = uniqueUsernames(raw.brandedContentSponsors, 2, "La colaboración pagada")
+  const userTags = (Array.isArray(raw.userTags) ? raw.userTags : []).map((value, index) => {
+    const tag = value && typeof value === "object" ? value as Record<string, unknown> : {}
+    const username = instagramUsername(tag.username)
+    if (!username) throw new ZernioRouteError(400, `Falta el usuario en la etiqueta ${index + 1}`)
+    if (isReel) return { username }
+
+    const x = Number(tag.x)
+    const y = Number(tag.y)
+    const mediaIndex = Number(tag.mediaIndex ?? 0)
+    if (!Number.isFinite(x) || x < 0 || x > 1 || !Number.isFinite(y) || y < 0 || y > 1) {
+      throw new ZernioRouteError(400, `La posición de @${username} debe estar entre 0 y 100%`)
+    }
+    if (!Number.isInteger(mediaIndex) || mediaIndex < 0 || mediaIndex >= Math.max(1, mediaCount)) {
+      throw new ZernioRouteError(400, `El asset elegido para @${username} no es válido`)
+    }
+    return { username, x, y, mediaIndex }
+  })
+  if (userTags.length > 20) throw new ZernioRouteError(400, "Instagram admite hasta 20 etiquetas de personas")
+
+  const audio = raw.audioConfiguration && typeof raw.audioConfiguration === "object"
+    ? raw.audioConfiguration as Record<string, unknown>
+    : null
+  const audioId = String(audio?.audioId || "").trim()
+  const trialStrategy = raw.trialGraduationStrategy === "SS_PERFORMANCE" ? "SS_PERFORMANCE" : "MANUAL"
+
+  return {
+    shareToFeed: raw.shareToFeed !== false,
+    commentsEnabled: raw.commentsEnabled !== false,
+    isAiGenerated: raw.isAiGenerated === true,
+    ...(locationId ? { locationId } : {}),
+    ...(collaborators.length ? { collaborators } : {}),
+    ...(userTags.length ? { userTags } : {}),
+    ...(isReel && String(raw.audioName || "").trim() ? { audioName: String(raw.audioName).trim().slice(0, 100) } : {}),
+    ...(isReel && raw.muteAudio === true ? { muteAudio: true } : {}),
+    ...(isReel && audioId ? {
+      audioConfiguration: {
+        audioId,
+        audioVolume: volume(audio?.audioVolume, 100),
+        videoVolume: volume(audio?.videoVolume, 100),
+      },
+    } : {}),
+    ...(isReel && raw.trialReel === true ? { trialParams: { graduationStrategy: trialStrategy } } : {}),
+    ...(raw.isPaidPartnership === true || brandedContentSponsors.length ? { isPaidPartnership: true } : {}),
+    ...(brandedContentSponsors.length ? { brandedContentSponsors } : {}),
+  }
+}
+
 function extensionForContentType(contentType: string) {
   const extensions: Record<string, string> = {
     "image/jpeg": ".jpg",
@@ -117,8 +199,10 @@ function versionPreviewReference(version: AssetVersionRow) {
 
 async function assetPreview(asset: AssetRow) {
   const version = currentVersion(asset)
-  if (!version) return { previewUrl: null, fileType: null, editable: false }
-  const reference = versionPreviewReference(version)
+  if (!version) return { previewUrl: null, coverUrl: null, fileType: null, editable: false }
+  const reference = version.file_type?.startsWith("video/")
+    ? version.storage_path || version.file_url
+    : versionPreviewReference(version)
   const driveFileId = version.drive_file_id || extractGoogleDriveFileId(version.file_url)
   const previewUrl = driveFileId
     ? `/api/zernio/media-preview/${encodeURIComponent(version.id)}`
@@ -126,12 +210,47 @@ async function assetPreview(asset: AssetRow) {
       ? await createSignedUrl(reference, 60 * 60)
       : (/^https:\/\//i.test(reference || "") ? reference : null)
   const fileType = version.file_type || "application/octet-stream"
+  const coverReference = version.thumbnail_path || version.thumbnail_url
+  const coverUrl = coverReference && isStoragePath(coverReference)
+    ? await createSignedUrl(coverReference, 60 * 60)
+    : (/^https:\/\//i.test(coverReference || "") ? coverReference : null)
 
   return {
     previewUrl,
+    coverUrl,
     fileType,
     editable: fileType.startsWith("image/") && Boolean(versionStorageReference(version)),
   }
+}
+
+async function reelCoverUrl(asset: AssetRow) {
+  const version = currentVersion(asset)
+  const reference = version?.thumbnail_path || version?.thumbnail_url
+  if (!reference) return null
+
+  let bytes: ArrayBuffer
+  if (isStoragePath(reference)) {
+    const admin = createAdminClient()
+    const { data, error } = await admin.storage.from(ASSET_BUCKET).download(reference)
+    if (error || !data) throw new ZernioRouteError(500, error?.message || "No se pudo descargar la portada del Reel")
+    bytes = await data.arrayBuffer()
+  } else if (/^https:\/\//i.test(reference)) {
+    const response = await fetch(reference, { cache: "no-store" })
+    if (!response.ok) throw new ZernioRouteError(500, "No se pudo descargar la portada del Reel")
+    bytes = await response.arrayBuffer()
+  } else {
+    return null
+  }
+  if (bytes.byteLength > 20 * 1024 * 1024) {
+    throw new ZernioRouteError(400, "La portada del Reel supera el límite de 20 MB")
+  }
+
+  const prepared = await prepareReelCoverForZernio(bytes)
+  return uploadMediaToZernio({
+    bytes: prepared,
+    filename: `reel-cover-${asset.id}.jpg`,
+    contentType: "image/jpeg",
+  })
 }
 
 async function toMediaItem(asset: AssetRow, edit?: ZernioMediaEdit | null) {
@@ -367,7 +486,6 @@ export async function POST(request: Request) {
       (Array.isArray(body?.assetIds) ? body.assetIds : []).map((value: unknown) => String(value)).filter(Boolean),
     ))
     const rawMediaEdits = Array.isArray(body?.mediaEdits) ? body.mediaEdits : []
-    const shareToFeed = body?.shareToFeed !== false
 
     if (!taskId) return NextResponse.json({ error: "Falta taskId" }, { status: 400 })
     if (!content && assetIds.length === 0) {
@@ -418,6 +536,7 @@ export async function POST(request: Request) {
     } catch (error) {
       throw new ZernioRouteError(400, error instanceof Error ? error.message : "La selección del Reel no es válida")
     }
+    const instagramOptions = normalizeInstagramOptions(body?.instagramOptions, isReel, selectedAssets.length)
     const mediaEdits = new Map<string, ZernioMediaEdit>()
     for (const assetId of assetIds) {
       const rawEdit = rawMediaEdits.find((value: unknown) => (
@@ -453,7 +572,11 @@ export async function POST(request: Request) {
     }
     localPublicationId = localPublication.id
 
-    const mediaItems = await Promise.all(selectedAssets.map((asset) => toMediaItem(asset, mediaEdits.get(asset.id))))
+    const isInstagramReel = isReel && accounts.some((account) => account.platform.toLowerCase() === "instagram")
+    const [mediaItems, instagramThumbnail] = await Promise.all([
+      Promise.all(selectedAssets.map((asset) => toMediaItem(asset, mediaEdits.get(asset.id)))),
+      isInstagramReel ? reelCoverUrl(selectedAssets[0]) : Promise.resolve(null),
+    ])
     const youtubeMetadata = task.type_metadata && typeof task.type_metadata === "object"
       ? (task.type_metadata as Record<string, unknown>).youtube
       : null
@@ -462,12 +585,15 @@ export async function POST(request: Request) {
       ? String((youtubeMetadata as Record<string, unknown>).title)
       : task.titulo
 
-    const isInstagramReel = isReel && accounts.some((account) => account.platform.toLowerCase() === "instagram")
     const postBody: Record<string, unknown> = {
       title: youtubeTitle.slice(0, 100),
       content,
       mediaItems,
-      platforms: buildZernioPlatformTargets(accounts, { isInstagramReel, shareToFeed }),
+      platforms: buildZernioPlatformTargets(accounts, {
+        isInstagramReel,
+        instagram: instagramOptions,
+        instagramThumbnail,
+      }),
       timezone: ZERNIO_TIME_ZONE,
       metadata: {
         source: "quepia",
@@ -476,6 +602,7 @@ export async function POST(request: Request) {
         localPublicationId,
         publicationKind: isReel ? "reel" : "post",
         mediaEdits: Array.from(mediaEdits.values()),
+        instagramOptions,
       },
       ...buildZernioTimingFields(scheduledFor),
     }

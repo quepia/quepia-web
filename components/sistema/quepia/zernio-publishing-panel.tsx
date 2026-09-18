@@ -6,6 +6,12 @@ import { AlertTriangle, CheckCircle2, Crop, ExternalLink, Film, Loader2, Plus, R
 import { cn } from "@/lib/sistema/utils"
 import { defaultZernioMediaEdit, type ZernioMediaEdit } from "@/lib/zernio/media-formats"
 import { ZERNIO_TIME_ZONE } from "@/lib/zernio/publishing-rules"
+import { ReelCoverPanel } from "@/components/sistema/quepia/reel-cover-panel"
+import {
+  DEFAULT_INSTAGRAM_OPTIONS,
+  InstagramPublishingOptions,
+  type InstagramOptionsDraft,
+} from "@/components/sistema/quepia/instagram-publishing-options"
 
 const ZernioMediaPreparer = dynamic(
   () => import("@/components/sistema/quepia/zernio-media-preparer").then((module) => module.ZernioMediaPreparer),
@@ -43,6 +49,7 @@ type Asset = {
   previewUrl: string | null
   fileType: string | null
   editable: boolean
+  coverUrl: string | null
 }
 
 type Publication = {
@@ -162,7 +169,7 @@ export function ZernioPublishingPanel({
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue)
   const [scheduleMinimum, setScheduleMinimum] = useState(minimumScheduleValue)
   const [scheduleMaximum, setScheduleMaximum] = useState(maximumMediaScheduleValue)
-  const [shareToFeed, setShareToFeed] = useState(true)
+  const [instagramOptions, setInstagramOptions] = useState<InstagramOptionsDraft>(DEFAULT_INSTAGRAM_OPTIONS)
   const initializedAssetTaskRef = useRef<string | null>(null)
 
   const scheduledDate = scheduledFor.slice(0, 10)
@@ -240,6 +247,9 @@ export function ZernioPublishingPanel({
   const selectedHasInstagram = selectedAccounts.some((accountId) => (
     context?.accounts.find((account) => account.zernio_account_id === accountId)?.platform.toLowerCase() === "instagram"
   ))
+  const selectedInstagramAccountId = selectedAccounts.find((accountId) => (
+    context?.accounts.find((account) => account.zernio_account_id === accountId)?.platform.toLowerCase() === "instagram"
+  )) || ""
   const selectedIsInstagramReel = selectedIsReel && selectedHasInstagram
   const preparedAssetsCount = selectedAssets.filter((assetId) => mediaEdits[assetId]?.format !== "original").length
   const scheduleIsValid = mode !== "schedule" || (
@@ -267,14 +277,14 @@ export function ZernioPublishingPanel({
     }
   }
 
-  const connect = async (platform: string) => {
+  const connect = async (platform: string, loginMethod?: "facebook_login") => {
     setAction(platform)
     setError("")
     try {
       const response = await fetch("/api/zernio/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, taskId, platform }),
+        body: JSON.stringify({ projectId, taskId, platform, loginMethod }),
       })
       const data = await response.json().catch(() => null)
       if (!response.ok || !data?.authUrl) throw new Error(data?.error || "No se pudo iniciar la conexión")
@@ -306,7 +316,34 @@ export function ZernioPublishingPanel({
           assetIds: selectedAssets,
           mediaEdits: selectedAssets.map((assetId) => mediaEdits[assetId] || defaultZernioMediaEdit(assetId)),
           scheduledFor: mode === "schedule" ? scheduledFor : null,
-          shareToFeed,
+          instagramOptions: {
+            shareToFeed: instagramOptions.shareToFeed,
+            commentsEnabled: instagramOptions.commentsEnabled,
+            isAiGenerated: instagramOptions.isAiGenerated,
+            locationId: instagramOptions.locationId,
+            collaborators: instagramOptions.collaborators.split(",").map((value) => value.trim()).filter(Boolean),
+            userTags: instagramOptions.userTags
+              .filter((tag) => tag.username.trim())
+              .map((tag) => ({
+                username: tag.username,
+                ...(selectedIsReel ? {} : {
+                  x: tag.xPercent / 100,
+                  y: tag.yPercent / 100,
+                  mediaIndex: tag.mediaIndex,
+                }),
+              })),
+            audioName: instagramOptions.audioName,
+            muteAudio: instagramOptions.muteAudio,
+            audioConfiguration: instagramOptions.audio ? {
+              audioId: instagramOptions.audio.audioId,
+              audioVolume: instagramOptions.audioVolume,
+              videoVolume: instagramOptions.videoVolume,
+            } : null,
+            trialReel: instagramOptions.trialReel,
+            trialGraduationStrategy: instagramOptions.trialGraduationStrategy,
+            isPaidPartnership: instagramOptions.isPaidPartnership,
+            brandedContentSponsors: instagramOptions.brandedContentSponsors.split(",").map((value) => value.trim()).filter(Boolean),
+          },
         }),
       })
       const data = await response.json().catch(() => null)
@@ -497,16 +534,33 @@ export function ZernioPublishingPanel({
             {preparedAssetsCount > 0 && (
               <p className="mt-2 text-[11px] text-quepia-cyan/70">{preparedAssetsCount} imagen(es) se enviarán con el recorte preparado. Los originales quedan intactos.</p>
             )}
-            {selectedIsInstagramReel && (
-              <label className="mt-2 flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-pink-300/12 bg-pink-300/[0.035] px-3 py-2.5">
-                <span>
-                  <span className="block text-xs text-white/65">Mostrar también en el feed</span>
-                  <span className="mt-0.5 block text-[10px] text-white/30">Si se desactiva, aparecerá solamente en la pestaña Reels.</span>
-                </span>
-                <input type="checkbox" checked={shareToFeed} onChange={(event) => setShareToFeed(event.target.checked)} className="accent-[#2ae7e4]" />
-              </label>
-            )}
           </div>
+
+          {selectedIsInstagramReel ? (
+            <ReelCoverPanel
+              taskId={taskId}
+              projectId={projectId}
+              assetId={selectedPreviewAssets[0]?.id}
+              embedded
+              onCoverChanged={() => {
+                void load()
+                onPublished?.()
+              }}
+            />
+          ) : null}
+
+          {selectedHasInstagram && selectedInstagramAccountId ? (
+            <InstagramPublishingOptions
+              taskId={taskId}
+              accountId={selectedInstagramAccountId}
+              isReel={selectedIsReel}
+              mediaCount={selectedAssets.length}
+              value={instagramOptions}
+              onChange={setInstagramOptions}
+              onReconnect={() => void connect("instagram", "facebook_login")}
+              reconnecting={action === "instagram"}
+            />
+          ) : null}
 
           <div>
             <div className="mb-2 flex gap-2">

@@ -22,6 +22,34 @@ export type ZernioReelAsset = {
   fileType: string | null
 }
 
+export type InstagramUserTag = {
+  username: string
+  x?: number
+  y?: number
+  mediaIndex?: number
+}
+
+export type InstagramPublishingOptions = {
+  shareToFeed: boolean
+  commentsEnabled: boolean
+  isAiGenerated: boolean
+  locationId?: string
+  collaborators?: string[]
+  userTags?: InstagramUserTag[]
+  audioName?: string
+  muteAudio?: boolean
+  audioConfiguration?: {
+    audioId: string
+    audioVolume: number
+    videoVolume: number
+  }
+  trialParams?: {
+    graduationStrategy: "MANUAL" | "SS_PERFORMANCE"
+  }
+  isPaidPartnership?: boolean
+  brandedContentSponsors?: string[]
+}
+
 function parseLocalDateTime(value: string): LocalDateTimeParts {
   const match = LOCAL_DATE_TIME_PATTERN.exec(value)
   if (!match) throw new Error("La fecha programada no tiene un formato válido")
@@ -153,15 +181,40 @@ export function validateReelAssets(assets: ZernioReelAsset[]) {
 
 export function buildZernioPlatformTargets(
   accounts: ZernioAccountTarget[],
-  options: { isInstagramReel: boolean; shareToFeed: boolean },
+  options: {
+    isInstagramReel: boolean
+    instagram: InstagramPublishingOptions
+    instagramThumbnail?: string | null
+  },
 ) {
   return accounts.map((account) => {
     const target: Record<string, unknown> = {
       platform: account.platform,
       accountId: account.zernio_account_id,
     }
-    if (options.isInstagramReel && account.platform.toLowerCase() === "instagram") {
-      target.platformSpecificData = { shareToFeed: options.shareToFeed }
+    if (account.platform.toLowerCase() === "instagram") {
+      const instagram = options.instagram
+      const platformSpecificData: Record<string, unknown> = {
+        commentsEnabled: instagram.commentsEnabled,
+        isAiGenerated: instagram.isAiGenerated,
+      }
+      if (instagram.locationId) platformSpecificData.locationId = instagram.locationId
+      if (instagram.collaborators?.length) platformSpecificData.collaborators = instagram.collaborators
+      if (instagram.userTags?.length) platformSpecificData.userTags = instagram.userTags
+      if (instagram.isPaidPartnership) platformSpecificData.isPaidPartnership = true
+      if (instagram.brandedContentSponsors?.length) {
+        platformSpecificData.brandedContentSponsors = instagram.brandedContentSponsors
+      }
+
+      if (options.isInstagramReel) {
+        platformSpecificData.shareToFeed = instagram.shareToFeed
+        if (options.instagramThumbnail) platformSpecificData.instagramThumbnail = options.instagramThumbnail
+        if (instagram.audioName) platformSpecificData.audioName = instagram.audioName
+        if (instagram.muteAudio) platformSpecificData.muteAudio = true
+        if (instagram.audioConfiguration) platformSpecificData.audioConfiguration = instagram.audioConfiguration
+        if (instagram.trialParams) platformSpecificData.trialParams = instagram.trialParams
+      }
+      target.platformSpecificData = platformSpecificData
     }
     return target
   })
