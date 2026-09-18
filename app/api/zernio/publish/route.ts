@@ -106,6 +106,7 @@ function volume(value: unknown, fallback: number) {
 
 function normalizeInstagramOptions(value: unknown, isReel: boolean, mediaCount: number): InstagramPublishingOptions {
   const raw = value && typeof value === "object" ? value as Record<string, unknown> : {}
+  const isStory = raw.publicationType === "story" || raw.contentType === "story"
   const locationId = String(raw.locationId || "").trim()
   if (locationId && !/^\d+$/.test(locationId)) {
     throw new ZernioRouteError(400, "La ubicación debe ser el ID numérico de una página de Facebook con dirección")
@@ -139,24 +140,28 @@ function normalizeInstagramOptions(value: unknown, isReel: boolean, mediaCount: 
   const trialStrategy = raw.trialGraduationStrategy === "SS_PERFORMANCE" ? "SS_PERFORMANCE" : "MANUAL"
 
   return {
+    ...(isStory ? { contentType: "story" as const } : {}),
     shareToFeed: raw.shareToFeed !== false,
     commentsEnabled: raw.commentsEnabled !== false,
     isAiGenerated: raw.isAiGenerated === true,
     ...(locationId ? { locationId } : {}),
     ...(collaborators.length ? { collaborators } : {}),
     ...(userTags.length ? { userTags } : {}),
-    ...(isReel && String(raw.audioName || "").trim() ? { audioName: String(raw.audioName).trim().slice(0, 100) } : {}),
-    ...(isReel && raw.muteAudio === true ? { muteAudio: true } : {}),
-    ...(isReel && audioId ? {
+    ...(isReel && !isStory && String(raw.audioName || "").trim() ? { audioName: String(raw.audioName).trim().slice(0, 100) } : {}),
+    ...((isReel || isStory) && raw.muteAudio === true ? { muteAudio: true } : {}),
+    ...(isReel && !isStory && audioId ? {
       audioConfiguration: {
         audioId,
         audioVolume: volume(audio?.audioVolume, 100),
         videoVolume: volume(audio?.videoVolume, 100),
       },
     } : {}),
-    ...(isReel && raw.trialReel === true ? { trialParams: { graduationStrategy: trialStrategy } } : {}),
+    ...(isReel && !isStory && raw.trialReel === true ? { trialParams: { graduationStrategy: trialStrategy } } : {}),
     ...(raw.isPaidPartnership === true || brandedContentSponsors.length ? { isPaidPartnership: true } : {}),
     ...(brandedContentSponsors.length ? { brandedContentSponsors } : {}),
+    ...(!isStory && !isReel && String(raw.firstComment || "").trim()
+      ? { firstComment: String(raw.firstComment).trim().slice(0, 2200) }
+      : {}),
   }
 }
 
@@ -472,11 +477,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   let localPublicationId: string | null = null
+  let createdLocalPublication = false
   try {
     const body = await request.json()
     const taskId = String(body?.taskId || "").trim()
+    const publicationId = typeof body?.publicationId === "string" ? body.publicationId.trim() : ""
+    const publishingMode = body?.publishingMode === "draft" || body?.publishingMode === "schedule"
+      ? body.publishingMode as "draft" | "schedule"
+      : "now"
+    const isDraft = publishingMode === "draft"
     const content = String(body?.content || "").trim()
-    const scheduledFor = typeof body?.scheduledFor === "string" && body.scheduledFor.trim()
+    const scheduledFor = publishingMode === "schedule" && typeof body?.scheduledFor === "string" && body.scheduledFor.trim()
       ? body.scheduledFor.trim()
       : null
     const accountIds = Array.from(new Set<string>(
@@ -537,6 +548,17 @@ export async function POST(request: Request) {
       throw new ZernioRouteError(400, error instanceof Error ? error.message : "La selección del Reel no es válida")
     }
     const instagramOptions = normalizeInstagramOptions(body?.instagramOptions, isReel, selectedAssets.length)
+    const isInstagramStory = instagramOptions.contentType === "story"
+      && accounts.some((account) => account.platform.toLowerCase() === "instagram")
+    if (isInstagramStory) {
+      if (selectedAssets.length !== 1) {
+        throw new ZernioRouteError(400, "Para publicar una Story seleccioná exactamente un asset")
+      }
+      const storyType = currentVersion(selectedAssets[0])?.file_type || ""
+      if (!storyType.startsWith("image/") && !storyType.startsWith("video/")) {
+        throw new ZernioRouteError(400, "La Story debe usar una imagen o un video")
+      }
+    }
     const mediaEdits = new Map<string, ZernioMediaEdit>()
     for (const assetId of assetIds) {
       const rawEdit = rawMediaEdits.find((value: unknown) => (
@@ -550,29 +572,48 @@ export async function POST(request: Request) {
     }
 
     const requestId = crypto.randomUUID()
-    const { data: localPublication, error: insertError } = await admin
-      .from("sistema_zernio_publications")
-      .insert({
-        project_id: task.project_id,
-        task_id: taskId,
-        request_id: requestId,
-        content,
-        scheduled_for: scheduledForDatabase,
-        timezone: ZERNIO_TIME_ZONE,
-        status: "preparing",
-        account_ids: accountIds,
-        asset_ids: assetIds,
-        created_by: session.user.id,
-      })
-      .select("id")
-      .single()
+    let zernioPostIdForUpdate: string | null = null
+    if (publicationId) {
+      const { data: existing, error: existingError } = await admin
+        .from("sistema_zernio_publications")
+        .select("id, zernio_post_id, status")
+        .eq("id", publicationId)
+        .eq("task_id", taskId)
+        .maybeSingle()
+      if (existingError) throw new ZernioRouteError(500, existingError.message)
+      if (!existing) throw new ZernioRouteError(404, "Publicación no encontrada")
+      if (!["draft", "scheduled", "cancelled"].includes(existing.status) || !existing.zernio_post_id) {
+        throw new ZernioRouteError(409, "Solo se pueden editar borradores, publicaciones programadas o canceladas")
+      }
+      localPublicationId = existing.id
+      zernioPostIdForUpdate = existing.zernio_post_id
+    } else {
+      const { data: localPublication, error: insertError } = await admin
+        .from("sistema_zernio_publications")
+        .insert({
+          project_id: task.project_id,
+          task_id: taskId,
+          request_id: requestId,
+          content,
+          scheduled_for: scheduledForDatabase,
+          timezone: ZERNIO_TIME_ZONE,
+          status: "preparing",
+          account_ids: accountIds,
+          asset_ids: assetIds,
+          created_by: session.user.id,
+        })
+        .select("id")
+        .single()
 
-    if (insertError || !localPublication) {
-      throw new ZernioRouteError(500, insertError?.message || "No se pudo registrar la publicación")
+      if (insertError || !localPublication) {
+        throw new ZernioRouteError(500, insertError?.message || "No se pudo registrar la publicación")
+      }
+      localPublicationId = localPublication.id
+      createdLocalPublication = true
     }
-    localPublicationId = localPublication.id
 
-    const isInstagramReel = isReel && accounts.some((account) => account.platform.toLowerCase() === "instagram")
+    const isInstagramReel = isReel && !isInstagramStory
+      && accounts.some((account) => account.platform.toLowerCase() === "instagram")
     const [mediaItems, instagramThumbnail] = await Promise.all([
       Promise.all(selectedAssets.map((asset) => toMediaItem(asset, mediaEdits.get(asset.id)))),
       isInstagramReel ? reelCoverUrl(selectedAssets[0]) : Promise.resolve(null),
@@ -600,11 +641,12 @@ export async function POST(request: Request) {
         projectId: task.project_id,
         taskId,
         localPublicationId,
-        publicationKind: isReel ? "reel" : "post",
+        publicationKind: isInstagramStory ? "story" : isReel ? "reel" : "post",
         mediaEdits: Array.from(mediaEdits.values()),
         instagramOptions,
       },
-      ...buildZernioTimingFields(scheduledFor),
+      ...buildZernioTimingFields(scheduledFor, isDraft),
+      ...(publicationId && !isDraft ? { isDraft: false } : {}),
     }
 
     const validation = await zernioRequest<{
@@ -622,20 +664,26 @@ export async function POST(request: Request) {
     const response = await zernioRequest<{
       post?: Record<string, unknown>
       existingPost?: Record<string, unknown>
-    }>("/posts", {
-      method: "POST",
-      headers: { "x-request-id": requestId },
+    }>(zernioPostIdForUpdate ? `/posts/${encodeURIComponent(zernioPostIdForUpdate)}` : "/posts", {
+      method: zernioPostIdForUpdate ? "PUT" : "POST",
+      headers: zernioPostIdForUpdate ? undefined : { "x-request-id": requestId },
       body: postBody,
     })
     const post = response.post || response.existingPost || {}
-    const zernioPostId = typeof post._id === "string" ? post._id : null
-    const status = typeof post.status === "string" ? post.status : (scheduledFor ? "scheduled" : "publishing")
+    const zernioPostId = typeof post._id === "string" ? post._id : zernioPostIdForUpdate
+    const status = typeof post.status === "string"
+      ? post.status
+      : isDraft ? "draft" : scheduledFor ? "scheduled" : "publishing"
     const platformResults = Array.isArray(post.platforms) ? post.platforms : []
 
     const { error: updateError } = await admin
       .from("sistema_zernio_publications")
       .update({
         zernio_post_id: zernioPostId,
+        content,
+        scheduled_for: scheduledForDatabase,
+        account_ids: accountIds,
+        asset_ids: assetIds,
         status,
         platform_results: platformResults,
         error_message: null,
@@ -661,7 +709,7 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     const normalized = apiErrorResponse(error)
-    if (localPublicationId) {
+    if (localPublicationId && createdLocalPublication) {
       const admin = createAdminClient()
       await admin
         .from("sistema_zernio_publications")

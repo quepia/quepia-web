@@ -30,6 +30,7 @@ export type InstagramUserTag = {
 }
 
 export type InstagramPublishingOptions = {
+  contentType?: "story"
   shareToFeed: boolean
   commentsEnabled: boolean
   isAiGenerated: boolean
@@ -48,6 +49,7 @@ export type InstagramPublishingOptions = {
   }
   isPaidPartnership?: boolean
   brandedContentSponsors?: string[]
+  firstComment?: string
 }
 
 function parseLocalDateTime(value: string): LocalDateTimeParts {
@@ -144,7 +146,8 @@ export function scheduledForDatabaseValue(
   return scheduledFor
 }
 
-export function buildZernioTimingFields(scheduledFor: string | null) {
+export function buildZernioTimingFields(scheduledFor: string | null, isDraft = false) {
+  if (isDraft) return { isDraft: true }
   return scheduledFor ? { scheduledFor } : { publishNow: true }
 }
 
@@ -194,19 +197,26 @@ export function buildZernioPlatformTargets(
     }
     if (account.platform.toLowerCase() === "instagram") {
       const instagram = options.instagram
-      const platformSpecificData: Record<string, unknown> = {
-        commentsEnabled: instagram.commentsEnabled,
-        isAiGenerated: instagram.isAiGenerated,
-      }
-      if (instagram.locationId) platformSpecificData.locationId = instagram.locationId
-      if (instagram.collaborators?.length) platformSpecificData.collaborators = instagram.collaborators
+      const isStory = instagram.contentType === "story"
+      const platformSpecificData: Record<string, unknown> = { isAiGenerated: instagram.isAiGenerated }
+      if (isStory) platformSpecificData.contentType = "story"
       if (instagram.userTags?.length) platformSpecificData.userTags = instagram.userTags
-      if (instagram.isPaidPartnership) platformSpecificData.isPaidPartnership = true
-      if (instagram.brandedContentSponsors?.length) {
-        platformSpecificData.brandedContentSponsors = instagram.brandedContentSponsors
+      if (isStory && instagram.muteAudio) platformSpecificData.muteAudio = true
+
+      if (!isStory) {
+        platformSpecificData.commentsEnabled = instagram.commentsEnabled
+        if (instagram.locationId) platformSpecificData.locationId = instagram.locationId
+        if (instagram.collaborators?.length) platformSpecificData.collaborators = instagram.collaborators
+        if (instagram.isPaidPartnership) platformSpecificData.isPaidPartnership = true
+        if (instagram.brandedContentSponsors?.length) {
+          platformSpecificData.brandedContentSponsors = instagram.brandedContentSponsors
+        }
+        if (!options.isInstagramReel && instagram.firstComment) {
+          platformSpecificData.firstComment = instagram.firstComment
+        }
       }
 
-      if (options.isInstagramReel) {
+      if (options.isInstagramReel && !isStory) {
         platformSpecificData.shareToFeed = instagram.shareToFeed
         if (options.instagramThumbnail) platformSpecificData.instagramThumbnail = options.instagramThumbnail
         if (instagram.audioName) platformSpecificData.audioName = instagram.audioName

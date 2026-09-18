@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Loader2, MapPin, Music2, Plus, RefreshCw, Trash2, Users } from "lucide-react"
+import { useEffect, useState } from "react"
+import { BarChart3, Loader2, MapPin, Music2, Plus, RefreshCw, Trash2, Users } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 
 export type InstagramAudioAsset = {
@@ -10,6 +10,7 @@ export type InstagramAudioAsset = {
   displayArtist?: string
   igUsername?: string
   coverArtworkThumbnailUrl?: string
+  downloadUrl?: string
   onPlatformAudioPreviewLink?: string
 }
 
@@ -22,6 +23,7 @@ export type InstagramTagDraft = {
 }
 
 export type InstagramOptionsDraft = {
+  publicationType: "feed" | "story"
   shareToFeed: boolean
   commentsEnabled: boolean
   isAiGenerated: boolean
@@ -37,9 +39,11 @@ export type InstagramOptionsDraft = {
   trialGraduationStrategy: "MANUAL" | "SS_PERFORMANCE"
   isPaidPartnership: boolean
   brandedContentSponsors: string
+  firstComment: string
 }
 
 export const DEFAULT_INSTAGRAM_OPTIONS: InstagramOptionsDraft = {
+  publicationType: "feed",
   shareToFeed: true,
   commentsEnabled: true,
   isAiGenerated: false,
@@ -55,14 +59,16 @@ export const DEFAULT_INSTAGRAM_OPTIONS: InstagramOptionsDraft = {
   trialGraduationStrategy: "MANUAL",
   isPaidPartnership: false,
   brandedContentSponsors: "",
+  firstComment: "",
 }
 
 const fieldClass = "w-full rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-xs text-white/75 outline-none placeholder:text-white/25 focus:border-quepia-cyan/40"
 
 export function InstagramPublishingOptions({
   taskId,
-  accountId,
+  accounts,
   isReel,
+  hasVideo,
   mediaCount,
   value,
   onChange,
@@ -70,8 +76,9 @@ export function InstagramPublishingOptions({
   reconnecting,
 }: {
   taskId: string
-  accountId: string
+  accounts: Array<{ id: string; label: string }>
   isReel: boolean
+  hasVideo: boolean
   mediaCount: number
   value: InstagramOptionsDraft
   onChange: (next: InstagramOptionsDraft) => void
@@ -82,6 +89,40 @@ export function InstagramPublishingOptions({
   const [audioResults, setAudioResults] = useState<InstagramAudioAsset[]>([])
   const [audioLoading, setAudioLoading] = useState(false)
   const [audioError, setAudioError] = useState("")
+  const [audioAccountId, setAudioAccountId] = useState(accounts[0]?.id || "")
+  const [quotas, setQuotas] = useState<Array<{ accountId: string; label: string; quotaUsage: number; quotaTotal: number; quotaDurationSeconds: number }>>([])
+  const [quotaError, setQuotaError] = useState("")
+  const isStory = value.publicationType === "story"
+
+  useEffect(() => {
+    setAudioAccountId((current) => accounts.some((account) => account.id === current) ? current : accounts[0]?.id || "")
+  }, [accounts])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadQuota = async () => {
+      setQuotaError("")
+      setQuotas([])
+      try {
+        const results = await Promise.allSettled(accounts.map(async (account) => {
+          const params = new URLSearchParams({ taskId, accountId: account.id })
+          const response = await fetch(`/api/zernio/instagram/quota?${params.toString()}`, { cache: "no-store" })
+          const data = await response.json().catch(() => null)
+          if (!response.ok) throw new Error(data?.error || "No se pudo consultar la cuota")
+          return { accountId: account.id, label: account.label, ...data }
+        }))
+        const available = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : [])
+        if (!cancelled) {
+          setQuotas(available)
+          if (available.length === 0) setQuotaError("No se pudo consultar la cuota")
+        }
+      } catch (error) {
+        if (!cancelled) setQuotaError(error instanceof Error ? error.message : "No se pudo consultar la cuota")
+      }
+    }
+    void loadQuota()
+    return () => { cancelled = true }
+  }, [accounts, taskId])
 
   const update = <K extends keyof InstagramOptionsDraft>(key: K, next: InstagramOptionsDraft[K]) => {
     onChange({ ...value, [key]: next })
@@ -91,7 +132,7 @@ export function InstagramPublishingOptions({
     setAudioLoading(true)
     setAudioError("")
     try {
-      const params = new URLSearchParams({ taskId, accountId })
+      const params = new URLSearchParams({ taskId, accountId: audioAccountId })
       if (audioQuery.trim()) params.set("q", audioQuery.trim())
       const response = await fetch(`/api/zernio/instagram/audio?${params.toString()}`, { cache: "no-store" })
       const data = await response.json().catch(() => null)
@@ -125,7 +166,18 @@ export function InstagramPublishingOptions({
         Opciones de Instagram
       </summary>
       <div className="space-y-4 border-t border-white/[0.06] px-3 py-3">
-        {isReel ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/[0.07] bg-black/10 p-2.5">
+          <div className="flex gap-1.5">
+            <button type="button" onClick={() => update("publicationType", "feed")} className={cn("rounded-md border px-2.5 py-1 text-[11px]", !isStory ? "border-quepia-cyan/35 bg-quepia-cyan/10 text-quepia-cyan" : "border-white/10 text-white/40")}>{isReel ? "Reel" : "Feed"}</button>
+            <button type="button" onClick={() => update("publicationType", "story")} className={cn("rounded-md border px-2.5 py-1 text-[11px]", isStory ? "border-quepia-cyan/35 bg-quepia-cyan/10 text-quepia-cyan" : "border-white/10 text-white/40")}>Story</button>
+          </div>
+          {quotas.length > 0 ? (
+            <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-[10px] text-white/35"><BarChart3 className="h-3 w-3" />{quotas.map((quota) => <span key={quota.accountId}>{quota.label}: {Math.max(0, quota.quotaTotal - quota.quotaUsage)}/{quota.quotaTotal}</span>)}</span>
+          ) : quotaError ? <span className="text-[10px] text-amber-200/55">Cuota no disponible</span> : <Loader2 className="h-3 w-3 animate-spin text-white/25" />}
+        </div>
+        {isStory ? <p className="text-[10px] text-white/30">Las Stories no llevan caption, ubicación, colaboradores, comentarios ni colaboración pagada. Instagram las elimina después de 24 horas.</p> : null}
+
+        {isReel && !isStory ? (
           <div className="space-y-3">
             <label className="flex cursor-pointer items-center justify-between gap-3">
               <span>
@@ -140,6 +192,7 @@ export function InstagramPublishingOptions({
                 <Music2 className="h-3.5 w-3.5 text-pink-200/70" />
                 <p className="text-xs font-medium text-white/60">Música de Instagram</p>
               </div>
+              {accounts.length > 1 ? <select value={audioAccountId} onChange={(event) => setAudioAccountId(event.target.value)} className={cn(fieldClass, "mb-2")} aria-label="Cuenta usada para buscar música">{accounts.map((account) => <option key={account.id} value={account.id}>{account.label}</option>)}</select> : null}
               <div className="flex gap-2">
                 <input value={audioQuery} onChange={(event) => setAudioQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchAudio() } }} placeholder="Canción o artista; vacío muestra tendencias" className={fieldClass} />
                 <button type="button" onClick={() => void searchAudio()} disabled={audioLoading} className="rounded-lg border border-white/10 px-3 text-xs text-white/60 hover:text-white disabled:opacity-40">
@@ -177,6 +230,7 @@ export function InstagramPublishingOptions({
                     <span className="truncate text-quepia-cyan">{value.audio.title || "Audio seleccionado"}</span>
                     <button type="button" onClick={() => update("audio", null)} className="text-white/35 hover:text-white">Quitar</button>
                   </div>
+                  {value.audio.downloadUrl ? <audio controls preload="none" src={value.audio.downloadUrl} className="h-8 w-full" /> : null}
                   <label className="block text-[10px] text-white/35">Volumen de música: {value.audioVolume}%<input type="range" min="0" max="100" value={value.audioVolume} onChange={(event) => update("audioVolume", Number(event.target.value))} className="mt-1 w-full accent-[#2ae7e4]" /></label>
                   <label className="block text-[10px] text-white/35">Volumen original del video: {value.videoVolume}%<input type="range" min="0" max="100" value={value.videoVolume} onChange={(event) => update("videoVolume", Number(event.target.value))} className="mt-1 w-full accent-[#2ae7e4]" /></label>
                 </div>
@@ -197,10 +251,10 @@ export function InstagramPublishingOptions({
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        {!isStory ? <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-[11px] text-white/40"><span className="flex items-center gap-1"><MapPin className="h-3 w-3" />Ubicación</span><input inputMode="numeric" value={value.locationId} onChange={(event) => update("locationId", event.target.value.replace(/\D/g, ""))} placeholder="ID de página de Facebook" className={cn(fieldClass, "mt-1")} /><span className="mt-1 block text-[9px] text-white/22">Debe ser una página con dirección cargada.</span></label>
           <label className="text-[11px] text-white/40"><span className="flex items-center gap-1"><Users className="h-3 w-3" />Colaboradores</span><input value={value.collaborators} onChange={(event) => update("collaborators", event.target.value)} placeholder="@cuenta1, @cuenta2 (máx. 3)" className={cn(fieldClass, "mt-1")} /></label>
-        </div>
+        </div> : null}
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-medium text-white/55">Etiquetar personas</p><button type="button" onClick={addTag} disabled={value.userTags.length >= 20} className="inline-flex items-center gap-1 text-[11px] text-quepia-cyan disabled:opacity-40"><Plus className="h-3 w-3" />Agregar</button></div>
@@ -217,15 +271,18 @@ export function InstagramPublishingOptions({
           </div>
         </div>
 
+        {!isStory && !isReel ? <label className="block text-[11px] text-white/40">Primer comentario automático<textarea value={value.firstComment} onChange={(event) => update("firstComment", event.target.value)} rows={2} maxLength={2200} placeholder="Hashtags, información adicional o enlace" className={cn(fieldClass, "mt-1 resize-y")} /></label> : null}
+
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.07] px-3 py-2 text-xs text-white/55"><input type="checkbox" checked={value.commentsEnabled} onChange={(event) => update("commentsEnabled", event.target.checked)} className="accent-[#2ae7e4]" />Permitir comentarios</label>
+          {!isStory ? <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.07] px-3 py-2 text-xs text-white/55"><input type="checkbox" checked={value.commentsEnabled} onChange={(event) => update("commentsEnabled", event.target.checked)} className="accent-[#2ae7e4]" />Permitir comentarios</label> : null}
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.07] px-3 py-2 text-xs text-white/55"><input type="checkbox" checked={value.isAiGenerated} onChange={(event) => update("isAiGenerated", event.target.checked)} className="accent-[#2ae7e4]" />Etiquetar contenido generado con IA</label>
+          {isStory && hasVideo ? <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.07] px-3 py-2 text-xs text-white/55"><input type="checkbox" checked={value.muteAudio} onChange={(event) => update("muteAudio", event.target.checked)} className="accent-[#2ae7e4]" />Silenciar video de la Story</label> : null}
         </div>
 
-        <div className="rounded-lg border border-white/[0.07] p-3">
+        {!isStory ? <div className="rounded-lg border border-white/[0.07] p-3">
           <label className="flex cursor-pointer items-center justify-between gap-3"><span><span className="block text-xs text-white/60">Colaboración pagada</span><span className="block text-[10px] text-white/28">Muestra la etiqueta de partnership de Instagram.</span></span><input type="checkbox" checked={value.isPaidPartnership} onChange={(event) => update("isPaidPartnership", event.target.checked)} className="accent-[#2ae7e4]" /></label>
           {value.isPaidPartnership ? <input value={value.brandedContentSponsors} onChange={(event) => update("brandedContentSponsors", event.target.value)} placeholder="@marca1, @marca2 (opcional)" className={cn(fieldClass, "mt-2")} /> : null}
-        </div>
+        </div> : null}
       </div>
     </details>
   )

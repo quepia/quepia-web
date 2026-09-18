@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, CheckCircle2, Crop, ExternalLink, Film, Loader2, Plus, Radio, RefreshCw, Send, Timer } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Crop, ExternalLink, Film, Loader2, Pencil, Plus, Radio, RefreshCw, RotateCcw, Send, Timer, Trash2, X } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { defaultZernioMediaEdit, type ZernioMediaEdit } from "@/lib/zernio/media-formats"
 import { ZERNIO_TIME_ZONE } from "@/lib/zernio/publishing-rules"
@@ -60,6 +60,51 @@ type Publication = {
   platform_results: unknown
   error_message: string | null
   created_at: string
+  content: string
+  account_ids: string[]
+  asset_ids: string[]
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {}
+}
+
+function instagramDraftFromPost(value: unknown): InstagramOptionsDraft {
+  const post = record(value)
+  const metadata = record(post.metadata)
+  const instagram = record(metadata.instagramOptions)
+  const audio = record(instagram.audioConfiguration)
+  const trial = record(instagram.trialParams)
+  const rawTags = Array.isArray(instagram.userTags) ? instagram.userTags : []
+  return {
+    ...DEFAULT_INSTAGRAM_OPTIONS,
+    publicationType: instagram.contentType === "story" ? "story" : "feed",
+    shareToFeed: instagram.shareToFeed !== false,
+    commentsEnabled: instagram.commentsEnabled !== false,
+    isAiGenerated: instagram.isAiGenerated === true,
+    locationId: String(instagram.locationId || ""),
+    collaborators: (Array.isArray(instagram.collaborators) ? instagram.collaborators : []).join(", "),
+    userTags: rawTags.map((value, index) => {
+      const tag = record(value)
+      return {
+        id: `${String(tag.username || "tag")}-${index}`,
+        username: String(tag.username || ""),
+        xPercent: Number(tag.x ?? 0.5) * 100,
+        yPercent: Number(tag.y ?? 0.5) * 100,
+        mediaIndex: Number(tag.mediaIndex || 0),
+      }
+    }),
+    audioName: String(instagram.audioName || ""),
+    muteAudio: instagram.muteAudio === true,
+    audio: audio.audioId ? { audioId: String(audio.audioId), title: "Audio seleccionado" } : null,
+    audioVolume: Number(audio.audioVolume ?? 100),
+    videoVolume: Number(audio.videoVolume ?? 100),
+    trialReel: Boolean(Object.keys(trial).length),
+    trialGraduationStrategy: trial.graduationStrategy === "SS_PERFORMANCE" ? "SS_PERFORMANCE" : "MANUAL",
+    isPaidPartnership: instagram.isPaidPartnership === true,
+    brandedContentSponsors: (Array.isArray(instagram.brandedContentSponsors) ? instagram.brandedContentSponsors : []).join(", "),
+    firstComment: String(instagram.firstComment || ""),
+  }
 }
 
 type PublishingContext = {
@@ -165,11 +210,13 @@ export function ZernioPublishingPanel({
   const [selectedAssets, setSelectedAssets] = useState<string[]>([])
   const [mediaEdits, setMediaEdits] = useState<Record<string, ZernioMediaEdit>>({})
   const [preparerOpen, setPreparerOpen] = useState(false)
-  const [mode, setMode] = useState<"now" | "schedule">("now")
+  const [mode, setMode] = useState<"now" | "schedule" | "draft">("now")
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue)
   const [scheduleMinimum, setScheduleMinimum] = useState(minimumScheduleValue)
   const [scheduleMaximum, setScheduleMaximum] = useState(maximumMediaScheduleValue)
   const [instagramOptions, setInstagramOptions] = useState<InstagramOptionsDraft>(DEFAULT_INSTAGRAM_OPTIONS)
+  const [editingPublicationId, setEditingPublicationId] = useState<string | null>(null)
+  const [historyAction, setHistoryAction] = useState<string | null>(null)
   const initializedAssetTaskRef = useRef<string | null>(null)
 
   const scheduledDate = scheduledFor.slice(0, 10)
@@ -247,10 +294,19 @@ export function ZernioPublishingPanel({
   const selectedHasInstagram = selectedAccounts.some((accountId) => (
     context?.accounts.find((account) => account.zernio_account_id === accountId)?.platform.toLowerCase() === "instagram"
   ))
-  const selectedInstagramAccountId = selectedAccounts.find((accountId) => (
-    context?.accounts.find((account) => account.zernio_account_id === accountId)?.platform.toLowerCase() === "instagram"
-  )) || ""
+  const selectedInstagramAccounts = useMemo(() => selectedAccounts
+    .map((accountId) => context?.accounts.find((account) => account.zernio_account_id === accountId))
+    .filter((account): account is Account => Boolean(account && account.platform.toLowerCase() === "instagram"))
+    .map((account) => ({
+      id: account.zernio_account_id,
+      label: account.display_name || account.username || "Instagram",
+    })), [context?.accounts, selectedAccounts])
   const selectedIsInstagramReel = selectedIsReel && selectedHasInstagram
+    && instagramOptions.publicationType !== "story"
+  const selectedHasVideo = selectedPreviewAssets.some((asset) => asset.fileType?.startsWith("video/"))
+  const storySelectionIsValid = !selectedHasInstagram
+    || instagramOptions.publicationType !== "story"
+    || selectedAssets.length === 1
   const preparedAssetsCount = selectedAssets.filter((assetId) => mediaEdits[assetId]?.format !== "original").length
   const scheduleIsValid = mode !== "schedule" || (
     Boolean(scheduledFor)
@@ -296,7 +352,9 @@ export function ZernioPublishingPanel({
   }
 
   const publish = async () => {
-    const label = mode === "now" ? "publicar ahora" : "programar esta publicación"
+    const label = editingPublicationId
+      ? "guardar los cambios"
+      : mode === "now" ? "publicar ahora" : mode === "draft" ? "guardar este borrador" : "programar esta publicación"
     const approvalWarning = unapprovedSelected.length > 0
       ? `\n\n${unapprovedSelected.length} asset(s) no tienen aprobación final. Como administrador podés continuar bajo tu criterio.`
       : ""
@@ -311,12 +369,15 @@ export function ZernioPublishingPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId,
+          publicationId: editingPublicationId,
           content,
           accountIds: selectedAccounts,
           assetIds: selectedAssets,
           mediaEdits: selectedAssets.map((assetId) => mediaEdits[assetId] || defaultZernioMediaEdit(assetId)),
           scheduledFor: mode === "schedule" ? scheduledFor : null,
+          publishingMode: mode,
           instagramOptions: {
+            publicationType: instagramOptions.publicationType,
             shareToFeed: instagramOptions.shareToFeed,
             commentsEnabled: instagramOptions.commentsEnabled,
             isAiGenerated: instagramOptions.isAiGenerated,
@@ -343,18 +404,95 @@ export function ZernioPublishingPanel({
             trialGraduationStrategy: instagramOptions.trialGraduationStrategy,
             isPaidPartnership: instagramOptions.isPaidPartnership,
             brandedContentSponsors: instagramOptions.brandedContentSponsors.split(",").map((value) => value.trim()).filter(Boolean),
+            firstComment: instagramOptions.firstComment,
           },
         }),
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) throw new Error(data?.error || "Zernio no pudo crear la publicación")
-      setSuccess(mode === "now" ? "Publicación enviada a Zernio." : "Publicación programada correctamente.")
+      setSuccess(editingPublicationId
+        ? "Cambios guardados en Zernio."
+        : mode === "now" ? "Publicación enviada a Zernio." : mode === "draft" ? "Borrador guardado correctamente." : "Publicación programada correctamente.")
+      setEditingPublicationId(null)
       await load()
       onPublished?.()
     } catch (publishError) {
       setError(publishError instanceof Error ? publishError.message : "Zernio no pudo crear la publicación")
     } finally {
       setAction(null)
+    }
+  }
+
+  const editPublication = async (publication: Publication) => {
+    setHistoryAction(`edit:${publication.id}`)
+    setError("")
+    setSuccess("")
+    try {
+      const response = await fetch(`/api/zernio/publications/${encodeURIComponent(publication.id)}`, { cache: "no-store" })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "No se pudo cargar la publicación")
+      const local = data.publication as Publication
+      const availableAccounts = new Set((context?.accounts || []).map((account) => account.zernio_account_id))
+      const availableAssets = new Set((context?.assets || []).map((asset) => asset.id))
+      setContent(local.content || "")
+      setSelectedAccounts((local.account_ids || []).filter((id) => availableAccounts.has(id)))
+      setSelectedAssets((local.asset_ids || []).filter((id) => availableAssets.has(id)))
+      setInstagramOptions(instagramDraftFromPost(data.post))
+      const metadata = record(record(data.post).metadata)
+      const edits = Array.isArray(metadata.mediaEdits) ? metadata.mediaEdits : []
+      setMediaEdits(Object.fromEntries(edits.map((value) => {
+        const edit = record(value)
+        return [String(edit.assetId || ""), edit as unknown as ZernioMediaEdit]
+      }).filter(([assetId]) => Boolean(assetId))))
+      if (["draft", "cancelled"].includes(local.status)) setMode("draft")
+      else {
+        setMode("schedule")
+        if (local.scheduled_for) setScheduledFor(dateTimeLocalValue(new Date(local.scheduled_for).getTime()))
+      }
+      setEditingPublicationId(local.id)
+      setSuccess("Publicación cargada para editar.")
+    } catch (editError) {
+      setError(editError instanceof Error ? editError.message : "No se pudo cargar la publicación")
+    } finally {
+      setHistoryAction(null)
+    }
+  }
+
+  const cancelPublication = async (publication: Publication) => {
+    if (!window.confirm("¿Cancelar esta publicación? Ya no se publicará; después podés reabrirla desde Editar.")) return
+    setHistoryAction(`cancel:${publication.id}`)
+    setError("")
+    try {
+      const response = await fetch(`/api/zernio/publications/${encodeURIComponent(publication.id)}`, { method: "DELETE" })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "No se pudo cancelar la publicación")
+      if (editingPublicationId === publication.id) setEditingPublicationId(null)
+      setSuccess("Publicación cancelada.")
+      await load()
+    } catch (cancelError) {
+      setError(cancelError instanceof Error ? cancelError.message : "No se pudo cancelar la publicación")
+    } finally {
+      setHistoryAction(null)
+    }
+  }
+
+  const retryPublication = async (publication: Publication) => {
+    setHistoryAction(`retry:${publication.id}`)
+    setError("")
+    try {
+      const response = await fetch(`/api/zernio/publications/${encodeURIComponent(publication.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry" }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || "No se pudo reintentar la publicación")
+      setSuccess("Reintento enviado a Zernio.")
+      await load()
+    } catch (retryError) {
+      setError(retryError instanceof Error ? retryError.message : "No se pudo reintentar la publicación")
+    } finally {
+      setHistoryAction(null)
     }
   }
 
@@ -445,6 +583,12 @@ export function ZernioPublishingPanel({
         </div>
       ) : (
         <div className="space-y-4">
+          {editingPublicationId ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-quepia-cyan/20 bg-quepia-cyan/[0.06] px-3 py-2 text-xs text-quepia-cyan">
+              <span className="inline-flex items-center gap-1.5"><Pencil className="h-3.5 w-3.5" />Editando una publicación existente</span>
+              <button type="button" onClick={() => { setEditingPublicationId(null); setContent(socialCopy); setMode("now"); setInstagramOptions({ ...DEFAULT_INSTAGRAM_OPTIONS, userTags: [] }) }} className="inline-flex items-center gap-1 text-white/45 hover:text-white"><X className="h-3 w-3" />Salir</button>
+            </div>
+          ) : null}
           <div>
             <p className="mb-2 text-xs font-medium text-white/55">Cuentas de destino</p>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -549,11 +693,12 @@ export function ZernioPublishingPanel({
             />
           ) : null}
 
-          {selectedHasInstagram && selectedInstagramAccountId ? (
+          {selectedHasInstagram && selectedInstagramAccounts.length > 0 ? (
             <InstagramPublishingOptions
               taskId={taskId}
-              accountId={selectedInstagramAccountId}
+              accounts={selectedInstagramAccounts}
               isReel={selectedIsReel}
+              hasVideo={selectedHasVideo}
               mediaCount={selectedAssets.length}
               value={instagramOptions}
               onChange={setInstagramOptions}
@@ -577,6 +722,13 @@ export function ZernioPublishingPanel({
                 className={cn("rounded-lg border px-3 py-1.5 text-xs", mode === "schedule" ? "border-quepia-cyan/35 bg-quepia-cyan/10 text-quepia-cyan" : "border-white/10 text-white/45")}
               >
                 Programar
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("draft")}
+                className={cn("rounded-lg border px-3 py-1.5 text-xs", mode === "draft" ? "border-quepia-cyan/35 bg-quepia-cyan/10 text-quepia-cyan" : "border-white/10 text-white/45")}
+              >
+                Borrador
               </button>
             </div>
             {mode === "schedule" && (
@@ -627,12 +779,19 @@ export function ZernioPublishingPanel({
           <button
             type="button"
             onClick={() => void publish()}
-            disabled={action === "publish" || selectedAccounts.length === 0 || (!content.trim() && selectedAssets.length === 0) || !scheduleIsValid}
+            disabled={action === "publish" || selectedAccounts.length === 0 || (!content.trim() && selectedAssets.length === 0) || !scheduleIsValid || !storySelectionIsValid}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-quepia-cyan px-4 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {action === "publish" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {mode === "now" ? `Publicar ${selectedIsReel ? "Reel" : "ahora"}` : `Programar ${selectedIsReel ? "Reel" : "publicación"}`}
+            {editingPublicationId
+              ? "Guardar cambios"
+              : mode === "now"
+                ? `Publicar ${instagramOptions.publicationType === "story" ? "Story" : selectedIsReel ? "Reel" : "ahora"}`
+                : mode === "draft"
+                  ? "Guardar borrador"
+                  : `Programar ${instagramOptions.publicationType === "story" ? "Story" : selectedIsReel ? "Reel" : "publicación"}`}
           </button>
+          {!storySelectionIsValid ? <p className="text-[10px] text-red-300/70">Las Stories requieren exactamente un asset.</p> : null}
         </div>
       )}
 
@@ -675,6 +834,23 @@ export function ZernioPublishingPanel({
                       ))}
                     </div>
                   )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {["draft", "scheduled", "cancelled"].includes(publication.status) ? (
+                      <>
+                        <button type="button" onClick={() => void editPublication(publication)} disabled={Boolean(historyAction)} className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/45 hover:text-white disabled:opacity-40">
+                          {historyAction === `edit:${publication.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Pencil className="h-3 w-3" />}Editar
+                        </button>
+                        {["draft", "scheduled"].includes(publication.status) ? <button type="button" onClick={() => void cancelPublication(publication)} disabled={Boolean(historyAction)} className="inline-flex items-center gap-1 rounded-md border border-red-300/10 px-2 py-1 text-[10px] text-red-200/55 hover:text-red-200 disabled:opacity-40">
+                          {historyAction === `cancel:${publication.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}Cancelar
+                        </button> : null}
+                      </>
+                    ) : null}
+                    {["failed", "partial"].includes(publication.status) ? (
+                      <button type="button" onClick={() => void retryPublication(publication)} disabled={Boolean(historyAction)} className="inline-flex items-center gap-1 rounded-md border border-amber-300/10 px-2 py-1 text-[10px] text-amber-200/60 hover:text-amber-200 disabled:opacity-40">
+                        {historyAction === `retry:${publication.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}Reintentar
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               )
             })}
