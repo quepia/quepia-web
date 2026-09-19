@@ -126,6 +126,7 @@ export default function ContactFormCard({
               <option value="branding" className="bg-[#0a0a0a]">Branding</option>
               <option value="diseno-grafico" className="bg-[#0a0a0a]">Diseño Gráfico</option>
               <option value="video" className="bg-[#0a0a0a]">Producción Audiovisual</option>
+              <option value="dron" className="bg-[#0a0a0a]">Cobertura con dron</option>
               <option value="marketing" className="bg-[#0a0a0a]">Marketing Digital</option>
               <option value="otro" className="bg-[#0a0a0a]">Otro</option>
             </select>

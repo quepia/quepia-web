@@ -6,6 +6,7 @@ import { ArrowUpRight } from 'lucide-react';
 import type { Servicio } from '@/types/database';
 import { getServiceIconByName } from '@/lib/service-icons';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
+import DroneService from '@/components/home/DroneService';
 import MarqueeSection from '@/components/home/MarqueeSection';
 
 interface ServiciosClientProps {
@@ -81,6 +82,8 @@ function ServiceCard({ service, index }: { service: Servicio; index: number }) {
 }
 
 export default function ServiciosClient({ servicios }: ServiciosClientProps) {
+  const hasDroneService = servicios.some((service) => /\bdron(?:e|es)?\b/i.test(service.titulo));
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
       <BrandDepthBackground variant="subtle" />
@@ -129,7 +132,7 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
                   Hablemos
                 </Link>
                 <span className="text-xs uppercase tracking-[0.14em] text-white/52">
-                  {servicios.length} servicios activos
+                  {servicios.length + (hasDroneService ? 0 : 1)} servicios activos
                 </span>
               </div>
             </motion.div>
@@ -155,11 +158,8 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
                   <ServiceCard key={service.id} service={service} index={index} />
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-6 py-10 text-center">
-                <p className="text-sm text-white/50">No hay servicios configurados todavía.</p>
-              </div>
-            )}
+            ) : null}
+            {!hasDroneService && <DroneService />}
           </div>
         </section>
 

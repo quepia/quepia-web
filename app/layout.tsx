@@ -88,7 +88,7 @@ export default async function RootLayout({
     '@id': 'https://quepia.com/#organization',
     name: 'Quepia',
     alternateName: 'Quepia Creative Agency',
-    description: 'Consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Especialistas en diseño gráfico, branding, marketing digital, gestión de redes sociales y producción audiovisual.',
+    description: 'Consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Especialistas en diseño gráfico, branding, marketing digital, gestión de redes sociales, producción audiovisual y cobertura con dron.',
     url: 'https://quepia.com',
     logo: 'https://quepia.com/Logo_Quepia.svg',
     image: 'https://quepia.com/og-image.jpg',

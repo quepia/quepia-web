@@ -21,9 +21,12 @@ function normalizeLabel(value: string) {
 }
 
 export default function MarqueeSection({ servicios = [] }: MarqueeSectionProps) {
-  const serviceItems = (servicios.length > 0
+  const items = servicios.length > 0
     ? servicios.map((item) => item.titulo)
-    : fallbackItems
+    : fallbackItems;
+  const serviceItems = (items.some((item) => /\bdron(?:e|es)?\b/i.test(item))
+    ? items
+    : [...items, 'Cobertura con dron']
   ).map(normalizeLabel);
 
   const leftTrackItems = [...serviceItems, ...serviceItems];

@@ -48,8 +48,8 @@ const expertiseCards: ExpertiseCardConfig[] = [
   {
     title: 'Producción Audiovisual',
     description:
-      'Capturamos la esencia de tu proyecto con fotografía de alto nivel y edición de video dinámica.',
-    label: 'Foto, video, edición',
+      'Capturamos la esencia de tu proyecto con fotografía, producción de video y cobertura aérea con dron.',
+    label: 'Foto, video y dron',
     hoverGlow: 'rgba(255, 138, 91, 0.12)',
     videoSrc: '/VIDEOS CARDS/produccion-audiovisual.mp4',
     videoScale: 1.52,

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Precios | Quepia',
     description:
-      'Conocé los planes Primer paso, Impulso y 360 para tu marca.',
+      'Conocé los planes Esencial, Plus y Premium para tu marca.',
     url: 'https://quepia.com/precios',
     images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Planes Quepia' }],
   },

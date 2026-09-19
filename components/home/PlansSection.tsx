@@ -1,16 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import DroneService from './DroneService';
 import { ArrowUpRight, Check, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const plans = [
   {
-    name: 'Primer paso',
+    name: 'Esencial',
     eyebrow: 'Base visual',
     description:
       'Para marcas que necesitan ordenar su presencia y empezar a comunicar con claridad.',
-    priceFrom: '$180.000',
     accent: 'cyan',
     coverage: [
       'Diagnóstico inicial de marca',
@@ -21,19 +21,12 @@ const plans = [
       'Adaptación a formatos de Instagram',
       'Recomendaciones de mejora comunicacional',
     ],
-    goals: [
-      'Ordenar la imagen de la marca',
-      'Lograr mayor claridad visual',
-      'Empezar a comunicar con coherencia',
-      'Mejorar la primera impresión digital',
-    ],
   },
   {
-    name: 'Impulso',
+    name: 'Plus',
     eyebrow: 'Presencia activa',
     description:
       'Para marcas que quieren mejorar su imagen, sostener contenido activo y comunicar con más estrategia.',
-    priceFrom: '$320.000',
     accent: 'magenta',
     featured: true,
     coverage: [
@@ -46,19 +39,12 @@ const plans = [
       'Propuestas de reels o piezas audiovisuales',
       'Reunión mensual de seguimiento',
     ],
-    goals: [
-      'Sostener una presencia activa',
-      'Mejorar la calidad visual del contenido',
-      'Fortalecer la identidad de la marca',
-      'Aumentar la consistencia del perfil digital',
-    ],
   },
   {
-    name: '360',
+    name: 'Premium',
     eyebrow: 'Ecosistema integral',
     description:
       'Para marcas que necesitan una presencia sólida, integral y preparada para crecer.',
-    priceFrom: '$520.000',
     accent: 'mixed',
     coverage: [
       'Diagnóstico integral de marca',
@@ -71,12 +57,6 @@ const plans = [
       'Adaptación de piezas para web o landing',
       'Seguimiento estratégico',
     ],
-    goals: [
-      'Construir una presencia integral',
-      'Alinear identidad, contenido y estrategia',
-      'Potenciar el posicionamiento de la marca',
-      'Acompañar el crecimiento comercial',
-    ],
   },
 ];
 
@@ -85,19 +65,16 @@ const accentStyles = {
     border: 'hover:border-[#2ae7e4]/45',
     glow: 'group-hover:shadow-[0_0_0_1px_rgba(42,231,228,0.18),0_28px_90px_rgba(42,231,228,0.1)]',
     chip: 'border-[#2ae7e4]/28 bg-[#2ae7e4]/8 text-[#9ff7f5]',
-    price: 'from-[#2ae7e4] to-[#bdfbf9]',
   },
   magenta: {
     border: 'hover:border-[#c026d3]/45',
     glow: 'group-hover:shadow-[0_0_0_1px_rgba(192,38,211,0.18),0_28px_90px_rgba(136,16,120,0.18)]',
     chip: 'border-[#c026d3]/32 bg-[#881078]/18 text-[#f0b7ee]',
-    price: 'from-[#f0b7ee] to-[#2ae7e4]',
   },
   mixed: {
     border: 'hover:border-white/20',
     glow: 'group-hover:shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_28px_90px_rgba(42,231,228,0.08)]',
     chip: 'border-white/18 bg-white/[0.05] text-white/72',
-    price: 'from-[#2ae7e4] via-[#f0b7ee] to-[#c026d3]',
   },
 };
 
@@ -128,7 +105,7 @@ export default function PlansSection() {
             </h2>
           </div>
           <p className="max-w-md text-base leading-relaxed text-[#a1a1aa]">
-            Elegimos el plan según la etapa de tu marca y ajustamos el alcance antes de ejecutar.
+            Conocé qué incluye cada plan y consultanos por una propuesta a medida de tu marca.
           </p>
         </motion.div>
 
@@ -171,25 +148,11 @@ export default function PlansSection() {
                     {plan.description}
                   </p>
 
-                  <div className="mt-7 max-w-full overflow-hidden">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/35">
-                      Desde
-                    </p>
-                    <div className="mt-2 flex max-w-full flex-wrap items-end gap-x-2 gap-y-1">
-                      <span className={`min-w-0 max-w-full bg-gradient-to-r ${style.price} bg-clip-text font-display text-[clamp(1.9rem,7vw,2.35rem)] font-semibold leading-none text-transparent sm:text-[clamp(2rem,4vw,2.55rem)] lg:text-[clamp(1.95rem,2.35vw,2.35rem)]`}>
-                        {plan.priceFrom}
-                      </span>
-                      <span className="pb-1.5 text-sm uppercase tracking-[0.12em] text-white/38">
-                        ARS
-                      </span>
-                    </div>
-                  </div>
-
                   <Link
                     href={`/contacto?plan=${encodeURIComponent(plan.name)}`}
                     className="mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-5 text-sm font-semibold uppercase tracking-[0.1em] text-[color:var(--text-primary)] transition-all duration-300 hover:border-[#2ae7e4]/45 hover:bg-[#2ae7e4]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2ae7e4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#060606]"
                   >
-                    Cotizar este plan
+                    Consultar precio
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
 
@@ -197,13 +160,14 @@ export default function PlansSection() {
 
                   <div className="grid gap-7">
                     <PlanList title="Cobertura" items={plan.coverage} />
-                    <PlanList title="Objetivo" items={plan.goals} />
                   </div>
                 </div>
               </motion.article>
             );
           })}
         </div>
+
+        <DroneService />
       </div>
     </section>
   );
