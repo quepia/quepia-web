@@ -322,6 +322,23 @@ for (const isolationControl of [
   }
 }
 
+// Toda RPC que expone el servicio MCP debe estar en la allowlist vigente
+// (la última migración que redefine mcp_postgrest_pre_request).
+{
+  const preRequestDefinitions = readdirSync(migrationDirectory)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .map((name) => readFileSync(join(migrationDirectory, name), "utf8"))
+    .filter((sql) => /function\s+public\.mcp_postgrest_pre_request\s*\(/i.test(sql));
+  const latestPreRequest = preRequestDefinitions.at(-1) ?? "";
+  const toolsSource = readFileSync(join(projectRoot, "services/mcp/src/tools.ts"), "utf8");
+  for (const [, rpcName] of toolsSource.matchAll(/rpc:\s*"(mcp_[a-z_]+)"/g)) {
+    if (!latestPreRequest.includes(`'rpc/${rpcName}'`)) {
+      fail(`MCP RPC missing from the OAuth pre-request allowlist: ${rpcName}`);
+    }
+  }
+}
+
 if (!/revoke\s+execute[\s\S]+from\s+(?:public|anon)/i.test(mcpSql)) {
   fail("MCP migration must revoke function execution from PUBLIC/anon");
 }
