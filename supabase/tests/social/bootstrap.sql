@@ -93,7 +93,7 @@ CREATE TABLE private.mcp_access_grants (
   expires_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ, revoked_by UUID, revoke_reason TEXT, created_at TIMESTAMPTZ DEFAULT now(), created_by UUID
 );
 CREATE TABLE private.mcp_access_grant_capabilities (grant_id UUID, capability TEXT, created_at TIMESTAMPTZ DEFAULT now(), PRIMARY KEY (grant_id, capability));
-CREATE TABLE private.test_mcp_audit (id SERIAL PRIMARY KEY, action TEXT, outcome TEXT, details JSONB);
+CREATE TABLE private.test_mcp_audit (id SERIAL PRIMARY KEY, action TEXT, outcome TEXT CHECK (outcome IN ('success', 'denied', 'failed')), details JSONB);
 
 CREATE FUNCTION private.mcp_error(p_code TEXT, p_message TEXT, p_details JSONB DEFAULT NULL)
 RETURNS JSONB LANGUAGE sql IMMUTABLE AS $$

@@ -444,7 +444,7 @@ BEGIN
     WHEN invalid_datetime_format OR datetime_field_overflow OR invalid_text_representation THEN
       RETURN private.mcp_error('invalid_parameter', 'A parameter has an invalid format.');
   END;
-  PERFORM private.mcp_audit_event('tool.read', p_action, 'succeeded', user_id_value, NULL, NULL, NULL,
+  PERFORM private.mcp_audit_event('tool.read', p_action, 'success', user_id_value, NULL, NULL, NULL,
     'social.analytics.read', jsonb_build_object('op', p_op, 'query_hash', result #>> '{evidence,query_hash}'));
   RETURN private.mcp_ok(result);
 END
