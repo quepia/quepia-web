@@ -36,6 +36,7 @@ const GLOBAL_VIEWS = new Set([
     "admin-team",
     "accounting",
     "efemerides",
+    "social",
 ])
 
 const TASK_VIEWS = new Set([
@@ -65,6 +66,7 @@ const ADMIN_VIEWS = new Set([
     "crm",
     "proposals",
     "efemerides",
+    "social",
 ])
 
 const VIEW_LABELS: Record<string, string> = {
@@ -81,6 +83,7 @@ const VIEW_LABELS: Record<string, string> = {
     proposals: "Propuestas",
     crm: "CRM",
     efemerides: "Efemérides",
+    social: "Gestión social",
 }
 
 const DOCS_SECTION_BY_VIEW: Record<string, string> = {
@@ -98,6 +101,7 @@ const DOCS_SECTION_BY_VIEW: Record<string, string> = {
     proposals: "tabs-admin",
     accounting: "tabs-admin",
     efemerides: "tabs-admin",
+    social: "tabs-admin",
     "admin-users": "tabs-admin",
     "admin-projects": "tabs-admin",
     "admin-services": "tabs-admin",
@@ -213,6 +217,10 @@ const AccountingView = dynamic(
 const CrmPipelineView = dynamic(
     () => import("@/components/sistema/quepia/crm-pipeline-view").then((mod) => mod.CrmPipelineView),
     { loading: ViewFallback }
+)
+const SocialModule = dynamic(
+    () => import("@/components/sistema/social/social-module").then((mod) => mod.SocialModule),
+    { loading: ViewFallback, ssr: false }
 )
 const EfemeridesView = dynamic(
     () => import("@/components/sistema/quepia/efemerides-view").then((mod) => mod.EfemeridesView),
@@ -978,6 +986,10 @@ export default function DashboardPage({
             case "accounting":
                 if (!isAdmin) return null
                 return <AccountingView projects={projects} />
+            case "social":
+                // La API revalida admin global (autorizado y activo) en cada solicitud.
+                if (!isAdmin) return null
+                return <SocialModule />
             case "docs":
                 return <DocsView />
             default:

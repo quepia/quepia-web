@@ -8,6 +8,7 @@ export const CAPABILITIES = {
   tasksStructureWrite: "tasks.structure.write",
   tasksNotify: "tasks.notify",
   intelligenceRead: "intelligence.read",
+  socialAnalyticsRead: "social.analytics.read",
 } as const;
 
 export const ACCOUNTING_WRITE_CAPABILITIES = [

@@ -152,6 +152,36 @@ export async function syncProjectAccounts(integration: Record<string, unknown>) 
   const accounts = Array.isArray(response.accounts) ? response.accounts : []
   const admin = createAdminClient()
 
+  // Reconciliación atómica (módulo social): upsert y bajas en una sola
+  // transacción, con historial de identidad. Si la migración todavía no está
+  // aplicada, se conserva el comportamiento anterior.
+  const reconciled = await admin.rpc("social_reconcile_profile_accounts", {
+    p_profile_id: integrationId,
+    p_accounts: accounts.map((account) => ({
+      zernio_account_id: account._id,
+      platform: account.platform,
+      username: account.username || null,
+      display_name: account.displayName || null,
+      profile_picture: account.profilePicture || null,
+      profile_url: account.profileUrl || null,
+      is_active: account.isActive !== false && account.enabled !== false,
+      needs_reconnection: Boolean(account.needsReconnection),
+    })),
+    p_complete: true,
+  })
+  if (!reconciled.error && (reconciled.data as { ok?: boolean } | null)?.ok) {
+    const { data, error } = await admin
+      .from("sistema_zernio_accounts")
+      .select("id, zernio_account_id, platform, username, display_name, profile_picture, profile_url, is_active, needs_reconnection")
+      .eq("integration_id", integrationId)
+      .order("platform")
+    if (error) throw new ZernioRouteError(500, error.message)
+    return data || []
+  }
+  if (reconciled.error && reconciled.error.code !== "PGRST202") {
+    throw new ZernioRouteError(500, reconciled.error.message)
+  }
+
   // Start from a disabled snapshot so accounts removed from the Zernio profile
   // cannot remain selectable in this project after a sync.
   const { error: disableError } = await admin

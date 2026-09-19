@@ -40,6 +40,7 @@ import {
     Shield,
     FileText,
     CalendarHeart,
+    Share2,
     PanelLeftClose,
     PanelLeftOpen,
     type LucideIcon,
@@ -110,6 +111,7 @@ const BUSINESS_GROUP: NavGroup = {
         { id: "crm", icon: Briefcase, label: "CRM" },
         { id: "proposals", icon: FileText, label: "Propuestas" },
         { id: "accounting", icon: Calculator, label: "Contabilidad" },
+        { id: "social", icon: Share2, label: "Gestión social" },
         { id: "efemerides", icon: CalendarHeart, label: "Efemérides" },
     ],
 }

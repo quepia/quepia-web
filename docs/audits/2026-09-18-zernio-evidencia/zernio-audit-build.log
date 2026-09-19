@@ -1,0 +1,412 @@
+
+> nextjs-app@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.22
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 6.1s
+   Linting and checking validity of types ...
+
+./app/api/assets/zip/route.ts
+54:39  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+138:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+142:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+143:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+168:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+169:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+170:55  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+183:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/api/calendar-import/route.ts
+40:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+54:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+55:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+131:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/api/send-email/route.ts
+7:24  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/cliente/[token]/page.tsx
+84:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+123:8  Warning: React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+132:8  Warning: React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+179:33  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+187:71  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+664:91  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+708:71  Warning: 'i' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/cliente/login/page.tsx
+30:18  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/cliente/verify/page.tsx
+81:18  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+92:8  Warning: React Hook useEffect has a missing dependency: 'handleSubmit'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./app/layout.tsx
+120:9  Warning: Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+
+./components/home/ParticleBackground.tsx
+3:55  Warning: 'useCallback' is defined but never used.  @typescript-eslint/no-unused-vars
+4:28  Warning: 'useThree' is defined but never used.  @typescript-eslint/no-unused-vars
+25:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+25:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+47:38  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+50:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+50:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+116:38  Warning: 'sizes' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/layout/Header.tsx
+8:10  Warning: 'Menu' is defined but never used.  @typescript-eslint/no-unused-vars
+8:16  Warning: 'X' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/accounting-accounts-view.tsx
+8:5  Warning: 'MoreHorizontal' is defined but never used.  @typescript-eslint/no-unused-vars
+15:5  Warning: 'Trash2' is defined but never used.  @typescript-eslint/no-unused-vars
+16:5  Warning: 'Edit3' is defined but never used.  @typescript-eslint/no-unused-vars
+31:68  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+38:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/accounting-categories-view.tsx
+3:20  Warning: 'useMemo' is defined but never used.  @typescript-eslint/no-unused-vars
+12:68  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+15:77  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/accounting-charts-view.tsx
+3:10  Warning: 'useState' is defined but never used.  @typescript-eslint/no-unused-vars
+39:11  Warning: 'formatCurrency' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+246:50  Warning: 'idx' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/accounting-contributions-view.tsx
+12:5  Warning: 'ChevronDown' is defined but never used.  @typescript-eslint/no-unused-vars
+13:5  Warning: 'ChevronRight' is defined but never used.  @typescript-eslint/no-unused-vars
+45:80  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+49:76  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+54:104  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+60:75  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+119:8  Warning: React Hook useEffect has a missing dependency: 'onFetchContributions'. Either include it or remove the dependency array. If 'onFetchContributions' changes too often, find the parent component that defines it and wrap that definition in useCallback.  react-hooks/exhaustive-deps
+
+./components/sistema/quepia/accounting-history-view.tsx
+12:5  Warning: 'DollarSign' is defined but never used.  @typescript-eslint/no-unused-vars
+17:5  Warning: 'Wallet' is defined but never used.  @typescript-eslint/no-unused-vars
+20:5  Warning: 'ExternalLink' is defined but never used.  @typescript-eslint/no-unused-vars
+34:80  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+79:8  Warning: React Hook useEffect has missing dependencies: 'buildFilters', 'onFetchHistory', and 'onFetchSummary'. Either include them or remove the dependency array. If 'onFetchHistory' changes too often, find the parent component that defines it and wrap that definition in useCallback.  react-hooks/exhaustive-deps
+85:8  Warning: React Hook useEffect has missing dependencies: 'buildFilters', 'onFetchHistory', and 'onFetchSummary'. Either include them or remove the dependency array. If 'onFetchHistory' changes too often, find the parent component that defines it and wrap that definition in useCallback.  react-hooks/exhaustive-deps
+201:57  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/accounting-investments-view.tsx
+11:73  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+24:74  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/admin-config-view.tsx
+7:8  Warning: 'Button' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/admin-services-view.tsx
+3:51  Warning: 'Suspense' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/annotation-canvas.tsx
+4:60  Warning: 'Text' is defined but never used.  @typescript-eslint/no-unused-vars
+4:66  Warning: 'Rect' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10  Warning: 'useResizeObserver' is defined but never used.  @typescript-eslint/no-unused-vars
+7:54  Warning: 'FeedbackType' is defined but never used.  @typescript-eslint/no-unused-vars
+92:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+119:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+128:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+148:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/app-sidebar.tsx
+492:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+550:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/asset-detail-modal.tsx
+10:5  Warning: 'Trash2' is defined but never used.  @typescript-eslint/no-unused-vars
+11:5  Warning: 'ChevronRight' is defined but never used.  @typescript-eslint/no-unused-vars
+14:5  Warning: 'Columns2' is defined but never used.  @typescript-eslint/no-unused-vars
+32:10  Warning: 'AssetVersion' is defined but never used.  @typescript-eslint/no-unused-vars
+54:5  Warning: 'onUpdate' is defined but never used.  @typescript-eslint/no-unused-vars
+83:8  Warning: React Hook useEffect has a missing dependency: 'fetchAnnotations'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/sistema/quepia/asset-panel.tsx
+1027:33  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+1185:37  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+1245:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+1354:35  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/calendar-view.tsx
+279:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+372:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+411:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/client-asset-viewer.tsx
+8:5  Warning: 'CheckCircle2' is defined but never used.  @typescript-eslint/no-unused-vars
+95:5  Warning: 'taskId' is defined but never used.  @typescript-eslint/no-unused-vars
+318:8  Warning: React Hook useEffect has missing dependencies: 'handleNext' and 'handlePrev'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+397:11  Warning: 'handleDownload' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+736:53  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+803:88  Warning: 'idx' is defined but never used.  @typescript-eslint/no-unused-vars
+817:49  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/client-assets-view.tsx
+62:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+89:5  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+218:39  Warning: 'idx' is defined but never used.  @typescript-eslint/no-unused-vars
+409:8  Warning: React Hook useEffect has a missing dependency: 'viewer'. Either include it or remove the dependency array. You can also do a functional update 'setViewer(v => ...)' if you only need 'viewer' in the 'setViewer' call.  react-hooks/exhaustive-deps
+
+./components/sistema/quepia/crm-pipeline-view.tsx
+5:10  Warning: 'cn' is defined but never used.  @typescript-eslint/no-unused-vars
+16:11  Warning: 'proposals' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+17:11  Warning: 'projects' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/efemerides-view.tsx
+674:27  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+1009:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/kanban-board.tsx
+1268:5  Warning: 'isLastChild' is defined but never used.  @typescript-eslint/no-unused-vars
+1269:5  Warning: 'hasMoreSiblings' is defined but never used.  @typescript-eslint/no-unused-vars
+1270:5  Warning: 'hasChildren' is defined but never used.  @typescript-eslint/no-unused-vars
+1553:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+1567:37  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/logo-picker.tsx
+115:33  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/manual-event-modal.tsx
+4:10  Warning: 'Calendar' is defined but never used.  @typescript-eslint/no-unused-vars
+4:39  Warning: 'AlignLeft' is defined but never used.  @typescript-eslint/no-unused-vars
+4:50  Warning: 'Flag' is defined but never used.  @typescript-eslint/no-unused-vars
+4:56  Warning: 'Tag' is defined but never used.  @typescript-eslint/no-unused-vars
+4:61  Warning: 'Clock' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/notification-settings.tsx
+55:65  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+183:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+184:76  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/project-members-modal.tsx
+4:47  Warning: 'Shield' is defined but never used.  @typescript-eslint/no-unused-vars
+4:68  Warning: 'Eye' is defined but never used.  @typescript-eslint/no-unused-vars
+101:18  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+181:71  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+283:84  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/project-resources.tsx
+192:11  Warning: 'handlePresetClick' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/proposals-view.tsx
+267:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+277:41  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+284:47  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+290:40  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+291:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/review-interface.tsx
+51:13  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/sistema/quepia/task-context-menu.tsx
+5:5  Warning: 'MoreHorizontal' is defined but never used.  @typescript-eslint/no-unused-vars
+8:5  Warning: 'Calendar' is defined but never used.  @typescript-eslint/no-unused-vars
+10:5  Warning: 'ArrowUp' is defined but never used.  @typescript-eslint/no-unused-vars
+11:5  Warning: 'ArrowDown' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/sistema/quepia/task-detail-modal.tsx
+1091:61  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/sistema/quepia/today-view.tsx
+90:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/ui/GlassBackground.tsx
+52:42  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+55:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+55:63  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/ui/input.tsx
+4:18  Warning: An interface declaring no members is equivalent to its supertype.  @typescript-eslint/no-empty-object-type
+
+./components/ui/textarea.tsx
+4:18  Warning: An interface declaring no members is equivalent to its supertype.  @typescript-eslint/no-empty-object-type
+
+./lib/sistema/actions/assets.ts
+5:10  Warning: 'revalidatePath' is defined but never used.  @typescript-eslint/no-unused-vars
+11:100  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+109:45  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+202:31  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+272:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/sistema/actions/preferences.ts
+43:70  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/sistema/actions/proposals.ts
+150:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/sistema/email-service.ts
+28:26  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+43:66  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+49:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+53:58  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+57:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+61:70  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+65:59  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+69:68  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/sistema/hooks/useAccounting.ts
+183:23  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+213:23  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/sistema/hooks/useAssets.ts
+66:5  Warning: 'note' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/sistema/hooks/useCalendar.ts
+278:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+310:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/sistema/hooks/useEfemerides.ts
+168:6  Warning: React Hook useCallback has a missing dependency: 'projectIds'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+168:7  Warning: React Hook useCallback has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.  react-hooks/exhaustive-deps
+
+./lib/sistema/hooks/useTasks.ts
+878:15  Warning: 'id' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+878:19  Warning: 'created_at' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+878:31  Warning: 'updated_at' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+878:43  Warning: 'completed_at' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./lib/sistema/notifications.ts
+11:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/sistema/supabase/middleware.ts
+18:58  Warning: 'options' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./lib/sistema/telegram-commands.ts
+44:10  Warning: 'currencyLabel' is defined but never used.  @typescript-eslint/no-unused-vars
+204:78  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+239:85  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+240:89  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+241:96  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+764:82  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+875:65  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+876:93  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+930:80  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+968:71  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1098:61  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1165:82  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1191:82  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/22) ...
+   Generating static pages (5/22) 
+   Generating static pages (10/22) 
+   Generating static pages (16/22) 
+ ✓ Generating static pages (22/22)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                         Size  First Load JS  Revalidate  Expire
+┌ ○ /                                            7.28 kB         172 kB          1m      1y
+├ ○ /_not-found                                     1 kB         105 kB          1m      1y
+├ ƒ /api/admin/social/analyses                     324 B         104 kB
+├ ƒ /api/admin/social/analyses/[id]                324 B         104 kB
+├ ƒ /api/admin/social/analytics                    324 B         104 kB
+├ ƒ /api/admin/social/automations                  324 B         104 kB
+├ ƒ /api/admin/social/automations/[id]             324 B         104 kB
+├ ƒ /api/admin/social/automations/[id]/simulate    324 B         104 kB
+├ ƒ /api/admin/social/automations/[id]/state       324 B         104 kB
+├ ƒ /api/admin/social/clients                      324 B         104 kB
+├ ƒ /api/admin/social/connections                  324 B         104 kB
+├ ƒ /api/admin/social/export                       324 B         104 kB
+├ ƒ /api/admin/social/inbox                        324 B         104 kB
+├ ƒ /api/admin/social/insights/[id]                324 B         104 kB
+├ ƒ /api/admin/social/mcp-access                   324 B         104 kB
+├ ƒ /api/admin/social/overview                     324 B         104 kB
+├ ƒ /api/admin/social/posts                        324 B         104 kB
+├ ƒ /api/admin/social/posts/[id]                   324 B         104 kB
+├ ƒ /api/admin/social/query                        324 B         104 kB
+├ ƒ /api/admin/social/settings                     324 B         104 kB
+├ ƒ /api/admin/social/sync                         324 B         104 kB
+├ ƒ /api/admin/social/threads/[id]                 324 B         104 kB
+├ ƒ /api/admin/social/threads/[id]/claim           324 B         104 kB
+├ ƒ /api/admin/social/threads/[id]/notes           324 B         104 kB
+├ ƒ /api/admin/social/threads/[id]/replies         324 B         104 kB
+├ ƒ /api/ai/calendar                               324 B         104 kB
+├ ƒ /api/ai/competitor-analysis                    324 B         104 kB
+├ ƒ /api/ai/content-copilot                        324 B         104 kB
+├ ƒ /api/ai/content-copilot/context                324 B         104 kB
+├ ƒ /api/ai/content-copilot/media/[versionId]      324 B         104 kB
+├ ƒ /api/ai/creative-studio                        324 B         104 kB
+├ ƒ /api/ai/creative-studio/context                324 B         104 kB
+├ ƒ /api/ai/creative-studio/versions               324 B         104 kB
+├ ƒ /api/ai/proposals                              324 B         104 kB
+├ ƒ /api/approve                                   324 B         104 kB
+├ ƒ /api/assets/download                           324 B         104 kB
+├ ƒ /api/assets/drive-upload-chunk                 324 B         104 kB
+├ ƒ /api/assets/drive-upload-complete              324 B         104 kB
+├ ƒ /api/assets/drive-upload-session               324 B         104 kB
+├ ƒ /api/assets/log                                324 B         104 kB
+├ ƒ /api/assets/reel-cover                         324 B         104 kB
+├ ƒ /api/assets/sign                               324 B         104 kB
+├ ƒ /api/assets/zip                                324 B         104 kB
+├ ƒ /api/calendar-import                           324 B         104 kB
+├ ƒ /api/client-notifications/process              324 B         104 kB
+├ ƒ /api/client/data                               324 B         104 kB
+├ ƒ /api/efemerides/check                          324 B         104 kB
+├ ƒ /api/internal/social/process                   324 B         104 kB
+├ ƒ /api/mcp/approvals/[operationId]               324 B         104 kB
+├ ƒ /api/mcp/oauth/revoke                          324 B         104 kB
+├ ƒ /api/mcp/operations/[operationId]/void         324 B         104 kB
+├ ƒ /api/mcp/setup-prompt                          324 B         104 kB
+├ ƒ /api/oauth/decision                            324 B         104 kB
+├ ƒ /api/projects/drive-folders                    324 B         104 kB
+├ ƒ /api/send-email                                324 B         104 kB
+├ ƒ /api/sistema-data                              324 B         104 kB
+├ ƒ /api/storage/delete                            324 B         104 kB
+├ ƒ /api/storage/upload                            324 B         104 kB
+├ ƒ /api/storage/upload-url                        324 B         104 kB
+├ ƒ /api/tasks/overdue-digest                      324 B         104 kB
+├ ƒ /api/telegram/webhook                          324 B         104 kB
+├ ƒ /api/test-email                                324 B         104 kB
+├ ƒ /api/webhooks/zernio/analytics                 324 B         104 kB
+├ ƒ /api/webhooks/zernio/operations                324 B         104 kB
+├ ƒ /api/zernio/connect                            324 B         104 kB
+├ ƒ /api/zernio/instagram/audio                    324 B         104 kB
+├ ƒ /api/zernio/instagram/quota                    324 B         104 kB
+├ ƒ /api/zernio/media-preview/[versionId]          324 B         104 kB
+├ ƒ /api/zernio/project                            324 B         104 kB
+├ ƒ /api/zernio/publications/[publicationId]       324 B         104 kB
+├ ƒ /api/zernio/publish                            324 B         104 kB
+├ ○ /auth/access-denied                          2.82 kB         175 kB          1m      1y
+├ ƒ /auth/callback                                 324 B         104 kB
+├ ○ /auth/login                                  3.14 kB         213 kB          1m      1y
+├ ○ /auth/mfa                                    5.29 kB         178 kB          1m      1y
+├ ƒ /cliente/[token]                             23.7 kB         265 kB
+├ ○ /cliente/login                               2.09 kB         151 kB          1m      1y
+├ ○ /cliente/verify                              2.99 kB         112 kB          1m      1y
+├ ○ /contacto                                    5.46 kB         242 kB          1m      1y
+├ ƒ /oauth/consent                                 491 B         107 kB
+├ ○ /precios                                     4.37 kB         163 kB          1m      1y
+├ ○ /privacidad                                    781 B         116 kB          1m      1y
+├ ƒ /propuesta/[token]                           4.62 kB         122 kB
+├ ƒ /review/[token]                              6.43 kB         159 kB
+├ ○ /robots.txt                                    324 B         104 kB
+├ ○ /servicios                                   5.07 kB         161 kB          1m      1y
+├ ƒ /sistema                                     17.6 kB         259 kB
+├ ƒ /sistema/mcp                                   491 B         107 kB
+├ ƒ /sistema/mcp/actividad                       4.47 kB         111 kB
+├ ƒ /sistema/mcp/approvals/[operationId]         2.35 kB         109 kB
+├ ƒ /sistema/social                              10.1 kB         122 kB
+├ ○ /sitemap.xml                                   324 B         104 kB
+├ ƒ /sobre-nosotros                              5.01 kB         166 kB
+└ ƒ /trabajos                                    8.67 kB         170 kB
++ First Load JS shared by all                     104 kB
+  ├ chunks/6611-7ce549484058be8b.js              46.3 kB
+  ├ chunks/ebf0c473-bb00d353b9711af7.js          54.2 kB
+  └ other shared chunks (total)                     3 kB
+
+
+ƒ Middleware                                     91.9 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

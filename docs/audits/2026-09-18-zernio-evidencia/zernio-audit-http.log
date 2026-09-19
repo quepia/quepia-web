@@ -1,0 +1,35 @@
+✔ integrante no admin → 403 /api/admin/social/overview
+✔ admin global → 200 /api/admin/social/overview
+✔ integrante no admin → 403 /api/admin/social/analytics?op=coverage
+✔ admin global → 200 /api/admin/social/analytics?op=coverage
+✔ integrante no admin → 403 /api/admin/social/posts
+✔ admin global → 200 /api/admin/social/posts
+✔ integrante no admin → 403 /api/admin/social/inbox
+✔ admin global → 200 /api/admin/social/inbox
+✔ integrante no admin → 403 /api/admin/social/automations
+✔ admin global → 200 /api/admin/social/automations
+✔ integrante no admin → 403 /api/admin/social/connections
+✔ admin global → 200 /api/admin/social/connections
+✔ integrante no admin → 403 /api/admin/social/analyses
+✔ admin global → 200 /api/admin/social/analyses
+✔ integrante no admin → 403 /api/admin/social/mcp-access
+✔ admin global → 200 /api/admin/social/mcp-access
+✔ integrante no admin → 403 /api/admin/social/export?op=overview
+✔ admin global → 200 /api/admin/social/export?op=overview
+✔ token OAuth/MCP no sirve como sesión web
+✔ página directa: integrante no ve el módulo
+✔ página directa: admin accede
+✔ mutación desde otro origen → 403
+✔ mutación mismo origen (admin) → 200
+✔ mutación de integrante → 403
+✔ parámetro no permitido rechazado
+✔ webhook con firma inválida → 401
+✔ webhook firmado → 200
+✔ redelivery duplicado → 200 duplicate
+✔ secreto de un canal no vale para el otro
+✔ proceso interno sin secreto → 401
+✔ proceso interno con CRON_SECRET → 200
+[{"kind":"outbox.dispatch","status":"succeeded","ms":9},{"kind":"webhook.process","status":"succeeded","ms":7},{"kind":"outbox.reconcile","status":"succeeded","ms":12},{"kind":"analytics.delta","status":"succeeded","ms":10},{"kind":"internal.automations","status":"succeeded","ms":5},{"kind":"health.check","status":"succeeded","ms":6},{"kind":"inventory.reconcile","status":"succeeded","ms":18},{"kind":"followers.daily","status":"succeeded","ms":9},{"kind":"automations.sync","status":"succeeded","ms":12},{"kind":"ig_insights.refresh","status":"succeeded","ms":17},{"kind":"inbox.backfill","status":"failed","error":"No simulado: GET /inbox/conversations"},{"kind":"timeline.backfill","status":"succeeded","ms":12},{"kind":"retention.apply","status":"succeeded","ms":6}]
+✔ webhook procesado aparece en la bandeja
+
+TODO OK

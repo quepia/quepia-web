@@ -636,3 +636,55 @@ export const postTaskUpdateInputSchema = z
     requireOneSelector(context, value, "task_id", "task_query");
     rejectBothSelectors(context, value, "recipient_id", "recipient_query");
   });
+
+// ---------------------------------------------------------------------------
+// Analítica social (solo lectura). Mismos parámetros que la capa semántica de
+// Quepia; la base vuelve a validar pertenencia de IDs y rechaza claves extra.
+// ---------------------------------------------------------------------------
+
+const socialScopeShape = {
+  client_ids: z.array(uuidSchema).max(50).optional(),
+  project_ids: z.array(uuidSchema).max(50).optional(),
+  account_ids: z.array(uuidSchema).max(100).optional(),
+  platforms: z.array(z.string().regex(/^[a-z]{2,20}$/)).max(20).optional(),
+  formats: z.array(z.enum(["reel", "image", "carousel", "video", "story", "text", "unknown"])).max(7).optional(),
+  origins: z.array(z.enum(["quepia", "zernio_api", "external"])).max(3).optional(),
+  from: isoDateSchema.optional(),
+  to: isoDateSchema.optional(),
+  timezone: z.string().min(3).max(64).optional(),
+  project_mode: z.enum(["attributed", "accounts"]).optional(),
+};
+
+export const socialNoInputSchema = z.object({}).strict();
+export const socialScopeInputSchema = z.object(socialScopeShape).strict();
+export const socialTimeseriesInputSchema = z
+  .object({
+    ...socialScopeShape,
+    metric: z.enum(["followers", "posts_published", "views", "reach", "likes", "comments", "shares", "saves"]).default("followers"),
+    granularity: z.enum(["day", "week", "month"]).default("day"),
+    attribution: z.enum(["publish", "received"]).default("publish"),
+  })
+  .strict();
+export const socialComparePeriodsInputSchema = z
+  .object({ ...socialScopeShape, compare_from: isoDateSchema.optional(), compare_to: isoDateSchema.optional() })
+  .strict();
+export const socialRankPostsInputSchema = z
+  .object({
+    ...socialScopeShape,
+    metric: z.enum(["views", "reach", "likes", "comments", "shares", "saves", "interactions", "engagement_rate_reach",
+      "ig_reels_avg_watch_time", "ig_reels_total_watch_time"]).default("views"),
+    age_days: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14), z.literal(30)]).optional(),
+    limit: z.number().int().min(1).max(50).default(10),
+    order: z.enum(["asc", "desc"]).default("desc"),
+  })
+  .strict();
+export const socialCompareFormatsInputSchema = z
+  .object({
+    ...socialScopeShape,
+    metric: z.enum(["views", "reach", "likes", "comments", "shares", "saves"]).default("views"),
+    age_days: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14), z.literal(30)]).optional(),
+  })
+  .strict();
+export const socialPostPerformanceInputSchema = z
+  .object({ ...socialScopeShape, post_id: uuidSchema })
+  .strict();

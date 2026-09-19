@@ -11,6 +11,10 @@
     {
       "path": "/api/client-notifications/process",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/internal/social/process",
+      "schedule": "30 6 * * *"
     }
   ]
 }

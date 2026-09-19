@@ -55,6 +55,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@next/eslint-plugin-next": "15.5.22",
     "@types/archiver": "^6.0.4",
     "@types/node": "^22",
@@ -71,8 +72,8 @@
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "5.2.0",
     "globals": "17.7.0",
-    "postcss": "^8.5.23",
     "plpgsql-parser": "18.2.1",
+    "postcss": "^8.5.23",
     "tailwindcss": "^3.4.19",
     "typescript": "^5"
   },

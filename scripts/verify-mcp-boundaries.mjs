@@ -112,6 +112,16 @@ for (const rpc of [
   "mcp_tasks_create_project",
   "mcp_tasks_post_update",
   "mcp_tasks_void_operation",
+  "mcp_social_list_scopes",
+  "mcp_social_get_metric_definitions",
+  "mcp_social_get_data_coverage",
+  "mcp_social_get_overview",
+  "mcp_social_get_timeseries",
+  "mcp_social_compare_periods",
+  "mcp_social_rank_posts",
+  "mcp_social_get_post_performance",
+  "mcp_social_compare_formats",
+  "mcp_social_get_attention_metrics",
 ]) {
   if (!toolsSource.includes(rpc)) {
     fail(`Missing narrow RPC mapping in MCP tools: ${rpc}`);

@@ -1,0 +1,64 @@
+
+> nextjs-app@0.1.0 mcp:test
+> npm --prefix services/mcp test
+
+
+> @quepia/mcp-server@0.3.0 test
+> vitest run
+
+
+ RUN  v3.2.6 /Volumes/Kingston/PROYECTOS WEB/PAGINA WEB V2/quepia-creative-agency/services/mcp
+
+ ✓ test/schemas.test.ts (22 tests) 102ms
+ ✓ test/database.test.ts (5 tests) 7ms
+stderr | test/auth.test.ts > Supabase OAuth JWT verification > rejects a token issued for another audience
+{"level":"warn","event":"mcp.token_rejected","reason":"claim_invalid","claim":"aud","observed":{"aud":"https://other.example/mcp","iss":"https://project.supabase.co/auth/v1","role":"mcp_authenticated","aal":"aal1","hasClientId":true,"hasSessionId":true},"expected":{"aud":"https://mcp.quepia.test/mcp","iss":"https://project.supabase.co/auth/v1","role":"mcp_authenticated"}}
+
+stderr | test/auth.test.ts > Supabase OAuth JWT verification > rejects a multi-audience token instead of accepting partial membership
+{"level":"warn","event":"mcp.token_rejected","reason":"audience_mismatch","expected":{"aud":"https://mcp.quepia.test/mcp"}}
+
+stderr | test/auth.test.ts > Supabase OAuth JWT verification > rejects a token with an invalid signature
+{"level":"warn","event":"mcp.token_rejected","reason":"signature_invalid","observed":{"aud":"https://mcp.quepia.test/mcp","iss":"https://project.supabase.co/auth/v1","role":"mcp_authenticated","aal":"aal1","hasClientId":true,"hasSessionId":true},"expected":{"aud":"https://mcp.quepia.test/mcp","iss":"https://project.supabase.co/auth/v1","role":"mcp_authenticated"}}
+
+stderr | test/auth.test.ts > Supabase OAuth JWT verification > rejects a valid user token that does not use the isolated MCP role
+{"level":"warn","event":"mcp.token_rejected","reason":"claim_shape_invalid","claims":[{"path":"role","code":"invalid_value"}],"observed":{"aud":"https://mcp.quepia.test/mcp","iss":"https://project.supabase.co/auth/v1","role":"authenticated","aal":"aal1","hasClientId":true,"hasSessionId":true},"expected":{"aud":"https://mcp.quepia.test/mcp","iss":"https://project.supabase.co/auth/v1","role":"mcp_authenticated"}}
+
+ ✓ test/auth.test.ts (5 tests) 86ms
+stderr | test/app.test.ts > HTTP security and discovery > returns a discoverable Bearer challenge when authorization is missing
+{"level":"warn","event":"mcp.request_rejected","status":401,"code":"invalid_token"}
+
+stderr | test/app.test.ts > HTTP security and discovery > rejects a supplied non-allowlisted Origin
+{"level":"warn","event":"mcp.request_rejected","status":403,"code":"invalid_origin"}
+
+stderr | test/app.test.ts > HTTP security and discovery > rejects a supplied non-allowlisted Origin
+{"level":"warn","event":"mcp.request_rejected","status":403,"code":"invalid_origin"}
+
+ ✓ test/intelligence.test.ts (6 tests) 95ms
+stderr | test/app.test.ts > HTTP security and discovery > denies the browser preflight for a non-allowlisted Origin
+{"level":"warn","event":"mcp.request_rejected","status":403,"code":"invalid_origin"}
+
+stderr | test/app.test.ts > HTTP security and discovery > exposes the Bearer challenge to an allowlisted browser Origin
+{"level":"warn","event":"mcp.request_rejected","status":401,"code":"invalid_token"}
+
+stderr | test/app.test.ts > HTTP security and discovery > uses only registered Bearer error codes in authentication challenges
+{"level":"warn","event":"mcp.request_rejected","status":401,"code":"invalid_token"}
+
+stderr | test/app.test.ts > HTTP security and discovery > uses only registered Bearer error codes in authentication challenges
+{"level":"warn","event":"mcp.request_rejected","status":401,"code":"invalid_token"}
+
+stderr | test/app.test.ts > HTTP security and discovery > uses only registered Bearer error codes in authentication challenges
+{"level":"warn","event":"mcp.request_rejected","status":403,"code":"missing_capability"}
+
+ ✓ test/app.test.ts (10 tests) 203ms
+ ✓ test/entrypoint.test.ts (1 test) 946ms
+   ✓ Vercel Express entrypoint > default-exports an Express request listener without binding a port  943ms
+ ✓ test/config.test.ts (4 tests) 28ms
+ ✓ test/tasks.test.ts (15 tests) 267ms
+ ✓ test/social.test.ts (5 tests) 185ms
+ ✓ test/tools.integration.test.ts (12 tests) 297ms
+
+ Test Files  10 passed (10)
+      Tests  85 passed (85)
+   Start at  13:51:58
+   Duration  1.59s (transform 887ms, setup 0ms, collect 5.82s, tests 2.22s, environment 1ms, prepare 1.15s)
+
