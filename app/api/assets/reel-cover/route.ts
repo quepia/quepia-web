@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/sistema/supabase/server"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { ASSET_BUCKET, createSignedUrl, isStoragePath } from "@/lib/sistema/assets-storage"
+import { downloadDriveFile, extractGoogleDriveFileId } from "@/lib/sistema/google-drive-backup"
 import { extractVideoFrame } from "@/lib/sistema/video-frame"
 
 export const runtime = "nodejs"
@@ -15,7 +16,9 @@ type VersionRow = {
     version_number: number
     file_url: string | null
     file_type: string | null
+    file_size: number | null
     storage_path: string | null
+    drive_file_id: string | null
     thumbnail_path: string | null
 }
 
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
                 project_id,
                 asset_type,
                 current_version,
-                versions:sistema_asset_versions(id, version_number, file_url, file_type, storage_path, thumbnail_path)
+                versions:sistema_asset_versions(id, version_number, file_url, file_type, file_size, storage_path, drive_file_id, thumbnail_path)
             `)
             .eq("id", assetId)
             .maybeSingle<AssetRow>()
@@ -97,27 +100,42 @@ export async function POST(request: Request) {
 
         const storageReference = version.storage_path
             || (isStoragePath(version.file_url) ? version.file_url : null)
-        if (!storageReference) {
+        const driveFileId = version.drive_file_id || extractGoogleDriveFileId(version.file_url || "")
+        if (!storageReference && !driveFileId) {
             return NextResponse.json(
-                { error: "La portada solo se puede extraer de videos alojados en el sistema" },
+                { error: "La portada solo se puede extraer de videos alojados en el sistema o Google Drive" },
                 { status: 400 },
             )
         }
 
-        const { data: file, error: downloadError } = await admin.storage
-            .from(ASSET_BUCKET)
-            .download(storageReference)
-        if (downloadError || !file) {
-            return NextResponse.json(
-                { error: downloadError?.message || "No se pudo descargar el video" },
-                { status: 500 },
-            )
-        }
-        if (file.size > MAX_SOURCE_BYTES) {
+        if (version.file_size && version.file_size > MAX_SOURCE_BYTES) {
             return NextResponse.json({ error: "El video supera el límite de 200 MB" }, { status: 400 })
         }
 
-        const frame = await extractVideoFrame(await file.arrayBuffer(), timeSeconds)
+        let sourceBytes: ArrayBuffer
+        if (storageReference) {
+            const { data: file, error: downloadError } = await admin.storage
+                .from(ASSET_BUCKET)
+                .download(storageReference)
+            if (downloadError || !file) {
+                return NextResponse.json(
+                    { error: downloadError?.message || "No se pudo descargar el video" },
+                    { status: 500 },
+                )
+            }
+            if (file.size > MAX_SOURCE_BYTES) {
+                return NextResponse.json({ error: "El video supera el límite de 200 MB" }, { status: 400 })
+            }
+            sourceBytes = await file.arrayBuffer()
+        } else {
+            const driveFile = await downloadDriveFile(driveFileId!, MAX_SOURCE_BYTES)
+            sourceBytes = driveFile.data.buffer.slice(
+                driveFile.data.byteOffset,
+                driveFile.data.byteOffset + driveFile.data.byteLength,
+            ) as ArrayBuffer
+        }
+
+        const frame = await extractVideoFrame(sourceBytes, timeSeconds)
 
         const coverPath = `${asset.project_id}/${asset.task_id}/covers/reel-cover-${Date.now()}.jpg`
         const { error: uploadError } = await admin.storage

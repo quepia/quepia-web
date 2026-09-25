@@ -25,6 +25,7 @@ type RawVersion = {
     file_url: string | null
     file_type: string | null
     storage_path: string | null
+    drive_file_id: string | null
     thumbnail_path: string | null
     thumbnail_url: string | null
 }
@@ -50,6 +51,15 @@ function formatTime(seconds: number): string {
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`
 }
 
+function isGoogleDriveUrl(value: string | null): boolean {
+    if (!value) return false
+    try {
+        return /(^|\.)drive\.google\.com$/i.test(new URL(value).hostname)
+    } catch {
+        return false
+    }
+}
+
 export function ReelCoverPanel({
     taskId,
     projectId,
@@ -70,6 +80,7 @@ export function ReelCoverPanel({
     const [error, setError] = useState("")
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(0)
+    const [videoError, setVideoError] = useState("")
     const videoRef = useRef<HTMLVideoElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -86,7 +97,7 @@ export function ReelCoverPanel({
                     nombre,
                     current_version,
                     asset_type,
-                    versions:sistema_asset_versions(id, version_number, file_url, file_type, storage_path, thumbnail_path, thumbnail_url)
+                    versions:sistema_asset_versions(id, version_number, file_url, file_type, storage_path, drive_file_id, thumbnail_path, thumbnail_url)
                 `)
                 .eq("task_id", taskId)
                 .eq("asset_type", "reel")
@@ -100,13 +111,14 @@ export function ReelCoverPanel({
                 const version = pickVersion(asset)
                 const videoRef = version?.storage_path || version?.file_url || null
                 const coverRef = version?.thumbnail_path || version?.thumbnail_url || null
-                if (videoRef) references.push(videoRef)
+                if (videoRef && !version?.drive_file_id && !isGoogleDriveUrl(version?.file_url || null)) references.push(videoRef)
                 if (coverRef) references.push(coverRef)
                 return {
                     id: asset.id,
                     nombre: asset.nombre,
                     versionId: version?.id || "",
                     videoRef,
+                    isDriveVideo: Boolean(version?.drive_file_id || isGoogleDriveUrl(version?.file_url || null)),
                     coverRef,
                 }
             }).filter((asset) => Boolean(asset.versionId))
@@ -126,8 +138,14 @@ export function ReelCoverPanel({
                 id: asset.id,
                 nombre: asset.nombre,
                 versionId: asset.versionId,
-                videoUrl: asset.videoRef ? signed[asset.videoRef] || asset.videoRef : null,
-                coverUrl: asset.coverRef ? signed[asset.coverRef] || asset.coverRef : null,
+                videoUrl: asset.isDriveVideo
+                    ? `/api/zernio/media-preview/${encodeURIComponent(asset.versionId)}`
+                    : asset.videoRef
+                        ? signed[asset.videoRef] || (/^https?:\/\//i.test(asset.videoRef) ? asset.videoRef : null)
+                        : null,
+                coverUrl: asset.coverRef
+                    ? signed[asset.coverRef] || (/^https?:\/\//i.test(asset.coverRef) ? asset.coverRef : null)
+                    : null,
                 coverPath: asset.coverRef,
             }))
 
@@ -147,6 +165,7 @@ export function ReelCoverPanel({
     useEffect(() => {
         setCurrentTime(0)
         setDuration(0)
+        setVideoError("")
     }, [selectedId])
 
     const applyCover = async (payload: Record<string, unknown>) => {
@@ -267,8 +286,12 @@ export function ReelCoverPanel({
                                     controls
                                     playsInline
                                     preload="metadata"
-                                    onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+                                    onLoadedMetadata={(e) => {
+                                        setDuration(e.currentTarget.duration || 0)
+                                        setVideoError("")
+                                    }}
                                     onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime || 0)}
+                                    onError={() => setVideoError("No se pudo cargar la vista previa del video. Todavía podés subir una portada manualmente.")}
                                     className="max-h-64 w-full rounded-lg border border-white/[0.08] bg-black object-contain"
                                 />
                             ) : (
@@ -277,11 +300,13 @@ export function ReelCoverPanel({
                                 </div>
                             )}
 
+                            {videoError && <p className="mt-2 text-xs text-amber-200/75">{videoError}</p>}
+
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => { void applyCover({ timeSeconds: videoRef.current?.currentTime ?? currentTime }) }}
-                                    disabled={working || !selected?.videoUrl}
+                                    disabled={working || !selected?.videoUrl || Boolean(videoError)}
                                     className="inline-flex items-center gap-1.5 rounded-lg bg-quepia-cyan px-3 py-1.5 text-xs font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-40"
                                 >
                                     {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
