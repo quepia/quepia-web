@@ -7,8 +7,7 @@ import {
   getQuepiaSession,
   ZernioRouteError,
 } from "@/lib/zernio/server"
-
-const MAX_PREVIEW_BYTES = 100 * 1024 * 1024
+import { ZERNIO_REEL_MAX_SOURCE_BYTES } from "@/lib/zernio/publishing-rules"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -48,12 +47,12 @@ export async function GET(
 
     const driveFileId = version.drive_file_id || extractGoogleDriveFileId(version.file_url)
     if (!driveFileId) throw new ZernioRouteError(404, "El asset no contiene un archivo de Google Drive")
-    if (version.file_size && version.file_size > MAX_PREVIEW_BYTES) {
-      throw new ZernioRouteError(413, "El video supera el límite de previsualización de 100 MB")
+    if (version.file_size && version.file_size > ZERNIO_REEL_MAX_SOURCE_BYTES) {
+      throw new ZernioRouteError(413, "El video supera el límite de previsualización de 250 MB")
     }
 
     const driveResponse = await fetchDriveFile(driveFileId, {
-      maxBytes: MAX_PREVIEW_BYTES,
+      maxBytes: ZERNIO_REEL_MAX_SOURCE_BYTES,
       range: request.headers.get("range"),
     })
     const headers = new Headers({

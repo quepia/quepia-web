@@ -22,6 +22,10 @@ import {
   type ZernioMediaEdit,
   type ZernioMediaFormat,
 } from "@/lib/zernio/media-formats"
+import {
+  INSTAGRAM_REEL_MAX_SECONDS,
+  INSTAGRAM_REEL_MIN_SECONDS,
+} from "@/lib/zernio/publishing-rules"
 
 export type ZernioPreviewAsset = {
   id: string
@@ -138,7 +142,8 @@ export function ZernioMediaPreparer({
   const activeVideoMetadata = activeAsset ? videoMetadata[activeAsset.id] : null
   const reelFileTypeValid = Boolean(activeAsset?.fileType && ["video/mp4", "video/quicktime"].includes(activeAsset.fileType))
   const reelDurationValid = activeVideoMetadata
-    ? activeVideoMetadata.duration >= 3 && activeVideoMetadata.duration <= 90
+    ? activeVideoMetadata.duration >= INSTAGRAM_REEL_MIN_SECONDS
+      && activeVideoMetadata.duration <= INSTAGRAM_REEL_MAX_SECONDS
     : null
   const reelAspectValid = activeVideoMetadata
     ? Math.abs((activeVideoMetadata.width / activeVideoMetadata.height) - (9 / 16)) < 0.02
@@ -278,7 +283,7 @@ export function ZernioMediaPreparer({
                         ? <CheckCircle2 className="h-3.5 w-3.5 text-quepia-cyan/70" />
                         : <span className="h-3.5 w-3.5 rounded-full border border-white/25" />}
                     {activeVideoMetadata
-                      ? `${activeVideoMetadata.duration.toFixed(1)} s · ${reelDurationValid ? "duración compatible" : "debe durar entre 3 y 90 s"}`
+                      ? `${activeVideoMetadata.duration.toFixed(1)} s · ${reelDurationValid ? "duración compatible" : "debe durar entre 3 s y 15 min"}`
                       : "Duración: se verificará al cargar el video"}
                   </span>
                   <span className="flex items-center gap-2">

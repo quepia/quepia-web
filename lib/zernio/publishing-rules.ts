@@ -1,5 +1,9 @@
 export const ZERNIO_TIME_ZONE = "America/Argentina/Cordoba"
 export const ZERNIO_MEDIA_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
+export const INSTAGRAM_REEL_MIN_SECONDS = 3
+export const INSTAGRAM_REEL_MAX_SECONDS = 15 * 60
+export const ZERNIO_REEL_MAX_SOURCE_BYTES = 250 * 1024 * 1024
+export const ZERNIO_REEL_MAX_PREPARED_BYTES = 250 * 1024 * 1024
 
 const LOCAL_DATE_TIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
 

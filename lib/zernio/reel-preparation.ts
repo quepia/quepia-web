@@ -2,10 +2,13 @@ import { spawn } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import { readFile, stat, unlink, writeFile } from "node:fs/promises"
 import { join } from "node:path"
+import {
+  INSTAGRAM_REEL_MAX_SECONDS,
+  INSTAGRAM_REEL_MIN_SECONDS,
+  ZERNIO_REEL_MAX_PREPARED_BYTES,
+  ZERNIO_REEL_MAX_SOURCE_BYTES,
+} from "@/lib/zernio/publishing-rules"
 
-const MAX_REEL_BYTES = 100 * 1024 * 1024
-const MIN_REEL_SECONDS = 3
-const MAX_REEL_SECONDS = 90
 const ffmpegPath = join(process.cwd(), "vendor", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg")
 
 type ReelProbe = {
@@ -49,8 +52,8 @@ async function probeReel(inputPath: string): Promise<ReelProbe> {
   if (!durationMatch || !videoMatch) throw new Error("No se pudieron leer la duración o las dimensiones del Reel")
 
   const duration = (Number(durationMatch[1]) * 3600) + (Number(durationMatch[2]) * 60) + Number(durationMatch[3])
-  if (!Number.isFinite(duration) || duration < MIN_REEL_SECONDS || duration > MAX_REEL_SECONDS) {
-    throw new Error(`El Reel debe durar entre ${MIN_REEL_SECONDS} y ${MAX_REEL_SECONDS} segundos`)
+  if (!Number.isFinite(duration) || duration < INSTAGRAM_REEL_MIN_SECONDS || duration > INSTAGRAM_REEL_MAX_SECONDS) {
+    throw new Error(`El Reel debe durar entre ${INSTAGRAM_REEL_MIN_SECONDS} segundos y 15 minutos`)
   }
 
   return {
@@ -64,8 +67,8 @@ async function probeReel(inputPath: string): Promise<ReelProbe> {
 }
 
 export async function prepareReelForZernio(bytes: ArrayBuffer) {
-  if (bytes.byteLength > MAX_REEL_BYTES) {
-    throw new Error("El Reel supera el límite de 100 MB del sistema de publicación")
+  if (bytes.byteLength > ZERNIO_REEL_MAX_SOURCE_BYTES) {
+    throw new Error("El Reel supera el límite de 250 MB del sistema de publicación")
   }
 
   const basePath = join("/tmp", `zernio-reel-${randomUUID()}`)
@@ -99,8 +102,8 @@ export async function prepareReelForZernio(bytes: ArrayBuffer) {
     ])
 
     const outputStat = await stat(outputPath)
-    if (outputStat.size > MAX_REEL_BYTES) {
-      throw new Error("El Reel preparado supera el límite de 100 MB del sistema de publicación")
+    if (outputStat.size > ZERNIO_REEL_MAX_PREPARED_BYTES) {
+      throw new Error("El Reel preparado supera el límite de 250 MB del sistema de publicación")
     }
     const normalized = await probeReel(outputPath)
     if (

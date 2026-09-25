@@ -15,6 +15,7 @@ import {
   validateMediaScheduleWindow,
   validateReelAssets,
   type InstagramPublishingOptions,
+  ZERNIO_REEL_MAX_SOURCE_BYTES,
   ZERNIO_TIME_ZONE,
 } from "@/lib/zernio/publishing-rules"
 import {
@@ -28,7 +29,7 @@ import {
 } from "@/lib/zernio/server"
 
 const ACTIVE_PUBLICATION_STATUSES = new Set(["preparing", "scheduled", "publishing"])
-const MAX_ZERNIO_MEDIA_BYTES = 100 * 1024 * 1024
+const MAX_ZERNIO_MEDIA_BYTES = ZERNIO_REEL_MAX_SOURCE_BYTES
 
 type AssetVersionRow = {
   id: string
@@ -282,7 +283,7 @@ async function toMediaItem(asset: AssetRow, edit?: ZernioMediaEdit | null) {
   }
 
   if (version.file_size && version.file_size > MAX_ZERNIO_MEDIA_BYTES) {
-    throw new ZernioRouteError(400, `“${asset.nombre}” supera el límite de 100 MB del sistema de publicación`)
+    throw new ZernioRouteError(400, `“${asset.nombre}” supera el límite de 250 MB del sistema de publicación`)
   }
 
   let sourceBytes: ArrayBuffer
