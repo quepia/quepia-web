@@ -217,6 +217,7 @@ export async function downloadDriveFile(fileId: string, maxBytes = 110 * 1024 * 
 async function driveFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAccessToken()
   const response = await fetch(path.startsWith("http") ? path : `${DRIVE_API_BASE}${path}`, {
+    signal: AbortSignal.timeout(60_000),
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -645,4 +646,137 @@ export async function backupNotifiedAssetsToDrive(
   }
 
   return result
+}
+
+/** Agency archive, separate from client deliveries. Inherits folder permissions only. */
+export async function archiveMonthlyVersion(params: {
+  projectId: string
+  projectName: string
+  month: string
+  asset: DriveBackupAsset
+  fileSize?: number | null
+  previousMembers?: ArchiveMember[]
+}) {
+  if (!isBackupEnabled()) throw new Error('El respaldo de Drive está desactivado.')
+  const client = await ensureClientFolder(params.projectName)
+  const archive = await ensureFolder(client.id, `Backups mensuales (${params.projectId.slice(0, 8)})`)
+  const year = await ensureFolder(archive.id, params.month.slice(0, 4))
+  const month = await ensureFolder(year.id, params.month)
+  const asset = params.asset
+  const name = `v${asset.versionNumber}-${asset.assetVersionId}-${sanitizeFilename(asset.originalFilename || asset.assetName).slice(0, 140)}`
+  // Stable identity recovers an upload whose database write failed, without duplicating it.
+  const query = new URLSearchParams({
+    q: `'${escapeDriveQueryValue(month.id)}' in parents and name = '${escapeDriveQueryValue(name)}' and trashed = false`,
+    fields: 'files(id,name,webViewLink,size,mimeType)', includeItemsFromAllDrives: 'true', supportsAllDrives: 'true',
+  })
+  const existing = await driveFetch<{ files?: (DriveFile & { size?: string; mimeType?: string })[] }>(`/files?${query}`)
+  const recovered = existing.files?.find(file => file.mimeType !== 'application/vnd.google-apps.folder' && (!params.fileSize || Number(file.size) === params.fileSize))
+  if (recovered) return { fileId: recovered.id, folderId: month.id }
+
+  const sourceUrl = await getSourceUrl(asset)
+  const folderMatch = new URL(sourceUrl).pathname.match(/\/folders\/([^/]+)/)
+  const driveSource = extractGoogleDriveFileId(sourceUrl) || (/^https:\/\/drive\.google\.com\//.test(sourceUrl) ? folderMatch?.[1] : null)
+  let file: DriveFile
+  if (driveSource) {
+    const sourceInfo = await inspectDriveArchiveSource(driveSource)
+    if (sourceInfo.trashed) throw new Error('El original está en la papelera de Drive.')
+    if (sourceInfo.mimeType === 'application/vnd.google-apps.folder') {
+      const members: ArchiveMember[] = []
+      try {
+        const checkpoints = new Map((params.previousMembers || []).filter(m => m.sourceId).map(m => [m.sourceId!, m]))
+        const root = await copyArchiveFolder(driveSource, month.id, name, members, checkpoints, Date.now() + 100_000)
+        return { fileId: root.id, folderId: month.id, members }
+      } catch (error) {
+        throw new ArchiveCopyError(error instanceof Error ? error.message : 'No se pudo copiar la carpeta.', [...(params.previousMembers || []), ...members])
+      }
+    }
+    if (sourceInfo.mimeType === 'application/vnd.google-apps.shortcut') throw new Error('El original es un acceso directo. Cargá el archivo de destino para respaldarlo.')
+    file = await copyDriveFile({ sourceFileId: driveSource, parentId: month.id, name })
+  } else {
+    // Stream large videos instead of buffering the entire archive file in memory.
+    const source = await fetch(sourceUrl, { signal: AbortSignal.timeout(120_000) })
+    if (!source.ok || !source.body) throw new Error(`No se pudo descargar el original (${source.status}).`)
+    const size = Number(source.headers.get('content-length') || params.fileSize || 0)
+    if (!Number.isSafeInteger(size) || size <= 0) {
+      await source.body.cancel()
+      throw new Error('No se pudo determinar el tamaño del archivo original.')
+    }
+    const uploadUrl = await createDriveResumableUploadSession({ parentId: month.id, name, mimeType: asset.fileType || 'application/octet-stream', fileSize: size })
+    const response = await fetch(uploadUrl, {
+      method: 'PUT', headers: { 'Content-Type': asset.fileType || 'application/octet-stream', 'Content-Length': String(size) },
+      body: source.body, duplex: 'half', signal: AbortSignal.timeout(120_000),
+    } as RequestInit & { duplex: string })
+    if (!response.ok) throw new Error(`Drive no pudo guardar el archivo (${response.status}).`)
+    file = await response.json() as DriveFile
+  }
+  await verifyMonthlyDriveFile(file.id, month.id, params.fileSize)
+  return { fileId: file.id, folderId: month.id }
+}
+
+export async function verifyMonthlyDriveFile(fileId: string, folderId: string, expectedSize?: number | null) {
+  const query = new URLSearchParams({ fields: 'id,trashed,size,parents', supportsAllDrives: 'true' })
+  const file = await driveFetch<{ id: string; trashed?: boolean; size?: string; parents?: string[] }>(`/files/${encodeURIComponent(fileId)}?${query}`)
+  if (file.trashed || !file.parents?.includes(folderId)) throw new Error('La copia fue eliminada o movida de su carpeta de respaldo.')
+  if (expectedSize && Number(file.size) !== expectedSize) throw new Error('El tamaño de la copia no coincide con el original.')
+}
+
+export async function inspectDriveArchiveSource(fileId: string) {
+  const query = new URLSearchParams({ fields: 'id,name,mimeType,size,capabilities(canCopy,canDownload),trashed', supportsAllDrives: 'true' })
+  return driveFetch<{ id: string; name: string; mimeType: string; size?: string; trashed?: boolean; capabilities?: { canCopy?: boolean; canDownload?: boolean } }>(`/files/${encodeURIComponent(fileId)}?${query}`)
+}
+
+
+export type ArchiveMember = { id: string; parentId: string; size: number | null; sourceId?: string }
+
+export class ArchiveCopyError extends Error {
+  constructor(message: string, public members: ArchiveMember[]) { super(message) }
+}
+
+/** Recursively copy linked folders; a partial folder is never treated as a completed backup. */
+async function copyArchiveFolder(sourceId: string, parentId: string, name: string, members: ArchiveMember[], checkpoints: Map<string, ArchiveMember>, deadline: number, depth = 0): Promise<DriveFile> {
+  if (depth > 20) throw new Error('La carpeta supera los 20 niveles de profundidad.')
+  if (Date.now() >= deadline) throw new Error('Carpeta parcialmente copiada. El próximo intento continuará sin duplicar los archivos guardados.')
+  const target = await ensureFolder(parentId, name)
+  const targetFiles = new Map<string, { id: string; name?: string; size?: string }>()
+  let targetPage = ''
+  do {
+    const query = new URLSearchParams({
+      q: `'${escapeDriveQueryValue(target.id)}' in parents and trashed = false`,
+      fields: 'nextPageToken,files(id,name,size)', pageSize: '1000',
+      includeItemsFromAllDrives: 'true', supportsAllDrives: 'true', ...(targetPage ? { pageToken: targetPage } : {}),
+    })
+    const page = await driveFetch<{ nextPageToken?: string; files: (DriveFile & { size?: string })[] }>(`/files?${query}`)
+    for (const file of page.files) targetFiles.set(file.id, file)
+    targetPage = page.nextPageToken || ''
+  } while (targetPage)
+  let pageToken = ''
+  do {
+    const query = new URLSearchParams({
+      q: `'${escapeDriveQueryValue(sourceId)}' in parents and trashed = false`,
+      fields: 'nextPageToken,files(id,name,mimeType,size)', pageSize: '100',
+      includeItemsFromAllDrives: 'true', supportsAllDrives: 'true', ...(pageToken ? { pageToken } : {}),
+    })
+    const page = await driveFetch<{ nextPageToken?: string; files: (DriveFile & { mimeType: string; size?: string })[] }>(`/files?${query}`)
+    for (const child of page.files) {
+      if (Date.now() >= deadline) throw new Error('Carpeta parcialmente copiada. El próximo intento continuará sin duplicar los archivos guardados.')
+      const checkpoint = checkpoints.get(child.id)
+      if (checkpoint && checkpoint.parentId === target.id && targetFiles.has(checkpoint.id) && (!child.size || targetFiles.get(checkpoint.id)?.size === child.size) && child.mimeType !== 'application/vnd.google-apps.folder') {
+        members.push(checkpoint)
+        continue
+      }
+      const childName = `${child.id}-${child.name || 'Archivo'}`
+      if (child.mimeType === 'application/vnd.google-apps.shortcut') throw new Error(`La carpeta contiene un acceso directo (${child.name}); requiere el archivo original.`)
+      let copy: DriveFile
+      if (child.mimeType === 'application/vnd.google-apps.folder') {
+        copy = await copyArchiveFolder(child.id, target.id, childName, members, checkpoints, deadline, depth + 1)
+      } else {
+        copy = [...targetFiles.values()].find(file => file.name === childName && (!child.size || file.size === child.size)) || await copyDriveFile({ sourceFileId: child.id, parentId: target.id, name: childName })
+      }
+      const size = child.size ? Number(child.size) : null
+      await verifyMonthlyDriveFile(copy.id, target.id, size)
+      members.push({ id: copy.id, parentId: target.id, size, sourceId: child.id })
+    }
+    pageToken = page.nextPageToken || ''
+  } while (pageToken)
+  return target
 }

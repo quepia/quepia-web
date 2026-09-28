@@ -24,7 +24,9 @@
     "drive:ensure-folders": "node scripts/ensure-google-drive-client-folders.mjs",
     "portfolio:download": "node scripts/myportfolio-bulk-download.mjs",
     "portfolio:catalog": "node scripts/portfolio-import.mjs",
-    "portfolio:import": "node scripts/portfolio-import.mjs --execute"
+    "portfolio:import": "node scripts/portfolio-import.mjs --execute",
+    "drive:monthly": "node scripts/monthly-backups.mjs",
+    "drive:monthly:test": "node --test lib/sistema/monthly-backups.test.mjs"
   },
   "dependencies": {
     "@ai-sdk/google-vertex": "^5.0.16",
