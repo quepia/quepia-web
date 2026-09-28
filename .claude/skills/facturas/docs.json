@@ -1,0 +1,117 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "palm",
+  "name": "SDK para ARCA",
+  "description": "SDK de TypeScript para facturación electrónica con ARCA.",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "/"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#1E40AF",
+    "light": "#60A5FA",
+    "dark": "#3B82F6"
+  },
+  "appearance": {
+    "default": "system"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Empezar",
+        "icon": "rocket",
+        "pages": [
+          "index",
+          "getting-started/quickstart",
+          "getting-started/arca-setup",
+          "getting-started/cli"
+        ]
+      },
+      {
+        "group": "Guías",
+        "icon": "book-open",
+        "pages": [
+          "guides/invoices",
+          "guides/credit-notes",
+          "guides/avoid-duplicates",
+          "guides/taxpayers",
+          "guides/production",
+          "guides/wsmtxca"
+        ]
+      },
+      {
+        "group": "Referencia",
+        "icon": "braces",
+        "pages": [
+          "reference/client",
+          "reference/configuration",
+          "reference/errors",
+          "reference/cli",
+          "reference/arca-services",
+          "reference/public-api",
+          "reference/examples"
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "",
+        "icon": "github",
+        "href": "https://github.com/LaPyme/facturas"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Inicio rápido",
+      "href": "/getting-started/quickstart"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/LaPyme/facturas"
+    },
+    "links": [
+      {
+        "header": "Proyecto",
+        "items": [
+          {
+            "label": "npm",
+            "href": "https://www.npmjs.com/package/facturas"
+          },
+          {
+            "label": "Changelog",
+            "href": "https://github.com/LaPyme/facturas/blob/main/packages/arca/CHANGELOG.md"
+          },
+          {
+            "label": "Licencia",
+            "href": "https://github.com/LaPyme/facturas/blob/main/LICENSE"
+          },
+          {
+            "label": "La Pyme",
+            "href": "https://lapyme.com.ar"
+          }
+        ]
+      }
+    ]
+  },
+  "search": {
+    "prompt": "Buscar en la documentación..."
+  },
+  "contextual": {
+    "options": ["copy", "chatgpt", "claude", "cursor", "mcp"],
+    "display": "toc"
+  },
+  "metadata": {
+    "timestamp": true
+  },
+  "seo": {
+    "indexing": "navigable"
+  }
+}

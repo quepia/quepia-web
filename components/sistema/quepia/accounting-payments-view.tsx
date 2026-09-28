@@ -1,8 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Search, Plus, Edit2, Trash2, Download, X, Check, Clock, AlertCircle, Loader2, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
+import { createClient } from "@/lib/sistema/supabase/client"
+import {
+    AccountingInvoiceDialog,
+    formatVoucherNumber,
+    type InvoicingStatus,
+    type PaymentInvoice,
+} from "./accounting-invoice-dialog"
+import type { PaymentCreditNote } from "./accounting-credit-note-panel"
 import type { ClientPayment, ClientPaymentWithProject, ClientPaymentInsert, ClientPaymentUpdate, PaymentStatus, Currency, Account } from "@/types/accounting"
 import type { ProjectWithChildren } from "@/types/sistema"
 
@@ -49,6 +57,11 @@ export function AccountingPaymentsView({
     const [editingPayment, setEditingPayment] = useState<ClientPaymentWithProject | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+    const [invoicingStatus, setInvoicingStatus] = useState<InvoicingStatus>({ configured: false })
+    const [invoicesByPayment, setInvoicesByPayment] = useState<Record<string, PaymentInvoice>>({})
+    const [invoiceTarget, setInvoiceTarget] = useState<ClientPaymentWithProject | null>(null)
+    const [invoiceIssued, setInvoiceIssued] = useState(false)
+    const [creditNotesByInvoice, setCreditNotesByInvoice] = useState<Record<string, PaymentCreditNote[]>>({})
 
     // Form state
     const [formClientMode, setFormClientMode] = useState<ClientMode>('project')
@@ -77,6 +90,50 @@ export function AccountingPaymentsView({
             setFormAccountId("")
         }
     }, [accounts, formAccountId, formCurrency])
+
+    useEffect(() => {
+        fetch("/api/invoicing/issue")
+            .then((response) => response.json())
+            .then((body) => { if (body?.ok) setInvoicingStatus(body.data) })
+            .catch(() => undefined)
+    }, [])
+
+    // Último comprobante de cada cobro en el entorno configurado (el más nuevo
+    // gana: una factura anulada queda detrás de la que la reemplaza). Los
+    // rechazados y descartados no bloquean volver a emitir.
+    const loadInvoices = useCallback(async () => {
+        if (!invoicingStatus.environment || payments.length === 0) return
+        const supabase = createClient()
+        const { data } = await supabase
+            .from("accounting_invoices")
+            .select("id, payment_id, environment, status, amount_cents, voucher_class, voucher_number, sales_point, cae, cae_expiry, qr_url, receiver_condition, receiver_doc_number, receiver_name, last_error, created_at")
+            .eq("environment", invoicingStatus.environment)
+            .in("payment_id", payments.map((p) => p.id))
+            .not("status", "in", "(rejected,discarded)")
+            .order("created_at", { ascending: true })
+        const byPayment: Record<string, PaymentInvoice> = {}
+        for (const invoice of (data ?? []) as PaymentInvoice[]) byPayment[invoice.payment_id] = invoice
+        setInvoicesByPayment(byPayment)
+
+        const invoiceIds = Object.values(byPayment).map((invoice) => invoice.id)
+        if (invoiceIds.length === 0) {
+            setCreditNotesByInvoice({})
+            return
+        }
+        const { data: notes } = await supabase
+            .from("accounting_credit_notes")
+            .select("id, invoice_id, status, mode, amount_cents, description, voucher_class, voucher_number, sales_point, cae, last_error")
+            .in("invoice_id", invoiceIds)
+            .not("status", "in", "(rejected,discarded)")
+            .order("created_at", { ascending: true })
+        const byInvoice: Record<string, PaymentCreditNote[]> = {}
+        for (const note of (notes ?? []) as PaymentCreditNote[]) {
+            (byInvoice[note.invoice_id] ??= []).push(note)
+        }
+        setCreditNotesByInvoice(byInvoice)
+    }, [invoicingStatus.environment, payments])
+
+    useEffect(() => { loadInvoices() }, [loadInvoices])
 
     // Filter payments
     const filteredPayments = payments.filter((p) => {
@@ -298,13 +355,14 @@ export function AccountingPaymentsView({
                             <th className="px-6 py-4 font-medium text-white/40">Estado</th>
                             <th className="px-6 py-4 font-medium text-white/40">Fecha Esperada</th>
                             <th className="px-6 py-4 font-medium text-white/40">Fecha Pago</th>
+                            <th className="px-6 py-4 font-medium text-white/40">Factura</th>
                             <th className="px-6 py-4 font-medium text-white/40 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.06]">
                         {filteredPayments.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-white/40">
+                                <td colSpan={8} className="px-6 py-12 text-center text-white/40">
                                     No hay pagos registrados
                                 </td>
                             </tr>
@@ -349,6 +407,13 @@ export function AccountingPaymentsView({
                                         <td className="px-6 py-4 text-white/40 tabular-nums">
                                             {payment.payment_date || '-'}
                                         </td>
+                                        <td className="px-6 py-4">
+                                            <InvoiceCell
+                                                payment={payment}
+                                                invoice={invoicesByPayment[payment.id] ?? null}
+                                                onOpen={() => setInvoiceTarget(payment)}
+                                            />
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
                                                 <button
@@ -389,6 +454,25 @@ export function AccountingPaymentsView({
                     </tbody>
                 </table>
             </div>
+
+            {invoiceTarget && (
+                <AccountingInvoiceDialog
+                    payment={invoiceTarget}
+                    invoice={invoicesByPayment[invoiceTarget.id] ?? null}
+                    creditNotes={creditNotesByInvoice[invoicesByPayment[invoiceTarget.id]?.id ?? ""] ?? []}
+                    status={invoicingStatus}
+                    // Recargar los pagos muestra un spinner que desmonta el
+                    // diálogo; se hace al cerrarlo, no apenas se emite.
+                    onClose={() => {
+                        setInvoiceTarget(null)
+                        if (invoiceIssued) {
+                            setInvoiceIssued(false)
+                            onRefresh()
+                        }
+                    }}
+                    onIssued={() => { setInvoiceIssued(true); loadInvoices() }}
+                />
+            )}
 
             {/* Modal */}
             {isModalOpen && (
@@ -632,6 +716,57 @@ export function AccountingPaymentsView({
 }
 
 // Helper to flatten project tree
+function InvoiceCell({
+    payment,
+    invoice,
+    onOpen,
+}: {
+    payment: ClientPaymentWithProject
+    invoice: PaymentInvoice | null
+    onOpen: () => void
+}) {
+    // El número abre el diálogo de la factura: PDF, descarga y notas de crédito.
+    if (invoice?.status === "authorized" || invoice?.status === "credited") {
+        const credited = invoice.status === "credited"
+        return (
+            <button
+                onClick={onOpen}
+                className="text-left text-white/60 hover:text-white underline-offset-2 hover:underline tabular-nums"
+                title={credited ? "Anulada por nota de crédito" : invoice.cae ? `CAE ${invoice.cae} · vence ${invoice.cae_expiry}` : undefined}
+            >
+                <span className={cn(credited && "line-through text-white/40")}>{formatVoucherNumber(invoice)}</span>
+                {credited && <span className="ml-1.5 text-xs text-white/40 no-underline">anulada</span>}
+                {invoice.environment === "test" && <span className="ml-1.5 text-xs text-white/30">prueba</span>}
+            </button>
+        )
+    }
+    if (invoice?.status === "conflict") {
+        return <span className="text-xs text-red-400" title={invoice.last_error ?? undefined}>Revisar en ARCA</span>
+    }
+    if (invoice && (invoice.status === "pending" || invoice.status === "indeterminate")) {
+        return (
+            <button onClick={onOpen} className="text-xs text-amber-400 hover:text-amber-300">
+                Sin confirmar · reintentar
+            </button>
+        )
+    }
+    // Un número cargado a mano sigue siendo válido: no se ofrece emitir otra.
+    if (payment.invoice_number) {
+        return <span className="text-white/60 tabular-nums">{payment.invoice_number}</span>
+    }
+    if (payment.status !== "paid" || payment.currency !== "ARS") {
+        return <span className="text-white/20">-</span>
+    }
+    return (
+        <button
+            onClick={onOpen}
+            className="text-xs text-white/50 hover:text-white border border-white/10 hover:border-white/20 rounded-md px-2 py-1 transition-colors"
+        >
+            Emitir
+        </button>
+    )
+}
+
 function flattenProjects(projects: ProjectWithChildren[], result: ProjectWithChildren[] = []): ProjectWithChildren[] {
     for (const p of projects) {
         result.push(p)

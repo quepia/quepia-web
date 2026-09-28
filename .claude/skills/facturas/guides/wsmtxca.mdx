@@ -1,0 +1,183 @@
+---
+title: "WSMTXCA para casos requeridos"
+sidebarTitle: "WSMTXCA"
+description: "Configurá la emisión cuando el contribuyente o el punto de venta opera mediante WSMTXCA."
+keywords: ["WSMTXCA", "detalle de ítems", "CAE", "FCE"]
+---
+
+Consultá esta guía solo cuando el contribuyente o el punto de venta opere a
+través de WSMTXCA. No es una preferencia cotidiana ni un interruptor de
+funcionalidad. Es un servicio específico de ARCA que lleva el detalle de cada
+ítem además de la cabecera fiscal.
+
+La API de negocio no cambia. Seguís usando `issue()`, `issueCreditNote()`,
+`issueDebitNote()` y las vistas previas.
+
+## Cuándo corresponde
+
+Lo define el alta en ARCA, no el comprobante. WSMTXCA autoriza solo si el
+contribuyente está empadronado en Codificación de Productos, opción Factura con
+Detalle, y el punto de venta es del tipo "Codificación de Productos - Web
+Services" y no está bloqueado. WSFE, el servicio por defecto, rechaza un punto
+de venta que no sea del tipo RECE. Cada punto de venta pertenece entonces a un
+solo servicio:
+
+| Tipo del punto de venta en ARCA | Servicio |
+| --- | --- |
+| RECE para aplicativo y web services | WSFE, sin `service` |
+| Codificación de Productos - Web Services | `{ service: "wsmtxca" }` |
+
+`client.wsmtxca.getSalesPoints()` lista los puntos de venta habilitados para
+WSMTXCA. Un comprobante enviado por el servicio que no corresponde vuelve
+`rejected`: WSFE lo rechaza con 10005 y WSMTXCA con 10010 o 101.
+
+## Indicar el servicio requerido
+
+La selección es explícita y se pasa en el segundo argumento. El SDK no detecta
+qué servicio corresponde al contribuyente o al punto de venta. Tampoco cambia
+de servicio después de un rechazo o de un timeout.
+
+```ts
+const factura = await arca.issue(input, { service: "wsmtxca" });
+```
+
+Sin `service`, la llamada usa WSFE. `issue()`,
+`issueCreditNote()`, `issueDebitNote()`, `preview()`, `previewCreditNote()` y
+`previewDebitNote()` aceptan la opción. Los tipos siguen el literal que
+pasaste: con `{ service: "wsmtxca" }`, tanto el `request` de la vista previa
+como el del resultado son de WSMTXCA, sin casts.
+
+## Detalle de ítems
+
+El detalle vive en los mismos `items`. Además de la plata, `net` o `gross` con
+`vat`, cada ítem lleva `description`, `quantity`, `unit`, `unitPrice`,
+`matrixCode` y `matrixUnits`, y opcionalmente `discount` y `code`.
+`{ service: "wsmtxca" }` exige esos campos en todos los ítems. Si falta alguno
+o no cumple las reglas de ARCA, se lanza `ArcaInputError` con el índice del
+ítem y el campo, antes de cualquier llamada. La emisión predeterminada ignora
+estos campos y arma la cabecera fiscal.
+
+| Campo | Regla |
+| --- | --- |
+| `matrixCode` | El GTIN del producto. Obligatorio salvo que `unit` sea 97 o 99 |
+| `matrixUnits` | Unidades enteras del GTIN, de 1 a 999999. Va siempre junto con `matrixCode` |
+| `code` | Tu código interno, texto libre de hasta 50 caracteres. ARCA no lo valida |
+
+Lo que no tiene GTIN porque no es parte de la mercadería que vendés
+habitualmente, como fletes, servicios, alquileres o muestras, usa uno de los
+códigos genéricos de ARCA. `ARCA_WSMTXCA_GENERIC_CODES` los lista con su
+descripción:
+
+```ts
+import { ARCA_WSMTXCA_GENERIC_CODES } from "facturas";
+
+ARCA_WSMTXCA_GENERIC_CODES["7790001001085"]; // "Fletes"
+```
+
+Un GTIN que ARCA no tiene registrado no rechaza el comprobante: lo autoriza
+con una observación.
+
+Este bloque sale de
+[examples/emision-completa.ts](https://github.com/LaPyme/facturas/blob/main/examples/emision-completa.ts):
+
+```ts
+const input = {
+  issuer: "responsable_inscripto",
+  salesPoint: 1,
+  to: { condition: "responsable_inscripto", cuit: "20123456789" },
+  items: [
+    {
+      net: 10_000,
+      vat: 21,
+      description: "Producto",
+      quantity: 1,
+      unit: 7,
+      unitPrice: "100.000000",
+      // El GTIN del producto. Lo que no tiene GTIN usa un código genérico
+      // de ARCA_WSMTXCA_GENERIC_CODES; este es "Ventas varias".
+      matrixCode: "7790001001054",
+      matrixUnits: 1,
+    },
+  ],
+} satisfies IssueInput;
+```
+
+El SDK deriva de ahí las filas del servicio: la condición de IVA sale de la
+alícuota del ítem (21 → 5, 10,5 → 4, 0 → 3, 2,5 → 9, 5 → 8, 27 → 6, exento → 2
+y no gravado → 1), el importe del ítem incluye el IVA, y un ítem
+de clase A además informa su importe de IVA. Como la cabecera y las líneas
+salen de los mismos ítems, no hay dos descripciones de la misma plata que
+puedan discrepar: el IVA por línea se concilia con el redondeo agrupado por
+alícuota, y que las líneas sumen la cabecera es un invariante del SDK.
+
+Un desglose `amounts` ya revisado no tiene líneas, así que
+`{ service: "wsmtxca" }` con `amounts` se rechaza con `ArcaInputError`: WSMTXCA
+necesita `items` con detalle.
+
+`unitPrice` es la única excepción monetaria del SDK: un **string decimal en
+unidades mayores** con hasta seis decimales, para no perder la precisión del
+precio unitario del servicio. Todos los demás importes del ítem son enteros en
+centavos.
+
+El SDK arma las dos codificaciones que requiere ARCA. La aplicación no construye
+listas SOAP.
+
+## Clases y receptor
+
+WSMTXCA autoriza solo comprobantes de clase A y B, incluidas las facturas con
+leyenda de retención y las FCE. Un comprobante de clase C con
+`{ service: "wsmtxca" }` se rechaza con `ArcaInputError` en `voucherType`
+antes de cualquier llamada. Emitilo por WSFE.
+
+Un consumidor final sin identificar no lleva documento: el SDK no envía
+`codigoTipoDocumento` ni `numeroDocumento`, como pide ARCA. La cabecera del
+resultado igual lo informa como `documentType: 99` y `documentNumber: "0"`,
+igual que en WSFE, y el QR usa esos valores. Si el importe llega al umbral de
+identificación, el receptor necesita `cuit` o `dni`, igual que en WSFE.
+
+## Previsualizar
+
+`preview(input, { service: "wsmtxca" }).request` es el request de WSMTXCA sin
+número de comprobante:
+
+```ts
+const previsualizacion = arca.preview(input, { service: "wsmtxca" });
+previsualizacion.request.comprobanteCAERequest.importeTotal; // number
+```
+
+Con `include: { request: true }`, cualquier resultado trae en `request` el
+request de WSMTXCA que el SDK envió o preparó para ese intento. Las llamadas a
+WSFE conservan sus tipos `WsfeVoucherInput`.
+
+## FCE en los dos servicios
+
+Los datos de negocio son los mismos: `fce: { cbu, alias?, transfer?, reference? }`
+en la factura y `fce: { annulment, reference? }` en la nota. La codificación,
+en cambio, difiere:
+
+| Dato | WSFE | WSMTXCA |
+| --- | --- | --- |
+| CBU / alias | opcionales 2101 y 2102 | dato adicional 21, combinado (`c1`/`c2`) |
+| Anulación | opcional 22 | dato adicional 22 |
+| Transferencia | opcional 27 | dato adicional 27 |
+
+No dupliques estas entradas a través de `optionalFields` cuando ya usás `fce`.
+
+## Consulta y reservas
+
+La consulta de WSMTXCA compara la evidencia completa del detalle, no solo el
+total de cabecera, así que una reserva repetida se resuelve contra los ítems
+que ARCA tiene registrados. Si la consulta vuelve incompleta, el resultado
+queda `indeterminate` y no se reenvía nada.
+
+Las reservas guardan el servicio. Una reserva de WSMTXCA, o cualquier reserva
+con líneas del servicio, se escribe como registro `v: 2`. Un SDK que no conoce
+ese formato no la reproduce, así que nunca reenvía por WSFE un comprobante que
+era de WSMTXCA. La vida de estos registros está en
+[Evitar comprobantes duplicados](/guides/avoid-duplicates#implementar-otro-store).
+
+Para consultar un comprobante, usá `lookup()` con `{ service: "wsmtxca" }`, y
+para el último número autorizado, `lastAuthorized()` con la misma opción.
+Para las lecturas de `client.wsmtxca`, como `getLastAuthorizedVoucher()` y
+`getSalesPoints()`, mirá
+[Módulos de transporte](/reference/arca-services#clientwsmtxca).

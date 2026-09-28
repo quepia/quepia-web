@@ -11,6 +11,8 @@ import {
   createTasksBatchInputSchema,
   getProjectIntelligenceInputSchema,
   getTaskInputSchema,
+  issueCreditNoteInputSchema,
+  issueInvoiceInputSchema,
   listAccountsInputSchema,
   listColumnsInputSchema,
   listExpensesInputSchema,
@@ -52,6 +54,8 @@ type ToolName =
   | "accounting_record_expense"
   | "accounting_record_income"
   | "accounting_record_transfer"
+  | "accounting_issue_invoice"
+  | "accounting_issue_credit_note"
   | "accounting_void_operation"
   | "tasks_list_projects"
   | "tasks_list_columns"
@@ -119,6 +123,16 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   {
     name: "accounting_record_transfer",
     capabilities: [CAPABILITIES.accountingTransferWrite],
+    writes: true,
+  },
+  {
+    name: "accounting_issue_invoice",
+    capabilities: [CAPABILITIES.accountingInvoiceWrite],
+    writes: true,
+  },
+  {
+    name: "accounting_issue_credit_note",
+    capabilities: [CAPABILITIES.accountingInvoiceWrite],
     writes: true,
   },
   {
@@ -711,6 +725,60 @@ export function createMcpServer(
           input,
           webBaseUrl,
         ),
+    );
+  }
+
+  if (available.has("accounting_issue_invoice")) {
+    server.registerTool(
+      "accounting_issue_invoice",
+      {
+        title: "Issue the ARCA invoice for a client payment",
+        description: descriptionWithWarning(
+          "Issues the electronic invoice (Factura C) in ARCA for one payment already recorded as paid in ARS, using the payment_id returned by accounting_record_income. This creates a real fiscal document that cannot be deleted, only corrected with a credit note, so call it only when the user asked to invoice that payment in this conversation, and confirm the receiver first: consumidor_final without document unless the user gave a CUIT or DNI. The service period defaults to the payment's month and the invoice date to today in Buenos Aires. description is the product or service line printed on the PDF (ARCA does not receive it); pass the user's wording when they give one, otherwise it defaults to the services of that month. Repeating the call for the same payment_id never issues twice: it returns the existing invoice or resumes the same reserved number. Report outcome, voucher number, CAE and environment back to the user; an environment of test means ARCA homologation with no fiscal validity.",
+        ),
+        inputSchema: issueInvoiceInputSchema,
+        outputSchema: rpcEnvelopeOutputSchema,
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async (input) => {
+        try {
+          return resultFromEnvelope(await database.issueInvoice(input));
+        } catch (error) {
+          return internalToolError(error);
+        }
+      },
+    );
+  }
+
+  if (available.has("accounting_issue_credit_note")) {
+    server.registerTool(
+      "accounting_issue_credit_note",
+      {
+        title: "Issue an ARCA credit note for an invoice",
+        description: descriptionWithWarning(
+          "Issues a credit note (Nota de Crédito C) in ARCA against an invoice issued by this system, identified by invoice_id (the invoice.id that accounting_issue_invoice returns; calling accounting_issue_invoice again with the same payment_id returns it without issuing). ARCA never cancels an invoice: this credit note is itself a real fiscal document that cannot be deleted, so call it only when the user explicitly asked to correct or cancel that invoice in this conversation, and confirm mode and amount first. mode total credits the whole invoice and frees the payment to be invoiced again; mode partial credits amount (pesos, e.g. 1500.50). Notes never exceed the invoice total. description is the line printed on the PDF. Repeating the call for the same invoice while a note is unconfirmed resumes that note and never issues twice. Report the outcome, number, CAE and environment; test means ARCA homologation with no fiscal validity.",
+        ),
+        inputSchema: issueCreditNoteInputSchema,
+        outputSchema: rpcEnvelopeOutputSchema,
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        },
+      },
+      async (input) => {
+        try {
+          return resultFromEnvelope(await database.issueCreditNote(input));
+        } catch (error) {
+          return internalToolError(error);
+        }
+      },
     );
   }
 

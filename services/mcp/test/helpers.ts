@@ -56,6 +56,7 @@ export function accessContext(
 export interface DatabaseMock extends DatabaseAccess {
   contextCalls: number;
   calls: Array<{ rpcName: string; request: unknown }>;
+  invoiceCalls: unknown[];
 }
 
 export function databaseMock(
@@ -65,12 +66,21 @@ export function databaseMock(
   return {
     contextCalls: 0,
     calls: [],
+    invoiceCalls: [],
     async getContext() {
       this.contextCalls += 1;
       return context;
     },
     async call(rpcName, request) {
       this.calls.push({ rpcName, request });
+      return response;
+    },
+    async issueInvoice(request) {
+      this.invoiceCalls.push(request);
+      return response;
+    },
+    async issueCreditNote(request) {
+      this.invoiceCalls.push({ credit_note: request });
       return response;
     },
   };

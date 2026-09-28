@@ -3,6 +3,7 @@ export const CAPABILITIES = {
   accountingExpenseWrite: "accounting.expense.write",
   accountingIncomeWrite: "accounting.income.write",
   accountingTransferWrite: "accounting.transfer.write",
+  accountingInvoiceWrite: "accounting.invoice.write",
   tasksRead: "tasks.read",
   tasksWrite: "tasks.write",
   tasksStructureWrite: "tasks.structure.write",
@@ -59,6 +60,10 @@ export interface RpcEnvelope {
 export interface DatabaseAccess {
   getContext(): Promise<McpAccessContext>;
   call(rpcName: string, request: unknown): Promise<RpcEnvelope>;
+  // La emisión en ARCA la hace la web, dueña de la clave fiscal. Se le
+  // reenvía el token del usuario y Postgres vuelve a autorizar todo.
+  issueInvoice(request: unknown): Promise<RpcEnvelope>;
+  issueCreditNote(request: unknown): Promise<RpcEnvelope>;
 }
 
 export type DatabaseAccessFactory = (

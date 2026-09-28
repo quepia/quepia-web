@@ -51,3 +51,8 @@ node_modules 2/
  sistema de gestion de proyectos/
 /data
 *.bak
+
+# Credenciales ARCA generadas por `npx facturas init`
+arca-*.key
+arca-*.crt
+arca-*.csr

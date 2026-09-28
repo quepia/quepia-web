@@ -211,6 +211,81 @@ export const recordIncomeInputSchema = z
     }
   });
 
+// Receptor fiscal de la factura. Consumidor final puede ir sin documento; toda
+// otra condición de IVA exige el CUIT. El nombre solo queda en el sistema.
+const invoiceReceiverSchema = z
+  .object({
+    condition: z.enum([
+      "consumidor_final",
+      "responsable_inscripto",
+      "monotributo",
+      "exento",
+      "no_alcanzado",
+    ]),
+    doc_type: z.enum(["cuit", "dni"]).optional(),
+    doc_number: z
+      .string()
+      .trim()
+      .regex(/^[0-9-. ]{7,20}$/, "doc_number must contain only digits")
+      .optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (Boolean(value.doc_type) !== Boolean(value.doc_number)) {
+      context.addIssue({
+        code: "custom",
+        message: "doc_type and doc_number go together",
+        path: ["doc_number"],
+      });
+    }
+    if (value.condition !== "consumidor_final" && value.doc_type !== "cuit") {
+      context.addIssue({
+        code: "custom",
+        message: "A receiver other than consumidor_final requires a CUIT",
+        path: ["doc_type"],
+      });
+    }
+  });
+
+export const issueInvoiceInputSchema = z
+  .object({
+    payment_id: uuidSchema,
+    receiver: invoiceReceiverSchema,
+    // Detalle impreso en la factura (Producto / Servicio); no viaja a ARCA.
+    description: z.string().trim().min(1).max(500).optional(),
+    voucher_date: isoDateSchema.optional(),
+    service_from: isoDateSchema.optional(),
+    service_to: isoDateSchema.optional(),
+    payment_due_date: isoDateSchema.optional(),
+  })
+  .strict();
+
+// Nota de crédito sobre una factura emitida por el sistema. total anula la
+// factura entera; partial acredita amount (pesos con dos decimales).
+export const issueCreditNoteInputSchema = z
+  .object({
+    invoice_id: uuidSchema,
+    mode: z.enum(["total", "partial"]),
+    amount: z
+      .string()
+      .trim()
+      .regex(/^\d{1,10}(\.\d{1,2})?$/, "amount must be pesos like 1500.50")
+      .optional(),
+    description: z.string().trim().min(1).max(500),
+    voucher_date: isoDateSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if ((value.mode === "partial") !== Boolean(value.amount)) {
+      context.addIssue({
+        code: "custom",
+        message: "amount is required for a partial note and not allowed for a total one",
+        path: ["amount"],
+      });
+    }
+  });
+
 export const recordTransferInputSchema = z
   .object({
     amount: moneySchema,

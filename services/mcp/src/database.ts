@@ -120,6 +120,59 @@ class SupabaseDatabaseAccess implements DatabaseAccess {
       this.config.databaseTimeoutMs,
     );
   }
+
+  issueInvoice(request: unknown): Promise<RpcEnvelope> {
+    return this.postToInvoicing("/api/invoicing/mcp", request);
+  }
+
+  issueCreditNote(request: unknown): Promise<RpcEnvelope> {
+    return this.postToInvoicing("/api/invoicing/mcp/credit-note", request);
+  }
+
+  private async postToInvoicing(
+    path: string,
+    request: unknown,
+  ): Promise<RpcEnvelope> {
+    // Deja un segundo para responder antes del límite del pedido MCP. Si se
+    // corta igual, la web termina la emisión y repetir el pedido devuelve ese
+    // mismo comprobante: la emisión es idempotente.
+    const timeoutMs = Math.max(this.config.requestTimeoutMs - 1_000, 1_000);
+    let response: Response;
+    try {
+      response = await fetch(new URL(path, this.config.webBaseUrl), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.identity.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+        redirect: "error",
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
+      const timedOut =
+        error instanceof DOMException && error.name === "TimeoutError";
+      throw new HttpError(
+        504,
+        timedOut ? "invoice_timeout" : "invoice_service_unreachable",
+        timedOut
+          ? "The voucher is still being processed. Repeat the same call to get its result; it never issues twice."
+          : "The invoicing service could not be reached.",
+      );
+    }
+
+    const parsed = rpcEnvelopeSchema.safeParse(
+      await response.json().catch(() => null),
+    );
+    if (!parsed.success) {
+      throw new HttpError(
+        502,
+        "invalid_invoice_response",
+        `The invoicing service answered ${response.status} without a valid envelope`,
+      );
+    }
+    return parsed.data;
+  }
 }
 
 export function accessContextFromEnvelope(

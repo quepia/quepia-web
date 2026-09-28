@@ -260,6 +260,12 @@ describe("HTTP security and discovery", () => {
         async call() {
           throw new Error("unreachable");
         },
+        async issueInvoice() {
+          throw new Error("unreachable");
+        },
+        async issueCreditNote() {
+          throw new Error("unreachable");
+        },
       }),
     });
     await withHttpServer(deniedApp, async (baseUrl) => {

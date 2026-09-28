@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { Calculator, CreditCard, Receipt, Tags, BarChart3, Wallet, Sparkles, History, HandCoins } from "lucide-react"
+import { Calculator, CreditCard, Receipt, Tags, BarChart3, Wallet, Sparkles, History, HandCoins, FileText } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { useAccounting } from "@/lib/sistema/hooks/useAccounting"
 import { AccountingPaymentsView } from "./accounting-payments-view"
@@ -12,13 +12,14 @@ import { AccountingChartsView } from "./accounting-charts-view"
 import { AccountingInvestmentsView } from "./accounting-investments-view"
 import { AccountingHistoryView } from "./accounting-history-view"
 import { AccountingContributionsView } from "./accounting-contributions-view"
+import { AccountingInvoicingSettings } from "./accounting-invoicing-settings"
 import type { ProjectWithChildren } from "@/types/sistema"
 
 interface AccountingViewProps {
     projects: ProjectWithChildren[]
 }
 
-type TabType = 'payments' | 'expenses' | 'accounts' | 'categories' | 'charts' | 'investments' | 'history' | 'contributions'
+type TabType = 'payments' | 'expenses' | 'accounts' | 'categories' | 'charts' | 'investments' | 'history' | 'contributions' | 'invoicing'
 
 const getYearRange = (year: number) => {
     const currentYear = new Date().getFullYear()
@@ -45,6 +46,7 @@ export function AccountingView({ projects }: AccountingViewProps) {
         { id: 'history' as TabType, label: 'Historial', icon: History },
         { id: 'categories' as TabType, label: 'Categorías', icon: Tags },
         { id: 'charts' as TabType, label: 'Gráficos', icon: BarChart3 },
+        { id: 'invoicing' as TabType, label: 'Facturación', icon: FileText },
     ]
 
     // Handler para cambiar año y refrescar datos
@@ -276,6 +278,7 @@ export function AccountingView({ projects }: AccountingViewProps) {
                         onYearChange={handleYearChange}
                     />
                 )}
+                {activeTab === 'invoicing' && <AccountingInvoicingSettings />}
             </div>
         </div>
     )

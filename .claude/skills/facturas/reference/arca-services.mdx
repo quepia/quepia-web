@@ -1,0 +1,110 @@
+---
+title: "Módulos de transporte"
+description: "Consultá los clientes técnicos de ARCA para mantenimiento, diagnósticos y casos avanzados."
+keywords: ["WSFE", "WSMTXCA", "Padrón", "catálogos", "consultas"]
+---
+
+`client.wsfe`, `client.wsmtxca` y `client.padron` son clientes técnicos que la
+fachada usa por debajo. Ahí viven las lecturas, los catálogos, el estado de los
+servicios y el Padrón. También son la costura que los tests de integración
+pueden reemplazar por un doble.
+
+Para toda emisión normal, usá `issue()`, `issueCreditNote()`,
+`issueDebitNote()` y sus vistas previas. Esos métodos reciben un único input de
+negocio, derivan el pedido fiscal, reservan el número y recuperan los
+reintentos.
+
+Los métodos de emisión de bajo nivel existen y son públicos. No ofrecen esas
+garantías de la fachada. Usalos solo si mantenés una integración avanzada que
+ya controla el pedido exacto, el número fiscal y la recuperación de resultados
+inciertos.
+
+Los inputs usan nombres al estilo JS y el SDK los mapea internamente a los
+campos SOAP de ARCA. Los campos de fecha aceptan `YYYY-MM-DD` o `YYYYMMDD`.
+Los métodos autenticados aceptan `forceRefresh: true` para descartar el TA WSAA
+cacheado y pedir un Token Authorization nuevo para ese servicio.
+
+## `client.wsfe`
+
+- `issue({ voucherNumber, data })` manda una autorización y devuelve evidencia
+  `authorized`, `rejected` o `indeterminate`.
+- `getNextVoucherNumber({ salesPoint, voucherType })` lee el próximo número.
+  Para el último número autorizado en WSFE o WSMTXCA, usá
+  [`lastAuthorized()`](/reference/client#lastauthorized).
+- `lookupVoucher({ number, salesPoint, voucherType })` devuelve la consulta
+  con la respuesta cruda, con `not_found` para el código 602 de
+  `FECompConsultar`. Para el comprobante normalizado, usá
+  [`lookup()`](/reference/client#lookup).
+- `getSalesPoints()` devuelve los puntos de venta como
+  `{ number, emissionType?, blocked, deletedAt? }`, la misma forma que en
+  WSMTXCA: `blocked` es booleano y `deletedAt` es `YYYY-MM-DD`, ausente mientras
+  el punto está activo. El código 602 de `FEParamGetPtosVenta` es una lista
+  vacía, que es como ARCA informa un contribuyente sin puntos de venta para web
+  services.
+- Los catálogos en vivo, como `getVoucherTypes()`, `getDocumentTypes()`,
+  `getCurrencyTypes()` y `getVatRates()`, para datos de referencia sin valores
+  fijos en el código.
+- `getServerStatus()` para la salud del backend.
+
+## `client.wsmtxca`
+
+- `issue({ data })`
+- `getLastAuthorizedVoucher({ voucherType, salesPoint })`, donde el código 1502
+  devuelve el número de comprobante `0`.
+- `lookupVoucher({ voucherType, salesPoint, voucherNumber })`, donde el código
+  1503 de `consultarComprobante` es `not_found`. El código 602
+  de WSMTXCA no es ausencia de comprobante y sigue siendo un error.
+- `getSalesPoints()` para los puntos de venta habilitados en WSMTXCA.
+
+Si el contribuyente o el punto de venta opera a través de WSMTXCA, pasá
+`{ service: "wsmtxca" }` a la fachada. Revisá
+[WSMTXCA para casos requeridos](/guides/wsmtxca).
+
+## `client.padron`
+
+- `getTaxpayerDetails(taxId)` devuelve los datos del contribuyente o `null`
+  cuando la constancia dice que no existe.
+- `getTaxIdByDocument(documentNumber)` resuelve CUIT candidatos a partir de un
+  número de documento, o `null`.
+
+`getTaxpayerDetails()` devuelve `condition`, la condición de receptor con la
+que se factura a ese contribuyente, en el mismo enum que acepta `to.condition`.
+Sale de las inscripciones activas en IVA: 30 es `responsable_inscripto`, 20
+`monotributo`, 32 `exento` y 34 `no_alcanzado`. Quien no tiene ninguna es
+`consumidor_final`. Si las inscripciones se contradicen, o la constancia trae
+un error distinto de "no existe", `condition` no viene y la decisión queda en
+tus manos. `taxes` lista cada impuesto informado con su
+id, descripción, estado y régimen. `address` trae el domicilio fiscal,
+`activities` las actividades económicas con su código NAES, `errors` los
+errores de la constancia, y `raw` conserva la respuesta completa. El detalle
+está en [Consultar contribuyentes](/guides/taxpayers#datos-del-contribuyente).
+
+```ts
+const contribuyente = await arca.padron.getTaxpayerDetails(cuit);
+if (contribuyente?.condition) {
+  await arca.issue({ ...venta, to: { condition: contribuyente.condition, cuit } });
+}
+```
+
+El "no existe" de Padrón se detecta por el texto de `errorConstancia` o del
+SOAP fault de ARCA, porque el servicio no publica un código para ese caso.
+
+## Un intento por llamada
+
+Los métodos de bajo nivel `wsfe.issue()` y `wsmtxca.issue()` fuerzan un único
+intento de transporte SOAP,
+incluso cuando el cliente tiene configurados reintentos generales. Nunca
+refrescan credenciales ni reenvían de forma automática. Un rechazo de
+autenticación explícito del proveedor vuelve como
+`reason: "authentication_rejected"` con evidencia tipada y segura en
+`authentication`, y solo cuando la respuesta no trae CAE, resultado ni número.
+Por eso la fachada sí puede reenviar ese caso una vez con un ticket nuevo: el
+pedido nunca llegó a la lógica fiscal. Un timeout, una falla de conexión, una
+respuesta inválida o un resultado incompleto o contradictorio quedan
+indeterminados y sin reenvío. Así se evita que un trabajo fiscal incierto
+provoque una segunda autorización oculta.
+
+Las operaciones autenticadas de lectura, catálogo y consulta pueden repetirse
+una vez con un refresco forzado de credenciales después de un rechazo de
+autenticación explícito y tipado. Pasar `forceRefresh: true` desactiva
+cualquier otro intento de recuperación de autenticación.

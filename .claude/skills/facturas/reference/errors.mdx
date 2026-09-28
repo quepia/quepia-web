@@ -1,0 +1,163 @@
+---
+title: "Errores y diagnóstico"
+description: "Clasificá errores de configuración, autenticación, transporte, SOAP y respuestas de ARCA."
+keywords: ["errores", "diagnóstico", "SOAP", "WSAA", "ARCA"]
+---
+
+## Manejo de errores
+
+Todos los errores extienden `ArcaError` y exponen un `code` estable como
+string.
+
+| Clase | `code` | Cuándo |
+| --- | --- | --- |
+| `ArcaConfigurationError` | `ARCA_CONFIGURATION_ERROR` | Configuración del cliente inválida |
+| `ArcaInputError` | `ARCA_INPUT_*` | Input inválido de la aplicación o una clave que `recover()` no puede resolver |
+| `ArcaAuthenticationError` | `ARCA_AUTHENTICATION_ERROR` | Rechazo de autenticación explícito del proveedor |
+| `ArcaTransportError` | `ARCA_TRANSPORT_ERROR` | Falla de HTTP o de transporte |
+| `ArcaSoapFaultError` | `ARCA_SOAP_FAULT` | SOAP fault devuelto por ARCA |
+| `ArcaInvalidSoapResponseError` | `ARCA_INVALID_SOAP_RESPONSE` | La respuesta no es un sobre SOAP válido, por ejemplo una página HTML de un proxy o un cuerpo cortado |
+| `ArcaServiceError` | `ARCA_SERVICE_ERROR` | Rechazo de servicio a nivel de negocio, sobre todo los errores estilo WSFE |
+
+```ts
+import {
+  ArcaAuthenticationError,
+  ArcaServiceError,
+  ArcaSoapFaultError,
+  ArcaTransportError,
+} from "facturas";
+
+try {
+  await client.wsfe.getNextVoucherNumber({ salesPoint: 1, voucherType: 6 });
+} catch (error) {
+  if (error instanceof ArcaAuthenticationError) {
+    console.error(
+      error.reason,
+      error.service,
+      error.operation,
+      error.providerCode
+    );
+  } else if (error instanceof ArcaServiceError) {
+    console.error(error.serviceCode, error.message);
+  } else if (error instanceof ArcaSoapFaultError) {
+    console.error(error.faultCode, error.message);
+  } else if (error instanceof ArcaTransportError) {
+    console.error(error.statusCode, error.message);
+  }
+  throw error;
+}
+```
+
+Importá las clases de error desde `facturas` o desde `facturas/errors`. También
+se exporta `isArcaAuthenticationError(error)` para ruteo con predicados. Los
+errores de autenticación exponen solamente el código estable
+`ARCA_AUTHENTICATION_ERROR`, un `reason` tipado, el servicio, la operación y un
+código de proveedor seguro cuando está disponible. No se adjuntan los cuerpos
+crudos del proveedor ni los valores de las credenciales.
+
+`ArcaInvalidSoapResponseError` también expone `service`, `operation`,
+`endpointUrl`, `statusCode`, `contentType` y una vista previa redactada del
+cuerpo, para saber qué respondió en lugar de ARCA.
+
+### Guardar un error
+
+`toArcaSafeErrorMetadata(error)` reduce cualquier error a lo que se puede
+loguear o guardar: `name`, `message`, `code` y los campos tipados de cada clase:
+
+| Clase | Campos |
+| --- | --- |
+| `ArcaInputError` | `field`, `expected`, `window` |
+| `ArcaAuthenticationError` | `reason`, `service`, `operation`, `providerCode` |
+| `ArcaTransportError` | `statusCode`, `contentType` |
+| `ArcaInvalidSoapResponseError` | `service`, `operation`, `statusCode`, `contentType` |
+| `ArcaSoapFaultError` | `faultCode` |
+| `ArcaServiceError` | `serviceCode` como string, `service`, `operation`, `result`, `resultLevel` |
+
+Nunca incluye la causa, el stack, la respuesta cruda, la vista previa del
+cuerpo, la URL del endpoint, los `issues` ni el CAE. Es el mismo `error` que
+trae `lookup.kind === "failed"` en un `indeterminate`.
+
+```ts
+import { toArcaSafeErrorMetadata } from "facturas";
+
+try {
+  await arca.issue(venta);
+} catch (error) {
+  await guardarFalla(ventaId, toArcaSafeErrorMetadata(error));
+  throw error;
+}
+```
+
+## Códigos de `ArcaInputError`
+
+`ArcaInputError` se lanza antes de llamar a ARCA. Además del `code`, expone
+`field` con el campo que falló y, cuando aplica, `expected` con lo que el SDK
+esperaba. Con `ARCA_INPUT_DATE_OUTSIDE_WINDOW` trae también
+`window: { from, to }`, las fechas que ARCA acepta ese día en `YYYY-MM-DD`.
+
+Desde `issue()`, `issueCreditNote()` o `issueDebitNote()`, un `ArcaInputError`
+garantiza que esa llamada no envió ningún pedido de autorización: ARCA no emitió
+nada por ella. Pudo haber hecho consultas antes, como leer el comprobante
+original de una nota, pero no reservó la `idempotencyKey`, así que corregís el
+input y reintentás con la misma clave. La excepción es
+`ARCA_INPUT_IDEMPOTENCY_MISMATCH`: esta llamada tampoco envió nada, pero la
+clave ya pertenece a otra que sí pudo haber emitido.
+
+| `code` | Cuándo |
+| --- | --- |
+| `ARCA_INPUT_IDEMPOTENCY_MISMATCH` | La clave de idempotencia ya se usó con otro input, otra operación u otro contribuyente representado |
+| `ARCA_INPUT_RESERVATION_NOT_FOUND` | `recover()` recibió una clave sin reserva guardada |
+| `ARCA_INPUT_INVALID_DATE` | Una fecha no tiene formato `YYYY-MM-DD` o no existe en el calendario |
+| `ARCA_INPUT_DATE_OUTSIDE_WINDOW` | La fecha del comprobante cae fuera de la [ventana que acepta ARCA](/guides/invoices#datos-de-la-factura) el día del envío |
+| `ARCA_INPUT_INVALID_AMOUNT` | Un importe no es un entero no negativo en centavos o supera el límite de ARCA |
+| `ARCA_INPUT_AMOUNT_PRECISION` | Un importe tiene más decimales de los que admite su campo en ARCA |
+| `ARCA_INPUT_AMOUNT_MISMATCH` | El total no concilia con los ítems y el IVA dentro de la tolerancia de ARCA |
+| `ARCA_INPUT_INVALID_EXCHANGE_RATE` | La cotización no es un decimal positivo con hasta 4 enteros y 6 decimales |
+| `ARCA_INPUT_INVALID_VALUE` | Un valor no está entre los admitidos, por ejemplo una alícuota de IVA |
+| `ARCA_INPUT_MISSING_FIELD` | Falta un campo obligatorio, por ejemplo `for` en `issueCreditNote()` |
+| `ARCA_INPUT_RESERVED_FIELD` | El input trae un campo que la operación no admite o que maneja el SDK |
+
+`ARCA_INPUT_RESERVATION_NOT_FOUND` es distinto de
+`lookup.kind === "not_found"`, que significa que la reserva existe y ARCA
+confirmó que su número está vacío.
+
+## Diagnóstico
+
+- `coe.alreadyAuthenticated`: el SDK deduplica los logins WSAA en vuelo y reusa
+  los tickets válidos guardados en caché. En funciones serverless, procesos de
+  cola o cualquier despliegue con varios procesos, configurá un `store`
+  persistente para que un proceso nuevo reuse el TA que obtuvo otro. El `store`
+  guarda los tickets cifrados. El caché en memoria no se comparte entre
+  procesos.
+- `dh key too small`: los pedidos de producción de WSFE ya usan, donde hace
+  falta, el nivel de seguridad anterior de OpenSSL. Si igual lo ves, confirmá que
+  no estés salteando el transporte del SDK ni terminando TLS en otra capa.
+- Certificado vencido: reemplazá el certificado PEM por uno renovado que
+  cumpla las mismas expectativas de clave privada, y redesplegá o reiniciá el
+  proceso.
+- Servicio no autorizado: tu certificado puede ser válido pero no estar
+  autorizado para el servicio o el entorno de destino. Revisá de nuevo la
+  configuración de WSASS / homologación para `test` y las relaciones de
+  servicio para producción.
+- WSFE `10015`: en general significa que la combinación `DocTipo` / `DocNro` es
+  inconsistente para ese tipo de comprobante y ese importe. Por ejemplo, la
+  Factura B tiene reglas especiales de documento del receptor según el total.
+- WSFE `10016`: el número de comprobante enviado en `CbteDesde` no es el
+  siguiente válido para ese punto de venta y ese tipo de comprobante, o la
+  fecha no es válida. `preview()` e `issue()` rechazan antes, con
+  `ArcaInputError`, una fecha fuera de la
+  [ventana que acepta ARCA](/guides/invoices#datos-de-la-factura). Llamá a
+  `getNextVoucherNumber()` inmediatamente antes de autorizar cuando tu
+  numeración se pueda haber movido. Con clave de idempotencia, `issue()`
+  consulta el número reservado: si ya lo ocupa otro comprobante el resultado es
+  `conflict` y queda anotado en el store, y si el número está vacío sigue
+  siendo `rejected`.
+
+Cuando un error no es claro, revisá esto en orden:
+
+1. Que el certificado y la clave privada correspondan entre sí.
+2. Que el entorno sea el correcto (`test` o `production`).
+3. Que la autorización del servicio esté hecha para ese entorno.
+4. Que la combinación de tipo de comprobante, tipo de documento e importe sea
+   válida.
+5. Que tu proceso no esté reusando supuestos viejos sobre el próximo número.

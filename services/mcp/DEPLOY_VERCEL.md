@@ -37,6 +37,11 @@ At minimum:
   clients surface as "Couldn't connect to the server".
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
+- `MCP_REQUEST_TIMEOUT_MS=60000` if `accounting.invoice.write` is granted:
+  `accounting_issue_invoice` waits for ARCA through the web app, and a WSAA
+  login plus WSFE authorization can exceed the 15 s default. A timeout is safe
+  (retrying the same `payment_id` never issues twice) but leaves the user
+  without the voucher number in that turn.
 
 Never configure a Supabase secret or privileged legacy key. Startup rejects
 those values.
