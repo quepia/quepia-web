@@ -681,10 +681,12 @@ export async function archiveMonthlyVersion(params: {
     const sourceInfo = await inspectDriveArchiveSource(driveSource)
     if (sourceInfo.trashed) throw new Error('El original está en la papelera de Drive.')
     if (sourceInfo.mimeType === 'application/vnd.google-apps.folder') {
+      const excluded = new Set([archive.id, year.id, month.id])
+      if (excluded.has(driveSource)) throw new Error('El enlace apunta a la carpeta del propio respaldo.')
       const members: ArchiveMember[] = []
       try {
         const checkpoints = new Map((params.previousMembers || []).filter(m => m.sourceId).map(m => [m.sourceId!, m]))
-        const root = await copyArchiveFolder(driveSource, month.id, name, members, checkpoints, Date.now() + 100_000)
+        const root = await copyArchiveFolder(driveSource, month.id, name, members, checkpoints, excluded, Date.now() + 100_000)
         return { fileId: root.id, folderId: month.id, members }
       } catch (error) {
         throw new ArchiveCopyError(error instanceof Error ? error.message : 'No se pudo copiar la carpeta.', [...(params.previousMembers || []), ...members])
@@ -733,7 +735,7 @@ export class ArchiveCopyError extends Error {
 }
 
 /** Recursively copy linked folders; a partial folder is never treated as a completed backup. */
-async function copyArchiveFolder(sourceId: string, parentId: string, name: string, members: ArchiveMember[], checkpoints: Map<string, ArchiveMember>, deadline: number, depth = 0): Promise<DriveFile> {
+async function copyArchiveFolder(sourceId: string, parentId: string, name: string, members: ArchiveMember[], checkpoints: Map<string, ArchiveMember>, excluded: Set<string>, deadline: number, depth = 0): Promise<DriveFile> {
   if (depth > 20) throw new Error('La carpeta supera los 20 niveles de profundidad.')
   if (Date.now() >= deadline) throw new Error('Carpeta parcialmente copiada. El próximo intento continuará sin duplicar los archivos guardados.')
   const target = await ensureFolder(parentId, name)
@@ -758,6 +760,7 @@ async function copyArchiveFolder(sourceId: string, parentId: string, name: strin
     })
     const page = await driveFetch<{ nextPageToken?: string; files: (DriveFile & { mimeType: string; size?: string })[] }>(`/files?${query}`)
     for (const child of page.files) {
+      if (excluded.has(child.id)) continue // Never recurse into this archive when its source is an ancestor.
       if (Date.now() >= deadline) throw new Error('Carpeta parcialmente copiada. El próximo intento continuará sin duplicar los archivos guardados.')
       const checkpoint = checkpoints.get(child.id)
       if (checkpoint && checkpoint.parentId === target.id && targetFiles.has(checkpoint.id) && (!child.size || targetFiles.get(checkpoint.id)?.size === child.size) && child.mimeType !== 'application/vnd.google-apps.folder') {
@@ -768,7 +771,7 @@ async function copyArchiveFolder(sourceId: string, parentId: string, name: strin
       if (child.mimeType === 'application/vnd.google-apps.shortcut') throw new Error(`La carpeta contiene un acceso directo (${child.name}); requiere el archivo original.`)
       let copy: DriveFile
       if (child.mimeType === 'application/vnd.google-apps.folder') {
-        copy = await copyArchiveFolder(child.id, target.id, childName, members, checkpoints, deadline, depth + 1)
+        copy = await copyArchiveFolder(child.id, target.id, childName, members, checkpoints, excluded, deadline, depth + 1)
       } else {
         copy = [...targetFiles.values()].find(file => file.name === childName && (!child.size || file.size === child.size)) || await copyDriveFile({ sourceFileId: child.id, parentId: target.id, name: childName })
       }
