@@ -5,6 +5,7 @@ import { isAuthorizedSistemaUser, type SistemaAccessProfile } from "@/lib/sistem
 import { isDirectFirstPartySessionClaims } from "@/lib/mcp/session-boundary"
 import { SocialError } from "./errors"
 import { isGlobalAdminProfile, isSameOriginMutation } from "./policy"
+import { isVerifiedAdminSession } from "@/lib/mcp/session-boundary"
 
 export type SocialAdmin = {
   userId: string
@@ -47,6 +48,10 @@ export async function requireSocialAdmin(request?: Request): Promise<SocialAdmin
   const accessProfile = profile as (SistemaAccessProfile & { role: string | null; nombre: string }) | null
   if (!isAuthorizedSistemaUser(userData.user, accessProfile) || !isGlobalAdminProfile(accessProfile)) {
     throw new SocialError(403, "forbidden", "Solo administradores globales de Quepia")
+  }
+
+  if (!isVerifiedAdminSession(claimsData?.claims)) {
+    throw new SocialError(403, "mfa_required", "Verificá el doble factor para gestionar las cuentas sociales")
   }
 
   return { userId: userData.user.id, email: accessProfile!.email, name: accessProfile!.nombre }

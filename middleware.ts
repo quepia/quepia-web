@@ -1,8 +1,21 @@
 import { type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { isNonceProtectedPage, privateContentSecurityPolicy } from '@/lib/security/csp';
 
 export async function middleware(request: NextRequest) {
-    return await updateSession(request);
+    // Overwrite untrusted incoming nonce/CSP headers before passing to Next.
+    request.headers.delete('x-nonce');
+    request.headers.delete('content-security-policy');
+    const csp = isNonceProtectedPage(request.nextUrl.pathname)
+        ? privateContentSecurityPolicy(btoa(crypto.randomUUID()), process.env.NODE_ENV !== 'production')
+        : null;
+    if (csp) request.headers.set('Content-Security-Policy', csp);
+    const response = await updateSession(request);
+    if (csp) {
+        response.headers.set('Content-Security-Policy', csp);
+        response.headers.set('Cache-Control', 'private, no-store');
+    }
+    return response;
 }
 
 export const config = {

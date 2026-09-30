@@ -31,6 +31,12 @@ export function getDirectFirstPartySessionId(
     : null
 }
 
+/** MFA is attested by the verified JWT, never by a client-supplied flag. */
+export function isVerifiedAdminSession(claims: unknown): boolean {
+  return isDirectFirstPartySessionClaims(claims)
+    && (claims as Record<string, unknown>).aal === "aal2"
+}
+
 export function isFirstPartyProtectedPath(pathname: string): boolean {
   return (
     pathname === "/api" ||

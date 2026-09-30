@@ -13,6 +13,10 @@ on:
       - "app/api/mcp/**"
       - "components/sistema/mcp/**"
       - "lib/mcp/**"
+      - "lib/security/**"
+      - "lib/sistema/auth/**"
+      - "lib/social/auth.ts"
+      - "lib/zernio/server.ts"
       - "lib/supabase/middleware.ts"
       - "middleware.ts"
       - "supabase/migrations/**"
@@ -44,6 +48,10 @@ on:
       - "app/api/mcp/**"
       - "components/sistema/mcp/**"
       - "lib/mcp/**"
+      - "lib/security/**"
+      - "lib/sistema/auth/**"
+      - "lib/social/auth.ts"
+      - "lib/zernio/server.ts"
       - "lib/supabase/middleware.ts"
       - "middleware.ts"
       - "supabase/migrations/**"
@@ -118,6 +126,12 @@ jobs:
 
       - name: Test the web approval contracts
         run: npm run mcp:web:test
+
+      - name: Test MFA, CSP and calendar authorization
+        run: pnpm security:test
+
+      - name: Audit web production dependencies
+        run: pnpm audit --prod --audit-level=moderate
 
       - name: Build the web application
         run: pnpm build

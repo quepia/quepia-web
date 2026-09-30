@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import {
     isDirectFirstPartySessionClaims,
     isFirstPartyProtectedPath,
+    isVerifiedAdminSession,
 } from '@/lib/mcp/session-boundary';
 import {
     isOAuthCsrfCookieSecret,
@@ -13,6 +14,8 @@ import {
     isAuthorizedSistemaUser,
     type SistemaAccessProfile,
 } from '@/lib/sistema/auth/authorization';
+import { requiresAdminMfa } from '@/lib/sistema/auth/mfa-policy';
+import { isSameOriginMutation } from '@/lib/social/policy';
 
 export async function updateSession(request: NextRequest) {
     const shouldIssueOAuthCsrfCookie =
@@ -76,6 +79,12 @@ export async function updateSession(request: NextRequest) {
         return response;
     };
 
+    // These legacy routes use cookies and privileged server credentials.
+    if (pathname.startsWith('/api/zernio/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)
+        && !isSameOriginMutation(request, process.env.NEXT_PUBLIC_SITE_URL?.trim() || null)) {
+        return withSessionCookies(NextResponse.json({ error: 'Origen no permitido' }, { status: 403 }));
+    }
+
     if (
         user &&
         isProtectedPath &&
@@ -97,7 +106,7 @@ export async function updateSession(request: NextRequest) {
     if (user && isProtectedPath) {
         const { data: accessProfile, error: accessError } = await supabase
             .from('sistema_users')
-            .select('id, email, is_authorized, is_active, deleted_at')
+            .select('id, email, role, is_authorized, is_active, deleted_at')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -125,6 +134,18 @@ export async function updateSession(request: NextRequest) {
             url.pathname = '/auth/access-denied';
             url.search = '';
             return withSessionCookies(NextResponse.redirect(url));
+        }
+
+        if (accessProfile?.role === 'admin' && requiresAdminMfa(pathname)
+            && !isVerifiedAdminSession(claimsData?.claims)) {
+            const redirectTo = pathname.startsWith('/api/') ? '/sistema' : pathname + request.nextUrl.search;
+            const mfaUrl = `/auth/mfa?redirectTo=${encodeURIComponent(redirectTo)}`;
+            if (pathname.startsWith('/api/')) {
+                return withSessionCookies(NextResponse.json({
+                    error: 'Verificá el doble factor para continuar', code: 'mfa_required', redirectTo: mfaUrl,
+                }, { status: 403 }));
+            }
+            return withSessionCookies(NextResponse.redirect(new URL(mfaUrl, request.url)));
         }
     }
 

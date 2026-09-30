@@ -3,6 +3,9 @@ import type { SupabaseClient, User } from "@supabase/supabase-js"
 import { createClient } from "@/lib/sistema/supabase/server"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { ZernioApiError, zernioRequest } from "@/lib/zernio/client"
+import { isAuthorizedSistemaUser } from "@/lib/sistema/auth/authorization"
+import { isDirectFirstPartySessionClaims } from "@/lib/mcp/session-boundary"
+import { isVerifiedAdminSession } from "@/lib/mcp/session-boundary"
 
 export type ZernioAccount = {
   _id: string
@@ -35,21 +38,32 @@ export class ZernioRouteError extends Error {
 
 export async function getQuepiaSession(): Promise<QuepiaSession> {
   const server = await createClient()
-  const { data, error } = await server.auth.getUser()
+  const [{ data, error }, { data: claimsData, error: claimsError }] = await Promise.all([
+    server.auth.getUser(), server.auth.getClaims(),
+  ])
   if (error || !data.user) throw new ZernioRouteError(401, "No autorizado")
+  if (claimsError || !isDirectFirstPartySessionClaims(claimsData?.claims)) {
+    throw new ZernioRouteError(403, "Se requiere una sesión web de Quepia")
+  }
 
   const admin = createAdminClient()
-  const { data: sistemaUser } = await admin
+  const { data: sistemaUser, error: profileError } = await admin
     .from("sistema_users")
-    .select("role, is_active, deleted_at")
+    .select("id, email, role, is_authorized, is_active, deleted_at")
     .eq("id", data.user.id)
     .maybeSingle()
 
-  const active = sistemaUser && sistemaUser.is_active !== false && !sistemaUser.deleted_at
+  if (profileError || !isAuthorizedSistemaUser(data.user, sistemaUser)) {
+    throw new ZernioRouteError(403, "Acceso a Quepia no autorizado")
+  }
+  const isAdmin = sistemaUser?.role === "admin"
+  if (isAdmin && !isVerifiedAdminSession(claimsData?.claims)) {
+    throw new ZernioRouteError(403, "Verificá el doble factor para gestionar las cuentas sociales")
+  }
   return {
     server,
     user: data.user,
-    isAdmin: Boolean(active && sistemaUser.role === "admin"),
+    isAdmin,
   }
 }
 
