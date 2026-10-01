@@ -1,6 +1,7 @@
 import crypto from "node:crypto"
 import path from "node:path"
-import { NextResponse } from "next/server"
+import { dispatchPublicationTelegramNotices } from "@/lib/zernio/publication-telegram"
+import { after, NextResponse } from "next/server"
 import { ASSET_BUCKET, createSignedUrl, isStoragePath, sanitizeFilename } from "@/lib/sistema/assets-storage"
 import { downloadDriveFile, extractGoogleDriveFileId } from "@/lib/sistema/google-drive-backup"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
@@ -700,6 +701,10 @@ export async function POST(request: Request) {
         .in("id", assetIds)
     }
 
+    after(async () => {
+      try { await dispatchPublicationTelegramNotices() }
+      catch (error) { console.error("[Zernio] Telegram pendiente", error instanceof Error ? error.message : "error") }
+    })
     return NextResponse.json({
       publication: {
         id: localPublicationId,

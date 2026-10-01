@@ -138,7 +138,7 @@ function buildFallbackMessage(params: {
 
 async function callTelegramApi<T>(
   method: string,
-  init: { body: BodyInit; headers?: Record<string, string> }
+  init: { body: BodyInit; headers?: Record<string, string>; signal?: AbortSignal }
 ) {
   const { botToken } = getTelegramConfig()
   const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
@@ -146,6 +146,7 @@ async function callTelegramApi<T>(
     body: init.body,
     headers: init.headers,
     cache: 'no-store',
+    signal: init.signal,
   })
 
   let payload: TelegramApiResponse<T> | null = null
@@ -175,6 +176,7 @@ async function sendTelegramMessage(chatId: string, text: string, replyToMessageI
 
   return callTelegramApi<TelegramApiMessage>('sendMessage', {
     body,
+    signal: AbortSignal.timeout(12000),
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
     },

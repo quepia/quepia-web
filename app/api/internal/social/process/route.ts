@@ -1,3 +1,4 @@
+import { processPublicationTelegramNotifications } from "@/lib/zernio/publication-telegram"
 import { createServerWorker, hasValidServiceSecret, json, workerId } from "@/lib/social/server"
 import { errorBody } from "@/lib/social/errors"
 
@@ -12,8 +13,11 @@ async function handle(request: Request) {
   if (!hasValidServiceSecret(request, process.env.CRON_SECRET)) return json({ error: "No autorizado" }, 401)
   if (!process.env.ZERNIO_API_KEY) return json({ error: "ZERNIO_API_KEY no configurada" }, 503)
   try {
-    const result = await createServerWorker().runOnce({ workerId: workerId("scheduled"), budgetMs: 48_000 })
-    return json({ ok: true, ...result })
+    const [result, telegram] = await Promise.all([
+      createServerWorker().runOnce({ workerId: workerId("scheduled"), budgetMs: 48_000 }),
+      processPublicationTelegramNotifications(),
+    ])
+    return json({ ok: true, ...result, telegram })
   } catch (error) {
     // Sin migraciones aplicadas responde 503 "setup_required" en vez de 500.
     const { status, body } = errorBody(error)

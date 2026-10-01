@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { zernioRequest } from "./client"
 
-const ACTIVE = ["preparing", "scheduled", "publishing"]
+const ACTIVE = ["preparing", "scheduled", "publishing", "partial"]
 const STATUSES = new Set([...ACTIVE, "draft", "published", "partial", "failed", "cancelled"])
 
 type ProviderPost = {

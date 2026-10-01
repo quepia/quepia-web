@@ -51,6 +51,7 @@ const endpoints = [
       "message.received", "message.sent", "conversation.started", "message.edited", "message.deleted",
       "message.delivered", "message.read", "message.failed", "comment.received",
       "account.connected", "account.disconnected",
+      "post.platform.published", "post.published", "post.partial", "post.failed",
     ],
   },
   {

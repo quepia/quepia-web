@@ -1,4 +1,5 @@
 import "server-only"
+import { processPublicationTelegramNotifications } from "@/lib/zernio/publication-telegram"
 import { after } from "next/server"
 import { sanitizePayload, webhookContainsPrivateContent } from "./normalize"
 import { sha256Hex, verifyZernioSignature } from "./webhook-signature"
@@ -61,7 +62,10 @@ export async function receiveZernioWebhook(request: Request, channel: "analytics
     after(async () => {
       try {
         await socialRpc("social_schedule_jobs", { p_specs: [{ kind: "webhook.process", dedupe_key: `webhooks:${new Date().toISOString().slice(0, 16)}`, priority: 10, window_hours: 1 }] })
-        await createServerWorker().runOnce({ workerId: workerId("webhook"), budgetMs: 20_000, kinds: ["webhook.process", "outbox.dispatch"], schedule: false })
+        await Promise.all([
+          createServerWorker().runOnce({ workerId: workerId("webhook"), budgetMs: 20_000, kinds: ["webhook.process", "outbox.dispatch"], schedule: false }),
+          ...(channel === "operations" && eventType.startsWith("post.") ? [processPublicationTelegramNotifications()] : []),
+        ])
       } catch (error) {
         console.error(JSON.stringify({ scope: "social-webhook", event: "after_failed", message: error instanceof Error ? error.message : "error" }))
       }

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       .select("id, zernio_post_id, project_id, task_id, content, scheduled_for, timezone, status, account_ids, platform_results, error_message, created_at, updated_at, task:sistema_tasks(titulo), project:sistema_projects(nombre)", { count: "exact" })
     query = query.not("zernio_post_id", "is", null)
     // Unverified active records must not masquerade as provider confirmations.
-    query = query.or(`status.not.in.(preparing,scheduled,publishing)${sync.verifiedIds.length ? `,id.in.(${sync.verifiedIds.join(",")})` : ""}`)
+    query = query.or(`status.not.in.(preparing,scheduled,publishing,partial)${sync.verifiedIds.length ? `,id.in.(${sync.verifiedIds.join(",")})` : ""}`)
     if (status) query = query.eq("status", status)
     if (account) query = query.contains("account_ids", [account])
     if (search) {
