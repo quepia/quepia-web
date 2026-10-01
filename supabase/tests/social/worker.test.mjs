@@ -31,6 +31,7 @@ function createFakeZernio() {
     if (path === "/accounts") return json({ accounts: state.accounts })
     if (path === "/accounts/health") return json({ accounts: [{ accountId: "za_camping", status: "healthy", canPost: true, canFetchAnalytics: true, needsReconnect: false, issues: [] }] })
     if (path === "/analytics/delta") {
+      if (Number(url.searchParams.get("limit")) > 100) return json({ error: "Too big: expected number to be <=100" }, 400)
       const cursor = url.searchParams.get("cursor")
       if (cursor === "v1.expired") return json({ error: "cursor too old", code: "invalid_field_value" }, 400)
       if (!cursor) return json({ data: [], nextCursor: `v1.c${state.deltaCursorCounter++}`, hasMore: false })
@@ -237,4 +238,27 @@ test("reserva de cuota: con pocas solicitudes restantes el worker se detiene y r
   // El primero se ejecutó y reveló cuota baja; el siguiente vuelve a la cola.
   assert.deepEqual(result.summary.map((item) => item.status), ["succeeded", "retry"])
   assert.match(result.summary[1].error, /Cuota reservada/)
+})
+
+test("la reserva de cuota difiere sin consumir intentos ni dejar trabajos reservados", async () => {
+  await enqueue("health.check")
+  await enqueue("followers.daily")
+  const limited = createZernioAdapter({ apiKey: "test", fetchImpl: async () => new Response(JSON.stringify({ accounts: [] }), { headers: { "x-ratelimit-limit": "60", "x-ratelimit-remaining": "12" } }) })
+  const paused = createSocialWorker({ rpc, zernio: limited, sleep: async () => {}, log: () => {} })
+  const result = await paused.runOnce({ workerId: "quota", budgetMs: 2000, kinds: ["health.check", "followers.daily"], schedule: false })
+  assert.equal(result.stoppedFor, "quota_reserve")
+  const { rows } = await db.query("SELECT status, attempts FROM public.sistema_social_jobs WHERE kind = 'followers.daily' AND status = 'queued'")
+  assert.ok(rows.some(row => row.attempts === 0))
+  const running = await db.query("SELECT count(*)::int AS n FROM public.sistema_social_jobs WHERE locked_by = 'quota'")
+  assert.equal(running.rows[0].n, 0)
+})
+
+test("un 400 de validación conserva el cursor y no solicita bootstrap", async () => {
+  await rpc("social_set_sync_state", { p_stream: "analytics_delta", p_scope_key: "global", p_status: "ok", p_cursor: "v1.valid", p_cursor_obtained_at: iso(0), p_success: true })
+  const invalid = createZernioAdapter({ apiKey: "test", fetchImpl: async () => new Response(JSON.stringify({ error: "Too big: expected number to be <=100" }), { status: 400 }) })
+  const isolated = createSocialWorker({ rpc, zernio: invalid, log: () => {} })
+  await assert.rejects(() => isolated.handlers["analytics.delta"]({ id: randomUUID(), kind: "analytics.delta", payload: {}, attempts: 1, max_attempts: 8, correlation_id: randomUUID() }))
+  const state = await rpc("social_get_sync_state", { p_stream: "analytics_delta", p_scope_key: "global" })
+  assert.equal(state.cursor, "v1.valid")
+  assert.equal(state.status, "ok")
 })

@@ -9,7 +9,7 @@ const root = resolve(import.meta.dirname, "../../..")
 const migrationsDir = join(root, "supabase/migrations")
 
 export const SOCIAL_MIGRATIONS = readdirSync(migrationsDir)
-  .filter((name) => /^20260918\d+_social_.*\.sql$/.test(name))
+  .filter((name) => /^2026(?:0918|1001)\d+_social_.*\.sql$/.test(name))
   .sort()
 
 const BASE_MIGRATIONS = [

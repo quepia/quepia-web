@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react"
 import { formatDateTime, relativeAge, socialFetch, useSocialData, SocialApiError } from "../social-api"
 import { Button, ErrorState, Loading, Panel, PLATFORM_LABEL, Select } from "../social-ui"
@@ -32,6 +32,23 @@ const SYNC_KINDS = [
 export function ConnectionsTab({ onScopesChanged }: TabProps & { onScopesChanged: () => void }) {
   const inventory = useSocialData<{ inventory: Inventory; coverage: Coverage }>("/api/admin/social/connections")
   const grants = useSocialData<Grant[]>("/api/admin/social/mcp-access")
+  const [syncing, setSyncing] = useState(false)
+  const syncLock = useRef(false)
+  useEffect(() => {
+    const timer = setInterval(inventory.reload, 10_000)
+    return () => clearInterval(timer)
+  }, [inventory.reload])
+  const synchronize = async (kinds: string[]) => {
+    if (syncLock.current) return
+    syncLock.current = true
+    setSyncing(true)
+    try {
+      await act(() => socialFetch("/api/admin/social/sync", { method: "POST", json: { kinds } }), "Actualización solicitada. Los datos se irán renovando automáticamente; puede seguir trabajando.")
+    } finally {
+      syncLock.current = false
+      setSyncing(false)
+    }
+  }
   const [clientName, setClientName] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<SocialApiError | null>(null)
@@ -135,13 +152,23 @@ export function ConnectionsTab({ onScopesChanged }: TabProps & { onScopesChanged
         </div>
       </Panel>
       <Panel title="Sincronización" description={coverage.result.provider_freshness_note}>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {SYNC_KINDS.map((item) => (
-            <Button key={item.kind} onClick={() => act(() => socialFetch("/api/admin/social/sync", { method: "POST", json: { kinds: [item.kind] } }), `Encolado: ${item.label}`)}>
-              <RefreshCw className="h-3.5 w-3.5" /> {item.label}
-            </Button>
-          ))}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm text-white/85">{data.jobs.some((job) => job.status === "running" || job.status === "queued") ? "Actualización en curso o pendiente" : coverage.result.streams.some((stream) => stream.last_error) ? "Hay datos que necesitan actualizarse" : "Sincronización automática activa"}</p>
+            <p className="mt-1 text-xs text-[#a3a3a3]">Actualiza cuentas, estadísticas, seguidores, bandeja y automatizaciones. Si falta el histórico, se recupera automáticamente.</p>
+          </div>
+          <Button disabled={syncing} onClick={() => synchronize(SYNC_KINDS.filter((item) => item.kind !== "analytics.bootstrap").map((item) => item.kind))}>
+            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Solicitando…" : "Sincronizar todo"}
+          </Button>
         </div>
+        {data.jobs.some((job) => ["failed", "dead"].includes(job.status)) && <p role="status" className="mb-3 text-xs text-amber-200">Algunas actualizaciones no se completaron. Sincronizar todo permite volver a intentarlas; los datos guardados se conservan.</p>}
+        <p className="mb-3 text-xs text-[#a3a3a3]">Última actualización de estadísticas: {relativeAge(coverage.result.streams.find((stream) => stream.stream === "analytics_delta")?.last_success_at ?? null)}</p>
+        <details>
+          <summary className="mb-3 cursor-pointer text-xs text-[#a3a3a3]">Opciones avanzadas y diagnóstico</summary>
+          <p className="mb-2 text-xs text-[#a3a3a3]">La carga histórica reconstruye las estadísticas de los últimos 180 días y puede tardar más.</p>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {SYNC_KINDS.map((item) => <Button key={item.kind} disabled={syncing} onClick={() => synchronize([item.kind])}><RefreshCw className="h-3.5 w-3.5" /> {item.label}</Button>)}
+          </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <div className="mb-1 text-xs text-[#a3a3a3]">Flujos · último webhook {relativeAge(coverage.result.webhooks.last_received_at)} · fallidos {coverage.result.webhooks.failed}</div>
@@ -163,6 +190,7 @@ export function ConnectionsTab({ onScopesChanged }: TabProps & { onScopesChanged
             ))}
           </div>
         </div>
+        </details>
       </Panel>
       <Panel title="Acceso de IA por MCP" description="Las herramientas sociales de solo lectura requieren la capacidad social.analytics.read, que no se otorga por defecto. Solo grants de administradores globales pueden recibirla y cada consulta revalida el rol.">
         {grants.loading && !grants.data ? <Loading /> : <ErrorState error={grants.error} />}

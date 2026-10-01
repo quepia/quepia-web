@@ -214,8 +214,8 @@ export function createZernioAdapter(options: AdapterOptions = {}) {
     // Analítica
     analyticsPage: (query: { page: number; limit: number; fromDate?: string; toDate?: string; profileId?: string; accountId?: string }) =>
       request<ZernioAnalyticsListRaw>("/analytics", { query }),
-    analyticsDelta: (cursor?: string, limit = 200) =>
-      request<{ data: ZernioDeltaEntryRaw[]; nextCursor: string; hasMore: boolean }>("/analytics/delta", { query: { cursor, limit } }),
+    analyticsDelta: (cursor?: string, limit = 100) =>
+      request<{ data: ZernioDeltaEntryRaw[]; nextCursor: string; hasMore: boolean }>("/analytics/delta", { query: { cursor, limit: Math.max(1, Math.min(100, Math.trunc(limit) || 100)) } }),
     postTimeline: (postId: string, fromDate?: string) =>
       request<{ postId: string; timeline: ZernioTimelineRowRaw[] }>("/analytics/post-timeline", { query: { postId, fromDate } }),
     instagramAccountInsights: (query: { accountId: string; since: string; until: string; metrics: string }) =>

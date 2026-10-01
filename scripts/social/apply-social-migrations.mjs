@@ -7,7 +7,7 @@ const PROJECT = process.env.SUPABASE_PROJECT_REF || "luhbezpflvmevorbayai"
 const headers = { Authorization: `Bearer ${process.env.SUPABASE_ACCESS_TOKEN}`, "Content-Type": "application/json" }
 const api = `https://api.supabase.com/v1/projects/${PROJECT}/database/migrations`
 const applied = await (await fetch(api, { headers })).json()
-const files = readdirSync("supabase/migrations").filter((name) => /^20260918\d+_social_.*\.sql$/.test(name)).sort()
+const files = readdirSync("supabase/migrations").filter((name) => /^2026(?:0918|1001)\d+_social_.*\.sql$/.test(name)).sort()
 for (const file of files) {
   const name = file.replace(/^\d+_/, "").replace(/\.sql$/, "")
   if (applied.some((item) => item.name === name)) {

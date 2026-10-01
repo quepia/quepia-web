@@ -11,6 +11,6 @@ export const POST = adminRoute(async ({ request, admin }) => {
   const body = await readJson(request)
   const kinds = Array.isArray(body.kinds) ? body.kinds.filter((kind): kind is string => typeof kind === "string").slice(0, 10) : []
   const result = await socialRpc("social_admin_request_sync", { p_actor: admin.userId, p_kinds: kinds })
-  after(() => createServerWorker().runOnce({ workerId: workerId("manual"), budgetMs: 45_000, kinds, schedule: false }).then(() => undefined))
+  after(() => createServerWorker().runOnce({ workerId: workerId("manual"), budgetMs: 45_000, kinds: kinds.includes("analytics.delta") ? [...new Set([...kinds, "analytics.bootstrap"])] : kinds, schedule: false }).then(() => undefined))
   return result
 })

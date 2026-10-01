@@ -217,9 +217,9 @@ export function createSocialWorker(deps: WorkerDeps) {
         assertQuota()
         let response
         try {
-          response = observe(await zernio.analyticsDelta(cursor, 200))
+          response = observe(await zernio.analyticsDelta(cursor, 100))
         } catch (error) {
-          if (error instanceof ZernioAdapterError && error.status === 400) {
+          if (error instanceof ZernioAdapterError && error.status === 400 && /cursor/i.test(error.message)) {
             // Cursor vencido (>6 días) o inválido: repetir bootstrap.
             await rpc("social_set_sync_state", { p_stream: "analytics_delta", p_scope_key: "global", p_status: "expired", p_cursor: null,
               p_cursor_obtained_at: null, p_error: error.message, p_details: null, p_success: false })
@@ -582,7 +582,7 @@ export function createSocialWorker(deps: WorkerDeps) {
     const summary: Array<Record<string, unknown>> = []
     while (Date.now() < deadline) {
       const claimed = await rpc<{ jobs: Job[]; recovered_leases: number }>("social_claim_jobs", {
-        p_worker: options.workerId, p_limit: 3, p_lease_seconds: 240, p_kinds: options.kinds ?? null,
+        p_worker: options.workerId, p_limit: 1, p_lease_seconds: 240, p_kinds: options.kinds ?? null,
       })
       if (claimed.jobs.length === 0) break
       for (const job of claimed.jobs) {
@@ -601,10 +601,10 @@ export function createSocialWorker(deps: WorkerDeps) {
           const adapterError = error instanceof ZernioAdapterError ? error : null
           const terminal = Boolean(adapterError?.terminal) || (error instanceof SocialError && error.code === "unknown_job")
           const retryAfter = quota ? 60 : adapterError?.retryAfterSeconds
-          await rpc("social_fail_job", {
+          await rpc(quota ? "social_defer_job" : "social_fail_job", {
             p_job_id: job.id, p_worker: options.workerId,
             p_error: error instanceof Error ? error.message : String(error),
-            p_retry_after_seconds: retryAfter ?? null, p_terminal: terminal,
+            p_retry_after_seconds: retryAfter ?? null, ...(quota ? {} : { p_terminal: terminal }),
           }).catch(() => undefined)
           summary.push({ kind: job.kind, status: terminal ? "failed" : "retry", error: error instanceof Error ? error.message : String(error) })
           log("job.failed", { kind: job.kind, job: job.id, correlation_id: job.correlation_id, terminal, error_kind: adapterError?.kind ?? (quota ? "quota_reserve" : "internal") })
