@@ -194,11 +194,13 @@ export function ZernioPublishingPanel({
   projectId,
   socialCopy,
   onPublished,
+  initialPublicationId,
 }: {
   taskId: string
   projectId: string
   socialCopy: string
   onPublished?: () => void
+  initialPublicationId?: string
 }) {
   const [context, setContext] = useState<PublishingContext | null>(null)
   const [loading, setLoading] = useState(true)
@@ -423,7 +425,7 @@ export function ZernioPublishingPanel({
     }
   }
 
-  const editPublication = async (publication: Publication) => {
+  const editPublication = useCallback(async (publication: Pick<Publication, "id">) => {
     setHistoryAction(`edit:${publication.id}`)
     setError("")
     setSuccess("")
@@ -456,7 +458,14 @@ export function ZernioPublishingPanel({
     } finally {
       setHistoryAction(null)
     }
-  }
+  }, [context])
+
+  const openedPublicationRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!context || !initialPublicationId || openedPublicationRef.current === initialPublicationId) return
+    openedPublicationRef.current = initialPublicationId
+    void editPublication({ id: initialPublicationId })
+  }, [context, initialPublicationId, editPublication])
 
   const cancelPublication = async (publication: Publication) => {
     if (!window.confirm("¿Cancelar esta publicación? Ya no se publicará; después podés reabrirla desde Editar.")) return
@@ -779,7 +788,7 @@ export function ZernioPublishingPanel({
           <button
             type="button"
             onClick={() => void publish()}
-            disabled={action === "publish" || selectedAccounts.length === 0 || (!content.trim() && selectedAssets.length === 0) || !scheduleIsValid || !storySelectionIsValid}
+            disabled={Boolean(initialPublicationId && !editingPublicationId) || Boolean(historyAction) || action === "publish" || selectedAccounts.length === 0 || (!content.trim() && selectedAssets.length === 0) || !scheduleIsValid || !storySelectionIsValid}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-quepia-cyan px-4 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {action === "publish" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

@@ -4,6 +4,7 @@ type ZernioRequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE"
   body?: unknown
   headers?: Record<string, string>
+  signal?: AbortSignal
 }
 
 export class ZernioApiError extends Error {
@@ -36,6 +37,7 @@ export async function zernioRequest<T>(path: string, options: ZernioRequestOptio
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     cache: "no-store",
+    signal: options.signal,
   })
 
   const payload = await response.json().catch(() => null) as Record<string, unknown> | null
