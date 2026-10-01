@@ -173,31 +173,39 @@ export function createSocialWorker(deps: WorkerDeps) {
       const days = Number(job.payload.days) > 0 ? Math.min(366, Number(job.payload.days)) : config.bootstrapDays
       const fromDate = dateOnly(addDays(now(), -days + 1))
       const toDate = dateOnly(now())
-      let page = 1
-      let pages = 1
+      const { accounts } = await workerAccounts()
+      let totalPages = 0
       let written = 0
       let skipped = 0
-      do {
-        assertQuota()
-        const response = observe(await zernio.analyticsPage({ page, limit: 100, fromDate, toDate }))
-        pages = Math.max(1, Number(response.data.pagination?.pages ?? 1))
-        const items = (response.data.posts ?? []).flatMap(normalizeAnalyticsPost)
-        const result = await rpc<{ written: number; skipped_unknown_account: number; skipped_unassigned_client: number }>(
-          "social_ingest_posts", { p_items: items, p_source: "analytics", p_observed_at: now().toISOString() })
-        written += result.written
-        skipped += result.skipped_unknown_account + result.skipped_unassigned_client
-        page += 1
-        await sleep(200)
-      } while (page <= pages && page <= 50)
+      // El listado global del proveedor puede omitir perfiles conectados recientemente.
+      // Cada cuenta asignada debe tener su propio baseline, incluso si el delta está al día.
+      for (const account of accounts) {
+        let page = 1
+        let pages = 1
+        do {
+          assertQuota()
+          const response = observe(await zernio.analyticsPage({ page, limit: 100, accountId: account.zernio_account_id, fromDate, toDate }))
+          pages = Math.max(1, Number(response.data.pagination?.pages ?? 1))
+          const items = (response.data.posts ?? []).flatMap(normalizeAnalyticsPost)
+          const result = await rpc<{ written: number; skipped_unknown_account: number; skipped_unassigned_client: number }>(
+            "social_ingest_posts", { p_items: items, p_source: "analytics", p_observed_at: now().toISOString() })
+          written += result.written
+          skipped += result.skipped_unknown_account + result.skipped_unassigned_client
+          totalPages += 1
+          page += 1
+          await sleep(200)
+        } while (page <= pages && page <= 50)
+        if (page <= pages) throw new SocialError(502, "incomplete_baseline", "La carga histórica necesita más páginas; no se avanzó el cursor")
+      }
       // 3) Guardar el cursor tomado antes del baseline: el solapamiento es seguro
       //    porque los valores son absolutos.
       await rpc("social_set_sync_state", {
         p_stream: "analytics_delta", p_scope_key: "global", p_status: "ok", p_cursor: cursor, p_cursor_obtained_at: cursorAt,
         p_error: null, p_details: { bootstrapped_at: now().toISOString(), baseline_from: fromDate }, p_success: true,
       })
-      await recordRun(job, "analytics_bootstrap", "global", startedAt, { pages: page - 1, items_written: written, items_skipped: skipped,
+      await recordRun(job, "analytics_bootstrap", "global", startedAt, { pages: totalPages, items_written: written, items_skipped: skipped,
         coverage: { from: fromDate, to: toDate } })
-      return { pages: page - 1, written, skipped }
+      return { pages: totalPages, written, skipped }
     },
 
     async "analytics.delta"(job) {

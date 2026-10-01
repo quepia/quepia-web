@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react"
-import { formatDateTime, relativeAge, socialFetch, useSocialData, SocialApiError } from "../social-api"
+import { formatDateTime, paramsQuery, relativeAge, socialFetch, useSocialData, SocialApiError } from "../social-api"
 import { Button, ErrorState, Loading, Panel, PLATFORM_LABEL, Select } from "../social-ui"
 import type { TabProps } from "../social-module"
 
@@ -20,7 +20,7 @@ type Inventory = {
   recent_sync_runs: Array<{ stream: string; status: string; started_at: string; items_seen: number; items_written: number; items_skipped: number; error: string | null }>
   jobs: Array<{ kind: string; status: string; attempts: number; last_error: string | null; run_after: string }>
 }
-type Coverage = { result: { streams: Array<{ stream: string; status: string; last_success_at: string | null; last_error: string | null; cursor_age_hours: number | null }>; webhooks: { last_received_at: string | null; quarantined: number; failed: number }; provider_freshness_note: string } }
+type Coverage = { result: { accounts: Array<{ account_id: string; posts_in_period: number; latest_post_metrics_at: string | null }>; streams: Array<{ stream: string; status: string; last_success_at: string | null; last_error: string | null; cursor_age_hours: number | null }>; webhooks: { last_received_at: string | null; quarantined: number; failed: number }; provider_freshness_note: string } }
 type Grant = { grant_id: string; user_name: string | null; client_id: string; created_at: string; user_is_global_admin: boolean; social_enabled: boolean }
 
 const SYNC_KINDS = [
@@ -29,8 +29,8 @@ const SYNC_KINDS = [
   { kind: "ig_insights.refresh", label: "Insights IG" }, { kind: "inbox.backfill", label: "Bandeja" }, { kind: "automations.sync", label: "Automatizaciones" },
 ]
 
-export function ConnectionsTab({ onScopesChanged }: TabProps & { onScopesChanged: () => void }) {
-  const inventory = useSocialData<{ inventory: Inventory; coverage: Coverage }>("/api/admin/social/connections")
+export function ConnectionsTab({ scope, onScopesChanged }: TabProps & { onScopesChanged: () => void }) {
+  const inventory = useSocialData<{ inventory: Inventory; coverage: Coverage }>(`/api/admin/social/connections?${paramsQuery(scope)}`)
   const grants = useSocialData<Grant[]>("/api/admin/social/mcp-access")
   const [syncing, setSyncing] = useState(false)
   const syncLock = useRef(false)
@@ -127,7 +127,9 @@ export function ConnectionsTab({ onScopesChanged }: TabProps & { onScopesChanged
                   </div>
                   <div className="text-[#a3a3a3]">
                     Permisos: {account.permissions.length ? account.permissions.map((permission) => permission.replace("instagram_business_", "")).join(", ") : "sin datos"}<br />
-                    Analítica {account.can_fetch_analytics === false ? "no disponible" : "ok"} · Zernio sincronizó {relativeAge(account.provider_analytics_synced_at)} · DMs históricos: {account.dm_backfill_status ?? "—"}
+                    Permiso de analítica: {account.can_fetch_analytics === false ? "no disponible" : account.can_fetch_analytics === true ? "disponible" : "sin confirmar"}<br />
+                    {coverage.result.accounts.some((item) => item.account_id === account.id) ? <>{coverage.result.accounts.find((item) => item.account_id === account.id)?.posts_in_period ?? 0} publicaciones en el período · Estadísticas actualizadas {relativeAge(coverage.result.accounts.find((item) => item.account_id === account.id)?.latest_post_metrics_at ?? null)}</> : "Cuenta fuera del filtro actual"}<br />
+                    {account.provider_analytics_synced_at ? `Última fecha informada por Zernio: ${relativeAge(account.provider_analytics_synced_at)}` : "Zernio no informa su última fecha de actualización"} · DMs históricos: {account.dm_backfill_status ?? "—"}
                   </div>
                   <div>
                     {account.client_id ? (
@@ -155,9 +157,9 @@ export function ConnectionsTab({ onScopesChanged }: TabProps & { onScopesChanged
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm text-white/85">{data.jobs.some((job) => job.status === "running" || job.status === "queued") ? "Actualización en curso o pendiente" : coverage.result.streams.some((stream) => stream.last_error) ? "Hay datos que necesitan actualizarse" : "Sincronización automática activa"}</p>
-            <p className="mt-1 text-xs text-[#a3a3a3]">Actualiza cuentas, estadísticas, seguidores, bandeja y automatizaciones. Si falta el histórico, se recupera automáticamente.</p>
+            <p className="mt-1 text-xs text-[#a3a3a3]">Actualiza cuentas, estadísticas, seguidores, bandeja y automatizaciones. Incluye el histórico de publicaciones de cada cuenta.</p>
           </div>
-          <Button disabled={syncing} onClick={() => synchronize(SYNC_KINDS.filter((item) => item.kind !== "analytics.bootstrap").map((item) => item.kind))}>
+          <Button disabled={syncing} onClick={() => synchronize(SYNC_KINDS.map((item) => item.kind))}>
             <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Solicitando…" : "Sincronizar todo"}
           </Button>
         </div>

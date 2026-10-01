@@ -39,6 +39,7 @@ function createFakeZernio() {
       return json({ data: page, nextCursor: `v1.c${state.deltaCursorCounter++}`, hasMore: false })
     }
     if (path === "/analytics") {
+      if (!url.searchParams.get("accountId")) return json({ posts: [], pagination: { page: 1, pages: 1, total: 0 } })
       return json({ posts: [{
         _id: "ext_1", latePostId: null, content: "Reel", publishedAt: iso(10 * DAY), mediaType: "video", mediaProductType: "REELS",
         analytics: { views: 2000, reach: 1300, likes: 49, comments: 3, shares: 5, saves: 4, lastUpdated: iso(0) },
@@ -112,6 +113,7 @@ test("bootstrap: toma el cursor ANTES del baseline y lo persiste al final", asyn
   const deltaCall = fake.state.calls.findIndex((call) => call.startsWith("GET /analytics/delta"))
   const baselineCall = fake.state.calls.findIndex((call) => call.startsWith("GET /analytics?"))
   assert.ok(deltaCall >= 0 && deltaCall < baselineCall)
+  assert.ok(fake.state.calls[baselineCall].includes("accountId=za_camping"))
   const state = await rpc("social_get_sync_state", { p_stream: "analytics_delta", p_scope_key: "global" })
   assert.equal(state.cursor, "v1.c0")
   assert.equal(state.status, "ok")

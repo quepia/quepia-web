@@ -11,3 +11,7 @@ Validación: tipos, ESLint de archivos modificados, pruebas unitarias, worker, a
 ## Publicación
 
 Aplicar primero 20261001132257_social_sync_deferral.sql y después desplegar la aplicación. El script scripts/social/apply-social-migrations.mjs incluye esta migración. No ejecutar db push sobre el historial divergente del proyecto. Tras desplegar, usar Sincronizar todo y comprobar analytics_delta, estadísticas disponibles y análisis de horarios. Las demoras y ausencia de métricas del proveedor todavía pueden limitar la muestra.
+
+## Recuperación de Brandalise
+
+El listado global /analytics omite Brandalise, aunque las consultas por accountId y profileId devuelven 64 publicaciones en 180 días. El bootstrap ahora pagina por cada cuenta asignada y activa. Sincronizar todo incluye carga histórica incluso si existe un cursor global válido. Una prueba simula listado global vacío y exige accountId. Se recuperaron 64 publicaciones con 1058 métricas; 34 publicaciones corresponden a los últimos 90 días. La pantalla separa permiso disponible de estadísticas importadas y no interpreta ausencia de fecha del proveedor como ausencia de datos. La cobertura respeta los filtros elegidos.
