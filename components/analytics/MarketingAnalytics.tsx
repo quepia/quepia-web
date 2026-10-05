@@ -5,6 +5,9 @@ import Script from 'next/script';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
   GOOGLE_TAG_ID,
+  GOOGLE_GTM_ID,
+  trackPublicEvent,
+  trackLead,
   META_PIXEL_ID,
   isTrackableRoute,
   trackPageView,
@@ -41,6 +44,28 @@ function MarketingAnalyticsInner() {
   const hasTrackedInitialView = useRef(false);
   const search = searchParams?.toString() ?? '';
   const isPublicRoute = isTrackableRoute(pathname);
+  useEffect(() => {
+    if (!isPublicRoute) return;
+    const click = (event: MouseEvent) => {
+      const anchor = (event.target as Element)?.closest?.('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href') || '';
+      const name = /^https:\/\/(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com)\//.test(href) ? 'click_whatsapp' : href.startsWith('mailto:') ? 'click_email' : href.startsWith('tel:') ? 'click_phone' : '';
+      if (name) trackPublicEvent(name, { page: pathname || '/', service: anchor.dataset.service || (pathname?.startsWith('/servicios/') ? pathname.split('/')[2] : 'general') });
+    };
+    document.addEventListener('click', click);
+    return () => document.removeEventListener('click', click);
+  }, [pathname, isPublicRoute]);
+  useEffect(() => {
+    if (pathname !== '/gracias') return;
+    const lead = sessionStorage.getItem('quepia-lead');
+    if (!lead) return;
+    try {
+      const payload = JSON.parse(lead);
+      trackLead({ service: payload.service, source: payload.source });
+      sessionStorage.removeItem('quepia-lead');
+    } catch { sessionStorage.removeItem('quepia-lead'); }
+  }, [pathname]);
 
   useEffect(() => {
     if (!pathname || !isPublicRoute) {
@@ -62,7 +87,7 @@ function MarketingAnalyticsInner() {
 
   return (
     <>
-      {GOOGLE_TAG_ID ? (
+      {GOOGLE_TAG_ID && !GOOGLE_GTM_ID ? (
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}`}
@@ -74,6 +99,7 @@ function MarketingAnalyticsInner() {
         </>
       ) : null}
 
+      {GOOGLE_GTM_ID ? <Script id="google-tag-manager" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];window.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtm.js?id=${GOOGLE_GTM_ID}';document.head.appendChild(s);`}</Script> : null}
       {META_PIXEL_ID ? (
         <>
           <Script id="meta-pixel" strategy="afterInteractive">
