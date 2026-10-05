@@ -13,6 +13,12 @@ export default function HeroVideoBackground({ active = true }: HeroVideoBackgrou
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isInView, setIsInView] = useState(true);
+  const [src, setSrc] = useState<string>();
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const timer = window.setTimeout(() => setSrc(window.matchMedia('(max-width: 767px)').matches ? '/images/hero-mobile.mp4' : HERO_LOOP_SRC), 1800);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -36,19 +42,20 @@ export default function HeroVideoBackground({ active = true }: HeroVideoBackgrou
     }
 
     videoRef.current.pause();
-  }, [active, isInView]);
+  }, [active, isInView, src]);
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
       <video
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover object-center"
-        src={HERO_LOOP_SRC}
+        src={src}
+        poster="/images/video-poster.webp"
         autoPlay
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="none"
       />
 
       <div

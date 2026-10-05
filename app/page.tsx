@@ -1,3 +1,5 @@
+import { correctProjectCopy } from '@/lib/seo/public-copy';
+import SocialProof from '@/components/seo/SocialProof';
 import type { Metadata } from 'next';
 import { createPublicClient } from '@/lib/supabase/public';
 import HomeCarousel from '@/components/home/HomeCarousel';
@@ -14,8 +16,8 @@ import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: 'Quepia - Consultora Creativa | Villa Carlos Paz, Córdoba',
-  description: 'Quepia es una consultora creativa de Villa Carlos Paz, Córdoba. Transformamos marcas con diseño gráfico, branding y marketing digital.',
+  title: { absolute: 'Quepia | Agencia creativa y de redes en Villa Carlos Paz, Córdoba' },
+  description: 'Branding, diseño gráfico, redes sociales, fotografía, video y dron en Villa Carlos Paz y toda la provincia de Córdoba, Argentina.',
   alternates: {
     canonical: 'https://quepia.com',
   },
@@ -79,7 +81,7 @@ export default async function Home() {
           style={{ contentVisibility: 'auto', containIntrinsicSize: '1200px' }}
         >
           {proyectos && proyectos.length > 0 && (
-            <HomeCarousel proyectos={proyectos} />
+            <HomeCarousel proyectos={proyectos.map(correctProjectCopy)} />
           )}
         </section>
 
@@ -103,6 +105,7 @@ export default async function Home() {
         >
           <CTASection email={config.email_contacto} />
         </section>
+        <SocialProof />
       </div>
     </main>
   );

@@ -1,50 +1,14 @@
-import { MetadataRoute } from 'next';
-
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://quepia.com';
-
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/servicios`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/trabajos`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/sobre-nosotros`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/contacto`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly',
-      priority: 0.6,
-    },
-    {
-      url: `${baseUrl}/privacidad`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly',
-      priority: 0.3,
-    },
-    {
-      url: `${baseUrl}/terminos`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly',
-      priority: 0.3,
-    },
-  ];
+import type { MetadataRoute } from 'next';
+import { services } from '@/lib/seo/services';
+import { industries, locations } from '@/lib/seo/landing-pages';
+import { getPublicProjects, projectSlug } from '@/lib/seo/projects';
+export const revalidate = 300;
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const paths = ['', '/servicios', '/trabajos', '/sobre-nosotros', '/contacto', '/precios', '/privacidad', ...services.map(item => `/servicios/${item.slug}`), ...industries.map(item => `/rubros/${item.slug}`), ...locations.map(item => `/${item.slug}`)];
+  // Sin fecha inventada: las páginas editoriales omiten lastmod hasta contar con un historial de publicación.
+  const entries: MetadataRoute.Sitemap = paths.map(path => ({ url: `https://quepia.com${path}`, changeFrequency: 'monthly', priority: path === '' ? 1 : 0.7 }));
+  return [...entries, ...(await getPublicProjects()).map(project => {
+    const updated = project.updated_at || project.fecha_actualizacion;
+    return { url: `https://quepia.com/trabajos/${projectSlug(project)}`, ...(updated && !Number.isNaN(Date.parse(updated)) ? { lastModified: updated } : {}), changeFrequency: 'monthly' as const, priority: 0.8 };
+  })];
 }

@@ -1,3 +1,4 @@
+import JsonLd from "@/components/seo/JsonLd";
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
     template: '%s | Quepia'
   },
   description: 'Quepia es una consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Transformamos marcas con estrategias de diseño, branding y marketing digital.',
-  keywords: ['consultora creativa', 'diseño gráfico', 'branding', 'marketing digital', 'redes sociales', 'Villa Carlos Paz', 'Córdoba', 'Argentina', 'desarrollo web'],
+  verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION },
   authors: [{ name: 'Quepia Creative Agency' }],
   creator: 'Quepia',
   publisher: 'Quepia',
@@ -93,13 +94,13 @@ export default async function RootLayout({
     logo: 'https://quepia.com/Logo_Quepia.svg',
     image: 'https://quepia.com/og-image.jpg',
     email: 'hola@quepia.com',
-    telephone: '+54-351-397-0227',
-    foundingDate: '2020',
+    telephone: '+54 9 351 397-0227',
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Villa Carlos Paz',
       addressRegion: 'Córdoba',
       addressCountry: 'AR',
+      ...(config.direccion ? { streetAddress: config.direccion } : {}),
     },
     openingHoursSpecification: {
       '@type': 'OpeningHoursSpecification',
@@ -108,8 +109,7 @@ export default async function RootLayout({
       closes: '18:00',
     },
     sameAs: sameAs.length > 0 ? sameAs : [DEFAULT_INSTAGRAM_URL],
-    areaServed: { '@type': 'Country', name: 'Argentina' },
-    priceRange: '$$',
+    areaServed: ['Villa Carlos Paz', 'Córdoba Capital, Argentina', 'Provincia de Córdoba, Argentina'].map(name => ({ '@type': 'AdministrativeArea', name })),
   };
 
   return (
@@ -122,10 +122,7 @@ export default async function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap"
         />
         <link rel="stylesheet" href="https://use.typekit.net/egc1iei.css" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLd data={jsonLd} />
       </head>
       <body className="font-sans antialiased min-h-screen">
         <Suspense fallback={null}>

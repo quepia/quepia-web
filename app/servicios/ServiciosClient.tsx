@@ -1,4 +1,5 @@
 'use client';
+import SocialProof from '@/components/seo/SocialProof';
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -22,9 +23,7 @@ const processSteps = [
 
 function ServiceCard({ service, index }: { service: Servicio; index: number }) {
   const IconComponent = getServiceIconByName(service.icono);
-  const relatedHref = service.categoria_trabajo
-    ? `/trabajos?category=${service.categoria_trabajo}`
-    : '/trabajos';
+  const relatedHref = `/servicios/${service.id}`;
   const topFeatures = (service.features || []).slice(0, 3);
 
   return (
@@ -73,7 +72,7 @@ function ServiceCard({ service, index }: { service: Servicio; index: number }) {
           href={relatedHref}
           className="mt-7 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/58 transition-all duration-300 hover:gap-3 hover:text-white"
         >
-          Ver proyectos
+          Conocé el servicio
           <ArrowUpRight size={14} />
         </Link>
       </div>
@@ -97,7 +96,7 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="none" poster="/images/video-poster.webp"
               className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.15]"
               src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
             />
@@ -225,6 +224,7 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
             </div>
           </motion.div>
         </section>
+        <SocialProof />
       </div>
     </main>
   );
