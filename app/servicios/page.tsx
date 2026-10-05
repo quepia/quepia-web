@@ -1,5 +1,6 @@
+import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import type { Metadata } from 'next';
-import { createPublicClient } from '@/lib/supabase/public';
+import { services } from '@/lib/seo/services';
 import ServiciosClient from './ServiciosClient';
 
 export const revalidate = 60;
@@ -51,11 +52,13 @@ const serviciosJsonLd = {
 };
 
 export default async function ServiciosPage() {
-    const supabase = createPublicClient();
-    const { data: servicios } = await supabase
-        .from('servicios')
-        .select('*')
-        .order('orden', { ascending: true });
+    // Pendiente de decisión comercial: email marketing, SEO/SEM y diseño industrial.
+    // Se omiten del catálogo público hasta confirmar que se ofrecen.
+    const servicios = services.map((service, orden) => ({
+      id: service.slug, titulo: service.name, descripcion_corta: service.sections[0].text,
+      descripcion: service.description, icono: 'Palette', categoria_trabajo: service.category,
+      features: service.sections.slice(1, 4).map(section => section.title), orden,
+    }));
 
     return (
         <>
@@ -63,6 +66,7 @@ export default async function ServiciosPage() {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(serviciosJsonLd) }}
             />
+            <JsonLd data={breadcrumbs([{ name: 'Servicios', path: '/servicios' }])} />
             <ServiciosClient servicios={servicios || []} />
         </>
     );

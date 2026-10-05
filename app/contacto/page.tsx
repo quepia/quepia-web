@@ -1,3 +1,4 @@
+import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import type { Metadata } from 'next';
 import ContactoClient from './ContactoClient';
 
@@ -49,6 +50,7 @@ export default function ContactoPage() {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(contactJsonLd) }}
             />
+            <JsonLd data={breadcrumbs([{ name: 'Contacto', path: '/contacto' }])} />
             <ContactoClient />
         </>
     );

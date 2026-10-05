@@ -26,8 +26,8 @@ interface ContactFormEmailProps {
 export default function ContactFormEmail({
     name = "Lautaro Lopez",
     email = "lauty@example.com",
-    service = "Desarrollo Web",
-    message = "Hola, me gustaría cotizar una web nueva.",
+    service = "Branding",
+    message = "Hola, me gustaría consultar por mi marca.",
 }: ContactFormEmailProps) {
     return (
         <Html>
@@ -118,7 +118,7 @@ export default function ContactFormEmail({
                                             </Text>
                                         </Column>
                                         <Column className="w-2/3 p-4">
-                                            <Text className="text-white/80 text-base m-0 whitespace-pre-wrap leading-relaxed">
+                                            <Text style={{ whiteSpace: "pre-line" }} className="text-white/80 text-base m-0 whitespace-pre-wrap leading-relaxed">
                                                 {message}
                                             </Text>
                                         </Column>

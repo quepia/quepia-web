@@ -4,6 +4,9 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useConfig } from './ClientLayout';
+import { services } from '@/lib/seo/services';
+import { locations } from '@/lib/seo/landing-pages';
+import { whatsappUrl } from '@/components/seo/PublicContent';
 import { getInstagramUrl } from '@/lib/instagram';
 
 const Footer: React.FC = () => {
@@ -39,10 +42,11 @@ const Footer: React.FC = () => {
                         </p>
 
                         <p className="text-[rgb(var(--text-white-soft-rgb)/0.4)] text-sm">
-                            {config.direccion || 'Villa Carlos Paz, Argentina'}
+                            {config.direccion || '[COMPLETAR: dirección] · Villa Carlos Paz, Córdoba, Argentina'}
                         </p>
                     </div>
 
+                    <div className="space-y-4 text-sm text-white/60"><p>Atendemos en Villa Carlos Paz y toda la provincia de Córdoba</p><a className="block text-[#2ae7e4]" href={whatsappUrl()}>WhatsApp: +54 9 351 397-0227</a><a className="block" href="tel:+5493513970227">Llamar al +54 9 351 397-0227</a><nav aria-label="Servicios y zonas" className="flex flex-wrap gap-4">{services.map(item => <Link key={item.slug} href={`/servicios/${item.slug}`}>{item.name}</Link>)}{locations.map(item => <Link key={item.slug} href={`/${item.slug}`}>{({ 'villa-carlos-paz': 'Villa Carlos Paz', cordoba: 'Córdoba, Argentina', 'valle-de-punilla': 'Valle de Punilla' } as Record<string, string>)[item.slug]}</Link>)}</nav></div>
                     {/* Right column: Links */}
                     <div className="flex flex-col md:items-end">
                         {/* Social links as text */}
@@ -88,12 +92,7 @@ const Footer: React.FC = () => {
                         >
                             Privacidad
                         </Link>
-                        <Link
-                            href="/terminos"
-                            className="text-[rgb(var(--text-white-soft-rgb)/0.3)] hover:text-[rgb(var(--text-white-soft-rgb)/0.6)] transition-colors duration-300 text-xs"
-                        >
-                            Legal
-                        </Link>
+
                     </div>
                     </div>
                 </div>

@@ -1,3 +1,5 @@
+import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
+import { correctProjectCopy } from '@/lib/seo/public-copy';
 import type { Metadata } from 'next';
 import WorksClient from './works-client';
 import { createPublicClient } from '@/lib/supabase/public';
@@ -60,8 +62,9 @@ export default async function Page({ searchParams }: TrabajosPageProps) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(portfolioJsonLd) }}
             />
+            <JsonLd data={breadcrumbs([{ name: 'Trabajos', path: '/trabajos' }])} />
             <WorksClient
-                proyectos={proyectos || []}
+                proyectos={(proyectos || []).map(correctProjectCopy)}
                 initialCategory={validCategory}
             />
         </>

@@ -1,3 +1,4 @@
+import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import type { Metadata } from 'next';
 import PreciosClient from './PreciosClient';
 
@@ -38,7 +39,8 @@ export default function PreciosPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingJsonLd) }}
       />
-      <PreciosClient />
+      <JsonLd data={breadcrumbs([{ name: 'Precios', path: '/precios' }])} />
+            <PreciosClient />
     </>
   );
 }

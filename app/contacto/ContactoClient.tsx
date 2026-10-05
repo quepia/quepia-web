@@ -1,15 +1,21 @@
 'use client';
+import SocialProof from '@/components/seo/SocialProof';
 
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Clock, Instagram, Mail, MapPin, Phone } from 'lucide-react';
 import type { SiteConfig } from '@/lib/fetchConfig';
 import { useConfig } from '@/components/layout/ClientLayout';
+import AmbientVideo from '@/components/seo/AmbientVideo';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
+import JsonLd from '@/components/seo/JsonLd';
+import { whatsappUrl } from '@/components/seo/PublicContent';
 import MarqueeSection from '@/components/home/MarqueeSection';
 import ContactFormCard from '@/components/contact/ContactFormCard';
 import { getInstagramLabel, getInstagramUrl } from '@/lib/instagram';
 
 const faqItems = [
+  { q: '¿Trabajan en toda la provincia de Córdoba?', a: 'Sí. Tenemos base en Villa Carlos Paz y trabajamos en toda la provincia de Córdoba, Argentina. Coordinamos reuniones a distancia y jornadas presenciales según el proyecto.' },
+  { q: '¿Hacen coberturas con dron y eventos fuera de Carlos Paz?', a: 'Sí, con viáticos según distancia. Las tomas con dron se coordinan según la locación, los permisos y las condiciones de operación.' },
   {
     q: '¿Cuál es el tiempo de respuesta?',
     a: 'Respondemos en menos de 24 horas hábiles con próximos pasos claros para avanzar.',
@@ -31,14 +37,14 @@ export default function ContactoClient() {
     {
       icon: Mail,
       label: 'Email',
-      value: config?.email_contacto || 'quepiacomunicacion@gmail.com',
-      href: `mailto:${config?.email_contacto || 'quepiacomunicacion@gmail.com'}`,
+      value: config?.email_contacto || 'hola@quepia.com',
+      href: `mailto:${config?.email_contacto || 'hola@quepia.com'}`,
     },
     {
       icon: Phone,
       label: 'WhatsApp',
-      value: config?.telefono || 'Enviar mensaje',
-      href: config?.whatsapp ? `https://wa.me/${config.whatsapp.replace(/[^0-9]/g, '')}` : '#',
+      value: '+54 9 351 397-0227',
+      href: whatsappUrl(),
     },
     {
       icon: Instagram,
@@ -49,7 +55,7 @@ export default function ContactoClient() {
     {
       icon: MapPin,
       label: 'Ubicación',
-      value: config?.direccion || 'Villa Carlos Paz, Córdoba',
+      value: config?.direccion || '[COMPLETAR: dirección] · Villa Carlos Paz, Córdoba, Argentina',
     },
     {
       icon: Clock,
@@ -60,18 +66,14 @@ export default function ContactoClient() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
+      <JsonLd data={{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqItems.map(item => ({ '@type': 'Question', name: item.q, acceptedAnswer: { '@type': 'Answer', text: item.a } })) }} />
       <BrandDepthBackground variant="subtle" />
       <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(180deg,#0a0a0a_0%,#101010_42%,#0d0d0d_100%)]" />
 
       <div className="relative z-10">
         <section className="relative overflow-hidden pb-14 pt-28 md:pb-20 md:pt-32">
           <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-screen w-screen -translate-x-1/2">
-            <video
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
+            <AmbientVideo
               className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.14]"
               src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
             />
@@ -98,10 +100,10 @@ export default function ContactoClient() {
 
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <a
-                  href={`mailto:${config?.email_contacto || 'quepiacomunicacion@gmail.com'}`}
+                  href={whatsappUrl()}
                   className="inline-flex h-11 items-center justify-center rounded-full border border-[#2ae7e4]/35 bg-gradient-to-br from-[#2ae7e4] to-[#7cf2ef] px-6 text-xs font-semibold uppercase tracking-[0.08em] text-[#0a0a0a] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(42,231,228,0.38),0_12px_36px_rgba(42,231,228,0.4)]"
                 >
-                  Escribir ahora
+                  Escribir por WhatsApp
                 </a>
                 <span className="text-xs uppercase tracking-[0.14em] text-white/52">Respuesta en menos de 24hs</span>
               </div>
@@ -216,15 +218,16 @@ export default function ContactoClient() {
               </p>
 
               <a
-                href={`mailto:${config?.email_contacto || 'quepiacomunicacion@gmail.com'}`}
+                href={`mailto:${config?.email_contacto || 'hola@quepia.com'}`}
                 className="mt-8 inline-flex items-center gap-2 text-sm uppercase tracking-[0.1em] text-white/68 transition-all duration-300 hover:gap-3 hover:text-white"
               >
-                {config?.email_contacto || 'quepiacomunicacion@gmail.com'}
+                {config?.email_contacto || 'hola@quepia.com'}
                 <ArrowUpRight size={14} />
               </a>
             </div>
           </motion.div>
         </section>
+        <SocialProof />
       </div>
     </main>
   );

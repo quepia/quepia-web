@@ -1,10 +1,12 @@
 'use client';
+import SocialProof from '@/components/seo/SocialProof';
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import type { Servicio } from '@/types/database';
 import { getServiceIconByName } from '@/lib/service-icons';
+import AmbientVideo from '@/components/seo/AmbientVideo';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import DroneService from '@/components/home/DroneService';
 import MarqueeSection from '@/components/home/MarqueeSection';
@@ -22,9 +24,7 @@ const processSteps = [
 
 function ServiceCard({ service, index }: { service: Servicio; index: number }) {
   const IconComponent = getServiceIconByName(service.icono);
-  const relatedHref = service.categoria_trabajo
-    ? `/trabajos?category=${service.categoria_trabajo}`
-    : '/trabajos';
+  const relatedHref = `/servicios/${service.id}`;
   const topFeatures = (service.features || []).slice(0, 3);
 
   return (
@@ -73,7 +73,7 @@ function ServiceCard({ service, index }: { service: Servicio; index: number }) {
           href={relatedHref}
           className="mt-7 inline-flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-white/58 transition-all duration-300 hover:gap-3 hover:text-white"
         >
-          Ver proyectos
+          Conocé el servicio
           <ArrowUpRight size={14} />
         </Link>
       </div>
@@ -92,12 +92,7 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
       <div className="relative z-10">
         <section className="relative overflow-hidden pb-14 pt-28 md:pb-20 md:pt-32">
           <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-screen w-screen -translate-x-1/2">
-            <video
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
+            <AmbientVideo
               className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.15]"
               src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
             />
@@ -225,6 +220,7 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
             </div>
           </motion.div>
         </section>
+        <SocialProof />
       </div>
     </main>
   );

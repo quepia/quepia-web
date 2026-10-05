@@ -1,0 +1,28 @@
+{
+  "sitemap_urls": 36,
+  "project_urls": 16,
+  "schemas_parsed": 110,
+  "internal_links_checked": 61,
+  "errors": [],
+  "date": "2026-10-05",
+  "lighthouse_seo": {
+    "home": 100,
+    "servicios": 100,
+    "contacto": 100
+  },
+  "environment": "Local, Next.js production server, Chrome headless, Lighthouse 13.5.0",
+  "rich_results_test": "Pendiente: Google solicita iniciar sesión al probar código; no se completó validación oficial",
+  "contact_checks": [
+    "Plan Plus y servicio dron precargados",
+    "Validación servidor 400 para campos incompletos",
+    "Origen ajeno 403",
+    "Sin remitente configurado: error visible, sin redirección ni envío",
+    "Éxito simulado solo en navegador: redirección a /gracias, noindex, marcador consumido"
+  ],
+  "analytics_checks": [
+    "GA4: click y generate_lead, sin email enviado",
+    "GTM: eventos en dataLayer, sin GA duplicado",
+    "Rutas internas excluidas"
+  ],
+  "sql": "Ambas propuestas probadas en PGlite en memoria; ROLLBACK confirmado; producción no modificada"
+}

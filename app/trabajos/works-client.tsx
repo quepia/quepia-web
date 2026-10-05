@@ -2,6 +2,8 @@
 
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { projectSlug } from '@/lib/seo/projects-slug'
 import Image from 'next/image'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, X } from 'lucide-react'
@@ -357,6 +359,7 @@ function Lightbox({
 
 export default function WorksPage({ proyectos, initialCategory }: WorksClientProps) {
   const [activeCategory, setActiveCategory] = useState<WorkCategory>(initialCategory)
+  const router = useRouter()
   const [selectedProject, setSelectedProject] = useState<Proyecto | null>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const inView = useInView(heroRef, { once: true })
@@ -483,7 +486,7 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
               </motion.div>
             ) : (
               <>
-                {leadProject ? <LeadProject proyecto={leadProject} onOpen={() => setSelectedProject(leadProject)} /> : null}
+                {leadProject ? <LeadProject proyecto={leadProject} onOpen={() => router.push(`/trabajos/${projectSlug(leadProject)}`)} /> : null}
 
                 {otherProjects.length > 0 ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -492,7 +495,7 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
                         key={proyecto.id}
                         proyecto={proyecto}
                         index={index}
-                        onOpen={() => setSelectedProject(proyecto)}
+                        onOpen={() => router.push(`/trabajos/${projectSlug(proyecto)}`)}
                       />
                     ))}
                   </div>
@@ -537,6 +540,7 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
       </div>
 
       <AnimatePresence>
+        <nav aria-label="Casos del portfolio" className="mx-auto flex max-w-[1400px] flex-wrap gap-4 px-6 pb-8 text-sm text-white/60">{proyectos.map(project => <Link key={project.id} href={`/trabajos/${projectSlug(project)}`}>{project.titulo}</Link>)}</nav>
         {selectedProject ? <Lightbox proyecto={selectedProject} onClose={() => setSelectedProject(null)} /> : null}
       </AnimatePresence>
     </main>

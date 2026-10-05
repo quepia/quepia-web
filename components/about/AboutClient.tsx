@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Heart, Sparkles, Users, MapPin, Instagram, Linkedin, Mail } from 'lucide-react';
 import type { Equipo } from '@/types/database';
+import AmbientVideo from '@/components/seo/AmbientVideo';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import MarqueeSection from '@/components/home/MarqueeSection';
 
@@ -29,6 +30,11 @@ const values = [
     description: 'Acompañamos cada proyecto con foco en calidad, impacto y crecimiento sostenido.',
   },
 ];
+
+function realSocialUrl(value: string | null) {
+  if (!value || !/^https:\/\//.test(value)) return false;
+  return !['instagram.com/camila', 'linkedin.com/in/lautaro', 'instagram.com/lautarolopezlabrin'].some(url => value.replace(/\/$/, '').endsWith(url));
+}
 
 function TeamCard({ member, index }: { member: Equipo; index: number }) {
   const initials = member.nombre
@@ -64,18 +70,18 @@ function TeamCard({ member, index }: { member: Equipo; index: number }) {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_38%,rgba(0,0,0,0.72)_100%)]" />
 
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 opacity-0 transition-all duration-300 group-hover:opacity-100">
-          {member.instagram ? (
-            <a href={member.instagram} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
+          {realSocialUrl(member.instagram) ? (
+            <a href={member.instagram!} aria-label={`Instagram de ${member.nombre}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
               <Instagram size={14} />
             </a>
           ) : null}
-          {member.linkedin ? (
-            <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
+          {realSocialUrl(member.linkedin) ? (
+            <a href={member.linkedin!} aria-label={`LinkedIn de ${member.nombre}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
               <Linkedin size={14} />
             </a>
           ) : null}
           {member.email ? (
-            <a href={`mailto:${member.email}`} className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
+            <a href={`mailto:${member.email}`} aria-label={`Email de ${member.nombre}`} className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
               <Mail size={14} />
             </a>
           ) : null}
@@ -102,12 +108,7 @@ export default function AboutClient({ team }: AboutClientProps) {
       <div className="relative z-10">
         <section className="relative overflow-hidden pb-14 pt-28 md:pb-20 md:pt-32">
           <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-screen w-screen -translate-x-1/2">
-            <video
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
+            <AmbientVideo
               className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.14]"
               src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
             />
@@ -140,7 +141,7 @@ export default function AboutClient({ team }: AboutClientProps) {
                 >
                   Empezar proyecto
                 </Link>
-                <span className="text-xs uppercase tracking-[0.14em] text-white/52">Equipo de {teamToRender.length || 2} personas</span>
+                <span className="text-xs uppercase tracking-[0.14em] text-white/52">Equipo núcleo + red de editores y productores</span>
               </div>
             </motion.div>
           </div>
