@@ -446,7 +446,7 @@ export function ClientAssetViewer({
     const isGoogleDrive = isGoogleDriveUrl(sourcePath || originalUrl)
     const isVideo = !isGoogleDrive && isLikelyVideoAsset(activeAsset.file_type, fileNameOrUrl)
     const isExternalSource = isExternalAssetSource(sourcePath)
-    const shouldUseIframePreview = isGoogleDrive || (activeAsset.asset_type === "reel" && isExternalSource && !isImage && !isVideo)
+    const shouldUseIframePreview = (isGoogleDrive && !(isImage && activeAsset.preview_url)) || (activeAsset.asset_type === "reel" && isExternalSource && !isImage && !isVideo)
     const embedUrl = isGoogleDrive
         ? toGoogleDrivePreviewUrl(sourcePath || originalUrl) || originalUrl
         : (sourcePath || originalUrl)
@@ -645,7 +645,7 @@ export function ClientAssetViewer({
                     <div className="flex-1 w-full h-full relative bg-black flex flex-col">
                         <div className="flex-1 relative flex items-center justify-center">
                             {(() => {
-                                if (isImage) {
+                                if (isImage && !shouldUseIframePreview) {
                                     return (
                                         <AnnotationCanvasWrapper
                                             imageUrl={fileUrl}

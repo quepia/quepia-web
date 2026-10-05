@@ -3,8 +3,9 @@ import archiver from "archiver"
 import { Readable, PassThrough } from "stream"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { createClient } from "@/lib/sistema/supabase/server"
-import { ASSET_BUCKET, ZIP_SIGNED_URL_TTL, createSignedUrl, sanitizeFilename } from "@/lib/sistema/assets-storage"
+import { createSignedUrl, isStoragePath, sanitizeFilename } from "@/lib/sistema/assets-storage"
 import { logAssetAccess } from "@/lib/sistema/actions/assets"
+import { extractGoogleDriveFileId, fetchDriveFile } from "@/lib/sistema/google-drive-backup"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -60,7 +61,6 @@ export async function POST(request: Request) {
     const token = body?.token as string | undefined
     const taskId = body?.taskId as string | undefined
     const versionIds = body?.versionIds as string[] | undefined
-    const scope = body?.scope as "all" | "selected" | undefined
 
     if (!taskId && (!versionIds || versionIds.length === 0)) {
       return NextResponse.json({ error: "taskId o versionIds requeridos" }, { status: 400 })
@@ -90,25 +90,6 @@ export async function POST(request: Request) {
       source = "admin"
     }
 
-    // Cache for full task download
-    if (taskId && scope === "all") {
-      const { data: cache } = await admin
-        .from("sistema_asset_zip_cache")
-        .select("zip_path, expires_at, project_id")
-        .eq("task_id", taskId)
-        .gt("expires_at", new Date().toISOString())
-        .order("expires_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (cache && (!projectId || cache.project_id === projectId)) {
-        const signed = await createSignedUrl(cache.zip_path, ZIP_SIGNED_URL_TTL)
-        if (signed) {
-          return NextResponse.json({ url: signed, cached: true })
-        }
-      }
-    }
-
     // Collect versions
     let files: Array<{
       version_id: string
@@ -118,6 +99,7 @@ export async function POST(request: Request) {
       asset_name: string
       version_number: number
       storage_path: string
+      drive_file_id: string | null
       original_filename: string | null
     }> = []
 
@@ -129,6 +111,7 @@ export async function POST(request: Request) {
           version_number,
           storage_path,
           file_url,
+          drive_file_id,
           original_filename,
           asset:sistema_assets(id, nombre, task_id, project_id, access_revoked)
         `)
@@ -148,6 +131,7 @@ export async function POST(request: Request) {
           asset_name: v.asset.nombre,
           version_number: v.version_number,
           storage_path: v.storage_path || v.file_url,
+          drive_file_id: v.drive_file_id || null,
           original_filename: v.original_filename || null,
         }))
     } else if (taskId) {
@@ -160,7 +144,7 @@ export async function POST(request: Request) {
           project_id,
           current_version,
           access_revoked,
-          versions:sistema_asset_versions(id, version_number, storage_path, file_url, original_filename)
+          versions:sistema_asset_versions(id, version_number, storage_path, file_url, drive_file_id, original_filename)
         `)
         .eq("task_id", taskId)
 
@@ -177,6 +161,7 @@ export async function POST(request: Request) {
             asset_name: a.nombre,
             version_number: version.version_number,
             storage_path: version.storage_path || version.file_url,
+            drive_file_id: version.drive_file_id || null,
             original_filename: version.original_filename || null,
           }
         })
@@ -201,6 +186,14 @@ export async function POST(request: Request) {
       if (mismatch) return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 })
     }
 
+    // Authorize every project before fetching originals from either provider.
+    if (actorUserId && serverClient) {
+      for (const id of new Set(files.map(file => file.project_id))) {
+        const { data: project } = await serverClient.from("sistema_projects").select("id").eq("id", id).single()
+        if (!project) return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 })
+      }
+    }
+
     const archive = archiver("zip", { zlib: { level: 9 } })
     const stream = new PassThrough()
     const chunks: Buffer[] = []
@@ -212,15 +205,27 @@ export async function POST(request: Request) {
       stream.on("error", reject)
       archive.on("error", reject)
     })
+    // Source stream errors can arrive while later files are still being fetched.
+    void finished.catch(() => {})
 
     archive.pipe(stream)
 
     for (const file of files) {
-      if (!file.storage_path) continue
-      const signed = await createSignedUrl(file.storage_path, 60 * 60)
-      if (!signed) continue
-      const body = await fetchAssetStream(signed)
-      if (!body) continue
+      let body: Readable | null = null
+      if (isStoragePath(file.storage_path)) {
+        const signed = await createSignedUrl(file.storage_path, 60 * 60)
+        if (signed) body = await fetchAssetStream(signed)
+      } else {
+        const driveFileId = file.drive_file_id || extractGoogleDriveFileId(file.storage_path)
+        if (driveFileId) {
+          const response = await fetchDriveFile(driveFileId)
+          if (response.body) body = Readable.fromWeb(response.body as any)
+        }
+      }
+      if (!body) {
+        archive.abort()
+        return NextResponse.json({ error: "No se pudo obtener uno de los originales; intentá nuevamente" }, { status: 502 })
+      }
       const name = buildZipEntryName(file.asset_name, file.original_filename ?? undefined, file.version_number)
       archive.append(body, { name })
     }
@@ -239,45 +244,6 @@ export async function POST(request: Request) {
 
     const resolvedProjectId = projectId || files[0].project_id
 
-    if (actorUserId && serverClient) {
-      const { data: project } = await serverClient
-        .from("sistema_projects")
-        .select("id")
-        .eq("id", resolvedProjectId)
-        .single()
-
-      if (!project) {
-        return NextResponse.json({ error: "Acceso no autorizado" }, { status: 403 })
-      }
-    }
-    const zipPath = `zips/${resolvedProjectId}/${files[0].task_id}/${Date.now()}-assets.zip`
-
-    const { error: uploadError } = await admin.storage
-      .from(ASSET_BUCKET)
-      .upload(zipPath, zipBuffer, { contentType: "application/zip", upsert: true })
-
-    if (uploadError) {
-      console.error("[ZIP] Upload error:", uploadError)
-      return NextResponse.json({ error: "No se pudo generar ZIP" }, { status: 500 })
-    }
-
-    // Cache only for full-task zip
-    if (taskId && scope === "all") {
-      await admin.from("sistema_asset_zip_cache").insert({
-        task_id: taskId,
-        project_id: resolvedProjectId,
-        zip_path: zipPath,
-        expires_at: new Date(Date.now() + ZIP_SIGNED_URL_TTL * 1000).toISOString(),
-        created_by: actorUserId,
-        client_access_id: clientAccessId,
-      })
-    }
-
-    const signedUrl = await createSignedUrl(zipPath, ZIP_SIGNED_URL_TTL)
-    if (!signedUrl) {
-      return NextResponse.json({ error: "No se pudo firmar ZIP" }, { status: 500 })
-    }
-
     await logAssetAccess({
       asset_id: files[0].asset_id,
       asset_version_id: files[0].version_id,
@@ -291,7 +257,13 @@ export async function POST(request: Request) {
       user_agent: request.headers.get("user-agent"),
     })
 
-    return NextResponse.json({ url: signedUrl, cached: false })
+    const name = sanitizeFilename(String(body?.zipName || "quepia-assets")) || "quepia-assets"
+    // Deliver the archive directly; downloads must not accumulate in Storage.
+    return new Response(new Uint8Array(zipBuffer), { headers: {
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="${name}.zip"`,
+      "Cache-Control": "private, no-store",
+    } })
   } catch (err) {
     console.error("[ZIP] Unexpected error:", err)
     return NextResponse.json({ error: "Error generando ZIP" }, { status: 500 })

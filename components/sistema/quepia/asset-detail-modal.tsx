@@ -150,7 +150,7 @@ export function AssetDetailModal({
     const isGoogleDrive = isGoogleDriveUrl(sourcePath || originalUrl)
     const isVideo = !isGoogleDrive && isLikelyVideoAsset(activeVersion.file_type, fileNameOrUrl)
     const isExternalSource = isExternalAssetSource(sourcePath)
-    const shouldUseIframePreview = isGoogleDrive || (asset.asset_type === "reel" && isExternalSource && !isImage && !isVideo)
+    const shouldUseIframePreview = (isGoogleDrive && !(isImage && activeVersion.preview_url)) || (asset.asset_type === "reel" && isExternalSource && !isImage && !isVideo)
     const iframeUrl = isGoogleDrive
         ? toGoogleDrivePreviewUrl(sourcePath || originalUrl) || originalUrl
         : (sourcePath || originalUrl)

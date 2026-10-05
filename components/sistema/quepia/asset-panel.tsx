@@ -885,7 +885,7 @@ export function AssetPanel({ taskId, projectId, userId, onOpenAssetDetail }: Ass
                       : "MP4, MOV, WEBM (máx 100MB)"
                     : uploadMode === 'carousel'
                       ? "2+ imágenes · se guardan juntas en Drive"
-                      : "JPG, PNG, WEBP, GIF, MP4, MOV, WEBM (máx 100MB)"}
+                      : "JPG, PNG, WEBP, GIF, MP4, MOV, WEBM · originales en Drive"}
                 </p>
               </div>
               <button

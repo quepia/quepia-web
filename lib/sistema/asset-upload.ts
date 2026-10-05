@@ -117,7 +117,7 @@ async function loadImageFromFile(file: File) {
 
 async function generateImageVariant(file: File, targetWidth: number) {
   const img = await loadImageFromFile(file)
-  const scale = targetWidth / img.width
+  const scale = Math.min(1, targetWidth / Math.max(img.width, img.height))
   const width = Math.round(img.width * scale)
   const height = Math.round(img.height * scale)
 
@@ -154,7 +154,7 @@ async function generateVideoThumbnail(file: File, targetWidth: number, atPercent
     }
 
     video.onseeked = () => {
-      const scale = targetWidth / video.videoWidth
+      const scale = Math.min(1, targetWidth / Math.max(video.videoWidth, video.videoHeight))
       const width = Math.round(video.videoWidth * scale)
       const height = Math.round(video.videoHeight * scale)
       const canvas = document.createElement("canvas")
@@ -180,7 +180,13 @@ async function generateVideoThumbnail(file: File, targetWidth: number, atPercent
   })
 }
 
-export async function uploadAssetFile(params: {
+/** Store new originals in Drive; the server generates small display previews. */
+export async function uploadAssetFile(params: Parameters<typeof uploadAssetFileToDrive>[0]) {
+  return uploadAssetFileToDrive(params)
+}
+
+/** Explicit legacy option for uploads that must live in Supabase. */
+export async function uploadAssetFileToSupabase(params: {
   file: File
   taskId: string
   projectId: string
@@ -343,7 +349,7 @@ export async function uploadReelFile(params: {
 }) {
   const { file, taskId, projectId, userId, reelName, onProgress } = params
 
-  return uploadAssetFile({
+  return uploadAssetFileToSupabase({
     file,
     taskId,
     projectId,

@@ -17,6 +17,8 @@ import { APPROVAL_STATUS_COLORS, APPROVAL_STATUS_LABELS } from "@/types/sistema"
 import type { ApprovalStatus } from "@/types/sistema"
 import { cn } from "@/lib/sistema/utils"
 import { ClientAssetViewer, type ClientAsset } from "./client-asset-viewer"
+import { useToast } from "@/components/ui/toast-provider"
+import { isGoogleDriveUrl } from "@/lib/sistema/asset-link-utils"
 
 interface AssetTask {
     id: string
@@ -57,7 +59,7 @@ function AssetPreview({ item, className }: { item: ClientAsset; className?: stri
     const isVideo = type.startsWith("video/") || ["mp4", "webm", "ogg", "mov"].includes(ext)
     const previewSrc = item.thumbnail_url || item.preview_url || item.file_url
 
-    if (isImage) {
+    if (isImage && !isGoogleDriveUrl(previewSrc)) {
         return (
             <img
                 src={previewSrc}
@@ -66,7 +68,7 @@ function AssetPreview({ item, className }: { item: ClientAsset; className?: stri
             />
         )
     }
-    if (isVideo) {
+    if (isVideo && !isGoogleDriveUrl(item.preview_url || item.file_url)) {
         return (
             <video
                 src={item.preview_url || item.file_url}
@@ -336,6 +338,7 @@ function CarouselCard({
 // ---- Main component ----
 
 export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientAssetsViewProps) {
+    const { toast } = useToast()
     const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved">("all")
     const [searchQuery, setSearchQuery] = useState("")
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -424,13 +427,24 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
 
         if (versionIds.length === 0) return
 
-        const res = await fetch("/api/assets/zip", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token, versionIds, scope: "selected" })
-        })
-        const data = await res.json()
-        if (data?.url) window.open(data.url, "_blank")
+        try {
+            const res = await fetch("/api/assets/zip", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token, versionIds, scope: "selected" })
+            })
+            if (!res.ok) throw new Error("Error generando ZIP")
+            const url = URL.createObjectURL(await res.blob())
+            const link = document.createElement("a")
+            link.href = url
+            link.download = "quepia-assets.zip"
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            setTimeout(() => URL.revokeObjectURL(url), 60_000)
+        } catch {
+            toast({ title: "No se pudo descargar la selección", description: "Intentá nuevamente.", variant: "error" })
+        }
     }
 
     return (

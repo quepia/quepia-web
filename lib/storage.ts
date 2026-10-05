@@ -4,7 +4,7 @@ const BUCKET_NAME = 'project-images';
 const MAX_UPLOAD_RETRIES = 2;
 const UPLOAD_TIMEOUT_MS = 45_000;
 const MAX_IMAGE_DIMENSION = 2400;
-const MIN_SIZE_TO_COMPRESS = 1_200_000;
+const MIN_SIZE_TO_COMPRESS = 200_000;
 
 interface SignedUploadTarget {
     bucket: string;
@@ -67,15 +67,15 @@ async function compressImageIfNeeded(file: File): Promise<File> {
 
         const quality = file.size > 8_000_000 ? 0.72 : file.size > 4_000_000 ? 0.8 : 0.86;
         const blob = await new Promise<Blob | null>((resolve) => {
-            canvas.toBlob((output) => resolve(output), 'image/jpeg', quality);
+            canvas.toBlob((output) => resolve(output), 'image/webp', quality);
         });
 
-        if (!blob) return file;
+        if (!blob || blob.type !== 'image/webp') return file;
         if (blob.size >= file.size * 0.95 && !needsResize) return file;
 
         const baseName = sanitizeFilename(file.name).replace(/\.[^.]+$/, '') || `upload-${Date.now()}`;
-        return new File([blob], `${baseName}.jpg`, {
-            type: 'image/jpeg',
+        return new File([blob], `${baseName}.webp`, {
+            type: 'image/webp',
             lastModified: Date.now(),
         });
     } catch {

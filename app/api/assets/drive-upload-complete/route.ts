@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/sistema/supabase/server"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
+import { createDriveImagePreviews } from "@/lib/sistema/drive-image-previews"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -51,8 +52,17 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient()
+    const { data: task } = await server.from("sistema_tasks").select("id").eq("id", taskId).eq("project_id", projectId).single()
+    if (!task) return NextResponse.json({ error: "Tarea no autorizada" }, { status: 403 })
     let finalAssetId = assetId || null
     let versionNumber = currentVersion ? currentVersion + 1 : 1
+
+    if (finalAssetId) {
+      const { data: existingAsset } = await server.from("sistema_assets")
+        .select("id, current_version").eq("id", finalAssetId).eq("task_id", taskId).eq("project_id", projectId).single()
+      if (!existingAsset) return NextResponse.json({ error: "Asset no autorizado" }, { status: 403 })
+      versionNumber = (existingAsset.current_version || 0) + 1
+    }
 
     if (!finalAssetId) {
       const { data: createdAsset, error: assetError } = await admin
@@ -80,6 +90,7 @@ export async function POST(request: Request) {
       versionNumber = 1
     }
 
+    const previews = await createDriveImagePreviews({ driveFileId, projectId, taskId, fileType })
     const { data: version, error: versionError } = await admin
       .from("sistema_asset_versions")
       .insert({
@@ -87,8 +98,7 @@ export async function POST(request: Request) {
         version_number: versionNumber,
         file_url: driveWebViewLink || `https://drive.google.com/file/d/${driveFileId}/view`,
         storage_path: null,
-        thumbnail_path: null,
-        preview_path: null,
+        ...previews,
         original_filename: originalFilename,
         file_type: fileType,
         file_size: fileSize,
