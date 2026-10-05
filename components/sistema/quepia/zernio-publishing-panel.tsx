@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, CheckCircle2, Crop, ExternalLink, Film, Loader2, Pencil, Plus, Radio, RefreshCw, RotateCcw, Send, Timer, Trash2, X } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Crop, ExternalLink, Film, Loader2, Pencil, Plus, Radio, RefreshCw, RotateCcw, Send, Sparkles, Timer, Trash2, X } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { defaultZernioMediaEdit, type ZernioMediaEdit } from "@/lib/zernio/media-formats"
 import { ZERNIO_TIME_ZONE } from "@/lib/zernio/publishing-rules"
@@ -202,6 +202,10 @@ export function ZernioPublishingPanel({
   onPublished?: () => void
   initialPublicationId?: string
 }) {
+  const [timingLoading, setTimingLoading] = useState(false)
+  const [timingError, setTimingError] = useState("")
+  const [timingResult, setTimingResult] = useState<{ note: string; suggestions: { scheduledFor: string; reason: string; basis: string }[]; sources: { title: string; url: string }[] } | null>(null)
+  const timingRequest = useRef(0)
   const [context, setContext] = useState<PublishingContext | null>(null)
   const [loading, setLoading] = useState(true)
   const [action, setAction] = useState<string | null>(null)
@@ -306,6 +310,34 @@ export function ZernioPublishingPanel({
   const selectedIsInstagramReel = selectedIsReel && selectedHasInstagram
     && instagramOptions.publicationType !== "story"
   const selectedHasVideo = selectedPreviewAssets.some((asset) => asset.fileType?.startsWith("video/"))
+  const timingFormat = selectedHasInstagram && instagramOptions.publicationType === "story" ? "story" : selectedIsReel ? "reel" : selectedAssets.length > 1 ? "carousel" : selectedHasVideo ? "video" : selectedAssets.length ? "image" : "text"
+  useEffect(() => {
+    timingRequest.current += 1
+    setTimingResult(null)
+    setTimingError("")
+    setTimingLoading(false)
+  }, [taskId, selectedAccounts, timingFormat, scheduledDate, content])
+
+  const analyzeTiming = async () => {
+    const requestId = ++timingRequest.current
+    setTimingLoading(true)
+    setTimingError("")
+    setTimingResult(null)
+    try {
+      const response = await fetch("/api/zernio/schedule-suggestions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId, accountIds: selectedAccounts, format: timingFormat, date: scheduledDate, content: content.slice(0, 5000) }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error?.message || data?.error || "No se pudieron analizar los horarios")
+      if (requestId === timingRequest.current) setTimingResult(data)
+    } catch (error) {
+      if (requestId === timingRequest.current) setTimingError(error instanceof Error ? error.message : "No se pudieron analizar los horarios")
+    } finally {
+      if (requestId === timingRequest.current) setTimingLoading(false)
+    }
+  }
+
   const storySelectionIsValid = !selectedHasInstagram
     || instagramOptions.publicationType !== "story"
     || selectedAssets.length === 1
@@ -717,7 +749,7 @@ export function ZernioPublishingPanel({
           ) : null}
 
           <div>
-            <div className="mb-2 flex gap-2">
+            <div className="mb-2 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setMode("now")}
@@ -740,6 +772,28 @@ export function ZernioPublishingPanel({
                 Borrador
               </button>
             </div>
+            {mode === "schedule" && (
+              <div className="mb-2">
+                <button type="button" onClick={() => void analyzeTiming()} disabled={timingLoading || !selectedAccounts.length || !scheduledDate} className="inline-flex items-center gap-1.5 rounded-lg border border-quepia-cyan/25 px-3 py-1.5 text-xs text-quepia-cyan hover:bg-quepia-cyan/10 disabled:opacity-40">
+                  {timingLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {timingLoading ? "Analizando histórico y tendencias…" : "Sugerir horarios con IA"}
+                </button>
+                <div aria-live="polite">
+                  {timingError && <p className="mt-2 text-xs text-red-300">{timingError}</p>}
+                  {timingResult && <div className="mt-2 space-y-2 rounded-lg border border-quepia-cyan/15 bg-quepia-cyan/[0.03] p-3">
+                    <p className="text-[11px] text-white/50">{timingResult.note} · Hora de Córdoba</p>
+                    {timingResult.suggestions.map((suggestion, index) => <div key={suggestion.scheduledFor} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs text-white/80">{index === 0 ? "✦ " : ""}{new Date(`${suggestion.scheduledFor}:00-03:00`).toLocaleString("es-AR", { timeZone: ZERNIO_TIME_ZONE, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}</p>
+                        <p className="text-[10px] text-white/40">{suggestion.reason}</p>
+                      </div>
+                      <button type="button" onClick={() => { setScheduledFor(suggestion.scheduledFor); setTimingResult(null) }} disabled={suggestion.scheduledFor < minimumScheduleValue() || suggestion.scheduledFor > maximumMediaScheduleValue()} className="shrink-0 rounded-md border border-quepia-cyan/25 px-2 py-1 text-[11px] text-quepia-cyan disabled:opacity-40">Usar horario</button>
+                    </div>)}
+                    {timingResult.sources.length > 0 && <details className="text-[10px] text-white/35"><summary className="cursor-pointer">Fuentes de tendencias</summary><div className="mt-1 flex flex-wrap gap-2">{timingResult.sources.map(source => <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" className="text-quepia-cyan hover:underline">{source.title}</a>)}</div></details>}
+                  </div>}
+                </div>
+              </div>
+            )}
             {mode === "schedule" && (
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2">
                 <Timer className="h-3.5 w-3.5 text-white/35" />
