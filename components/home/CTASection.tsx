@@ -1,5 +1,6 @@
 'use client';
 
+import { whatsappUrl } from '@/components/seo/PublicContent';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
@@ -34,7 +35,7 @@ export default function CTASection({ email = 'hola@quepia.com' }: CTASectionProp
 
           <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              href="/contacto"
+              href={whatsappUrl()}
               className="inline-flex h-12 items-center justify-center rounded-full border border-[#2ae7e4]/35 bg-gradient-to-br from-[#2ae7e4] to-[#7cf2ef] px-8 text-sm font-semibold uppercase tracking-[0.08em] text-[#0a0a0a] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(42,231,228,0.38),0_14px_42px_rgba(42,231,228,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2ae7e4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
             >
               Hablemos hoy

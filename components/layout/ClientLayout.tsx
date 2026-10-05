@@ -3,6 +3,7 @@
 import React, { createContext, useContext } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
+import FloatingWhatsApp from '@/components/seo/FloatingWhatsApp';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import PageTransition from '@/components/layout/PageTransition';
@@ -96,6 +97,7 @@ export default function ClientLayout({
                                 </PageTransition>
                             </main>
                             <Footer />
+                            <FloatingWhatsApp />
                         </div>
                     </ModalProvider>
                 </ConfirmProvider>
