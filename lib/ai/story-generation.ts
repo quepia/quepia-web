@@ -33,7 +33,7 @@ export async function storySession(projectId: string, write = false): Promise<Qu
 }
 
 export { referencePaths } from "./story-references"
-import { referencePaths, readStoryReference } from "./story-references"
+import { referencePaths, readStoryReference, storyDesignReferencePaths } from "./story-references"
 import { prepareStory } from "./story-preparation"
 
 export async function enqueueStories(session: QuepiaSession, projectId: string, ids: string[], batchKey: string, budget: number) {
@@ -52,16 +52,22 @@ export async function enqueueStories(session: QuepiaSession, projectId: string, 
     const normalized = await session.server.from("sistema_tasks").update({ task_type: "story" }).eq("id",taskId).eq("project_id",projectId).select("id,due_date").maybeSingle()
     if (normalized.error || !normalized.data) throw new ZernioRouteError(403,"No se pudo preparar la tarea de historias")
     let settings = readStorySettings(source.task.typeMetadata, { descripcion: source.task.description, due_date: normalized.data.due_date })
-    if (settings.backgroundSource === "bank") settings = { ...settings, mode: "faithful" }
+    settings = { ...settings, renderMode: "full-ai", mode: "creative" }
     if (settings.mode === "creative" && !process.env.OPENAI_API_KEY) throw new ZernioRouteError(503, "Configurá OPENAI_API_KEY en el servidor para generar imágenes")
     if (settings.mode === "creative" && !source.brief) throw new ZernioRouteError(422, "Completá el brief de este cliente antes de generar")
-    const hasDesignReferences = settings.autoDesign && source.brief?.reference_links?.some(ref => /^Referencia de diseño(?:\s*:|$)/i.test(ref.note?.trim() || ""))
-    if (hasDesignReferences || (settings.mode === "creative" && !settings.prompt) || (settings.backgroundSource === "bank" && (!settings.prompt || !settings.referenceAssetIds.length && !settings.referenceDriveFileIds.length))) settings = await prepareStory(session.server, source, settings)
-    if (settings.mode === "faithful" && settings.referenceAssetIds.length + settings.referenceDriveFileIds.length !== 1) throw new ZernioRouteError(422, "Composición fiel requiere exactamente una foto")
+    // Always rebuild creative direction from the current task and brief. Cached legacy
+    // prompts explicitly excluded typography and logos, and must never reach OpenAI.
+    settings = await prepareStory(session.server, source, settings)
     const paths = await referencePaths(session.server, taskId, projectId, settings.referenceAssetIds, settings.referenceDriveFileIds, source.brief)
     const logoPath = settings.includeLogo ? source.brief?.logo_storage_path || null : null
     if (logoPath && !logoPath.startsWith(`briefs/${projectId}/`)) throw new ZernioRouteError(422, "El logo del brief no tiene una ruta válida")
-    const snapshot = { task_id: taskId, settings, brand_context: formatBrandGuidelines(source.brief) + "\n\n" + source.activeStrategyContext + "\n\n" + formatTaskContext(source.task), reference_paths: paths, logo_path: logoPath, model }
+    const designs = await storyDesignReferencePaths(source.brief)
+    const roles = [
+      ...paths.map((_,i)=>`Imagen ${i+1}: foto real del lugar/producto que debés usar en la pieza.`),
+      ...designs.map((ref,i)=>`Imagen ${paths.length+i+1}: referencia de DISEÑO, solo estilo. ${ref.note}`),
+      ...(logoPath?[`Imagen ${paths.length+designs.length+1}: LOGOTIPO de la marca; integralo fielmente.`]:[]),
+    ].join("\n")
+    const snapshot = { task_id: taskId, settings, brand_context: formatBrandGuidelines(source.brief) + "\n\n" + source.activeStrategyContext + "\n\n" + formatTaskContext(source.task) + "\n\nRoles de las imágenes adjuntas:\n" + roles, reference_paths: [...paths,...designs.map(ref=>ref.path)], logo_path: logoPath, model }
     jobs.push({ ...snapshot, reserved_usd: storyReservation(settings), fingerprint: crypto.createHash("sha256").update(JSON.stringify(snapshot)).digest("hex") })
   }
   const { data, error } = await createAdminClient().rpc("sistema_enqueue_stories", {
@@ -132,10 +138,11 @@ export async function runStoryJob(admin: SupabaseClient, job: WorkerJob) {
     let base: Buffer
     if (basePath) {
       base = await privateImage(admin, basePath, 32 * 1024 * 1024)
-    } else if (settings.mode === "faithful") {
+    } else if (settings.renderMode === "legacy" && settings.mode === "faithful") {
       base = await readStoryReference(admin, job.reference_paths[0])
     } else {
       const references = await Promise.all(job.reference_paths.map(path => readStoryReference(admin, path)))
+      if(settings.renderMode === "full-ai" && job.logo_path && settings.includeLogo) references.push(await privateImage(admin,job.logo_path))
       providerStarted = true
       const generated = await generateOpenAIImage({ model: job.model, prompt: storyBasePrompt(settings, job.brand_context), settings, references })
       base = generated.bytes; usage = generated.usage; requestId = generated.requestId
@@ -144,10 +151,12 @@ export async function runStoryJob(admin: SupabaseClient, job: WorkerJob) {
     const uploadBase = await admin.storage.from(ASSET_BUCKET).upload(destination, base, { contentType: "image/png", upsert: true })
     if (uploadBase.error) throw new Error("No se pudo guardar la imagen base")
     basePath = destination
-    const savedBase = await admin.from("sistema_story_generations").update({ base_path: basePath, usage, cost_usd: settings.mode === "faithful" ? 0 : imageUsageCost(usage), provider_request_id: requestId }).eq("id", job.id)
+    const savedBase = await admin.from("sistema_story_generations").update({ base_path: basePath, usage, cost_usd: settings.renderMode === "legacy" && settings.mode === "faithful" ? 0 : imageUsageCost(usage), provider_request_id: requestId }).eq("id", job.id)
     if (savedBase.error) throw new Error("No se pudo registrar la imagen base")
-    const logo = job.logo_path && settings.includeLogo ? await privateImage(admin, job.logo_path) : null
-    const final = await composeStory(base, settings, logo)
+    // New jobs persist the complete provider image without adding text, plates or logos.
+    // Legacy rendering remains solely to recover already-paid historical jobs.
+    const logo = settings.renderMode === "legacy" && job.logo_path && settings.includeLogo ? await privateImage(admin, job.logo_path) : null
+    const final = settings.renderMode === "full-ai" ? base : await composeStory(base, settings, logo)
     const finalPath = basePath.replace("base.png", "final.png")
     const derived = [
       { path: finalPath, bytes: final, type: "image/png" },
@@ -159,7 +168,7 @@ export async function runStoryJob(admin: SupabaseClient, job: WorkerJob) {
       if (result.error) throw new Error("No se pudo guardar la historia terminada")
     }
     outputPath = finalPath
-    const finished = await admin.rpc("sistema_finish_story", { p_job: job.id, p_output: finalPath, p_base: basePath, p_size: final.length, p_usage: usage, p_cost: settings.mode === "faithful" ? 0 : imageUsageCost(usage), p_request: requestId })
+    const finished = await admin.rpc("sistema_finish_story", { p_job: job.id, p_output: finalPath, p_base: basePath, p_size: final.length, p_usage: usage, p_cost: settings.renderMode === "legacy" && settings.mode === "faithful" ? 0 : imageUsageCost(usage), p_request: requestId })
     if (finished.error) { console.error("[Stories] Asset registration failed", { jobId: job.id, code: finished.error.code, message: finished.error.message }); throw new Error("La imagen quedó guardada, pero no se pudo registrar su asset. Usá Recuperar.") }
   } catch (error) {
     const ambiguous = providerStarted && (error instanceof Error && ["TimeoutError", "AbortError", "TypeError"].includes(error.name))

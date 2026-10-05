@@ -27,7 +27,7 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("profile"), projectId: uuid, rules: z.string().trim().max(8000) }),
 ])
 const promptOutput = z.object({ prompt: z.string().min(1).max(16000), headline: z.string().max(120), cta: z.string().max(70) })
-const promptSystem = "Sos director de arte de Quepia. Usá el brief como fuente de verdad y las notas de IA como reglas particulares del cliente. No inventes datos, promociones, instalaciones ni servicios. Prepará una imagen base limpia, sin texto ni logos; el sistema agrega esos elementos después. Evitá estética genérica de IA, anatomía deformada y alteraciones de la identidad de las referencias. No prometas preservación exacta. El prompt debe ser específico, con composición, iluminación y espacio para textos. Si hay texto solicitado, conservá su contenido exacto. Respondé en español."
+const promptSystem = "Sos director de arte de Quepia. Usá el brief como fuente de verdad y las notas de IA como reglas particulares del cliente. No inventes datos, promociones, instalaciones ni servicios. Prepará un prompt para una pieza gráfica terminada generada íntegramente por OpenAI Imagen, incluyendo textos, logo, composición y estilo. No habrá agregado de elementos posterior. Evitá estética genérica de IA, anatomía deformada y alteraciones de la identidad de las referencias. No prometas preservación exacta. El prompt debe ser específico, con composición, iluminación y textos integrados en el diseño. Si hay texto solicitado, conservá su contenido exacto. Respondé en español."
 
 export async function GET(request: Request) {
   try {

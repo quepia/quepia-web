@@ -77,8 +77,8 @@ export async function readStoryReference(server: SupabaseClient, path: string) {
 }
 
 /** Design examples are read only from the authorized project brief, never the photo catalog. */
-export async function storyDesignReferences(server: SupabaseClient, brief: ClientBrief | null) {
-  const examples: { image: Buffer; note: string }[] = []
+export async function storyDesignReferencePaths(brief: ClientBrief | null) {
+  const examples: { path: string; note: string }[] = []
   for (const ref of brief?.reference_links || []) {
     if (!ref.url?.trim() || !/^Referencia de diseño(?:\s*:|$)/i.test(ref.note?.trim() || "")) continue
     let url: URL
@@ -89,9 +89,14 @@ export async function storyDesignReferences(server: SupabaseClient, brief: Clien
     const ids = folder ? (await listDriveImageBank(folder)).filter(item => Number(item.size || 0) <= 100 * 1024 * 1024).map(item => item.id) : file && /^[a-zA-Z0-9_-]+$/.test(file) ? [file] : []
     if (!ids.length) throw new Error("La referencia de diseño no contiene imágenes accesibles en Drive")
     for (const id of ids.slice(0, 4 - examples.length)) {
-      examples.push({image: await sharp(await readStoryReference(server, `drive:${id}`)).resize(1024,1024,{fit:"inside",withoutEnlargement:true}).webp({quality:80}).toBuffer(), note: ref.note})
+      examples.push({path: `drive:${id}`, note: ref.note})
     }
     if (examples.length === 4) break
   }
   return examples
+}
+
+export async function storyDesignReferences(server: SupabaseClient, brief: ClientBrief | null) {
+  const examples = await storyDesignReferencePaths(brief)
+  return Promise.all(examples.map(async ({path,note})=>({image: await sharp(await readStoryReference(server,path)).resize(1024,1024,{fit:"inside",withoutEnlargement:true}).webp({quality:80}).toBuffer(),note})))
 }
