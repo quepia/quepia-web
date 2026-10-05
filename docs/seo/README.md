@@ -1,6 +1,6 @@
 # Mejoras SEO y conversión — seo-mejoras
 
-Solo sitio público. Cambios previos del sistema interno conservados y excluidos de los commits SEO. No se aplicaron cambios ni correcciones a la base de producción. No se publicó ni desplegó el sitio.
+Solo sitio público. Cambios previos del sistema interno conservados y excluidos de los commits SEO. Los SQL fueron aprobados y aplicados en producción el 2026-10-05. Los commits SEO se integran en main para el push autorizado. No se ejecutó un despliegue manual.
 
 ## Archivos y cambios
 
@@ -29,7 +29,7 @@ Solo sitio público. Cambios previos del sistema interno conservados y excluidos
 
 1. `[COMPLETAR: dirección]` y confirmar si se atienden visitas. Hasta confirmarla se omite streetAddress del schema; no se envía un placeholder como dirección real.
 2. `[COMPLETAR: rangos de presupuesto en ARS y fecha de vigencia]` en `lib/seo/contact-options.ts`. Por ahora: «Prefiero definirlo en la consulta».
-3. Ciudades confirmadas de los proyectos. No hay campo ciudad hoy; las páginas de zona muestran `[COMPLETAR: casos de esta zona con ciudad confirmada]` hasta tener los datos.
+3. Ciudades confirmadas de los proyectos. Ya existe el campo ciudad, aún vacío; las páginas de zona muestran `[COMPLETAR: casos de esta zona con ciudad confirmada]` hasta tener los datos.
 4. Casos faltantes: Camping La Ribera y Nueva Generación Turismo no aparecen en los 16 proyectos visibles con la clave pública. Subirlos o confirmar qué proyecto corresponde; no se inventaron casos.
 5. Testimonios autorizados (cita, nombre y cargo opcional) y archivos de logos con permiso de uso en `lib/seo/social-proof.ts`.
 6. Aprobar o ajustar la bio propuesta de Lautaro. La actual se conserva mientras tanto.
@@ -39,11 +39,12 @@ Solo sitio público. Cambios previos del sistema interno conservados y excluidos
 10. Descripciones faltantes de casos y casos de servicios sin proyectos visibles: se muestran placeholders cuando corresponde.
 11. El Instagram configurado y verificado en contacto es `@quepiastudio`. Se conserva esa configuración.
 
-## SQL propuesto (sin aplicar)
+## SQL aprobado y aplicado
 
 - `correcciones-proyectos.propuesta.sql`: actualizaciones exactas por UUID y texto previo para no pisar ediciones posteriores; tildes, sin cambiar contenido factual.
 - `campos-proyectos.propuesta.sql`: ciudad y updated_at opcionales con trigger de cambios reales. Las fechas históricas quedan NULL. No agrega slug y no afecta RLS ni datos internos.
-- Ambos terminan en ROLLBACK. Revisarlos, crear una migración formal con CLI y reemplazar por COMMIT solo al aprobar. No colocados en migrations para evitar aplicación accidental.
+- Los archivos `.propuesta.sql` conservan ROLLBACK como referencia de revisión. La versión aplicada de esquema está en `supabase/migrations/20261005165708_public_portfolio_seo_fields.sql`, coincidiendo con el historial remoto. Las correcciones ejecutadas están en `correcciones-proyectos.aprobado.sql` (COMMIT).
+- Producción verificada: 16 proyectos conservados, 22 campos corregidos en 14 proyectos, trigger activo y fecha real registrada para esos cambios. Las ciudades siguen sin completar. Ver `production-sql-verification.json`.
 
 ## Configuración de medición
 
@@ -68,7 +69,7 @@ FAQPage coincide con el contenido visible. Google puede no mostrar resultados en
 - [x] Validación 400, origen ajeno 403 y error de envío sin remitente, sin falsa confirmación.
 - [x] Flujo de éxito del frontend verificado con respuesta simulada solo en navegador: redirección, noindex y consumo único del marcador.
 - [x] Eventos GA4 y GTM verificados con funciones de tracking y emisores simulados, sin PII ni doble emisión GA4/GTM.
-- [x] SQL validado en PostgreSQL en memoria (PGlite); ROLLBACK confirmado.
+- [x] SQL validado primero en PostgreSQL en memoria y luego aplicado en producción tras autorización; resultado verificado.
 - [ ] Envío real a correo y recepción: pendiente de remitente validado. No se enviaron consultas de prueba reales.
 - [ ] DebugView, importación de conversiones a Google Ads y verificación Search Console: pendiente de IDs y configuración de cuentas.
 

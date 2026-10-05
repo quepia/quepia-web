@@ -1,0 +1,12 @@
+{
+  "project_id": "luhbezpflvmevorbayai",
+  "project_count": 16,
+  "updated_project_count": 14,
+  "fields_corrected": 22,
+  "trigger_exists": true,
+  "migration": {
+    "name": "public_portfolio_seo_fields",
+    "version": "20261005165708"
+  },
+  "cities_populated": 0
+}

@@ -1,6 +1,4 @@
--- PROPUESTA PARA REVISIÓN. NO APLICADA.
--- Lectura de origen: portfolio público, 2026-10-05.
--- Actualizaciones con condición del texto anterior para no pisar ediciones posteriores.
+-- SQL autorizado para producción el 2026-10-05.
 BEGIN;
 UPDATE public.proyectos SET descripcion = 'Producción fotográfica de retrato y producto para Onix, enfocada en textura, iluminación controlada y piezas listas para catálogo y redes sociales.' WHERE id = '568dcd4e-f6c6-43e8-b4bd-9b70d4a39095' AND descripcion IS NOT DISTINCT FROM 'Produccion fotografica de retrato y producto para Onix, enfocada en textura, iluminacion controlada y piezas listas para catalogo y redes sociales.';
 UPDATE public.proyectos SET descripcion = 'Sesión de fotografía de producto para Mike Donas con dirección de arte gastronómica y versiones optimizadas para e-commerce, piezas promocionales y redes.' WHERE id = 'ae2a64c7-368b-4330-8520-c8131bffd0cb' AND descripcion IS NOT DISTINCT FROM 'Sesion de fotografia de producto para Mike Donas con direccion de arte gastronomica y versiones optimizadas para e-commerce, piezas promocionales y redes.';
@@ -24,5 +22,4 @@ UPDATE public.proyectos SET descripcion = 'Desarrollo de identidad visual para J
 UPDATE public.proyectos SET titulo = 'Logo Asociación de Jubilados y Pensionados' WHERE id = '11a7b09b-95d3-4dc7-a2c4-db058140c481' AND titulo IS NOT DISTINCT FROM 'Logo Asociacion de Jubilados y Pensionados';
 UPDATE public.proyectos SET descripcion = 'Diseño de logotipo institucional para asociación de jubilados y pensionados, priorizando legibilidad, cercanía visual y aplicación versátil.' WHERE id = '11a7b09b-95d3-4dc7-a2c4-db058140c481' AND descripcion IS NOT DISTINCT FROM 'Diseno de logotipo institucional para asociacion de jubilados y pensionados, priorizando legibilidad, cercania visual y aplicacion versatil.';
 UPDATE public.proyectos SET descripcion = 'Vectorización de logotipo y diseño de carpetas institucionales para Aristos, preparado para impresión profesional y presentaciones comerciales.' WHERE id = '170f9f5c-91be-4184-acbb-3c468b193bae' AND descripcion IS NOT DISTINCT FROM 'Vectorizacion de logotipo y diseno de carpetas institucionales para Aristos, preparado para impresion profesional y presentaciones comerciales.';
--- Revisar cambios antes de confirmar la transacción.
-ROLLBACK; -- Cambiar por COMMIT únicamente al aprobar y ejecutar.
+COMMIT;
