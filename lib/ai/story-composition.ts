@@ -26,6 +26,22 @@ export function wrapStoryText(text: string, maxChars = 25) {
 }
 
 
+function luminance(hex: string) {
+  const channels = hex.replace("#", "").match(/.{2}/g)!.map(value => {
+    const n = parseInt(value, 16) / 255
+    return n <= 0.04045 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4)
+  })
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+}
+export function storyContrast(foreground: string, background: string) {
+  const a = luminance(foreground), b = luminance(background)
+  return (Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05)
+}
+export function readableStoryColor(preferred: string, background: string) {
+  if (storyContrast(preferred, background) >= 4.5) return preferred
+  return storyContrast("#ffffff", background) > storyContrast("#000000", background) ? "#ffffff" : "#000000"
+}
+
 const fonts = new Map<string, Font>()
 function storyFont(headline: boolean) {
   const filename = headline ? "BarlowCondensed-Bold.ttf" : "Barlow-SemiBold.ttf"
@@ -75,6 +91,13 @@ export async function renderStoryText(text: string, width: number, maxHeight: nu
   throw new Error("El texto es demasiado largo para esta composición; acortá el titular")
 }
 
+async function storyTextShadow(bytes: Buffer) {
+  const {data,info}=await sharp(bytes).ensureAlpha().raw().toBuffer({resolveWithObject:true})
+  for(let i=0;i<data.length;i+=4) {data[i]=0;data[i+1]=0;data[i+2]=0}
+  return sharp(data,{raw:{width:info.width,height:info.height,channels:4}})
+    .extend({top:8,bottom:8,left:8,right:8,background:"#00000000"}).blur(3).png().toBuffer()
+}
+
 export async function composeStory(base: Buffer, settings: StorySettings, logo?: Buffer | null) {
   const {width,height}=STORY_FORMATS[settings.format]
   const image=await sharp(base,{limitInputPixels:40_000_000}).rotate()
@@ -83,16 +106,22 @@ export async function composeStory(base: Buffer, settings: StorySettings, logo?:
   const safeY=settings.format==="story"?240:90
   const outdoor=settings.design==="outdoor"
   const panelWidth=width-144
+  const panelText=readableStoryColor(settings.primaryColor,settings.panelColor)
+  const pillText=readableStoryColor(settings.panelColor,settings.primaryColor)
+  const accentText=readableStoryColor(settings.primaryColor,settings.accentColor)
+  const lightText=luminance(settings.textColor)>0.45
+  const editorialBackdrop=lightText?"#000000":"#ffffff"
+  const editorialText=readableStoryColor(settings.textColor,lightText?"#4d4d4d":"#e6e6e6")
   const svg=(content:string)=>Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${content}</svg>`)
   const box=(x:number,y:number,w:number,h:number,fill:string,stroke?:string,dashed=false)=>{
     layers.push({input:svg(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${Math.min(48,h/2)}" fill="${fill}"${stroke?` stroke="${stroke}" stroke-width="3"`:""}/>${dashed?`<rect x="${x+12}" y="${y+12}" width="${w-24}" height="${h-24}" rx="${Math.min(38,h/2-12)}" fill="none" stroke="${settings.primaryColor}" stroke-width="2" stroke-dasharray="12 9"/>`:""}`),top:0,left:0})
   }
   if(settings.headline || settings.cta || settings.kicker || settings.supportingText) {
     layers.push({input:svg(`<defs><linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${outdoor?settings.primaryColor:"#000000"}" stop-opacity="0.08"/><stop offset="65%" stop-color="${outdoor?settings.primaryColor:"#000000"}" stop-opacity="0.12"/><stop offset="100%" stop-color="${outdoor?settings.primaryColor:"#000000"}" stop-opacity="0.75"/></linearGradient></defs><rect width="${width}" height="${height}" fill="url(#shade)"/>`),top:0,left:0})
-    const headline=settings.headline?await renderStoryText(settings.headline,panelWidth-64,height*0.30,outdoor?settings.primaryColor:settings.textColor,true,settings.format==="story"?224:152):null
-    const supporting=settings.supportingText?await renderStoryText(settings.supportingText,panelWidth-80,height*0.14,outdoor?settings.primaryColor:settings.textColor,false,52):null
-    const cta=settings.cta?await renderStoryText(settings.cta,panelWidth-104,120,settings.panelColor,false,46):null
-    const kicker=settings.kicker?await renderStoryText(settings.kicker,panelWidth-100,95,outdoor?settings.primaryColor:settings.panelColor,true,56):null
+    const headline=settings.headline?await renderStoryText(settings.headline,panelWidth-64,height*0.30,outdoor?panelText:editorialText,true,settings.format==="story"?224:152):null
+    const supporting=settings.supportingText?await renderStoryText(settings.supportingText,panelWidth-80,height*0.14,outdoor?panelText:editorialText,false,52):null
+    const cta=settings.cta?await renderStoryText(settings.cta,panelWidth-104,120,pillText,false,46):null
+    const kicker=settings.kicker?await renderStoryText(settings.kicker,panelWidth-100,95,outdoor?accentText:pillText,true,56):null
     const titleH=headline?headline.height+64:0
     const blockH=titleH+(kicker?kicker.height+82:0)+(supporting?supporting.height+86:0)+(cta?cta.height+92:0)
     let y=settings.headlinePosition==="top"?safeY:Math.max(safeY,height-safeY-blockH)
@@ -101,17 +130,21 @@ export async function composeStory(base: Buffer, settings: StorySettings, logo?:
       const h=kicker.height+44
       box(150,y,width-300,h,outdoor?settings.accentColor:settings.primaryColor,settings.panelColor,outdoor)
       // Render the label within the smaller pill to prevent long labels crossing its edges.
-      const label=await renderStoryText(settings.kicker,width-380,95,outdoor?settings.primaryColor:settings.panelColor,true,56)
+      const label=await renderStoryText(settings.kicker,width-380,95,outdoor?accentText:pillText,true,56)
       layers.push({input:label.bytes,top:Math.round(y+(h-label.height)/2),left:Math.round((width-label.width)/2)})
       y+=h+38
     }
     if(headline) {
       if(outdoor) box(72,y,panelWidth,titleH,settings.panelColor)
+      else box(72,y,panelWidth,titleH,`${editorialBackdrop}${lightText?"b3":"e6"}`)
+      if(!outdoor && lightText) layers.push({input:await storyTextShadow(headline.bytes),top:Math.round(y+28),left:Math.round((width-headline.width)/2)-8})
       layers.push({input:headline.bytes,top:Math.round(y+32),left:Math.round((width-headline.width)/2)})
       y+=titleH+32
     }
     if(supporting) {
       if(outdoor) box(72,y,panelWidth,supporting.height+54,settings.panelColor,settings.accentColor)
+      else box(72,y,panelWidth,supporting.height+54,`${editorialBackdrop}${lightText?"b3":"e6"}`)
+      if(!outdoor && lightText) layers.push({input:await storyTextShadow(supporting.bytes),top:Math.round(y+23),left:Math.round((width-supporting.width)/2)-8})
       layers.push({input:supporting.bytes,top:Math.round(y+27),left:Math.round((width-supporting.width)/2)})
       y+=supporting.height+86
     }

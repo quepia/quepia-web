@@ -75,3 +75,23 @@ export async function readStoryReference(server: SupabaseClient, path: string) {
   }
   return sharp(bytes,{limitInputPixels:100_000_000}).rotate().resize(2560,2560,{fit:"inside",withoutEnlargement:true}).png().toBuffer()
 }
+
+/** Design examples are read only from the authorized project brief, never the photo catalog. */
+export async function storyDesignReferences(server: SupabaseClient, brief: ClientBrief | null) {
+  const examples: { image: Buffer; note: string }[] = []
+  for (const ref of brief?.reference_links || []) {
+    if (!ref.url?.trim() || !/^Referencia de diseño(?:\s*:|$)/i.test(ref.note?.trim() || "")) continue
+    let url: URL
+    try { url = new URL(ref.url) } catch { throw new Error("La referencia de diseño debe ser un enlace de Google Drive") }
+    if (url.hostname !== "drive.google.com") throw new Error("Usá un archivo o carpeta de Google Drive para las referencias de diseño")
+    const folder = url.pathname.match(/\/folders\/([a-zA-Z0-9_-]+)/)?.[1]
+    const file = url.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1] || url.searchParams.get("id")
+    const ids = folder ? (await listDriveImageBank(folder)).filter(item => Number(item.size || 0) <= 100 * 1024 * 1024).map(item => item.id) : file && /^[a-zA-Z0-9_-]+$/.test(file) ? [file] : []
+    if (!ids.length) throw new Error("La referencia de diseño no contiene imágenes accesibles en Drive")
+    for (const id of ids.slice(0, 4 - examples.length)) {
+      examples.push({image: await sharp(await readStoryReference(server, `drive:${id}`)).resize(1024,1024,{fit:"inside",withoutEnlargement:true}).webp({quality:80}).toBuffer(), note: ref.note})
+    }
+    if (examples.length === 4) break
+  }
+  return examples
+}

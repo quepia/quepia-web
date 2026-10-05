@@ -55,7 +55,8 @@ export async function enqueueStories(session: QuepiaSession, projectId: string, 
     if (settings.backgroundSource === "bank") settings = { ...settings, mode: "faithful" }
     if (settings.mode === "creative" && !process.env.OPENAI_API_KEY) throw new ZernioRouteError(503, "Configurá OPENAI_API_KEY en el servidor para generar imágenes")
     if (settings.mode === "creative" && !source.brief) throw new ZernioRouteError(422, "Completá el brief de este cliente antes de generar")
-    if ((settings.mode === "creative" && !settings.prompt) || (settings.backgroundSource === "bank" && (!settings.prompt || !settings.referenceAssetIds.length && !settings.referenceDriveFileIds.length))) settings = await prepareStory(session.server, source, settings)
+    const hasDesignReferences = settings.autoDesign && source.brief?.reference_links?.some(ref => /^Referencia de diseño(?:\s*:|$)/i.test(ref.note?.trim() || ""))
+    if (hasDesignReferences || (settings.mode === "creative" && !settings.prompt) || (settings.backgroundSource === "bank" && (!settings.prompt || !settings.referenceAssetIds.length && !settings.referenceDriveFileIds.length))) settings = await prepareStory(session.server, source, settings)
     if (settings.mode === "faithful" && settings.referenceAssetIds.length + settings.referenceDriveFileIds.length !== 1) throw new ZernioRouteError(422, "Composición fiel requiere exactamente una foto")
     const paths = await referencePaths(session.server, taskId, projectId, settings.referenceAssetIds, settings.referenceDriveFileIds, source.brief)
     const logoPath = settings.includeLogo ? source.brief?.logo_storage_path || null : null
