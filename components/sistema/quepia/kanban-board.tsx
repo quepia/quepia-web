@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useMemo, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
 import {
     Plus,
     MoreHorizontal,
@@ -39,6 +40,8 @@ import { useToast } from "@/components/ui/toast-provider"
 import { useConfirm } from "@/components/ui/confirm-provider"
 import { trackExperienceMetric } from "@/lib/sistema/experience-metrics"
 
+const StoriesBoard = dynamic(() => import("./stories-board").then(module => module.StoriesBoard), { loading: () => <div className="flex flex-1 items-center justify-center"><Loader2 className="animate-spin text-quepia-cyan" /></div> })
+
 // Re-export types for backward compatibility
 export type { Task, ColumnWithTasks as ColumnType }
 
@@ -64,6 +67,7 @@ export function KanbanBoard({
     const { toast } = useToast()
     const { confirm } = useConfirm()
     const [showCompletedTasks, setShowCompletedTasks] = useState(false)
+    const [boardView, setBoardView] = useState<"tasks" | "stories">("tasks")
     const { columns, loading, error, createTask, updateTask, moveTask, reorderColumns, duplicateTask, deleteTask, clearCompletedTasks, silentRefresh } = useTasks(projectId, {
         includeCompletedThumbnails: showCompletedTasks,
     })
@@ -481,6 +485,9 @@ export function KanbanBoard({
                 onSectionChange={onWorkspaceSectionChange}
                 actions={(
                     <>
+                    <div role="group" aria-label="Vista del Kanban" className="flex rounded-lg border border-white/10 p-0.5">
+                        {(["tasks", "stories"] as const).map(view => <button key={view} aria-pressed={boardView === view} onClick={() => setBoardView(view)} className={cn("rounded-md px-3 py-1.5 text-xs", boardView === view ? "bg-quepia-cyan/10 text-quepia-cyan" : "text-white/50 hover:text-white")}>{view === "tasks" ? "Tareas" : "Historias"}</button>)}
+                    </div>
                     <button
                         onClick={() => setShowCompletedTasks((prev) => !prev)}
                         className={cn(
@@ -516,8 +523,9 @@ export function KanbanBoard({
                 )}
             />
 
-            {/* Kanban Columns */}
-            <div className="flex-1 overflow-x-auto p-3 sm:p-6">
+            {boardView === "stories" ? <StoriesBoard key={projectId} projectId={projectId} columns={columns} onTaskClick={onTaskClick} onChanged={() => { void silentRefresh() }} /> : null}
+            {/* Keep the task board mounted while changing views. */}
+            <div className={cn("flex-1 overflow-x-auto p-3 sm:p-6", boardView === "stories" && "hidden")}>
                 <div className="flex gap-4 h-full min-w-max snap-x snap-mandatory">
                     {columns.map((column, columnIndex) => (
                         <KanbanColumn

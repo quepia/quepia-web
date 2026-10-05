@@ -2056,6 +2056,7 @@ export function TaskDetailModal({ taskId, isOpen, onClose, onUpdate, userId, tas
                                 <ZernioPublishingPanel
                                     taskId={task.id}
                                     projectId={task.project_id}
+                                    initialPublicationType={task.task_type === "story" ? "story" : "feed"}
                                     socialCopy={socialCopyValue}
                                     onPublished={() => {
                                         void refresh()

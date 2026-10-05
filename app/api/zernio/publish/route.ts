@@ -339,7 +339,7 @@ async function loadTaskContext(taskId: string) {
   const session = await getQuepiaSession()
   const { data: task } = await session.server
     .from("sistema_tasks")
-    .select("id, project_id, titulo, social_copy, type_metadata")
+    .select("id, project_id, titulo, social_copy, type_metadata, task_type")
     .eq("id", taskId)
     .maybeSingle()
 
@@ -539,6 +539,17 @@ export async function POST(request: Request) {
     const selectedAssets = assetIds.map((assetId) => allAssets.find((asset) => asset.id === assetId)).filter(Boolean) as AssetRow[]
     if (selectedAssets.length !== assetIds.length) {
       throw new ZernioRouteError(400, "Uno de los assets seleccionados ya no está disponible")
+    }
+    if (task.task_type === "story" && !isDraft && selectedAssets.some(asset => !["approved_final", "published"].includes(asset.approval_status))) {
+      throw new ZernioRouteError(422, "Aprobá la versión de la historia antes de publicar o programar")
+    }
+    if (task.task_type === "story" && !isDraft && assetIds.length) {
+      const { data: generations, error: generationsError } = await admin.from("sistema_story_generations").select("asset_id,output_path,status").eq("task_id",taskId).in("asset_id",assetIds)
+      if (generationsError) throw new ZernioRouteError(503,"No se pudo verificar la versión generada")
+      if (generations?.some(job => {
+        const asset = selectedAssets.find(item=>item.id===job.asset_id)
+        return !asset || job.status !== "succeeded" || asset.current_version !== 1 || currentVersion(asset)?.storage_path !== job.output_path
+      })) throw new ZernioRouteError(409,"La imagen generada cambió. Revisá y aprobá una nueva historia antes de publicar.")
     }
     let isReel = false
     try {

@@ -195,12 +195,16 @@ export function ZernioPublishingPanel({
   socialCopy,
   onPublished,
   initialPublicationId,
+  initialAssetId,
+  initialPublicationType = "feed",
 }: {
   taskId: string
   projectId: string
   socialCopy: string
   onPublished?: () => void
   initialPublicationId?: string
+  initialAssetId?: string
+  initialPublicationType?: "feed" | "story"
 }) {
   const [timingLoading, setTimingLoading] = useState(false)
   const [timingError, setTimingError] = useState("")
@@ -220,7 +224,7 @@ export function ZernioPublishingPanel({
   const [scheduledFor, setScheduledFor] = useState(defaultScheduleValue)
   const [scheduleMinimum, setScheduleMinimum] = useState(minimumScheduleValue)
   const [scheduleMaximum, setScheduleMaximum] = useState(maximumMediaScheduleValue)
-  const [instagramOptions, setInstagramOptions] = useState<InstagramOptionsDraft>(DEFAULT_INSTAGRAM_OPTIONS)
+  const [instagramOptions, setInstagramOptions] = useState<InstagramOptionsDraft>({ ...DEFAULT_INSTAGRAM_OPTIONS, publicationType: initialPublicationType })
   const [editingPublicationId, setEditingPublicationId] = useState<string | null>(null)
   const [historyAction, setHistoryAction] = useState<string | null>(null)
   const initializedAssetTaskRef = useRef<string | null>(null)
@@ -256,6 +260,11 @@ export function ZernioPublishingPanel({
         const available = new Set(next.assets.map((asset) => asset.id))
         if (initializedAssetTaskRef.current !== taskId) {
           initializedAssetTaskRef.current = taskId
+          if (initialAssetId) return available.has(initialAssetId) ? [initialAssetId] : []
+          if (initialPublicationType === "story") {
+            const approved = next.assets.find(asset => ["approved_final", "published"].includes(asset.approvalStatus) && asset.fileType?.startsWith("image/"))
+            return approved ? [approved.id] : []
+          }
           const firstReel = next.assets.find((asset) => asset.assetType === "reel")
           return firstReel ? [firstReel.id] : next.assets.map((asset) => asset.id)
         }
@@ -266,7 +275,7 @@ export function ZernioPublishingPanel({
     } finally {
       setLoading(false)
     }
-  }, [taskId])
+  }, [taskId, initialAssetId, initialPublicationType])
 
   useEffect(() => {
     void load()
