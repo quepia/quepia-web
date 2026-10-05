@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import type { Servicio } from '@/types/database';
 import { getServiceIconByName } from '@/lib/service-icons';
+import AmbientVideo from '@/components/seo/AmbientVideo';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import DroneService from '@/components/home/DroneService';
 import MarqueeSection from '@/components/home/MarqueeSection';
@@ -91,12 +92,7 @@ export default function ServiciosClient({ servicios }: ServiciosClientProps) {
       <div className="relative z-10">
         <section className="relative overflow-hidden pb-14 pt-28 md:pb-20 md:pt-32">
           <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-screen w-screen -translate-x-1/2">
-            <video
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="none" poster="/images/video-poster.webp"
+            <AmbientVideo
               className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.15]"
               src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
             />

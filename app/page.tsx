@@ -73,7 +73,7 @@ export default async function Home() {
           id="expertise"
           style={{ contentVisibility: 'auto', containIntrinsicSize: '1100px' }}
         >
-          <ServicesGrid servicios={servicios || []} />
+          <ServicesGrid />
         </section>
 
         <section

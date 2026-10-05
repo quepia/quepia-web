@@ -9,6 +9,8 @@ const EXCLUDED_ROUTE_PREFIXES = [
   '/cliente',
   '/review',
   '/propuesta',
+  '/oauth',
+  '/api',
 ];
 
 export function isTrackableRoute(pathname?: string | null) {

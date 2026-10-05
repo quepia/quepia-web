@@ -1,3 +1,4 @@
+import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import type { Metadata } from 'next';
 import { getTeamMembersServer } from '@/lib/fetchConfigServer';
 import AboutClient from '@/components/about/AboutClient';
@@ -61,6 +62,7 @@ export default async function AboutPage() {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(teamJsonLd) }}
             />
+            <JsonLd data={breadcrumbs([{ name: 'Sobre nosotros', path: '/sobre-nosotros' }])} />
             <AboutClient team={team} />
         </>
     );

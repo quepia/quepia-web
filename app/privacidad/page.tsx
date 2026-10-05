@@ -1,3 +1,4 @@
+import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
@@ -122,6 +123,7 @@ export default async function PrivacidadPage() {
       />
 
       <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-[color:var(--text-primary)]">
+        <JsonLd data={breadcrumbs([{ name: 'Privacidad', path: '/privacidad' }])} />
         <BrandDepthBackground variant="subtle" />
         <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(180deg,#0a0a0a_0%,#101010_48%,#0b0b0b_100%)]" />
 

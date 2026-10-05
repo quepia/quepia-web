@@ -99,6 +99,7 @@ function MarketingAnalyticsInner() {
         </>
       ) : null}
 
+      {GOOGLE_GTM_ID ? <noscript><iframe title="Google Tag Manager" src={`https://www.googletagmanager.com/ns.html?id=${GOOGLE_GTM_ID}`} height="0" width="0" style={{ display: 'none', visibility: 'hidden' }} /></noscript> : null}
       {GOOGLE_GTM_ID ? <Script id="google-tag-manager" strategy="afterInteractive">{`window.dataLayer=window.dataLayer||[];window.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtm.js?id=${GOOGLE_GTM_ID}';document.head.appendChild(s);`}</Script> : null}
       {META_PIXEL_ID ? (
         <>

@@ -2,11 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import type { Servicio } from '@/types/database';
-
-interface ServicesGridProps {
-  servicios: Servicio[];
-}
 
 interface ExpertiseCardConfig {
   title: string;
@@ -67,7 +62,7 @@ const expertiseCards: ExpertiseCardConfig[] = [
   },
 ];
 
-export default function ServicesGrid(_props: ServicesGridProps) {
+export default function ServicesGrid() {
   return (
     <section className="relative overflow-hidden py-20 md:py-28">
       <div className="pointer-events-none absolute inset-0">
@@ -174,7 +169,7 @@ function BackgroundVideo({ card }: { card: ExpertiseCardConfig }) {
     if (!element || typeof IntersectionObserver === 'undefined') return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => setIsInView(entry.isIntersecting),
+      ([entry]) => setIsInView(entry.isIntersecting && !window.matchMedia('(max-width: 767px), (prefers-reduced-motion: reduce)').matches),
       { threshold: 0.35 },
     );
     observer.observe(element);
@@ -195,13 +190,12 @@ function BackgroundVideo({ card }: { card: ExpertiseCardConfig }) {
     <div ref={cardRef} className="absolute inset-0 overflow-hidden">
       <video
         ref={videoRef}
-        autoPlay
         muted
         loop
         playsInline
         preload="none" poster="/images/video-poster.webp"
         className="absolute inset-0 h-full w-full object-cover brightness-[0.9] contrast-[1.1] saturate-[1.02] opacity-[0.34] transition-opacity duration-500 group-hover:opacity-[0.5]"
-        src={encodeURI(card.videoSrc)}
+        src={isInView ? encodeURI(card.videoSrc) : undefined}
         style={{
           transform: `scale(${card.videoScale})`,
           objectPosition: card.videoPosition ?? 'center center',

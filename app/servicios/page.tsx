@@ -1,3 +1,4 @@
+import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import type { Metadata } from 'next';
 import { services } from '@/lib/seo/services';
 import ServiciosClient from './ServiciosClient';
@@ -65,6 +66,7 @@ export default async function ServiciosPage() {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(serviciosJsonLd) }}
             />
+            <JsonLd data={breadcrumbs([{ name: 'Servicios', path: '/servicios' }])} />
             <ServiciosClient servicios={servicios || []} />
         </>
     );
