@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { ASSET_BUCKET } from "@/lib/sistema/assets-storage"
 import { formatBrandGuidelines, formatTaskContext, loadCreativeStudioSource } from "@/lib/ai/creative-studio-context"
 import { getQuepiaSession, assertProjectAccess, ZernioRouteError, type QuepiaSession } from "@/lib/zernio/server"
+import { composeStoryPhotoOverlay } from "./story-photo-overlay"
 import { composeStory } from "./story-composition"
 import { STORY_FORMATS, storySettingsSchema, readStorySettings, storyBasePrompt, imageUsageCost, storyReservation, type StorySettings, type StoryJob } from "./stories"
 
@@ -52,7 +53,7 @@ export async function enqueueStories(session: QuepiaSession, projectId: string, 
     const normalized = await session.server.from("sistema_tasks").update({ task_type: "story" }).eq("id",taskId).eq("project_id",projectId).select("id,due_date").maybeSingle()
     if (normalized.error || !normalized.data) throw new ZernioRouteError(403,"No se pudo preparar la tarea de historias")
     let settings = readStorySettings(source.task.typeMetadata, { descripcion: source.task.description, due_date: normalized.data.due_date })
-    settings = { ...settings, renderMode: "full-ai", mode: "creative" }
+    settings = { ...settings, renderMode: settings.backgroundSource === "bank" ? "ai-overlay" : "full-ai", mode: "creative" }
     if (settings.mode === "creative" && !process.env.OPENAI_API_KEY) throw new ZernioRouteError(503, "Configurá OPENAI_API_KEY en el servidor para generar imágenes")
     if (settings.mode === "creative" && !source.brief) throw new ZernioRouteError(422, "Completá el brief de este cliente antes de generar")
     // Always rebuild creative direction from the current task and brief. Cached legacy
@@ -61,9 +62,10 @@ export async function enqueueStories(session: QuepiaSession, projectId: string, 
     const paths = await referencePaths(session.server, taskId, projectId, settings.referenceAssetIds, settings.referenceDriveFileIds, source.brief)
     const logoPath = settings.includeLogo ? source.brief?.logo_storage_path || null : null
     if (logoPath && !logoPath.startsWith(`briefs/${projectId}/`)) throw new ZernioRouteError(422, "El logo del brief no tiene una ruta válida")
+    if(settings.renderMode === "ai-overlay" && paths.length !== 1) throw new ZernioRouteError(422,"Elegí exactamente una foto original como fondo")
     const designs = await storyDesignReferencePaths(source.brief)
     const roles = [
-      ...paths.map((_,i)=>`Imagen ${i+1}: foto real del lugar/producto que debés usar en la pieza.`),
+      ...paths.map((_,i)=>`Imagen ${i+1}: foto real del lugar/producto. ${settings.renderMode === "ai-overlay" ? "Solo contexto de ubicación y contraste: NO generarla en la capa transparente; el sistema la usará como fondo original." : "Usarla en la pieza."}`),
       ...designs.map((ref,i)=>`Imagen ${paths.length+i+1}: referencia de DISEÑO, solo estilo. ${ref.note}`),
       ...(logoPath?[`Imagen ${paths.length+designs.length+1}: LOGOTIPO de la marca; integralo fielmente.`]:[]),
     ].join("\n")
@@ -91,7 +93,7 @@ export async function privateImage(admin: SupabaseClient, path: string, maxBytes
 export async function generateOpenAIImage(input: { model: string; prompt: string; settings: StorySettings; references: Buffer[] }) {
   const key = process.env.OPENAI_API_KEY
   if (!key) throw new Error("Configurá OPENAI_API_KEY para generar")
-  const parameters = { model: input.model, prompt: input.prompt, size: STORY_FORMATS[input.settings.format].size, quality: input.settings.quality, n: 1, output_format: "png" }
+  const parameters = { model: input.model, prompt: input.prompt, size: STORY_FORMATS[input.settings.format].size, quality: input.settings.quality, n: 1, output_format: "png", background: input.settings.renderMode === "ai-overlay" ? "transparent" : "opaque" }
   let body: FormData | string
   let endpoint: string
   const headers: Record<string, string> = { Authorization: `Bearer ${key}` }
@@ -136,13 +138,24 @@ export async function runStoryJob(admin: SupabaseClient, job: WorkerJob) {
   try {
     const settings = storySettingsSchema.parse(job.settings)
     let base: Buffer
+    let originalPhoto: Buffer | null = null
+    const photoPath = `${job.project_id}/${job.task_id}/stories/${job.id}/background.png`
+    if (settings.renderMode === "ai-overlay") {
+      if (basePath) originalPhoto = await privateImage(admin,photoPath,32*1024*1024)
+      else {
+        if (!job.reference_paths.length) throw new Error("La historia necesita una foto original de fondo")
+        originalPhoto = await readStoryReference(admin,job.reference_paths[0])
+        const photoSaved = await admin.storage.from(ASSET_BUCKET).upload(photoPath,originalPhoto,{contentType:"image/png",upsert:true})
+        if(photoSaved.error) throw new Error("No se pudo guardar la foto original; no se llamó a OpenAI")
+      }
+    }
     if (basePath) {
       base = await privateImage(admin, basePath, 32 * 1024 * 1024)
     } else if (settings.renderMode === "legacy" && settings.mode === "faithful") {
       base = await readStoryReference(admin, job.reference_paths[0])
     } else {
-      const references = await Promise.all(job.reference_paths.map(path => readStoryReference(admin, path)))
-      if(settings.renderMode === "full-ai" && job.logo_path && settings.includeLogo) references.push(await privateImage(admin,job.logo_path))
+      const references = await Promise.all(job.reference_paths.map((path,i) => i===0 && originalPhoto ? originalPhoto : readStoryReference(admin, path)))
+      if(settings.renderMode !== "legacy" && job.logo_path && settings.includeLogo) references.push(await privateImage(admin,job.logo_path))
       providerStarted = true
       const generated = await generateOpenAIImage({ model: job.model, prompt: storyBasePrompt(settings, job.brand_context), settings, references })
       base = generated.bytes; usage = generated.usage; requestId = generated.requestId
@@ -153,10 +166,10 @@ export async function runStoryJob(admin: SupabaseClient, job: WorkerJob) {
     basePath = destination
     const savedBase = await admin.from("sistema_story_generations").update({ base_path: basePath, usage, cost_usd: settings.renderMode === "legacy" && settings.mode === "faithful" ? 0 : imageUsageCost(usage), provider_request_id: requestId }).eq("id", job.id)
     if (savedBase.error) throw new Error("No se pudo registrar la imagen base")
-    // New jobs persist the complete provider image without adding text, plates or logos.
+    // The AI draws every graphic element; the system only combines the transparent layer and original photo.
     // Legacy rendering remains solely to recover already-paid historical jobs.
     const logo = settings.renderMode === "legacy" && job.logo_path && settings.includeLogo ? await privateImage(admin, job.logo_path) : null
-    const final = settings.renderMode === "full-ai" ? base : await composeStory(base, settings, logo)
+    const final = settings.renderMode === "ai-overlay" ? await composeStoryPhotoOverlay(originalPhoto!,base,settings) : settings.renderMode === "full-ai" ? base : await composeStory(base, settings, logo)
     const finalPath = basePath.replace("base.png", "final.png")
     const derived = [
       { path: finalPath, bytes: final, type: "image/png" },
