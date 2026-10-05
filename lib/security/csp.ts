@@ -16,7 +16,7 @@ export function privateContentSecurityPolicy(nonce: string, development = false)
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
-    `connect-src 'self' https://*.supabase.co https://*.supabase.com${development ? " ws: wss:" : ""}`,
+    `connect-src 'self' https://www.googleapis.com https://*.supabase.co https://*.supabase.com${development ? " ws: wss:" : ""}`,
     "frame-src 'self' https://drive.google.com https://www.youtube.com https://www.youtube-nocookie.com",
     "frame-ancestors 'self'",
     "form-action 'self'",

@@ -5,7 +5,7 @@ import { serverCreateAsset, serverAddVersion } from "@/lib/sistema/actions/asset
 import { ASSET_BUCKET, sanitizeFilename } from "@/lib/sistema/assets-storage"
 
 const MAX_SUPABASE_FILE_SIZE = 100 * 1024 * 1024
-const DRIVE_CHUNK_SIZE = 3 * 1024 * 1024
+const DRIVE_CHUNK_SIZE = 8 * 1024 * 1024
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"]
 
@@ -385,65 +385,80 @@ async function uploadFileToDriveWithProgress(params: {
     throw new Error(session?.error || "No se pudo crear la sesión de Drive")
   }
 
-  let uploadedBytes = 0
-  let uploadResult: { id: string; webViewLink?: string | null } | null = null
+  const uploadUrl = new URL(session.uploadUrl)
+  if (uploadUrl.protocol !== "https:" || uploadUrl.hostname !== "www.googleapis.com" ||
+      !uploadUrl.pathname.startsWith("/upload/drive/")) {
+    throw new Error("Drive devolvió una URL de subida inválida")
+  }
 
-  while (uploadedBytes < params.file.size) {
-    const start = uploadedBytes
-    const end = Math.min(params.file.size, start + DRIVE_CHUNK_SIZE) - 1
-    const chunk = params.file.slice(start, end + 1)
-
-    const chunkResult = await new Promise<{
-      done: boolean
-      file?: { id: string; webViewLink?: string | null }
-    }>((resolve, reject) => {
+  type DriveFile = { id: string; webViewLink?: string | null }
+  type UploadReply = { file?: DriveFile; offset: number }
+  // Only metadata crosses Vercel. Original bytes go straight to the Drive session.
+  const put = (chunk: Blob | null, range: string, start: number): Promise<UploadReply> =>
+    new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      xhr.open("POST", "/api/assets/drive-upload-chunk", true)
-      xhr.setRequestHeader("Content-Type", "application/octet-stream")
-      xhr.setRequestHeader("X-Drive-Upload-Url", session.uploadUrl)
-      xhr.setRequestHeader("X-File-Type", params.file.type || "application/octet-stream")
-      xhr.setRequestHeader("X-File-Size", String(params.file.size))
-      xhr.setRequestHeader("X-Chunk-Start", String(start))
-      xhr.setRequestHeader("X-Chunk-End", String(end))
-
+      xhr.open("PUT", uploadUrl.href, true)
+      xhr.timeout = 120_000
+      xhr.setRequestHeader("Content-Type", params.file.type || "application/octet-stream")
+      xhr.setRequestHeader("Content-Range", range)
       xhr.upload.onprogress = (evt) => {
-        if (!evt.lengthComputable) return
-        const totalLoaded = start + evt.loaded
-        params.onProgress?.(Math.round((totalLoaded / params.file.size) * 100))
+        if (chunk && evt.lengthComputable) {
+          params.onProgress?.(Math.min(99, Math.round((start + evt.loaded) / params.file.size * 100)))
+        }
       }
-
       xhr.onload = () => {
-        let payload: { done?: boolean; file?: { id: string; webViewLink?: string | null }; error?: string } | null = null
-        try {
-          payload = JSON.parse(xhr.responseText)
-        } catch {}
-
-        if (xhr.status >= 200 && xhr.status < 300 && payload) {
-          resolve({
-            done: Boolean(payload.done),
-            file: payload.file,
-          })
+        if (xhr.status === 308) {
+          const received = xhr.getResponseHeader("Range")
+          const match = received?.match(/^bytes=0-(\d+)$/)
+          const offset = match ? Number(match[1]) + 1 : 0
+          if ((received && !match) || !Number.isSafeInteger(offset) || offset > params.file.size) {
+            reject(new Error("Drive devolvió un rango inválido"))
+          } else resolve({ offset })
           return
         }
-
-        reject(new Error(payload?.error || `Drive chunk upload failed: ${xhr.status}`))
+        let payload: { id?: string; webViewLink?: string; error?: { message?: string } } = {}
+        try { payload = JSON.parse(xhr.responseText) } catch {}
+        if (xhr.status >= 200 && xhr.status < 300 && payload.id) {
+          resolve({ file: { id: payload.id, webViewLink: payload.webViewLink }, offset: params.file.size })
+        } else {
+          const error = new Error(payload.error?.message || `Drive upload failed: ${xhr.status}`)
+          Object.assign(error, { retryable: xhr.status === 429 || xhr.status >= 500 })
+          reject(error)
+        }
       }
-
-      xhr.onerror = () => reject(new Error("No se pudo subir el archivo a Drive"))
+      const networkError = () => reject(Object.assign(new Error("No se pudo subir el archivo a Drive"), { retryable: true }))
+      xhr.onerror = networkError
+      xhr.ontimeout = networkError
       xhr.send(chunk)
     })
 
-    uploadedBytes = end + 1
-    params.onProgress?.(Math.round((uploadedBytes / params.file.size) * 100))
-
-    if (chunkResult.done) {
-      uploadResult = chunkResult.file || null
-      break
+  let uploadedBytes = 0
+  let failures = 0
+  let checkStatus = false
+  let uploadResult: DriveFile | undefined
+  while (!uploadResult) {
+    const start = uploadedBytes
+    const end = Math.min(params.file.size, start + DRIVE_CHUNK_SIZE)
+    try {
+      const reply = await put(
+        checkStatus ? null : params.file.slice(start, end),
+        checkStatus ? `bytes */${params.file.size}` : `bytes ${start}-${end - 1}/${params.file.size}`,
+        start,
+      )
+      if (reply.file) { uploadResult = reply.file; break }
+      if ((!checkStatus && reply.offset <= start) || reply.offset >= params.file.size) {
+        throw new Error("Drive no confirmó el progreso de la subida")
+      }
+      uploadedBytes = reply.offset
+      if (!checkStatus) failures = 0
+      checkStatus = false
+      params.onProgress?.(Math.min(99, Math.round(uploadedBytes / params.file.size * 100)))
+    } catch (error) {
+      if (!(error as { retryable?: boolean }).retryable || ++failures > 3) throw error
+      await new Promise(resolve => setTimeout(resolve, 500 * 2 ** (failures - 1)))
+      // Ask Drive which bytes arrived before sending more; never resend blindly.
+      checkStatus = true
     }
-  }
-
-  if (!uploadResult?.id) {
-    throw new Error("Drive no devolvió el archivo subido")
   }
 
   return uploadResult

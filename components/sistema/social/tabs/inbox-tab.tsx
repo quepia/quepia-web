@@ -56,7 +56,9 @@ export function InboxTab({ scope }: TabProps) {
   const { reload } = threads
 
   useEffect(() => {
-    const timer = setInterval(reload, 30_000)
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") reload()
+    }, 30_000)
     return () => clearInterval(timer)
   }, [reload])
 

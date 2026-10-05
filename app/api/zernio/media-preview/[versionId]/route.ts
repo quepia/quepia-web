@@ -51,13 +51,23 @@ export async function GET(
       throw new ZernioRouteError(413, "El video supera el límite de previsualización de 250 MB")
     }
 
+    // Revalidate locally cached media only after verifying the current access.
+    const etag = `"drive-${versionId}-${driveFileId}"`
+    if (!request.headers.has("range") && request.headers.get("if-none-match") === etag) {
+      return new Response(null, { status: 304, headers: {
+        "ETag": etag,
+        "Cache-Control": "private, no-cache",
+      } })
+    }
+
     const driveResponse = await fetchDriveFile(driveFileId, {
       maxBytes: ZERNIO_REEL_MAX_SOURCE_BYTES,
       range: request.headers.get("range"),
     })
     const headers = new Headers({
       "Accept-Ranges": driveResponse.headers.get("accept-ranges") || "bytes",
-      "Cache-Control": "private, no-store",
+      "Cache-Control": "private, no-cache",
+      "ETag": etag,
       "Content-Type": version.file_type || driveResponse.headers.get("content-type") || "application/octet-stream",
       "X-Content-Type-Options": "nosniff",
     })

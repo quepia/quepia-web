@@ -485,6 +485,7 @@ export async function createDriveResumableUploadSession(params: {
   name: string
   mimeType: string
   fileSize: number
+  origin?: string
 }) {
   const token = await getAccessToken()
   const query = new URLSearchParams({
@@ -496,6 +497,7 @@ export async function createDriveResumableUploadSession(params: {
   const response = await fetch(`${DRIVE_UPLOAD_BASE}/files?${query.toString()}`, {
     method: "POST",
     headers: {
+      ...(params.origin ? { Origin: params.origin } : {}),
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json; charset=UTF-8",
       "X-Upload-Content-Type": params.mimeType || "application/octet-stream",

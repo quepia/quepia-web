@@ -20,13 +20,20 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
+        // Protected endpoints must retain session/MFA checks even when an ID
+        // happens to end with a public asset extension.
+        '/api/:path*',
+        '/sistema/:path*',
+        '/admin/:path*',
+        '/auth/:path*',
+        '/oauth/:path*',
         /*
          * Match all request paths except for the ones starting with:
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
-         * - public folder
+         * - public media, fonts, and WebAssembly assets
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|mp3|wav|ogg|woff|woff2|ttf|otf|wasm)$).*)',
     ],
 };

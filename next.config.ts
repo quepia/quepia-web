@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
       "object-src 'none'",
       "script-src 'self' 'unsafe-inline' blob: https://connect.facebook.net https://www.googletagmanager.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://use.typekit.net",
-      "connect-src 'self' https://*.supabase.co https://*.supabase.com https://api.resend.com https://vitals.vercel-insights.com https://*.vercel-insights.com https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com",
+      "connect-src 'self' https://www.googleapis.com https://*.supabase.co https://*.supabase.com https://api.resend.com https://vitals.vercel-insights.com https://*.vercel-insights.com https://connect.facebook.net https://www.facebook.com https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com",
       "frame-ancestors 'self'",
       "form-action 'self'",
       'upgrade-insecure-requests',

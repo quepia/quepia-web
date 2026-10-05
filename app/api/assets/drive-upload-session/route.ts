@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       name: driveName,
       mimeType,
       fileSize,
+      origin: new URL(request.url).origin,
     })
 
     return NextResponse.json({

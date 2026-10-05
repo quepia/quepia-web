@@ -34,10 +34,13 @@ export function ConnectionsTab({ scope, onScopesChanged }: TabProps & { onScopes
   const grants = useSocialData<Grant[]>("/api/admin/social/mcp-access")
   const [syncing, setSyncing] = useState(false)
   const syncLock = useRef(false)
+  const { reload } = inventory
   useEffect(() => {
-    const timer = setInterval(inventory.reload, 10_000)
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") reload()
+    }, 30_000)
     return () => clearInterval(timer)
-  }, [inventory.reload])
+  }, [reload])
   const synchronize = async (kinds: string[]) => {
     if (syncLock.current) return
     syncLock.current = true
@@ -58,7 +61,7 @@ export function ConnectionsTab({ scope, onScopesChanged }: TabProps & { onScopes
     try {
       await fn()
       if (done) setMessage(done)
-      inventory.reload()
+      reload()
       onScopesChanged()
     } catch (failure) {
       setError(failure as SocialApiError)
