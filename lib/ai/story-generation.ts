@@ -4,10 +4,10 @@ import sharp from "sharp"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { ASSET_BUCKET } from "@/lib/sistema/assets-storage"
-import { formatBrandGuidelines, loadCreativeStudioSource } from "@/lib/ai/creative-studio-context"
+import { formatBrandGuidelines, formatTaskContext, loadCreativeStudioSource } from "@/lib/ai/creative-studio-context"
 import { getQuepiaSession, assertProjectAccess, ZernioRouteError, type QuepiaSession } from "@/lib/zernio/server"
 import { composeStory } from "./story-composition"
-import { STORY_FORMATS, storySettingsSchema, storyBasePrompt, imageUsageCost, storyReservation, type StorySettings, type StoryJob } from "./stories"
+import { STORY_FORMATS, storySettingsSchema, readStorySettings, storyBasePrompt, imageUsageCost, storyReservation, type StorySettings, type StoryJob } from "./stories"
 
 export const STORY_MODEL = () => {
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst"
@@ -32,38 +32,35 @@ export async function storySession(projectId: string, write = false): Promise<Qu
   return session
 }
 
-export async function referencePaths(server: SupabaseClient, taskId: string, projectId: string, ids: string[]) {
-  if (!ids.length) return []
-  const { data, error } = await server.from("sistema_assets")
-    .select("id,current_version,access_revoked,versions:sistema_asset_versions(version_number,storage_path,file_type,file_size)")
-    .eq("task_id", taskId).eq("project_id", projectId).in("id", ids)
-  if (error) throw error
-  return ids.map(id => {
-    const asset = data?.find(a => a.id === id)
-    const version = asset?.versions?.find(v => v.version_number === asset.current_version)
-    if (!asset || asset.access_revoked || !version?.storage_path || !version.file_type?.startsWith("image/")
-      || (version.file_size || 0) > 12 * 1024 * 1024 || !version.storage_path.startsWith(`${projectId}/${taskId}/`)) {
-      throw new ZernioRouteError(422, "Una referencia no está disponible. Usá imágenes subidas a esta historia de hasta 12 MB.")
-    }
-    return version.storage_path
-  })
-}
+export { referencePaths } from "./story-references"
+import { referencePaths, readStoryReference } from "./story-references"
+import { prepareStory } from "./story-preparation"
 
 export async function enqueueStories(session: QuepiaSession, projectId: string, ids: string[], batchKey: string, budget: number) {
   const model = STORY_MODEL()
+  const { data: existing, error: existingError } = await session.server.from("sistema_story_generations").select("*")
+    .eq("project_id",projectId).eq("created_by",session.user.id).eq("batch_key",batchKey)
+  if (existingError) throw existingError
+  if (existing?.length) {
+    if (existing.length !== ids.length || !existing.every(job=>ids.includes(job.task_id))) throw new ZernioRouteError(409,"El lote ya existe con otras historias")
+    return existing as StoryJob[]
+  }
   const jobs = []
   for (const taskId of ids) {
     const source = await loadCreativeStudioSource(session.server, taskId)
     if (!source || source.task.projectId !== projectId || source.task.taskType !== "story") throw new ZernioRouteError(404, "Historia no disponible")
-    const settings = storySettingsSchema.parse(source.task.typeMetadata.story)
+    const normalized = await session.server.from("sistema_tasks").update({ task_type: "story" }).eq("id",taskId).eq("project_id",projectId).select("id,due_date").maybeSingle()
+    if (normalized.error || !normalized.data) throw new ZernioRouteError(403,"No se pudo preparar la tarea de historias")
+    let settings = readStorySettings(source.task.typeMetadata, { descripcion: source.task.description, due_date: normalized.data.due_date })
+    if (settings.backgroundSource === "bank") settings = { ...settings, mode: "faithful" }
     if (settings.mode === "creative" && !process.env.OPENAI_API_KEY) throw new ZernioRouteError(503, "Configurá OPENAI_API_KEY en el servidor para generar imágenes")
-    if (settings.mode === "creative" && !settings.prompt) throw new ZernioRouteError(422, "Prepará y guardá el prompt de cada historia antes de generar")
-    if (settings.mode === "faithful" && settings.referenceAssetIds.length !== 1) throw new ZernioRouteError(422, "Composición fiel requiere exactamente una foto")
     if (settings.mode === "creative" && !source.brief) throw new ZernioRouteError(422, "Completá el brief de este cliente antes de generar")
-    const paths = await referencePaths(session.server, taskId, projectId, settings.referenceAssetIds)
+    if ((settings.mode === "creative" && !settings.prompt) || (settings.backgroundSource === "bank" && (!settings.prompt || !settings.referenceAssetIds.length && !settings.referenceDriveFileIds.length))) settings = await prepareStory(session.server, source, settings)
+    if (settings.mode === "faithful" && settings.referenceAssetIds.length + settings.referenceDriveFileIds.length !== 1) throw new ZernioRouteError(422, "Composición fiel requiere exactamente una foto")
+    const paths = await referencePaths(session.server, taskId, projectId, settings.referenceAssetIds, settings.referenceDriveFileIds, source.brief)
     const logoPath = settings.includeLogo ? source.brief?.logo_storage_path || null : null
     if (logoPath && !logoPath.startsWith(`briefs/${projectId}/`)) throw new ZernioRouteError(422, "El logo del brief no tiene una ruta válida")
-    const snapshot = { task_id: taskId, settings, brand_context: formatBrandGuidelines(source.brief), reference_paths: paths, logo_path: logoPath, model }
+    const snapshot = { task_id: taskId, settings, brand_context: formatBrandGuidelines(source.brief) + "\n\n" + source.activeStrategyContext + "\n\n" + formatTaskContext(source.task), reference_paths: paths, logo_path: logoPath, model }
     jobs.push({ ...snapshot, reserved_usd: storyReservation(settings), fingerprint: crypto.createHash("sha256").update(JSON.stringify(snapshot)).digest("hex") })
   }
   const { data, error } = await createAdminClient().rpc("sistema_enqueue_stories", {
@@ -126,47 +123,51 @@ export async function processStoryQueue(projectId?: string) {
 export async function runStoryJob(admin: SupabaseClient, job: WorkerJob) {
   let basePath = job.base_path
   let providerStarted = false
+  let usage = job.usage || null
+  let requestId = job.provider_request_id
+  let outputPath: string | null = null
   try {
     const settings = storySettingsSchema.parse(job.settings)
     let base: Buffer
-    let usage = job.usage || null
-    let requestId = job.provider_request_id
     if (basePath) {
       base = await privateImage(admin, basePath, 32 * 1024 * 1024)
     } else if (settings.mode === "faithful") {
-      base = await privateImage(admin, job.reference_paths[0])
+      base = await readStoryReference(admin, job.reference_paths[0])
     } else {
-      const references = await Promise.all(job.reference_paths.map(path => privateImage(admin, path)))
+      const references = await Promise.all(job.reference_paths.map(path => readStoryReference(admin, path)))
       providerStarted = true
       const generated = await generateOpenAIImage({ model: job.model, prompt: storyBasePrompt(settings, job.brand_context), settings, references })
       base = generated.bytes; usage = generated.usage; requestId = generated.requestId
-      const { error: usageError } = await admin.from("sistema_story_generations").update({ usage, cost_usd: imageUsageCost(usage), provider_request_id: requestId }).eq("id", job.id)
-      if (usageError) throw new Error("No se pudo registrar el consumo")
     }
-    basePath = `${job.project_id}/${job.task_id}/stories/${job.id}/base.png`
-    const uploadBase = await admin.storage.from(ASSET_BUCKET).upload(basePath, base, { contentType: "image/png", upsert: true })
+    const destination = `${job.project_id}/${job.task_id}/stories/${job.id}/base.png`
+    const uploadBase = await admin.storage.from(ASSET_BUCKET).upload(destination, base, { contentType: "image/png", upsert: true })
     if (uploadBase.error) throw new Error("No se pudo guardar la imagen base")
-    const savedBase = await admin.from("sistema_story_generations").update({ base_path: basePath }).eq("id", job.id)
+    basePath = destination
+    const savedBase = await admin.from("sistema_story_generations").update({ base_path: basePath, usage, cost_usd: settings.mode === "faithful" ? 0 : imageUsageCost(usage), provider_request_id: requestId }).eq("id", job.id)
     if (savedBase.error) throw new Error("No se pudo registrar la imagen base")
     const logo = job.logo_path && settings.includeLogo ? await privateImage(admin, job.logo_path) : null
     const final = await composeStory(base, settings, logo)
-    const outputPath = basePath.replace("base.png", "final.png")
+    const finalPath = basePath.replace("base.png", "final.png")
     const derived = [
-      { path: outputPath, bytes: final, type: "image/png" },
-      { path: outputPath.replace("final.png", "thumb.webp"), bytes: await sharp(final).resize(240).webp({ quality: 75 }).toBuffer(), type: "image/webp" },
-      { path: outputPath.replace("final.png", "preview.webp"), bytes: await sharp(final).resize(720).webp({ quality: 85 }).toBuffer(), type: "image/webp" },
+      { path: finalPath, bytes: final, type: "image/png" },
+      { path: finalPath.replace("final.png", "thumb.webp"), bytes: await sharp(final).resize(240).webp({ quality: 75 }).toBuffer(), type: "image/webp" },
+      { path: finalPath.replace("final.png", "preview.webp"), bytes: await sharp(final).resize(720).webp({ quality: 85 }).toBuffer(), type: "image/webp" },
     ]
     for (const file of derived) {
       const result = await admin.storage.from(ASSET_BUCKET).upload(file.path, file.bytes, { contentType: file.type, upsert: true })
       if (result.error) throw new Error("No se pudo guardar la historia terminada")
     }
-    const finished = await admin.rpc("sistema_finish_story", { p_job: job.id, p_output: outputPath, p_base: basePath, p_size: final.length, p_usage: usage, p_cost: settings.mode === "faithful" ? 0 : imageUsageCost(usage), p_request: requestId })
-    if (finished.error) throw new Error("La imagen quedó guardada, pero no se pudo registrar su asset. Usá Recuperar.")
+    outputPath = finalPath
+    const finished = await admin.rpc("sistema_finish_story", { p_job: job.id, p_output: finalPath, p_base: basePath, p_size: final.length, p_usage: usage, p_cost: settings.mode === "faithful" ? 0 : imageUsageCost(usage), p_request: requestId })
+    if (finished.error) { console.error("[Stories] Asset registration failed", { jobId: job.id, code: finished.error.code, message: finished.error.message }); throw new Error("La imagen quedó guardada, pero no se pudo registrar su asset. Usá Recuperar.") }
   } catch (error) {
     const ambiguous = providerStarted && (error instanceof Error && ["TimeoutError", "AbortError", "TypeError"].includes(error.name))
     await admin.from("sistema_story_generations").update({ status: ambiguous ? "needs_attention" : "failed",
       error_message: ambiguous ? "OpenAI no confirmó el resultado. El intento puede haber sido cobrado; no se reintentó automáticamente." : error instanceof Error ? error.message : "No se pudo completar la historia",
       finished_at: new Date().toISOString(),
+      ...(basePath ? { base_path: basePath } : {}),
+      ...(outputPath ? { output_path: outputPath } : {}),
+      ...(usage ? { usage, cost_usd: imageUsageCost(usage), provider_request_id: requestId } : {}),
       ...(!providerStarted && !job.base_path ? { cost_usd: 0 } : {}),
     }).eq("id", job.id).in("status", ["running", "needs_attention"])
   }

@@ -73,12 +73,12 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
   }
   const latest = (taskId: string) => data?.jobs.find(job=>job.task_id===taskId)
   const selectedTasks = data?.tasks.filter(task=>selected.includes(task.id)) || []
-  const reservation = selectedTasks.reduce((sum,task)=>sum+storyReservation(readStorySettings(task.type_metadata)),0)
+  const reservation = selectedTasks.reduce((sum,task)=>sum+storyReservation(readStorySettings(task.type_metadata, task)),0)
   const selectedReady = selectedTasks.length>0 && selectedTasks.every(task=>{
-    const settings=readStorySettings(task.type_metadata)
-    return !["queued","running"].includes(latest(task.id)?.status || "") && (settings.mode==="faithful"?settings.referenceAssetIds.length===1:Boolean(settings.prompt)&&data?.configured)
+    const settings=readStorySettings(task.type_metadata, task)
+    return !["queued","running"].includes(latest(task.id)?.status || "") && (settings.backgroundSource==="bank" ? Boolean(data?.brief && (settings.autoReferences || settings.referenceAssetIds.length+settings.referenceDriveFileIds.length===1)) : settings.mode==="faithful"?settings.referenceAssetIds.length+settings.referenceDriveFileIds.length===1:Boolean(data?.configured&&data?.brief))
   })
-  const visibleTasks = data?.tasks.filter(task=>filter==="all" || (filter==="today"?readStorySettings(task.type_metadata).date===today():latest(task.id)?.status===filter)) || []
+  const visibleTasks = data?.tasks.filter(task=>filter==="all" || (filter==="today"?readStorySettings(task.type_metadata, task).date===today():latest(task.id)?.status===filter)) || []
 
   function updateDraft(index: number, update: Partial<Draft>) { setDrafts(current=>current.map((draft,i)=>i===index?{...draft,...update}:draft)) }
   async function plan() {
@@ -97,7 +97,7 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
 
   return <div className="flex-1 overflow-y-auto p-4 sm:p-6">
     <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-      <div><h2 className="text-lg font-semibold text-white">Historias</h2><p className="mt-1 text-xs text-white/40">Prepará las piezas del día, generá imágenes y revisalas antes de publicar.</p></div>
+      <div><h2 className="text-lg font-semibold text-white">Historias</h2><p className="mt-1 text-xs text-white/40">Usamos la descripción de cada tarea y el brief. Seleccioná historias y generá; podés ajustar las opciones antes.</p></div>
       <div className="flex gap-2"><button className={STORY_BUTTON} onClick={()=>void load()} disabled={Boolean(busy)} aria-label="Actualizar historias"><RefreshCw size={14}/></button><button className={STORY_BUTTON} onClick={()=>{setRules(data?.brief?.ai_generation_notes || "");setRulesOpen(true)}}>Reglas del cliente</button><button className={cn(STORY_BUTTON,"border-quepia-cyan/40 text-quepia-cyan")} disabled={!data||!columns.length} onClick={()=>{setCreating(true);setColumnId(columns[0]?.id || "");setDrafts([])}}><Plus size={14}/>Crear historias</button></div>
     </div>
     {error&&<p role="alert" className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
@@ -111,11 +111,11 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
       </div>
       {selected.length>0&&<div className="mb-5 rounded-xl border border-quepia-cyan/20 bg-quepia-cyan/5 p-4">
         <div className="flex flex-wrap items-center gap-3"><span className="text-sm text-white/80">{selected.length} seleccionadas</span><label className="flex items-center gap-2 text-xs text-white/60">Presupuesto del lote (USD)<input type="number" min={0} max={100} step={0.5} value={budget} className={cn(STORY_INPUT,"w-20")} onChange={e=>setBudget(Number(e.target.value))}/></label><button disabled={Boolean(busy)||!selectedReady||budget<reservation||selected.length>20} className={cn(STORY_BUTTON,"border-quepia-cyan/40 text-quepia-cyan")} onClick={()=>void action("generate",generate)}>{busy==="generate"?<Loader2 size={14} className="animate-spin"/>:<Sparkles size={14}/>}Generar seleccionadas</button><button className={STORY_BUTTON} onClick={()=>{setSelected([]);generationKey.current=null}}>Limpiar selección</button></div>
-        <p className="mt-2 text-[11px] text-white/45">Reserva conservadora: USD {reservation.toFixed(2)}. El costo real depende del consumo de OpenAI; no es una cotización ni un tope garantizado. Cada regeneración es un nuevo intento.</p>
-        {!selectedReady&&<p className="mt-2 text-xs text-amber-200">Guardá un prompt para cada historia con IA, o elegí una foto para composición fiel. Esperá a que terminen las historias que ya están generando.</p>}
+        <p className="mt-2 text-[11px] text-white/45">El fondo se elige del banco de Drive; la foto se conserva original. Los fondos nuevos con IA se generan solo si los elegís en Editar. Reserva de imágenes: USD {reservation.toFixed(2)}. El costo real depende del consumo de OpenAI; no es una cotización ni un tope garantizado. Cada regeneración es un nuevo intento.</p>
+        {!selectedReady&&<p className="mt-2 text-xs text-amber-200">Completá el brief para generar con IA, o elegí una foto para composición fiel. Esperá a que terminen las historias que ya están generando.</p>}
       </div>}
       {visibleTasks.length===0?<div className="rounded-2xl border border-dashed border-white/10 p-14 text-center"><ImageIcon className="mx-auto mb-3 text-white/20" size={32}/><p className="text-sm text-white/60">Todavía no hay historias en esta vista.</p><p className="mt-2 text-xs text-white/35">Creá una historia o prepará un lote desde una descripción.</p></div>:<div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{visibleTasks.map(task=>{
-        const settings=readStorySettings(task.type_metadata),job=latest(task.id)
+        const settings=readStorySettings(task.type_metadata, task),job=latest(task.id)
         const blocked=job&&["queued","running"].includes(job.status)
         return <article key={task.id} className="overflow-hidden rounded-xl border border-white/10 bg-[#101318]">
           <div className="relative aspect-[9/16] overflow-hidden bg-white/[0.025]">
@@ -123,7 +123,7 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
             <label className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg bg-black/70"><input type="checkbox" aria-label={`Seleccionar ${task.titulo}`} disabled={Boolean(busy)||Boolean(blocked)} checked={selected.includes(task.id)} onChange={e=>{generationKey.current=null;setSelected(current=>e.target.checked?[...current,task.id]:current.filter(id=>id!==task.id))}}/></label>
             <span className="absolute right-2 top-2 rounded bg-black/75 px-2 py-1 text-[10px] text-white/80">{job?.approved?"Aprobada":job?STORY_JOB_LABELS[job.status]:"Borrador"}</span>
           </div>
-          <div className="space-y-2 p-3"><p className="truncate text-sm font-medium text-white/85" title={task.titulo}>{task.titulo}</p><p className="text-[11px] text-white/40">{settings.date||"Sin fecha"} · {settings.mode==="faithful"?"Foto original":"IA"}{job?.cost_usd!=null?` · USD ${Number(job.cost_usd).toFixed(3)}`:""}</p>
+          <div className="space-y-2 p-3"><p className="truncate text-sm font-medium text-white/85" title={task.titulo}>{task.titulo}</p><p className="text-[11px] text-white/40">{settings.date||"Sin fecha"} · {settings.backgroundSource==="bank"||settings.mode==="faithful"?"Foto original":"IA"}{job?.cost_usd!=null?` · USD ${Number(job.cost_usd).toFixed(3)}`:""}</p>
             {job?.error_message&&<p className="text-[11px] text-red-300">{job.error_message}</p>}
             <div className="flex flex-wrap gap-1.5"><button className={STORY_BUTTON} disabled={Boolean(busy)} onClick={()=>setEditor(task)}>Editar</button>
               {job?.status==="queued"&&<button className={STORY_BUTTON} disabled={Boolean(busy)} onClick={()=>void action("cancel",()=>storyRequest({action:"cancel",projectId,jobId:job.id}))}>Cancelar</button>}

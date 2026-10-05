@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { Loader2, Sparkles, Upload, X, Save } from "lucide-react"
 import type { ClientBrief, Task } from "@/types/sistema"
 import { STORY_FORMATS, readStorySettings, type StorySettings } from "@/lib/ai/stories"
-import { uploadAssetFile } from "@/lib/sistema/asset-upload"
+import { uploadAssetFile, compressStoryReference } from "@/lib/sistema/asset-upload"
 import { cn } from "@/lib/sistema/utils"
+
+import { StoryImageBank } from "./story-image-bank"
 
 export const STORY_INPUT = "w-full rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-sm text-white outline-none focus:border-quepia-cyan/60"
 export const STORY_BUTTON = "inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/80 hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -17,7 +19,7 @@ export async function storyRequest<T = Record<string, unknown>>(input: object): 
 }
 
 export function StoryFields({ settings, onChange }: { settings: StorySettings; onChange: (settings: StorySettings) => void }) {
-  const set = <K extends keyof StorySettings>(key: K, value: StorySettings[K]) => onChange({ ...settings, [key]: value })
+  const set = <K extends keyof StorySettings>(key: K, value: StorySettings[K]) => onChange({ ...settings, [key]: value, ...(["request","rules"].includes(key) ? {prompt:""} : {}), ...(["design","primaryColor","accentColor","panelColor"].includes(key) ? {autoDesign:false} : {}) })
   return <div className="space-y-4">
     <label className="block text-xs text-white/60">Descripción de la historia
       <textarea rows={3} className={cn(STORY_INPUT,"mt-1.5")} value={settings.request} onChange={e => set("request", e.target.value)} maxLength={4000} placeholder="Qué querés comunicar y qué debería verse" />
@@ -25,18 +27,26 @@ export function StoryFields({ settings, onChange }: { settings: StorySettings; o
     <div className="grid gap-3 sm:grid-cols-2">
       <label className="text-xs text-white/60">Fecha <input type="date" className={cn(STORY_INPUT,"mt-1.5")} value={settings.date} onChange={e => set("date", e.target.value)} /></label>
       <label className="text-xs text-white/60">Formato <select className={cn(STORY_INPUT,"mt-1.5")} value={settings.format} onChange={e => set("format", e.target.value as StorySettings["format"])}>{Object.entries(STORY_FORMATS).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
-      <label className="text-xs text-white/60">Producción <select className={cn(STORY_INPUT,"mt-1.5")} value={settings.mode} onChange={e => set("mode", e.target.value as StorySettings["mode"])}><option value="creative">Generar con IA</option><option value="faithful">Componer sobre foto original</option></select></label>
-      <label className="text-xs text-white/60">Calidad <select className={cn(STORY_INPUT,"mt-1.5")} disabled={settings.mode === "faithful"} value={settings.quality} onChange={e => set("quality", e.target.value as StorySettings["quality"])}><option value="low">Borrador</option><option value="medium">Estándar</option><option value="high">Alta</option></select></label>
+      <label className="text-xs text-white/60">Producción <select className={cn(STORY_INPUT,"mt-1.5")} value={settings.backgroundSource} onChange={e => onChange({...settings,backgroundSource:e.target.value as StorySettings["backgroundSource"],mode:e.target.value==="bank"?"faithful":"creative",prompt:""})}><option value="bank">Foto original del banco · automático</option><option value="ai">Generar fondo nuevo con IA</option></select></label>
+      <label className="text-xs text-white/60">Calidad <select className={cn(STORY_INPUT,"mt-1.5")} disabled={settings.backgroundSource === "bank" || settings.mode === "faithful"} value={settings.quality} onChange={e => set("quality", e.target.value as StorySettings["quality"])}><option value="low">Borrador</option><option value="medium">Estándar</option><option value="high">Alta</option></select></label>
     </div>
     <label className="block text-xs text-white/60">Titular exacto <textarea rows={2} className={cn(STORY_INPUT,"mt-1.5")} value={settings.headline} onChange={e => set("headline", e.target.value)} maxLength={120} placeholder="Texto que aparecerá en la imagen" /></label>
     <label className="block text-xs text-white/60">Llamado a la acción <input className={cn(STORY_INPUT,"mt-1.5")} value={settings.cta} onChange={e => set("cta", e.target.value)} maxLength={70} placeholder="Consultanos por reservas" /></label>
+    <details className="rounded-lg border border-white/10 p-3"><summary className="cursor-pointer text-xs text-white/60">Diseño y textos secundarios</summary><div className="mt-3 space-y-3">
+      <label className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={settings.autoDesign} onChange={e=>set("autoDesign",e.target.checked)}/>Interpretar el estilo y la paleta del brief automáticamente</label>
+      <label className="block text-xs text-white/60">Encuadre de la foto<select className={cn(STORY_INPUT,"mt-1.5")} value={settings.photoFit} onChange={e=>set("photoFit",e.target.value as StorySettings["photoFit"])}><option value="cover">Cubrir la historia · recortar bordes</option><option value="contain">Mostrar foto completa</option></select></label>
+      <label className="block text-xs text-white/60">Estilo<select className={cn(STORY_INPUT,"mt-1.5")} value={settings.design} onChange={e=>set("design",e.target.value as StorySettings["design"])}><option value="editorial">Editorial · foto y titular</option><option value="outdoor">Turismo · placas y titulares grandes</option></select></label>
+      <label className="block text-xs text-white/60">Etiqueta superior<input className={cn(STORY_INPUT,"mt-1.5")} maxLength={60} value={settings.kicker} onChange={e=>set("kicker",e.target.value)}/></label>
+      <label className="block text-xs text-white/60">Información secundaria<textarea className={cn(STORY_INPUT,"mt-1.5")} maxLength={180} value={settings.supportingText} onChange={e=>set("supportingText",e.target.value)}/></label>
+      <div className="flex gap-4">{(["primaryColor","accentColor","panelColor"] as const).map((key,i)=><label key={key} className="text-xs text-white/60">{["Principal","Acento","Placas"][i]}<input type="color" className="mt-2 block h-8 w-12" value={settings[key]} onChange={e=>set(key,e.target.value)}/></label>)}</div>
+    </div></details>
     <div className="flex flex-wrap items-end gap-4">
       <label className="text-xs text-white/60">Texto <input type="color" className="mt-2 block h-8 w-12 rounded" value={settings.textColor} onChange={e => set("textColor",e.target.value)} /></label>
       <label className="text-xs text-white/60">Fondo <input type="color" className="mt-2 block h-8 w-12 rounded" value={settings.backgroundColor} onChange={e => set("backgroundColor",e.target.value)} /></label>
       <label className="text-xs text-white/60">Ubicación del texto <select className={cn(STORY_INPUT,"mt-1.5")} value={settings.headlinePosition} onChange={e => set("headlinePosition",e.target.value as "top" | "bottom")}><option value="bottom">Abajo</option><option value="top">Arriba</option></select></label>
       <label className="flex items-center gap-2 py-2 text-xs text-white/60"><input type="checkbox" checked={settings.includeLogo} onChange={e => set("includeLogo", e.target.checked)} />Incluir logo del brief</label>
     </div>
-    <p className="text-[11px] text-white/35">Los textos y el logo se agregan sobre la imagen, con una plantilla de tipografía sans serif y márgenes seguros.</p>
+    <p className="text-[11px] text-white/35">Los textos y el logo se agregan sobre la imagen, con fuentes incluidas en el servidor, jerarquía visual y márgenes seguros.</p>
     <label className="block text-xs text-white/60">Reglas particulares de esta historia <textarea rows={2} className={cn(STORY_INPUT,"mt-1.5")} value={settings.rules} onChange={e => set("rules",e.target.value)} maxLength={3000} placeholder="Qué conservar, qué evitar y cómo usar las referencias" /></label>
   </div>
 }
@@ -45,20 +55,11 @@ export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, 
   task: Task; projectId: string; userId: string; brief: ClientBrief | null; onClose: () => void; onSaved: () => void; onTaskClick?: (task: Task) => void
 }) {
   const [title,setTitle] = useState(task.titulo)
-  const [settings,setSettings] = useState(() => readStorySettings(task.type_metadata))
-  const [assets,setAssets] = useState<Array<{ id: string; name: string; fileType: string | null }>>([])
+  const [settings,setSettings] = useState(() => readStorySettings(task.type_metadata, task))
+  const [referenceRevision,setReferenceRevision] = useState(0)
   const [busy,setBusy] = useState("")
   const [error,setError] = useState("")
   const fileInput = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    const abort = new AbortController()
-    fetch(`/api/ai/creative-studio/context?taskId=${task.id}`, { signal: abort.signal }).then(async response => {
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || "No se pudieron cargar las referencias")
-      setAssets(data.assets || [])
-    }).catch(err => { if (!abort.signal.aborted) setError(err.message) })
-    return () => abort.abort()
-  },[task.id])
   async function save() {
     setBusy("save"); setError("")
     try { await storyRequest({ action: "save", projectId, taskId: task.id, title, settings }); onSaved(); onClose() }
@@ -68,8 +69,8 @@ export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, 
   async function prompt() {
     setBusy("prompt"); setError("")
     try {
-      const result = await storyRequest<{ result: { prompt: string; headline: string; cta: string } }>({ action: "prompt", projectId, taskId: task.id, settings })
-      setSettings(current => ({ ...current, prompt: result.result.prompt, headline: current.headline || result.result.headline, cta: current.cta || result.result.cta }))
+      const result = await storyRequest<{ result: StorySettings }>({ action: "prompt", projectId, taskId: task.id, settings })
+      setSettings(current => ({ ...current, ...result.result, headline: current.headline || result.result.headline, cta: current.cta || result.result.cta }))
     } catch (err) { setError(err instanceof Error ? err.message : "No se pudo preparar") }
     finally { setBusy("") }
   }
@@ -77,11 +78,11 @@ export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, 
     if (!files?.length) return
     setBusy("upload"); setError("")
     try {
-      for (const file of Array.from(files).slice(0, Math.max(0,4-settings.referenceAssetIds.length))) {
-        if (!["image/png","image/jpeg","image/webp"].includes(file.type) || file.size > 12*1024*1024) throw new Error("Usá PNG, JPG o WebP de hasta 12 MB")
+      for (const original of Array.from(files).slice(0, Math.max(0,(settings.backgroundSource === "bank" ? 1 : 4)-settings.referenceAssetIds.length-settings.referenceDriveFileIds.length))) {
+        const file = await compressStoryReference(original)
         const result = await uploadAssetFile({ file, taskId: task.id, projectId, userId, notes: "Referencia de historia", assetName: file.name })
-        setAssets(current => [...current,{ id: result.assetId, name: file.name, fileType: file.type }])
-        setSettings(current => ({ ...current, referenceAssetIds: [...current.referenceAssetIds,result.assetId] }))
+        setReferenceRevision(current=>current+1)
+        setSettings(current => ({ ...current, prompt: "", referenceAssetIds: [...current.referenceAssetIds,result.assetId] }))
       }
     } catch (err) { setError(err instanceof Error ? err.message : "No se pudo subir") }
     finally { setBusy(""); if(fileInput.current) fileInput.current.value = "" }
@@ -92,16 +93,21 @@ export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, 
       <fieldset disabled={Boolean(busy)} className="space-y-5 overflow-y-auto p-5 disabled:opacity-60">
         {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
         <label className="block text-xs text-white/60">Nombre <input className={cn(STORY_INPUT,"mt-1.5")} value={title} onChange={e=>setTitle(e.target.value)} maxLength={200}/></label>
+        <p className="text-xs text-white/45">Partimos de la descripción de la tarjeta. El prompt se prepara al generar; ajustá solo lo que necesites.</p>
         <StoryFields settings={settings} onChange={setSettings}/>
         <div className="rounded-xl border border-white/10 p-4">
-          <p className="mb-3 text-xs font-medium text-white/70">Referencias · {settings.referenceAssetIds.length}/4</p>
-          <div className="space-y-2">{assets.filter(a=>a.fileType?.startsWith("image/")).map(asset=><label key={asset.id} className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={settings.referenceAssetIds.includes(asset.id)} disabled={!settings.referenceAssetIds.includes(asset.id)&&settings.referenceAssetIds.length>=4} onChange={e=>setSettings(current=>({...current,referenceAssetIds:e.target.checked?[...current.referenceAssetIds,asset.id]:current.referenceAssetIds.filter(id=>id!==asset.id)}))}/><span className="truncate">{asset.name}</span></label>)}</div>
-          <button className={cn(STORY_BUTTON,"mt-3")} disabled={settings.referenceAssetIds.length>=4} onClick={()=>fileInput.current?.click()}><Upload size={14}/>Subir referencias</button>
+          <p className="mb-3 text-xs font-medium text-white/70">Referencias · {settings.referenceAssetIds.length+settings.referenceDriveFileIds.length}/{settings.backgroundSource === "bank" ? 1 : 4}</p>
+          <StoryImageBank key={referenceRevision} projectId={projectId} maxSelected={settings.backgroundSource === "bank" ? 1 : 4} selected={[...settings.referenceAssetIds.map(id=>`asset:${id}`),...settings.referenceDriveFileIds.map(id=>`drive:${id}`)]} onToggle={(item,checked)=>setSettings(current=>{
+            const key=item.source==="drive"?"referenceDriveFileIds":"referenceAssetIds"
+            return {...current,prompt:"",[key]:checked?[...current[key],item.id]:current[key].filter(id=>id!==item.id)}
+          })}/>
+          <label className="mt-3 flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={settings.autoReferences} onChange={e=>setSettings(current=>({...current,autoReferences:e.target.checked}))}/>Elegir fotos pertinentes del banco con IA cuando no seleccione referencias</label>
+          <button className={cn(STORY_BUTTON,"mt-3")} disabled={settings.referenceAssetIds.length+settings.referenceDriveFileIds.length>=(settings.backgroundSource === "bank" ? 1 : 4)} onClick={()=>fileInput.current?.click()}><Upload size={14}/>Subir referencias</button>
           <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={e=>void upload(e.target.files)}/>
-          <p className="mt-2 text-[11px] text-white/35">Para conservar una foto intacta, elegí composición sobre foto original y una sola referencia.</p>
+          <p className="mt-2 text-[11px] text-white/35">Las fotos de más de 12 MB se comprimen automáticamente. Para conservar una foto intacta, elegí composición sobre foto original y una sola referencia.</p>
         </div>
         {settings.mode === "creative" && <div>
-          <div className="mb-2 flex items-center justify-between"><label htmlFor="story-prompt" className="text-xs text-white/60">Prompt de imagen</label><button className={STORY_BUTTON} disabled={!brief||!settings.request.trim()} onClick={()=>void prompt()}><Sparkles size={14}/>Preparar con IA</button></div>
+          <div className="mb-2 flex items-center justify-between"><label htmlFor="story-prompt" className="text-xs text-white/60">Prompt de imagen · opcional</label><button className={STORY_BUTTON} disabled={!brief||!settings.request.trim()} onClick={()=>void prompt()}><Sparkles size={14}/>Preparar con IA</button></div>
           <textarea id="story-prompt" rows={7} className={STORY_INPUT} value={settings.prompt} onChange={e=>setSettings(current=>({...current,prompt:e.target.value}))} maxLength={16000}/>
           {!brief&&<p className="mt-2 text-xs text-amber-300">Completá el brief del cliente para usar IA.</p>}
         </div>}

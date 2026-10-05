@@ -356,7 +356,7 @@ export const TASK_TOOLS = [
     rpc: "mcp_tasks_create_task",
     title: "Create a task",
     purpose:
-      "Creates one task at the end of its column. Without a column selector it lands in the first column of the project.",
+      "Creates one task at the end of its column. Without a column selector it lands in the first column of the project. For stories in a Historias column, put the complete piece brief in description using Objetivo:, Visual:, Texto exacto:, CTA:, Restricciones: and Referencias: (asset UUIDs or Drive file IDs from the client image bank). Do not use the card title as image copy. The Historias tab reads the description and prepares the image prompt automatically. The client brief reference_links entry with note Banco de imágenes identifies the Drive photo folder; do not invent reference IDs.",
     inputSchema: createTaskInputSchema,
     writes: true,
     destructive: false,
@@ -366,7 +366,7 @@ export const TASK_TOOLS = [
     rpc: "mcp_tasks_create_tasks_batch",
     title: "Create many tasks at once",
     purpose:
-      `Creates up to ${TASK_BATCH_MAX} tasks in one project in a single write. Either every task is created or none is, and one operation_id undoes the whole batch. Use this to turn a plan into cards instead of calling tasks_create_task repeatedly.`,
+      `Creates up to ${TASK_BATCH_MAX} tasks in one project in a single write. Either every task is created or none is, and one operation_id undoes the whole batch. Use this to turn a plan into cards instead of calling tasks_create_task repeatedly. For stories in a Historias column, put the complete piece brief in description using Objetivo:, Visual:, Texto exacto:, CTA:, Restricciones: and Referencias: (asset UUIDs or Drive file IDs from the client image bank). Do not use the card title as image copy. The Historias tab reads the description and prepares the image prompt automatically. The client brief reference_links entry with note Banco de imágenes identifies the Drive photo folder; do not invent reference IDs.`,
     inputSchema: createTasksBatchInputSchema,
     writes: true,
     destructive: false,

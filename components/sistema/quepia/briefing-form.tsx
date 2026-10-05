@@ -24,6 +24,8 @@ import {
 import { createClient } from "@/lib/sistema/supabase/client"
 import type { BriefColor, BriefReference } from "@/types/sistema"
 
+import { StoryImageBank } from "./story-image-bank"
+
 export interface BriefingData {
   project_type: string
   objectives: string
@@ -254,7 +256,15 @@ export function BriefingForm({ projectId, projectType, initialData, isOpen, onCl
               <TagSelector label="Plataformas" options={PLATFORM_OPTIONS} values={form.platforms || []} onToggle={(v) => toggleListValue("platforms", v)} />
               {(form.project_type === "campana_redes" || form.project_type === "contenido_marca") && <FormInput label="Frecuencia de contenido" value={form.content_frequency || ""} onChange={(v) => updateField("content_frequency", v)} placeholder="Ej. 3 veces por semana" />}
               {form.project_type === "campana_redes" && <><ToggleField label="Incluye pauta publicitaria" value={!!form.includes_ads} onChange={(value) => updateField("includes_ads", value)} />{form.includes_ads && <FormInput label="Presupuesto de pauta" value={form.ad_budget || ""} onChange={(v) => updateField("ad_budget", v)} placeholder="Ej. $50.000 ARS mensuales" />}</>}
-              <ReferenceEditor references={form.reference_links || []} onChange={(refs) => updateField("reference_links", refs)} />
+              <div className="space-y-3 rounded-xl border border-white/10 p-4">
+                <p className="text-sm text-white/75">Banco de imágenes · Google Drive</p>
+                <p className="text-xs text-white/40">Vinculá la carpeta de fotos del cliente. Compartila con la cuenta de servicio de Drive ya configurada. Las historias pueden elegir y enviar estas fotos como referencias reales.</p>
+                <input aria-label="Carpeta del banco de imágenes" type="url" className="w-full rounded-lg border border-white/10 bg-[#181818] px-3 py-2 text-sm text-white" placeholder="https://drive.google.com/drive/folders/..." value={(form.reference_links || []).find(ref=>/^Banco de imágenes$/i.test(ref.note.trim()))?.url || ""} onChange={e=>updateField("reference_links",[...(form.reference_links || []).filter(ref=>!/^Banco de imágenes$/i.test(ref.note.trim())),...(e.target.value ? [{url:e.target.value,note:"Banco de imágenes"}] : [])])}/>
+                {(form.reference_links || []).find(ref=>/^Banco de imágenes$/i.test(ref.note.trim()))?.url&&<a className="inline-block text-xs text-quepia-cyan" href={(form.reference_links || []).find(ref=>/^Banco de imágenes$/i.test(ref.note.trim()))?.url} target="_blank" rel="noreferrer">Abrir carpeta para cargar y organizar fotos</a>}
+                <p className="text-[11px] text-white/35">Guardá el brief para actualizar el banco. Cada foto puede llevar un nombre descriptivo para ayudar a elegirla.</p>
+                <StoryImageBank projectId={projectId}/>
+              </div>
+              <ReferenceEditor references={(form.reference_links || []).filter(ref=>!/^Banco de imágenes$/i.test(ref.note.trim()))} onChange={(refs) => updateField("reference_links", [...(form.reference_links || []).filter(ref=>/^Banco de imágenes$/i.test(ref.note.trim())),...refs])} />
               <FormTextArea label="Lectura general de referencias" value={form.references} onChange={(v) => updateField("references", v)} placeholder="Qué tienen en común, qué tomar de ellas y qué no copiar" />
               <div className="grid gap-4 sm:grid-cols-2"><FormInput label="Plazo estimado" value={form.timeline || ""} onChange={(v) => updateField("timeline", v)} placeholder="Ej. 3 semanas" /><FormInput label="Presupuesto" value={form.budget || ""} onChange={(v) => updateField("budget", v)} placeholder="Ej. $200.000" /></div>
             </Section>}

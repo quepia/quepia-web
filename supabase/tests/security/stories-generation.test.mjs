@@ -21,7 +21,7 @@ await db.exec(`
   CREATE TABLE public.sistema_project_members(project_id uuid,user_id uuid,role text);
   CREATE TABLE public.sistema_tasks(id uuid primary key,project_id uuid references sistema_projects(id),task_type text,titulo text);
   CREATE TABLE public.sistema_assets(id uuid primary key default gen_random_uuid(),task_id uuid,project_id uuid,nombre text,descripcion text,asset_type text,created_by uuid,approval_status text,current_version int);
-  CREATE TABLE public.sistema_asset_versions(id uuid primary key default gen_random_uuid(),asset_id uuid,version_number int,file_url text,storage_path text,file_type text,file_size bigint,thumbnail_url text,thumbnail_path text,preview_url text,preview_path text,original_filename text,uploaded_by uuid,notes text);
+  CREATE TABLE public.sistema_asset_versions(id uuid primary key default gen_random_uuid(),asset_id uuid,version_number int,file_url text,storage_path text,file_type text,file_size bigint,thumbnail_url text,thumbnail_path text,preview_path text,original_filename text,uploaded_by uuid,notes text);
   CREATE FUNCTION public.sistema_is_admin(actor uuid) RETURNS boolean LANGUAGE sql AS $$select false$$;
   CREATE FUNCTION public.sistema_can_access_project(project uuid,actor uuid) RETURNS boolean LANGUAGE sql AS $$select exists(select 1 from public.sistema_projects where id=project and owner_id=actor) or exists(select 1 from public.sistema_project_members where project_id=project and user_id=actor)$$;
   GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;
@@ -33,6 +33,7 @@ await db.exec(`
   INSERT INTO public.sistema_tasks VALUES ('${task}','${project}','story','Historia A'),('${task2}','${project}','story','Historia B'),('${task3}','${project}','story','Historia C');
 `)
 await db.exec(readFileSync(new URL("../../migrations/20261005150508_stories_ai_generation.sql",import.meta.url),"utf8"))
+await db.exec(readFileSync(new URL("../../migrations/20261005161859_fix_story_assets_and_image_bank.sql",import.meta.url),"utf8"))
 async function role(role,actor,sql,params=[]) {
   await db.query("select set_config('test.user',$1,false)",[actor||""])
   await db.exec(`set role ${role}`)

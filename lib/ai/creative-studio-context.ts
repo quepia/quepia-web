@@ -1,4 +1,5 @@
 import "server-only"
+import { isStoryColumn } from "./stories"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { getTaskAssetContexts } from "@/lib/ai/content-copilot-assets"
@@ -21,6 +22,7 @@ interface TaskSourceRecord {
   titulo: string | null
   descripcion: string | null
   social_copy: string | null
+  column: { nombre?: string | null } | { nombre?: string | null }[] | null
   task_type: string | null
   labels: string[] | null
   type_metadata: Record<string, unknown> | null
@@ -57,7 +59,7 @@ export async function loadCreativeStudioSource(
 ): Promise<CreativeStudioSource | null> {
   const { data: taskData, error: taskError } = await supabase
     .from("sistema_tasks")
-    .select("id, project_id, titulo, descripcion, social_copy, task_type, labels, type_metadata, project:sistema_projects(nombre)")
+    .select("id, project_id, titulo, descripcion, social_copy, task_type, labels, type_metadata, project:sistema_projects(nombre), column:sistema_columns(nombre)")
     .eq("id", taskId)
     .single()
 
@@ -83,7 +85,7 @@ export async function loadCreativeStudioSource(
       title: cleanString(source.titulo, 300),
       description: cleanString(source.descripcion, 8_000),
       socialCopy: cleanString(source.social_copy, 8_000),
-      taskType: cleanString(source.task_type, 100),
+      taskType: isStoryColumn(projectName(source.column)) ? "story" : cleanString(source.task_type, 100),
       labels: cleanStringArray(source.labels, 30, 100),
       typeMetadata: source.type_metadata && typeof source.type_metadata === "object" ? source.type_metadata : {},
     },

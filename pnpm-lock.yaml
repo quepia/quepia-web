@@ -56,6 +56,9 @@ importers:
       ffmpeg-static:
         specifier: ^5.3.0
         version: 5.3.0
+      fontkit:
+        specifier: 2.0.4
+        version: 2.0.4
       framer-motion:
         specifier: ^12.27.1
         version: 12.42.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -114,6 +117,9 @@ importers:
       '@types/archiver':
         specifier: ^6.0.4
         version: 6.0.4
+      '@types/fontkit':
+        specifier: 2.0.8
+        version: 2.0.8
       '@types/node':
         specifier: ^22
         version: 22.20.1
@@ -1010,6 +1016,9 @@ packages:
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+
+  '@types/fontkit@2.0.8':
+    resolution: {integrity: sha512-wN+8bYxIpJf+5oZdrdtaX04qUuWHcKxcDEgRS9Qm9ZClSHjzEn13SxUC+5eRM+4yXIeTYk8mTzLAWGF64847ew==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -4278,6 +4287,10 @@ snapshots:
   '@types/draco3d@1.4.10': {}
 
   '@types/estree@1.0.9': {}
+
+  '@types/fontkit@2.0.8':
+    dependencies:
+      '@types/node': 22.20.1
 
   '@types/json-schema@7.0.15': {}
 

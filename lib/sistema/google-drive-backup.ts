@@ -785,3 +785,20 @@ async function copyArchiveFolder(sourceId: string, parentId: string, name: strin
   } while (pageToken)
   return target
 }
+
+/** List only direct children; the caller must authorize the bank folder from the client brief. */
+export async function listDriveImageBank(folderId: string) {
+  const files: Array<DriveFile & { mimeType: string; size?: string }> = []
+  let pageToken = ""
+  do {
+    const params = new URLSearchParams({
+      q: `'${escapeDriveQueryValue(folderId)}' in parents and trashed = false and (mimeType = 'image/jpeg' or mimeType = 'image/png' or mimeType = 'image/webp')`,
+      fields: "nextPageToken,files(id,name,mimeType,size,webViewLink)", pageSize: "100", orderBy: "name",
+      supportsAllDrives: "true", includeItemsFromAllDrives: "true",
+      ...(pageToken ? { pageToken } : {}),
+    })
+    const page = await driveFetch<{ files?: typeof files; nextPageToken?: string }>(`/files?${params}`)
+    files.push(...(page.files || [])); pageToken = page.nextPageToken || ""
+  } while (pageToken && files.length < 300)
+  return files.slice(0,300)
+}

@@ -136,6 +136,16 @@ async function generateImageVariant(file: File, targetWidth: number) {
   return blob
 }
 
+/** Resize before upload, keeping transparent pixels and avoiding oversized references. */
+export async function compressStoryReference(file: File): Promise<File> {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Usá PNG, JPG o WebP")
+  if (file.size > 100 * 1024 * 1024) throw new Error("La foto supera 100 MB")
+  if (file.size <= 12 * 1024 * 1024) return file
+  const blob = await generateImageVariant(file, 2560)
+  if (blob.size > 12 * 1024 * 1024) throw new Error("No se pudo reducir la foto. Probá otra imagen.")
+  return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" })
+}
+
 async function generateVideoThumbnail(file: File, targetWidth: number, atPercent = 0.25) {
   return new Promise<Blob>((resolve, reject) => {
     const url = URL.createObjectURL(file)

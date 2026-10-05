@@ -14,11 +14,22 @@ export const storySettingsSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).default(""),
   format: z.enum(["story", "portrait", "square"]).default("story"),
   quality: z.enum(["low", "medium", "high"]).default("high"),
+  photoFit: z.enum(["cover", "contain"]).default("cover"),
+  backgroundSource: z.enum(["bank", "ai"]).default("bank"),
   mode: z.enum(["creative", "faithful"]).default("creative"),
   referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
+  referenceDriveFileIds: z.array(z.string().regex(/^[a-zA-Z0-9_-]{10,200}$/)).max(4).default([]),
+  autoReferences: z.boolean().default(true),
   rules: z.string().trim().max(3000).default(""),
   textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#ffffff"),
   backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#111111"),
+  autoDesign: z.boolean().default(true),
+  design: z.enum(["editorial", "outdoor"]).default("editorial"),
+  kicker: z.string().trim().max(60).default(""),
+  supportingText: z.string().trim().max(180).default(""),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#123b2a"),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#f7bf28"),
+  panelColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#f5f1df"),
   headlinePosition: z.enum(["top", "bottom"]).default("bottom"),
   includeLogo: z.boolean().default(true),
 })
@@ -41,14 +52,15 @@ export const STORY_JOB_LABELS: Record<StoryJobStatus, string> = {
   queued: "En cola", running: "Generando", succeeded: "Para revisar", failed: "Falló",
   needs_attention: "Requiere revisión", cancelled: "Cancelada",
 }
-export function readStorySettings(metadata: unknown): StorySettings {
+export function readStorySettings(metadata: unknown, task?: { descripcion?: string | null; due_date?: string | null }): StorySettings {
   const result = storySettingsSchema.safeParse((metadata as { story?: unknown } | null)?.story)
-  return result.success ? result.data : { ...EMPTY_STORY, referenceAssetIds: [] }
+  const settings = result.success ? result.data : { ...EMPTY_STORY, referenceAssetIds: [], referenceDriveFileIds: [] }
+  return { ...settings, request: settings.request || (task?.descripcion || "").trim().slice(0,4000), date: settings.date || task?.due_date?.slice(0,10) || "" }
 }
 
 // Conservative reservation, not a provider quote or a guaranteed maximum.
 export function storyReservation(settings: StorySettings) {
-  if (settings.mode === "faithful") return 0
+  if (settings.backgroundSource === "bank" || settings.mode === "faithful") return 0
   return settings.quality === "high" ? 1 : settings.quality === "medium" ? 0.5 : 0.2
 }
 
@@ -70,4 +82,8 @@ export function storyBasePrompt(settings: StorySettings, brand: string) {
     "Avoid plastic skin, malformed anatomy, impossible architecture, excessive HDR, generic stock-photo posing and arbitrary decorative effects.",
     settings.headline ? `Leave clear negative space at the ${settings.headlinePosition} for later typesetting.` : "",
   ].filter(Boolean).join("\n\n")
+}
+
+export function isStoryColumn(name: string) {
+  return /^(historias?|stories|story)(?:\s|$)/i.test(name.trim())
 }
