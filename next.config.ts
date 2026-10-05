@@ -2,6 +2,13 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
+    // PDFKit loads built-in fonts dynamically; Next's tracer misses them.
+    '/api/invoicing/**/pdf': [
+      './node_modules/.pnpm/pdfkit@*/node_modules/pdfkit/js/standard-fonts/**/*',
+      './node_modules/.pnpm/pdfkit@*/node_modules/pdfkit/js/data/**/*',
+      './node_modules/pdfkit/js/standard-fonts/**/*',
+      './node_modules/pdfkit/js/data/**/*',
+    ],
     '/api/ai/content-copilot/media/[versionId]': [
       './vendor/ffmpeg*',
     ],
