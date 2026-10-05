@@ -27,7 +27,7 @@ export default function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative isolate flex min-h-[100svh] items-center overflow-hidden pb-20 pt-28 md:pb-24 md:pt-32"
+      className="relative isolate flex min-h-[82svh] items-center overflow-hidden pb-20 pt-28 md:pb-24 md:pt-32"
     >
       <div className="absolute inset-0 -z-30">
         <HeroVideoBackground active={isHeroInView} />
@@ -55,10 +55,10 @@ export default function HeroSection() {
             <span className="block">TU MARCA.</span>
           </h1>
 
-          <h2 className="mb-4 text-lg text-white/80">Agencia creativa en Villa Carlos Paz para marcas de toda Córdoba</h2>
+          <h2 className="mb-4 text-lg text-white/80">Branding, redes sociales y producción audiovisual para marcas de Córdoba.</h2>
 
           <p className="mb-10 max-w-xl text-base leading-relaxed text-[#a1a1aa] md:text-lg">
-            Consultora creativa especializada en potenciar tu presencia digital a través de branding, contenido audiovisual y desarrollo estratégico.
+            Somos Quepia, una agencia creativa con sede en Villa Carlos Paz. Trabajamos con empresas de toda la provincia, combinando diseño, estrategia y producción de contenido.
           </p>
 
           <div className="flex flex-wrap items-center gap-5">
@@ -69,6 +69,7 @@ export default function HeroSection() {
               Iniciar un proyecto
             </Link>
 
+            <Link href="/trabajos" className="text-sm text-white/80 underline underline-offset-4">Ver trabajos reales</Link>
             <span className="text-sm text-[rgb(var(--text-white-soft-rgb)/0.55)]">
               Villa Carlos Paz, Córdoba, Argentina
             </span>

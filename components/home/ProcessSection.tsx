@@ -2,22 +2,23 @@
 
 import type { CSSProperties } from 'react';
 import { motion } from 'framer-motion';
+import AmbientVideo from '@/components/seo/AmbientVideo';
 
 const methodColumns = [
   {
     title: 'Descubrimiento',
     description:
-      'Analizamos tu mercado y entendemos el núcleo de tu negocio.',
+      'Conversamos sobre tu marca, objetivos, canales y materiales disponibles.',
   },
   {
     title: 'Estrategia',
     description:
-      'Diseñamos un plan de acción a medida, alineando creatividad con objetivos comerciales.',
+      'Definimos prioridades, entregables y un circuito de aprobación según el alcance.',
   },
   {
     title: 'Ejecución',
     description:
-      'Implementamos soluciones visuales y digitales con los más altos estándares de calidad.',
+      'Producimos las piezas, compartimos versiones para revisión y preparamos los archivos acordados.',
   },
 ];
 
@@ -44,16 +45,7 @@ export default function ProcessSection() {
         className="pointer-events-none absolute inset-0"
       >
         <div className="absolute inset-x-[-12%] inset-y-[-6%] overflow-hidden" style={ambientVideoMask}>
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover opacity-[0.14] blur-[52px]"
-            src={encodeURI(ambientVideoSrc)}
-            style={{ transform: 'scale(1.85)', objectPosition: 'center center' }}
-          />
+          <AmbientVideo src={encodeURI(ambientVideoSrc)} className="absolute inset-0 h-full w-full scale-[1.85] object-cover opacity-[0.14] blur-[52px]" />
           <video
             autoPlay
             muted

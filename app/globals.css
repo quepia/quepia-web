@@ -1667,3 +1667,12 @@ body[data-sistema-theme="light"] a:has(.text-quepia-purple),
 body[data-sistema-theme="light"] button:has(.text-quepia-purple) {
   color: #701a75;
 }
+
+/* Visible keyboard focus throughout the public site. */
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid #2ae7e4;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

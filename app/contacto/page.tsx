@@ -10,14 +10,14 @@ export const metadata: Metadata = {
     },
     openGraph: {
         title: 'Contacto | Quepia - Consultora Creativa',
-        description: '¿Tenés un proyecto en mente? Contactanos y hagámoslo realidad. Respondemos en menos de 24 horas.',
+        description: '¿Tenés un proyecto en mente? Contactanos y hagámoslo realidad. Coordinamos una primera conversación para definir el alcance.',
         url: 'https://quepia.com/contacto',
         images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Contacto Quepia' }],
     },
     twitter: {
         card: 'summary_large_image',
         title: 'Contacto | Quepia',
-        description: 'Escribinos y coordinamos una propuesta para tu marca en menos de 24 horas.',
+        description: 'Escribinos y coordinamos una propuesta para tu marca según las necesidades de tu proyecto.',
         images: ['/og-image.jpg'],
     },
 };

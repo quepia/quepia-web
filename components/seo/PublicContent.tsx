@@ -7,7 +7,7 @@ import { getProjectCoverImage } from '@/lib/project-images';
 import { getProjectCategoryLabels } from '@/lib/project-categories';
 export const whatsappUrl = (service = 'mi proyecto') => `https://wa.me/543513970227?text=${encodeURIComponent(`Hola Quepia, quiero consultar por ${service}`)}`;
 export function PublicShell({ title, intro, path, children }: { title: string; intro?: string; path: string; children: React.ReactNode }) {
-  return <section className="mx-auto max-w-[1200px] px-6 pb-24 pt-32 text-white md:px-12">
+  return <section className="mx-auto max-w-[1200px] px-6 pb-28 pt-28 text-white md:px-12">
     <JsonLd data={breadcrumbs([{ name: title, path }])} />
     <nav aria-label="Ruta de navegación" className="mb-8 text-sm text-white/60"><Link href="/">Inicio</Link> / <span>{title}</span></nav>
     <h1 className="font-display text-[clamp(2rem,5vw,3.7rem)] leading-tight">{title}</h1>

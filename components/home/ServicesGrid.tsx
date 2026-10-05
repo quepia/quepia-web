@@ -23,7 +23,7 @@ const expertiseCards: ExpertiseCardConfig[] = [
   {
     title: 'Identidad y Branding',
     description:
-      'Construimos marcas sólidas, memorables y con propósito que conectan genuinamente con tu audiencia.',
+      'Ordenamos la identidad de tu marca con logotipo, criterios de color y tipografía, y aplicaciones acordadas para tus canales.',
     label: 'Sistema de marca',
     hoverGlow: 'rgba(244, 106, 210, 0.12)',
     videoSrc: '/VIDEOS CARDS/Identidad y Branding.mp4',
@@ -33,7 +33,7 @@ const expertiseCards: ExpertiseCardConfig[] = [
   {
     title: 'Social Media & Estrategia',
     description:
-      'No solo publicamos. Creamos comunidades activas y estrategias digitales orientadas a la conversión.',
+      'Planificamos contenidos, diseñamos publicaciones y redactamos textos para explicar tu propuesta y sostener una comunicación coherente.',
     label: 'Comunidad & performance',
     hoverGlow: 'rgba(42, 231, 228, 0.12)',
     videoSrc: '/VIDEOS CARDS/Social Media & Estrategia.mp4',
@@ -51,9 +51,9 @@ const expertiseCards: ExpertiseCardConfig[] = [
     videoPosition: 'center center',
   },
   {
-    title: 'Diseño de Productos y Packaging',
+    title: 'Diseño de Packaging',
     description:
-      'Diseñamos piezas, envases y experiencias de producto con criterio estratégico para destacar en góndola, comunicar valor y reforzar la identidad de marca.',
+      'Diseñamos etiquetas y aplicaciones gráficas para envases, con archivos preparados según las especificaciones de tu proveedor.',
     label: 'Producto & empaque',
     hoverGlow: 'rgba(141, 255, 182, 0.12)',
     videoSrc: '/VIDEOS CARDS/PRODUCTOS.mp4',
@@ -78,7 +78,7 @@ export default function ServicesGrid() {
             Áreas de expertise
           </p>
           <h2 className="max-w-2xl font-display text-[clamp(1.8rem,3.2vw,3rem)] font-medium leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)]">
-            Capacidades estratégicas para construir marcas con impacto real.
+            Diseño, contenido y producción para comunicar qué ofrece tu marca.
           </h2>
         </div>
 
@@ -146,9 +146,12 @@ function ExpertiseCard({ card, index, relatedHref }: ExpertiseCardProps) {
             </p>
           </div>
 
+          <Link href={`/servicios/${['branding-e-identidad', 'gestion-de-redes-sociales', 'produccion-audiovisual', 'packaging'][index]}`} className="mt-6 inline-flex min-h-11 items-center text-[#2ae7e4] underline underline-offset-4">Conocer el servicio →</Link>
+          {index === 0 && <Link href="/servicios/diseno-grafico" className="inline-flex min-h-11 items-center text-sm text-white/80 underline underline-offset-4">Diseño gráfico</Link>}
+          {index === 2 && <div className="flex flex-wrap gap-x-5"><Link href="/servicios/fotografia-de-producto" className="inline-flex min-h-11 items-center text-sm text-white/80 underline underline-offset-4">Fotografía</Link><Link href="/servicios/filmacion-con-dron-cordoba" className="inline-flex min-h-11 items-center text-sm text-white/80 underline underline-offset-4">Filmación con dron</Link></div>}
           <Link
             href={relatedHref}
-            className="mt-8 inline-flex items-center gap-2 text-sm uppercase tracking-[0.12em] text-[rgb(var(--text-white-soft-rgb)/0.55)] transition-all duration-300 hover:gap-3 hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] md:mt-auto md:max-w-[54%] md:pt-16"
+            className="mt-8 inline-flex items-center gap-2 text-sm uppercase tracking-[0.12em] text-[rgb(var(--text-white-soft-rgb)/0.55)] transition-all duration-300 hover:gap-3 hover:text-[color:var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] md:mt-auto md:max-w-[54%] md:pt-6"
           >
             Ver proyectos relacionados
             <span aria-hidden="true">→</span>

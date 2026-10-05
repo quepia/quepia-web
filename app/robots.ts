@@ -9,6 +9,8 @@ export default function robots(): MetadataRoute.Robots {
         '/api/ai/content-copilot/media/',
       ],
       disallow: [
+        '/oauth',
+        '/contacto/enviar',
         '/sistema',
         '/cliente',
         '/cliente/',

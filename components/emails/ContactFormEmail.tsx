@@ -19,6 +19,7 @@ import * as React from "react";
 interface ContactFormEmailProps {
     name: string;
     email: string;
+    contactMethod?: 'email' | 'whatsapp';
     service: string;
     message: string;
 }
@@ -26,6 +27,7 @@ interface ContactFormEmailProps {
 export default function ContactFormEmail({
     name = "Lautaro Lopez",
     email = "lauty@example.com",
+    contactMethod = "email",
     service = "Branding",
     message = "Hola, me gustaría consultar por mi marca.",
 }: ContactFormEmailProps) {
@@ -85,12 +87,12 @@ export default function ContactFormEmail({
                                     <Row className="border-b border-white/5">
                                         <Column className="w-1/3 p-4 bg-white/[0.02]">
                                             <Text className="text-[#2AE7E4] text-xs uppercase tracking-wider m-0 font-medium">
-                                                Email
+                                                {contactMethod === "email" ? "Email" : "WhatsApp"}
                                             </Text>
                                         </Column>
                                         <Column className="w-2/3 p-4">
                                             <Link 
-                                                href={`mailto:${email}`}
+                                                href={contactMethod === "email" ? `mailto:${email}` : `https://wa.me/${email.replace(/\D/g, "")}`}
                                                 className="text-white text-base no-underline hover:text-[#2AE7E4] transition-colors"
                                             >
                                                 {email}
@@ -128,7 +130,7 @@ export default function ContactFormEmail({
                                 {/* Quick Actions */}
                                 <Section className="mt-8 flex gap-3">
                                     <Link
-                                        href={`mailto:${email}?subject=Re: Tu consulta en Quepia&body=Hola ${name},%0D%0A%0D%0AGracias por contactarnos...`}
+                                        href={contactMethod === "email" ? `mailto:${email}?subject=Re: Tu consulta en Quepia` : `https://wa.me/${email.replace(/\D/g, "")}`}
                                         className="inline-block bg-gradient-to-r from-[#2AE7E4] to-[#881078] text-white px-6 py-3 rounded-xl font-medium text-sm no-underline text-center flex-1"
                                     >
                                         Responder

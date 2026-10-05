@@ -16,21 +16,21 @@ import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: { absolute: 'Quepia | Agencia creativa y de redes en Villa Carlos Paz, Córdoba' },
+  title: { absolute: 'Agencia creativa en Córdoba: branding y redes | Quepia' },
   description: 'Branding, diseño gráfico, redes sociales, fotografía, video y dron en Villa Carlos Paz y toda la provincia de Córdoba, Argentina.',
   alternates: {
     canonical: 'https://quepia.com',
   },
   openGraph: {
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
-    description: 'Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico, branding y marketing digital en Córdoba, Argentina.',
+    description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Agencia creativa con sede en Villa Carlos Paz.',
     url: 'https://quepia.com',
     images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Quepia Creative Agency' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
-    description: 'Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico y branding en Córdoba.',
+    description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Agencia creativa con sede en Villa Carlos Paz.',
     images: ['/og-image.jpg'],
   },
 };
@@ -70,19 +70,19 @@ export default async function Home() {
         </section>
 
         <section
-          id="expertise"
-          style={{ contentVisibility: 'auto', containIntrinsicSize: '1100px' }}
-        >
-          <ServicesGrid />
-        </section>
-
-        <section
           id="case-studies"
           style={{ contentVisibility: 'auto', containIntrinsicSize: '1200px' }}
         >
           {proyectos && proyectos.length > 0 && (
             <HomeCarousel proyectos={proyectos.map(correctProjectCopy)} />
           )}
+        </section>
+
+        <section
+          id="expertise"
+          style={{ contentVisibility: 'auto', containIntrinsicSize: '1100px' }}
+        >
+          <ServicesGrid />
         </section>
 
         <section

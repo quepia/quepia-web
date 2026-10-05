@@ -2,12 +2,12 @@
 
 import { Suspense, useEffect, useRef } from 'react';
 import Script from 'next/script';
+import { captureCampaign } from '@/lib/seo/campaign-attribution';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
   GOOGLE_TAG_ID,
   GOOGLE_GTM_ID,
   trackPublicEvent,
-  trackLead,
   META_PIXEL_ID,
   isTrackableRoute,
   trackPageView,
@@ -46,6 +46,13 @@ function MarketingAnalyticsInner() {
   const isPublicRoute = isTrackableRoute(pathname);
   useEffect(() => {
     if (!isPublicRoute) return;
+    const campaign = captureCampaign(search);
+    if (Object.keys(campaign).length) {
+      try { sessionStorage.setItem('quepia-campaign', JSON.stringify(campaign)); } catch { /* Storage can be disabled. */ }
+    }
+  }, [search, isPublicRoute]);
+  useEffect(() => {
+    if (!isPublicRoute) return;
     const click = (event: MouseEvent) => {
       const anchor = (event.target as Element)?.closest?.('a');
       if (!anchor) return;
@@ -56,16 +63,6 @@ function MarketingAnalyticsInner() {
     document.addEventListener('click', click);
     return () => document.removeEventListener('click', click);
   }, [pathname, isPublicRoute]);
-  useEffect(() => {
-    if (pathname !== '/gracias') return;
-    const lead = sessionStorage.getItem('quepia-lead');
-    if (!lead) return;
-    try {
-      const payload = JSON.parse(lead);
-      trackLead({ service: payload.service, source: payload.source });
-      sessionStorage.removeItem('quepia-lead');
-    } catch { sessionStorage.removeItem('quepia-lead'); }
-  }, [pathname]);
 
   useEffect(() => {
     if (!pathname || !isPublicRoute) {

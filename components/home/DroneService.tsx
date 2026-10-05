@@ -20,7 +20,7 @@ export default function DroneService() {
               </p>
             </div>
             <Link
-              href="/contacto"
+              href="/servicios/filmacion-con-dron-cordoba"
               aria-label="Consultar precio de cobertura con dron"
               className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-5 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-[color:var(--text-primary)] transition-all duration-300 hover:border-[#2ae7e4]/45 hover:bg-[#2ae7e4]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2ae7e4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#060606]"
             >

@@ -5,11 +5,11 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight, Clock, Instagram, Mail, MapPin, Phone } from 'lucide-react';
 import type { SiteConfig } from '@/lib/fetchConfig';
 import { useConfig } from '@/components/layout/ClientLayout';
-import AmbientVideo from '@/components/seo/AmbientVideo';
+
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import JsonLd from '@/components/seo/JsonLd';
 import { whatsappUrl } from '@/components/seo/PublicContent';
-import MarqueeSection from '@/components/home/MarqueeSection';
+
 import ContactFormCard from '@/components/contact/ContactFormCard';
 import { getInstagramLabel, getInstagramUrl } from '@/lib/instagram';
 
@@ -17,8 +17,8 @@ const faqItems = [
   { q: '¿Trabajan en toda la provincia de Córdoba?', a: 'Sí. Tenemos base en Villa Carlos Paz y trabajamos en toda la provincia de Córdoba, Argentina. Coordinamos reuniones a distancia y jornadas presenciales según el proyecto.' },
   { q: '¿Hacen coberturas con dron y eventos fuera de Carlos Paz?', a: 'Sí, con viáticos según distancia. Las tomas con dron se coordinan según la locación, los permisos y las condiciones de operación.' },
   {
-    q: '¿Cuál es el tiempo de respuesta?',
-    a: 'Respondemos en menos de 24 horas hábiles con próximos pasos claros para avanzar.',
+    q: '¿Qué sucede después de enviar?',
+    a: 'Revisamos tu consulta y coordinamos una primera conversación para definir el alcance de la propuesta.',
   },
   {
     q: '¿Trabajan con clientes de otras ciudades?',
@@ -26,7 +26,7 @@ const faqItems = [
   },
   {
     q: '¿Cómo se organiza el pago?',
-    a: 'Generalmente trabajamos con una seña inicial y el saldo por hitos definidos según alcance.',
+    a: 'Las condiciones de pago se definen en la propuesta según el alcance del proyecto.',
   },
 ];
 
@@ -55,7 +55,7 @@ export default function ContactoClient() {
     {
       icon: MapPin,
       label: 'Ubicación',
-      value: config?.direccion || '[COMPLETAR: dirección] · Villa Carlos Paz, Córdoba, Argentina',
+      value: config?.direccion || 'Villa Carlos Paz, Córdoba, Argentina',
     },
     {
       icon: Clock,
@@ -71,12 +71,8 @@ export default function ContactoClient() {
       <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(180deg,#0a0a0a_0%,#101010_42%,#0d0d0d_100%)]" />
 
       <div className="relative z-10">
-        <section className="relative overflow-hidden pb-14 pt-28 md:pb-20 md:pt-32">
+        <section className="relative overflow-hidden pb-6 pt-24 md:pb-8 md:pt-28">
           <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-screen w-screen -translate-x-1/2">
-            <AmbientVideo
-              className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.14]"
-              src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
-            />
             <div className="absolute inset-0 bg-[linear-gradient(95deg,rgba(10,10,10,0.95)_0%,rgba(10,10,10,0.82)_48%,rgba(10,10,10,0.9)_100%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_35%,rgba(42,231,228,0.08),transparent_45%)]" />
           </div>
@@ -91,11 +87,11 @@ export default function ContactoClient() {
               <p className="mb-5 text-xs uppercase tracking-[0.24em] text-white/48">Contacto</p>
 
               <h1 className="font-display text-[clamp(1.9rem,3.9vw,3.45rem)] font-medium leading-[1.06] tracking-[-0.02em] text-white">
-                Hablemos de tu proyecto y armemos una ruta clara para avanzar.
+                Contanos qué necesita tu marca.
               </h1>
 
               <p className="mt-5 max-w-2xl text-[0.98rem] leading-relaxed text-[#a1a1aa] md:text-[1.05rem]">
-                Contanos en qué etapa estás y te devolvemos una propuesta concreta para empezar con foco.
+                Revisamos tu consulta, coordinamos una primera conversación y definimos el alcance de la propuesta.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -105,16 +101,17 @@ export default function ContactoClient() {
                 >
                   Escribir por WhatsApp
                 </a>
-                <span className="text-xs uppercase tracking-[0.14em] text-white/52">Respuesta en menos de 24hs</span>
+
               </div>
             </motion.div>
           </div>
         </section>
 
-        <MarqueeSection />
 
-        <section className="py-14 md:py-20">
-          <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-6 px-6 md:px-12 lg:grid-cols-2 lg:gap-8 lg:px-20">
+
+        <section className="pb-14 pt-4 md:pb-20">
+          <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-6 px-6 md:px-12 lg:grid-cols-[1.2fr_1fr] lg:gap-8 lg:px-20">
+            <ContactFormCard />
             <motion.article
               initial={{ opacity: 0, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -164,7 +161,7 @@ export default function ContactoClient() {
               </div>
             </motion.article>
 
-            <ContactFormCard />
+
           </div>
         </section>
 

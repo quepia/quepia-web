@@ -6,7 +6,7 @@ import ServiciosClient from './ServiciosClient';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: 'Servicios de Diseño y Branding',
+  title: 'Servicios creativos para empresas de Córdoba',
   description: 'Diseño gráfico, branding, gestión de redes sociales, video, fotografía y cobertura con dron. Consultora creativa en Villa Carlos Paz, Córdoba.',
   alternates: {
     canonical: 'https://quepia.com/servicios',
@@ -34,7 +34,7 @@ const serviciosJsonLd = {
     '@id': 'https://quepia.com/#organization',
     name: 'Quepia',
   },
-  areaServed: { '@type': 'Country', name: 'Argentina' },
+  areaServed: { '@type': 'AdministrativeArea', name: 'Provincia de Córdoba, Argentina' },
   hasOfferCatalog: {
     '@type': 'OfferCatalog',
     name: 'Servicios Creativos',
@@ -45,7 +45,6 @@ const serviciosJsonLd = {
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Producción de Video' } },
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Fotografía' } },
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Cobertura con dron' } },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Marketing Digital' } },
       { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Diseño de Packaging' } },
     ],
   },

@@ -10,7 +10,7 @@ const plans = [
     name: 'Esencial',
     eyebrow: 'Base visual',
     description:
-      'Para marcas que necesitan ordenar su presencia y empezar a comunicar con claridad.',
+      'Una base visual para ordenar tu marca y sus primeras piezas de comunicación.',
     accent: 'cyan',
     coverage: [
       'Diagnóstico inicial de marca',
@@ -26,7 +26,7 @@ const plans = [
     name: 'Plus',
     eyebrow: 'Presencia activa',
     description:
-      'Para marcas que quieren mejorar su imagen, sostener contenido activo y comunicar con más estrategia.',
+      'Planificación mensual, publicaciones, historias y textos, con una reunión de seguimiento.',
     accent: 'magenta',
     featured: true,
     coverage: [
@@ -44,7 +44,7 @@ const plans = [
     name: 'Premium',
     eyebrow: 'Ecosistema integral',
     description:
-      'Para marcas que necesitan una presencia sólida, integral y preparada para crecer.',
+      'Estrategia integral y sistema visual, con piezas de campaña y adaptaciones para web o landing.',
     accent: 'mixed',
     coverage: [
       'Diagnóstico integral de marca',
@@ -105,7 +105,7 @@ export default function PlansSection() {
             </h2>
           </div>
           <p className="max-w-md text-base leading-relaxed text-[#a1a1aa]">
-            Conocé qué incluye cada plan y consultanos por una propuesta a medida de tu marca.
+            Conocé el enfoque de cada plan. Cantidades, revisiones, tiempos y precio se definen en la propuesta según tu marca.
           </p>
         </motion.div>
 

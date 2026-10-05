@@ -93,7 +93,7 @@ export default async function RootLayout({
     url: 'https://quepia.com',
     logo: 'https://quepia.com/Logo_Quepia.svg',
     image: 'https://quepia.com/og-image.jpg',
-    email: 'hola@quepia.com',
+    email: config.email_contacto || 'hola@quepia.com',
     telephone: '+54 9 351 397-0227',
     address: {
       '@type': 'PostalAddress',
@@ -101,12 +101,6 @@ export default async function RootLayout({
       addressRegion: 'Córdoba',
       addressCountry: 'AR',
       ...(config.direccion ? { streetAddress: config.direccion } : {}),
-    },
-    openingHoursSpecification: {
-      '@type': 'OpeningHoursSpecification',
-      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-      opens: '09:00',
-      closes: '18:00',
     },
     sameAs: sameAs.length > 0 ? sameAs : [DEFAULT_INSTAGRAM_URL],
     areaServed: ['Villa Carlos Paz', 'Córdoba Capital, Argentina', 'Provincia de Córdoba, Argentina'].map(name => ({ '@type': 'AdministrativeArea', name })),

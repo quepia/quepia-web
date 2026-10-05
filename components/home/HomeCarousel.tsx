@@ -65,7 +65,7 @@ function CaseStudyCard({ proyecto, index }: { proyecto: Proyecto; index: number 
   const services = [
     ...getProjectCategories(proyecto).map(getCategoryLabel),
   ];
-  const impact = proyecto.descripcion?.trim() || '[COMPLETAR: descripción del proyecto]';
+  const impact = proyecto.descripcion?.trim() || 'Explorá las imágenes y los servicios realizados para esta marca.';
   const isOdd = index % 2 === 1;
 
   return (
@@ -164,7 +164,7 @@ export default function HomeCarousel({ proyectos }: HomeCarouselProps) {
             Portafolio
           </p>
           <h2 className="max-w-2xl font-display text-[clamp(1.8rem,3.2vw,3rem)] font-medium leading-[1.1] tracking-[-0.02em] text-[color:var(--text-primary)]">
-            Casos de Éxito
+            Trabajos reales
           </h2>
         </div>
 

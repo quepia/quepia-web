@@ -50,6 +50,7 @@ export default function HeroVideoBackground({ active = true }: HeroVideoBackgrou
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover object-center"
         src={src}
+        onError={() => setSrc(undefined)}
         poster="/images/video-poster.webp"
         autoPlay
         muted

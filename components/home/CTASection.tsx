@@ -26,11 +26,11 @@ export default function CTASection({ email = 'hola@quepia.com' }: CTASectionProp
       >
         <div className="rounded-[26px] border border-white/12 bg-white/[0.04] px-6 py-12 backdrop-blur-[14px] md:px-12 md:py-16">
           <h2 className="mx-auto max-w-3xl font-display text-[clamp(2rem,4.1vw,3.6rem)] font-medium leading-[1.08] tracking-[-0.02em] text-[color:var(--text-primary)]">
-            ¿Listo para elevar la presencia de tu marca?
+            ¿Qué necesita comunicar tu marca?
           </h2>
 
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-[#a1a1aa] md:text-lg">
-            Te mostramos una ruta concreta para avanzar con claridad estratégica y ejecución premium.
+            Contanos qué querés mejorar, qué materiales tenés y dónde vas a usar las piezas. Definimos juntos el servicio y los entregables.
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">

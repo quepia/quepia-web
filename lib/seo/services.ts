@@ -3,7 +3,7 @@ export const services = [
     "slug": "gestion-de-redes-sociales",
     "name": "Gestión de redes sociales",
     "category": "redes-sociales",
-    "title": "Gestión de redes sociales en Villa Carlos Paz, Córdoba, Argentina",
+    "title": "Gestión de redes sociales en Córdoba",
     "description": "Gestión de redes sociales para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
     "sections": [
       {
@@ -180,7 +180,7 @@ export const services = [
     "slug": "branding-e-identidad",
     "name": "Branding e identidad visual",
     "category": "branding",
-    "title": "Branding e identidad visual en Villa Carlos Paz, Córdoba, Argentina",
+    "title": "Branding e identidad visual en Córdoba",
     "description": "Branding e identidad visual para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
     "sections": [
       {

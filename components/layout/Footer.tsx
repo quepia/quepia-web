@@ -42,7 +42,7 @@ const Footer: React.FC = () => {
                         </p>
 
                         <p className="text-[rgb(var(--text-white-soft-rgb)/0.4)] text-sm">
-                            {config.direccion || '[COMPLETAR: dirección] · Villa Carlos Paz, Córdoba, Argentina'}
+                            {config.direccion || 'Villa Carlos Paz, Córdoba, Argentina'}
                         </p>
                     </div>
 
