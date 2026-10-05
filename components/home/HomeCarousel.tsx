@@ -4,17 +4,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { Proyecto } from '@/types/database';
 import { getProjectCoverImage } from '@/lib/project-images';
-import { getCategoryLabel, getPrimaryProjectCategory, getProjectCategories } from '@/lib/project-categories';
+import { getCategoryLabel, getProjectCategories } from '@/lib/project-categories';
+
+import { projectSlug } from '@/lib/seo/projects-slug';
 
 interface HomeCarouselProps {
   proyectos: Proyecto[];
 }
-
-const impactFallbacks = [
-  '+38% de leads calificados en 90 días.',
-  'Incremento sostenido en reconocimiento de marca y engagement.',
-  'Mayor claridad de posicionamiento con mejor conversión digital.',
-];
 
 function ProjectMockup({
   coverImage,
@@ -68,12 +64,9 @@ function CaseStudyCard({ proyecto, index }: { proyecto: Proyecto; index: number 
   const coverImage = getProjectCoverImage(proyecto);
   const services = [
     ...getProjectCategories(proyecto).map(getCategoryLabel),
-    'Estrategia',
-    'Producción',
   ];
-  const impact = proyecto.descripcion?.trim() || impactFallbacks[index % impactFallbacks.length];
+  const impact = proyecto.descripcion?.trim() || '[COMPLETAR: descripción del proyecto]';
   const isOdd = index % 2 === 1;
-  const primaryCategory = getPrimaryProjectCategory(proyecto);
 
   return (
     <article className="rounded-[26px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-[12px] md:p-8">
@@ -107,12 +100,12 @@ function CaseStudyCard({ proyecto, index }: { proyecto: Proyecto; index: number 
           </div>
 
           <p className="mb-7 text-base leading-relaxed text-[#a1a1aa]">
-            <span className="font-medium text-[rgb(var(--text-white-soft-rgb)/0.9)]">Impacto:</span> {impact}
+            <span className="font-medium text-[rgb(var(--text-white-soft-rgb)/0.9)]">Proyecto:</span> {impact}
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href={`/trabajos?category=${primaryCategory}`}
+              href={`/trabajos/${projectSlug(proyecto)}`}
               className="inline-flex items-center gap-2 text-sm uppercase tracking-[0.12em] text-[rgb(var(--text-white-soft-rgb)/0.65)] transition-all duration-300 hover:gap-3 hover:text-[#2ae7e4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2ae7e4] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0a]"
             >
               Ver caso completo

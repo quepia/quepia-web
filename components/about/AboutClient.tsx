@@ -30,6 +30,11 @@ const values = [
   },
 ];
 
+function realSocialUrl(value: string | null) {
+  if (!value || !/^https:\/\//.test(value)) return false;
+  return !['instagram.com/camila', 'linkedin.com/in/lautaro', 'instagram.com/lautarolopezlabrin'].some(url => value.replace(/\/$/, '').endsWith(url));
+}
+
 function TeamCard({ member, index }: { member: Equipo; index: number }) {
   const initials = member.nombre
     .split(' ')
@@ -64,18 +69,18 @@ function TeamCard({ member, index }: { member: Equipo; index: number }) {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_38%,rgba(0,0,0,0.72)_100%)]" />
 
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 opacity-0 transition-all duration-300 group-hover:opacity-100">
-          {member.instagram ? (
-            <a href={member.instagram} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
+          {realSocialUrl(member.instagram) ? (
+            <a href={member.instagram!} aria-label={`Instagram de ${member.nombre}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
               <Instagram size={14} />
             </a>
           ) : null}
-          {member.linkedin ? (
-            <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
+          {realSocialUrl(member.linkedin) ? (
+            <a href={member.linkedin!} aria-label={`LinkedIn de ${member.nombre}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
               <Linkedin size={14} />
             </a>
           ) : null}
           {member.email ? (
-            <a href={`mailto:${member.email}`} className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
+            <a href={`mailto:${member.email}`} aria-label={`Email de ${member.nombre}`} className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
               <Mail size={14} />
             </a>
           ) : null}
@@ -107,7 +112,7 @@ export default function AboutClient({ team }: AboutClientProps) {
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="none" poster="/images/video-poster.webp"
               className="absolute inset-0 h-full w-full scale-[1.38] object-cover object-center opacity-[0.14]"
               src={encodeURI('/VIDEOS CARDS/ANIMACIONES QUEPIA.mp4')}
             />
@@ -140,7 +145,7 @@ export default function AboutClient({ team }: AboutClientProps) {
                 >
                   Empezar proyecto
                 </Link>
-                <span className="text-xs uppercase tracking-[0.14em] text-white/52">Equipo de {teamToRender.length || 2} personas</span>
+                <span className="text-xs uppercase tracking-[0.14em] text-white/52">Equipo núcleo + red de editores y productores</span>
               </div>
             </motion.div>
           </div>

@@ -1,3 +1,4 @@
+import { correctProjectCopy } from '@/lib/seo/public-copy';
 import type { Metadata } from 'next';
 import WorksClient from './works-client';
 import { createPublicClient } from '@/lib/supabase/public';
@@ -61,7 +62,7 @@ export default async function Page({ searchParams }: TrabajosPageProps) {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(portfolioJsonLd) }}
             />
             <WorksClient
-                proyectos={proyectos || []}
+                proyectos={(proyectos || []).map(correctProjectCopy)}
                 initialCategory={validCategory}
             />
         </>
