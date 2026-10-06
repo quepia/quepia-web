@@ -23,6 +23,9 @@ export const metadata: Metadata = {
     canonical: 'https://quepia.com',
   },
   openGraph: {
+    type: 'website',
+    locale: 'es_AR',
+    siteName: 'Quepia - Consultora Creativa',
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
     description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Consultora creativa con sede en Villa Carlos Paz.',
     url: 'https://quepia.com',

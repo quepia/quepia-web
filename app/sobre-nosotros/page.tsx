@@ -26,7 +26,8 @@ export const metadata: Metadata = {
 };
 
 export default async function AboutPage() {
-    const team = await getTeamMembersServer();
+    // No se envían al cliente perfiles personales: el único perfil oficial es Instagram @quepiastudio.
+    const team = (await getTeamMembersServer()).map(member => ({ ...member, instagram: null, linkedin: null }));
     const people = team.map(member => ({
         '@type': 'Person',
         name: member.nombre,
