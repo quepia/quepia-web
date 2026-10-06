@@ -108,9 +108,21 @@ export async function generateOpenAIImage(input: { model: string; prompt: string
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
     const code = payload?.error?.code
+    const providerMessage = typeof payload?.error?.message === "string"
+      ? payload.error.message.replace(/sk-[\w-]+/g, "[redacted]").replace(/https?:\/\/[^\s]+/g, "[url]").slice(0, 600)
+      : ""
+    console.error("[Stories] OpenAI rechazó la imagen", {
+      status: response.status, code, param: payload?.error?.param,
+      requestId: response.headers.get("x-request-id"), model: input.model,
+      size: parameters.size, referenceCount: input.references.length,
+      message: providerMessage,
+    })
     if (response.status === 401) throw new Error("OpenAI rechazó la API key. Revisá OPENAI_API_KEY en Vercel.")
     if (response.status === 429) throw new Error("OpenAI alcanzó su límite de uso o saldo. Revisá la facturación.")
+    if (code === "moderation_blocked" || code === "content_policy_violation") throw new Error("OpenAI bloqueó el pedido por sus reglas de contenido. Ajustá el texto o las referencias antes de volver a generar.")
+    if (response.status === 403) throw new Error("OpenAI no permite generar imágenes con esta cuenta. Revisá los permisos del proyecto y la verificación de la organización.")
     if (code === "model_not_found") throw new Error("El modelo no está disponible para esta cuenta de OpenAI.")
+    if (response.status === 400 && providerMessage) throw new Error(`OpenAI rechazó el pedido: ${providerMessage}`)
     throw new Error(`OpenAI no pudo generar la imagen (HTTP ${response.status}). Revisá el pedido y el acceso al modelo.`)
   }
   const payload = await response.json()
