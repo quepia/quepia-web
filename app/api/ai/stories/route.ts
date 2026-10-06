@@ -36,12 +36,13 @@ export async function GET(request: Request) {
     const { data: columns, error: columnsError } = await session.server.from("sistema_columns").select("id,nombre").eq("project_id",projectId)
     if (columnsError) throw columnsError
     const storyColumns = (columns || []).filter(c=>isStoryColumn(c.nombre)).map(c=>c.id)
-    const [tasks, jobs, brief] = await Promise.all([
+    const [tasks, jobs, brief, monthly] = await Promise.all([
       session.server.from("sistema_tasks").select("*").eq("project_id", projectId).or(storyColumns.length ? `task_type.eq.story,column_id.in.(${storyColumns.join(",")})` : "task_type.eq.story").order("due_date", { ascending: true }).order("created_at", { ascending: false }).limit(200),
       session.server.from("sistema_story_generations").select("id,task_id,status,asset_id,cost_usd,reserved_usd,error_message,created_at,settings,output_path,base_path").eq("project_id", projectId).order("created_at", { ascending: false }).limit(500),
       session.server.from("sistema_client_briefs").select("*").eq("project_id", projectId).maybeSingle(),
+      createAdminClient().rpc("sistema_story_monthly_usage"),
     ])
-    if (tasks.error || jobs.error || brief.error) throw new ZernioRouteError(503, "No se pudo cargar Historias. Verificá que esté aplicada su migración.")
+    if (tasks.error || jobs.error || brief.error || monthly.error) throw new ZernioRouteError(503, "No se pudo cargar Historias. Verificá que esté aplicada su migración.")
     const paths = (jobs.data || []).map(job => job.output_path).filter((path): path is string => Boolean(path))
     // Authorization was checked above; sign only output paths of this project.
     const signatures = paths.length ? await createAdminClient().storage.from(ASSET_BUCKET).createSignedUrls(paths, 3600) : null
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
       && asset.versions.some(version => version.version_number === 1 && version.storage_path === jobs.data?.find(job=>job.asset_id===asset.id)?.output_path)).map(asset=>asset.id) || [])
     const urls = new Map(signatures?.data?.map(file => [file.path, file.signedUrl]) || [])
     const result = (jobs.data || []).map(job => ({ ...job, previewUrl: job.output_path ? urls.get(job.output_path) || null : null, approved: approved.has(job.asset_id || ""), recoverable: Boolean(job.base_path), output_path: undefined, base_path: undefined }))
-    return NextResponse.json({ tasks: tasks.data, jobs: result, brief: brief.data, configured: Boolean(process.env.OPENAI_API_KEY), model: STORY_MODEL(), userId: session.user.id, canPublish: session.isAdmin })
+    return NextResponse.json({ tasks: tasks.data, jobs: result, monthly: monthly.data, brief: brief.data, configured: Boolean(process.env.OPENAI_API_KEY), model: STORY_MODEL(), userId: session.user.id, canPublish: session.isAdmin })
   } catch (error) { return storyError(error) }
 }
 

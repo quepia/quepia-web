@@ -19,7 +19,7 @@ await db.exec(`
   CREATE TABLE public.sistema_users(id uuid primary key,is_authorized boolean,is_active boolean,deleted_at timestamptz);
   CREATE TABLE public.sistema_projects(id uuid primary key,owner_id uuid);
   CREATE TABLE public.sistema_project_members(project_id uuid,user_id uuid,role text);
-  CREATE TABLE public.sistema_tasks(id uuid primary key,project_id uuid references sistema_projects(id),task_type text,titulo text);
+  CREATE TABLE public.sistema_tasks(id uuid primary key,project_id uuid references sistema_projects(id),task_type text,titulo text,type_metadata jsonb);
   CREATE TABLE public.sistema_assets(id uuid primary key default gen_random_uuid(),task_id uuid,project_id uuid,nombre text,descripcion text,asset_type text,created_by uuid,approval_status text,current_version int);
   CREATE TABLE public.sistema_asset_versions(id uuid primary key default gen_random_uuid(),asset_id uuid,version_number int,file_url text,storage_path text,file_type text,file_size bigint,thumbnail_url text,thumbnail_path text,preview_path text,original_filename text,uploaded_by uuid,notes text);
   CREATE FUNCTION public.sistema_is_admin(actor uuid) RETURNS boolean LANGUAGE sql AS $$select false$$;
@@ -34,6 +34,7 @@ await db.exec(`
 `)
 await db.exec(readFileSync(new URL("../../migrations/20261005150508_stories_ai_generation.sql",import.meta.url),"utf8"))
 await db.exec(readFileSync(new URL("../../migrations/20261005161859_fix_story_assets_and_image_bank.sql",import.meta.url),"utf8"))
+await db.exec(readFileSync(new URL("../../migrations/20261006161237_story_monthly_budget.sql",import.meta.url),"utf8"))
 async function role(role,actor,sql,params=[]) {
   await db.query("select set_config('test.user',$1,false)",[actor||""])
   await db.exec(`set role ${role}`)
@@ -88,5 +89,15 @@ test("finalization creates exactly one private asset and one version",async()=>{
   assert.equal(asset.approval_status,"pending_review")
   assert.equal((await db.query("select count(*)::int as n from public.sistema_asset_versions where asset_id=$1",[first])).rows[0].n,1)
   assert.equal((await db.query("select file_url from public.sistema_asset_versions where asset_id=$1",[first])).rows[0].file_url,output)
+})
+test("monthly budget counts other actors and unknown costs, and rejects a batch atomically",async()=>{
+  await db.exec("update public.sistema_story_generations set status='failed',cost_usd=null,reserved_usd=2");
+  await db.query("update public.sistema_story_generations set created_by=$1 where task_id=$2",[outsider,task3]);
+  const before=(await db.query("select count(*)::int n from public.sistema_story_generations")).rows[0].n;
+  await assert.rejects(enqueue(owner,[job()],"00000000-0000-4000-8000-000000000099"),/mensual/);
+  assert.equal((await db.query("select count(*)::int n from public.sistema_story_generations")).rows[0].n,before);
+  const usage=(await role("service_role",null,"select public.sistema_story_monthly_usage() usage")).rows[0].usage;
+  assert.equal(usage.remaining,0);assert.equal(usage.reserved,6);
+  await assert.rejects(role("authenticated",owner,"select public.sistema_story_monthly_usage()"),/permission denied/);
 })
 test.after(()=>db.close())

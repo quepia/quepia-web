@@ -13,7 +13,7 @@ export const storySettingsSchema = z.object({
   cta: z.string().trim().max(70).default(""),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).default(""),
   format: z.enum(["story", "portrait", "square"]).default("story"),
-  quality: z.enum(["low", "medium", "high"]).default("high"),
+  quality: z.enum(["low", "medium", "high"]).default("low"),
   photoFit: z.enum(["cover", "contain"]).default("cover"),
   backgroundSource: z.enum(["bank", "ai"]).default("bank"),
   renderMode: z.enum(["full-ai", "ai-overlay", "legacy"]).default("legacy"),

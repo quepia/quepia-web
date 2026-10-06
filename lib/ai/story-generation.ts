@@ -4,7 +4,7 @@ import sharp from "sharp"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { ASSET_BUCKET } from "@/lib/sistema/assets-storage"
-import { formatBrandGuidelines, formatTaskContext, loadCreativeStudioSource } from "@/lib/ai/creative-studio-context"
+import { formatBrandGuidelines, loadCreativeStudioSource } from "@/lib/ai/creative-studio-context"
 import { getQuepiaSession, assertProjectAccess, ZernioRouteError, type QuepiaSession } from "@/lib/zernio/server"
 import { composeStoryPhotoOverlay } from "./story-photo-overlay"
 import { composeStory } from "./story-composition"
@@ -63,13 +63,13 @@ export async function enqueueStories(session: QuepiaSession, projectId: string, 
     const logoPath = settings.includeLogo ? source.brief?.logo_storage_path || null : null
     if (logoPath && !logoPath.startsWith(`briefs/${projectId}/`)) throw new ZernioRouteError(422, "El logo del brief no tiene una ruta válida")
     if(settings.renderMode === "ai-overlay" && paths.length !== 1) throw new ZernioRouteError(422,"Elegí exactamente una foto original como fondo")
-    const designs = await storyDesignReferencePaths(source.brief)
+    const designs = (await storyDesignReferencePaths(source.brief)).slice(0, 1)
     const roles = [
       ...paths.map((_,i)=>`Imagen ${i+1}: foto real del lugar/producto. ${settings.renderMode === "ai-overlay" ? "Solo contexto de ubicación y contraste: NO generarla en la capa transparente; el sistema la usará como fondo original." : "Usarla en la pieza."}`),
       ...designs.map((ref,i)=>`Imagen ${paths.length+i+1}: referencia de DISEÑO, solo estilo. ${ref.note}`),
       ...(logoPath?[`Imagen ${paths.length+designs.length+1}: LOGOTIPO de la marca; integralo fielmente.`]:[]),
     ].join("\n")
-    const snapshot = { task_id: taskId, settings, brand_context: formatBrandGuidelines(source.brief) + "\n\n" + source.activeStrategyContext + "\n\n" + formatTaskContext(source.task) + "\n\nRoles de las imágenes adjuntas:\n" + roles, reference_paths: [...paths,...designs.map(ref=>ref.path)], logo_path: logoPath, model }
+    const snapshot = { task_id: taskId, settings, brand_context: formatBrandGuidelines(source.brief).slice(0, 6000) + "\n\nRoles de las imágenes adjuntas:\n" + roles, reference_paths: [...paths,...designs.map(ref=>ref.path)], logo_path: logoPath, model }
     jobs.push({ ...snapshot, reserved_usd: storyReservation(settings), fingerprint: crypto.createHash("sha256").update(JSON.stringify(snapshot)).digest("hex") })
   }
   const { data, error } = await createAdminClient().rpc("sistema_enqueue_stories", {
@@ -95,6 +95,7 @@ export async function generateOpenAIImage(input: { model: string; prompt: string
   if (!key) throw new Error("Configurá OPENAI_API_KEY para generar")
   const prompt = imagePromptTransportText(input.prompt)
   if (prompt.length > OPENAI_IMAGE_PROMPT_LIMIT) throw new Error("El prompt de imagen supera los 32.000 caracteres. Acortá el pedido antes de generar.")
+  const providerReferences = await Promise.all(input.references.map(bytes => sharp(bytes).resize(768, 768, { fit: "inside", withoutEnlargement: true }).png().toBuffer()))
   const parameters = { model: input.model, prompt, size: STORY_FORMATS[input.settings.format].size, quality: input.settings.quality, n: 1, output_format: "png", background: input.settings.renderMode === "ai-overlay" ? "transparent" : "opaque" }
   let body: FormData | string
   let endpoint: string
@@ -102,7 +103,7 @@ export async function generateOpenAIImage(input: { model: string; prompt: string
   if (input.references.length) {
     const form = new FormData()
     for (const [name, value] of Object.entries(parameters)) form.set(name, String(value))
-    input.references.forEach((bytes,i) => form.append("image[]", new Blob([new Uint8Array(bytes)], { type: "image/png" }), `reference-${i+1}.png`))
+    providerReferences.forEach((bytes,i) => form.append("image[]", new Blob([new Uint8Array(bytes)], { type: "image/png" }), `reference-${i+1}.png`))
     body = form; endpoint = "edits"
   } else { headers["Content-Type"] = "application/json"; body = JSON.stringify(parameters); endpoint = "generations" }
   // No automatic provider retries: a timed-out call may already have been billed.
