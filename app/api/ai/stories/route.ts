@@ -140,12 +140,20 @@ export async function POST(request: Request) {
   } catch (error) { return storyError(error) }
 }
 function storyError(error: unknown) {
-  if (error instanceof StoryPreparationError) return NextResponse.json({ error: error.message }, { status: 422 })
+  const incidentId = crypto.randomUUID()
+  if (!(error instanceof z.ZodError) && !(error instanceof SyntaxError)) {
+    const cause = error instanceof Error && error.cause ? error.cause : error
+    const detail = cause && typeof cause === "object" ? cause as { name?: unknown; message?: unknown; code?: unknown; statusCode?: unknown } : {}
+    const message = typeof detail.message === "string"
+      ? detail.message.replace(/sk-[\w-]+/g, "[redacted]").replace(/https?:\/\/[^\s]+/g, "[url]").slice(0, 1000)
+      : "Unknown error"
+    console.error("[Stories] Error al procesar el pedido", { incidentId, name: detail.name, code: detail.code, status: detail.statusCode, message })
+  }
+  if (error instanceof StoryPreparationError) return NextResponse.json({ error: error.message, incidentId }, { status: error.status })
   if (error instanceof z.ZodError || error instanceof SyntaxError) return NextResponse.json({ error: "Revisá los campos del pedido" }, { status: 400 })
   if (error instanceof ZernioRouteError) {
     const result = apiErrorResponse(error)
     return NextResponse.json({ error: result.message }, { status: result.status })
   }
-  console.error("[Stories] Error al procesar el pedido", error instanceof Error ? error.name : "Unknown")
-  return NextResponse.json({ error: "No se pudo completar el pedido de historias" }, { status: 500 })
+  return NextResponse.json({ error: `No se pudo completar el pedido de historias. Código de diagnóstico: ${incidentId}`, incidentId }, { status: 500 })
 }
