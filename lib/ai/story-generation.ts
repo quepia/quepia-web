@@ -8,7 +8,7 @@ import { formatBrandGuidelines, formatTaskContext, loadCreativeStudioSource } fr
 import { getQuepiaSession, assertProjectAccess, ZernioRouteError, type QuepiaSession } from "@/lib/zernio/server"
 import { composeStoryPhotoOverlay } from "./story-photo-overlay"
 import { composeStory } from "./story-composition"
-import { OPENAI_IMAGE_PROMPT_LIMIT, STORY_FORMATS, storySettingsSchema, readStorySettings, storyBasePrompt, imageUsageCost, storyReservation, type StorySettings, type StoryJob } from "./stories"
+import { imagePromptTransportText, OPENAI_IMAGE_PROMPT_LIMIT, STORY_FORMATS, storySettingsSchema, readStorySettings, storyBasePrompt, imageUsageCost, storyReservation, type StorySettings, type StoryJob } from "./stories"
 
 export const STORY_MODEL = () => {
   const model = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst"
@@ -93,8 +93,9 @@ export async function privateImage(admin: SupabaseClient, path: string, maxBytes
 export async function generateOpenAIImage(input: { model: string; prompt: string; settings: StorySettings; references: Buffer[] }) {
   const key = process.env.OPENAI_API_KEY
   if (!key) throw new Error("Configurá OPENAI_API_KEY para generar")
-  if (input.prompt.length > OPENAI_IMAGE_PROMPT_LIMIT) throw new Error("El prompt de imagen supera los 32.000 caracteres. Acortá el pedido antes de generar.")
-  const parameters = { model: input.model, prompt: input.prompt, size: STORY_FORMATS[input.settings.format].size, quality: input.settings.quality, n: 1, output_format: "png", background: input.settings.renderMode === "ai-overlay" ? "transparent" : "opaque" }
+  const prompt = imagePromptTransportText(input.prompt)
+  if (prompt.length > OPENAI_IMAGE_PROMPT_LIMIT) throw new Error("El prompt de imagen supera los 32.000 caracteres. Acortá el pedido antes de generar.")
+  const parameters = { model: input.model, prompt, size: STORY_FORMATS[input.settings.format].size, quality: input.settings.quality, n: 1, output_format: "png", background: input.settings.renderMode === "ai-overlay" ? "transparent" : "opaque" }
   let body: FormData | string
   let endpoint: string
   const headers: Record<string, string> = { Authorization: `Bearer ${key}` }
