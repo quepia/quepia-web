@@ -34,7 +34,7 @@ const expertiseCards: ExpertiseCardConfig[] = [
     title: 'Social Media & Estrategia',
     description:
       'Planificamos contenidos, diseñamos publicaciones y redactamos textos para explicar tu propuesta y sostener una comunicación coherente.',
-    label: 'Comunidad & performance',
+    label: 'Comunidad & contenido orgánico',
     hoverGlow: 'rgba(42, 231, 228, 0.12)',
     videoSrc: '/VIDEOS CARDS/Social Media & Estrategia.mp4',
     videoScale: 1.46,

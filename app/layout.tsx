@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     default: 'Quepia - Consultora Creativa',
     template: '%s | Quepia'
   },
-  description: 'Quepia es una consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Transformamos marcas con estrategias de diseño, branding y marketing digital.',
+  description: 'Quepia es una consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Gestión de redes sociales, estrategia de marca, contenido orgánico, diseño y branding.',
   verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION },
   authors: [{ name: 'Quepia Creative Agency' }],
   creator: 'Quepia',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     locale: 'es_AR',
     url: 'https://quepia.com',
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
-    description: 'Hacemos crecer tu identidad visual con innovación. Especialistas en diseño gráfico, branding, marketing y más.',
+    description: 'Hacemos crecer tu identidad visual con innovación. Gestión de redes sociales, estrategia de marca, diseño gráfico, branding y producción audiovisual.',
     siteName: 'Quepia Creative Agency',
     images: [
       {
@@ -89,7 +89,7 @@ export default async function RootLayout({
     '@id': 'https://quepia.com/#organization',
     name: 'Quepia',
     alternateName: 'Quepia Creative Agency',
-    description: 'Consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Especialistas en diseño gráfico, branding, marketing digital, gestión de redes sociales, producción audiovisual y cobertura con dron.',
+    description: 'Consultora creativa de Villa Carlos Paz, Córdoba, Argentina. Especialistas en gestión de redes sociales, estrategia de marca y comunicación, contenido orgánico, diseño gráfico, branding, producción audiovisual y cobertura con dron.',
     url: 'https://quepia.com',
     logo: 'https://quepia.com/Logo_Quepia.svg',
     image: 'https://quepia.com/og-image.jpg',

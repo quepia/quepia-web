@@ -11,6 +11,7 @@ import ProcessSection from '@/components/home/ProcessSection';
 import PlansSection from '@/components/home/PlansSection';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
+import { publicServiceTitle } from '@/lib/seo/public-services';
 
 // ISR: Revalidate every 60 seconds
 export const revalidate = 60;
@@ -47,7 +48,7 @@ export default async function Home() {
       .order('orden', { ascending: true }),
     supabase
       .from('servicios')
-      .select('*')
+      .select('titulo, orden')
       .order('orden', { ascending: true }),
   ]);
 
@@ -66,7 +67,7 @@ export default async function Home() {
           className="pt-4"
           style={{ contentVisibility: 'auto', containIntrinsicSize: '360px' }}
         >
-          <MarqueeSection servicios={servicios || []} />
+          <MarqueeSection servicios={(servicios || []).map((item: { titulo: string }) => ({ titulo: publicServiceTitle(item.titulo) }))} />
         </section>
 
         <section

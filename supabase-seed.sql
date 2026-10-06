@@ -119,12 +119,12 @@ INSERT INTO public.servicios (titulo, descripcion_corta, descripcion, icono, cat
   7
 ),
 (
-  'Marketing',
-  'Estrategias que generan resultados.',
-  'Desarrollamos campañas de marketing integrales que combinan canales digitales y tradicionales. Desde la planificación estratégica hasta la ejecución, nos enfocamos en alcanzar tus objetivos comerciales.',
+  'Estrategia de marca',
+  'Posicionamiento y comunicación con dirección.',
+  'Definimos el posicionamiento de tu marca y la estrategia de comunicación: qué decir, a quién y en qué canales. Planificamos el contenido orgánico, armamos la línea editorial y el calendario para que cada pieza responda a un objetivo. No incluye gestión de pauta publicitaria.',
   'Megaphone',
   'marketing',
-  ARRAY['Marketing digital', 'Email marketing', 'SEO/SEM', 'Publicidad tradicional', 'Estrategia 360°'],
+  ARRAY['Posicionamiento de marca', 'Estrategia de contenido orgánico', 'Planificación y calendario', 'Línea editorial', 'Estrategia de comunicación'],
   8
 ),
 (

@@ -44,7 +44,7 @@ const plans = [
     name: 'Premium',
     eyebrow: 'Ecosistema integral',
     description:
-      'Estrategia integral y sistema visual, con piezas de campaña y adaptaciones para web o landing.',
+      'Estrategia integral y sistema visual, con creativos para campañas y adaptaciones para web o landing.',
     accent: 'mixed',
     coverage: [
       'Diagnóstico integral de marca',
@@ -52,7 +52,7 @@ const plans = [
       'Desarrollo de sistema visual para redes',
       'Calendario de contenidos mensual',
       'Diseño de publicaciones, carruseles e historias',
-      'Piezas para campañas publicitarias',
+      'Creativos para campañas (diseño de piezas)',
       'Copies comerciales e ideas audiovisuales',
       'Adaptación de piezas para web o landing',
       'Seguimiento estratégico',
