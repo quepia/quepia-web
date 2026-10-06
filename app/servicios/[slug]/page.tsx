@@ -14,7 +14,27 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const service = services.find(item => item.slug === slug);
   if (!service) notFound();
-  return { title: service.title, description: service.description, alternates: { canonical: `/servicios/${slug}` }, openGraph: { title: service.title, description: service.description, url: `/servicios/${slug}` } };
+  const socialTitle = `${service.title} | Quepia`;
+  return {
+    title: service.title,
+    description: service.description,
+    alternates: { canonical: `/servicios/${slug}` },
+    openGraph: {
+      type: 'website',
+      locale: 'es_AR',
+      siteName: 'Quepia',
+      title: socialTitle,
+      description: service.description,
+      url: `/servicios/${slug}`,
+      images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: `${service.name}: Quepia, agencia creativa en Villa Carlos Paz, Córdoba` }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: socialTitle,
+      description: service.description,
+      images: ['/og-image.jpg'],
+    },
+  };
 }
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
