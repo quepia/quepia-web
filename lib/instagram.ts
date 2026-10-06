@@ -1,5 +1,7 @@
-export const DEFAULT_INSTAGRAM_HANDLE = 'quepia.studio';
+export const DEFAULT_INSTAGRAM_HANDLE = 'quepiastudio';
 export const DEFAULT_INSTAGRAM_URL = `https://instagram.com/${DEFAULT_INSTAGRAM_HANDLE}`;
+// Único perfil oficial de Quepia (confirmado 06/10/2026). No hay LinkedIn, Facebook, YouTube, TikTok ni Behance.
+export const OFFICIAL_INSTAGRAM_URL = 'https://www.instagram.com/quepiastudio/';
 
 const extractInstagramHandle = (value?: string | null) => {
     if (!value) {

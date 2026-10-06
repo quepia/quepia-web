@@ -22,11 +22,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     openGraph: {
       type: 'website',
       locale: 'es_AR',
-      siteName: 'Quepia',
+      siteName: 'Quepia - Consultora Creativa',
       title: socialTitle,
       description: service.description,
       url: `/servicios/${slug}`,
-      images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: `${service.name}: Quepia, agencia creativa en Villa Carlos Paz, Córdoba` }],
+      images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: `${service.name}: Quepia - Consultora Creativa, Villa Carlos Paz, Córdoba` }],
     },
     twitter: {
       card: 'summary_large_image',

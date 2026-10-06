@@ -1,40 +1,58 @@
 # Quepia - Consultora Creativa
 
-> Quepia es una consultora creativa fundada en 2020, con sede en Villa Carlos Paz, Córdoba, Argentina. Nos especializamos en gestión de redes sociales, estrategia de marca y comunicación, contenido orgánico, diseño gráfico, branding, producción de video y fotografía.
+> Quepia - Consultora Creativa es una consultora creativa de Villa Carlos Paz, Córdoba, Argentina, desde 2020, con más de 50 proyectos realizados. Su servicio principal es la gestión de redes sociales: estrategia de contenido orgánico, planificación, diseño de publicaciones, redacción y reels. También hace producción audiovisual (video, foto y dron), diseño gráfico, branding y estrategia de marca, para marcas de Villa Carlos Paz, el Valle de Punilla, Córdoba Capital y el resto de la provincia de Córdoba.
 
-## Acerca de Quepia
+## Servicios (en orden de prioridad)
 
-Quepia nació con el propósito de transformar marcas en experiencias visuales memorables. Trabajamos con empresas y emprendedores de Córdoba y de todo el país, ofreciendo soluciones creativas integrales que combinan estrategia, diseño y comunicación.
+- [Gestión de redes sociales](https://quepia.com/servicios/gestion-de-redes-sociales): planificación y calendario de contenidos, estrategia de contenido orgánico, diseño de publicaciones e historias, redacción de textos y reels. La respuesta a comentarios y mensajes no está incluida por defecto; puede sumarse como opción con automatizaciones.
+- [Producción audiovisual](https://quepia.com/servicios/produccion-audiovisual): video y reels para marcas.
+- [Filmación con dron](https://quepia.com/servicios/filmacion-con-dron-cordoba): tomas aéreas evaluadas según cada locación.
+- [Fotografía de producto e inmobiliaria](https://quepia.com/servicios/fotografia-de-producto)
+- [Diseño gráfico](https://quepia.com/servicios/diseno-grafico)
+- [Branding e identidad visual](https://quepia.com/servicios/branding-e-identidad)
+- Estrategia de marca y comunicación: posicionamiento, estrategia de contenido orgánico, planificación y línea editorial.
+- [Diseño de packaging](https://quepia.com/servicios/packaging)
+- También ofrece diseño de páginas web y configuración de tiendas online (Tiendanube, entre otras plataformas).
 
-**Fundación:** 2020
-**Ubicación:** Villa Carlos Paz, Córdoba, Argentina
-**Proyectos realizados:** 50+
-**Email:** hola@quepia.com
-**Teléfono:** +54 351 397 0227
-**Instagram:** https://instagram.com/quepia.studio
+Quepia no gestiona pauta publicitaria: diseña los creativos y piezas para campañas.
+
+## Planes y contacto
+
+- [Planes Esencial, Plus y Premium](https://quepia.com/precios). No se publican precios: cada propuesta se cotiza según el alcance.
+- [Contacto y formulario](https://quepia.com/contacto)
+- Email: hola@quepia.com
+- WhatsApp / teléfono: +54 9 351 397-0227
+- Instagram (único perfil oficial): https://www.instagram.com/quepiastudio/
+- Horario: lunes a viernes, de 9:00 a 18:00
+- Base: Villa Carlos Paz, Córdoba, Argentina. Trabaja en toda la provincia, con reuniones a distancia y jornadas presenciales según el proyecto.
+
+## Rubros
+
+- [Turismo y hotelería](https://quepia.com/rubros/turismo-y-hoteleria)
+- [Inmobiliarias](https://quepia.com/rubros/inmobiliarias)
+- [Gastronomía](https://quepia.com/rubros/gastronomia)
+
+## Zonas
+
+- [Villa Carlos Paz](https://quepia.com/villa-carlos-paz)
+- [Córdoba Capital y provincia](https://quepia.com/cordoba)
+- [Valle de Punilla](https://quepia.com/valle-de-punilla)
+
+## Casos
+
+- [Portfolio de proyectos](https://quepia.com/trabajos)
+- [Hotel Bahía Norte: social media](https://quepia.com/trabajos/hotel-bahia-norte-social-media-6aea1c25-87db-4cc6-be7c-896f9df366c5)
+- [Rohi Sommiers: diseño para comunicación comercial](https://quepia.com/trabajos/rohi-sommiers-f4289b9f-03fa-4b7b-a983-875b3124ecf1)
+- [Mike Donas: fotografía de producto](https://quepia.com/trabajos/mike-donas-foto-de-producto-ae2a64c7-368b-4330-8520-c8131bffd0cb)
 
 ## Equipo
 
-- **Lautaro López Labrin** — Director Creativo
-- **Camila De Angelis** — Diseñadora
+- Lautaro López Labrin: Co-Fundador & Director Creativo
+- Camila De Angelis: Co-Fundadora & Directora de Estrategia
 
-## Servicios
-
-- Diseño Gráfico
-- Branding e Identidad Visual
-- Gestión de Redes Sociales
-- Producción de Video
-- Fotografía
-- Estrategia de marca y comunicación (posicionamiento, contenido orgánico, planificación y línea editorial; no incluye gestión de pauta)
-- Diseño de Packaging
-- Cartelería y Señalética
-
-## Páginas del sitio
+## Más información
 
 - [Inicio](https://quepia.com)
 - [Servicios](https://quepia.com/servicios)
-- [Trabajos / Portfolio](https://quepia.com/trabajos)
-- [Sobre Nosotros](https://quepia.com/sobre-nosotros)
-- [Contacto](https://quepia.com/contacto)
-- [Política de Privacidad](https://quepia.com/privacidad)
-- [Términos y Condiciones](https://quepia.com/terminos)
+- [Sobre nosotros](https://quepia.com/sobre-nosotros)
+- [Política de privacidad](https://quepia.com/privacidad)

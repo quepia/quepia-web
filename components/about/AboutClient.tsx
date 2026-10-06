@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Heart, Sparkles, Users, MapPin, Instagram, Linkedin, Mail } from 'lucide-react';
+import { ArrowUpRight, Heart, Sparkles, Users, MapPin, Mail } from 'lucide-react';
 import type { Equipo } from '@/types/database';
 import AmbientVideo from '@/components/seo/AmbientVideo';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
@@ -31,11 +31,7 @@ const values = [
   },
 ];
 
-function realSocialUrl(value: string | null) {
-  if (!value || !/^https:\/\//.test(value)) return false;
-  return !['instagram.com/camila', 'linkedin.com/in/lautaro', 'instagram.com/lautarolopezlabrin'].some(url => value.replace(/\/$/, '').endsWith(url));
-}
-
+// Quepia no enlaza perfiles personales: el único perfil oficial es Instagram @quepiastudio (06/10/2026).
 function TeamCard({ member, index }: { member: Equipo; index: number }) {
   const initials = member.nombre
     .split(' ')
@@ -70,16 +66,6 @@ function TeamCard({ member, index }: { member: Equipo; index: number }) {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_38%,rgba(0,0,0,0.72)_100%)]" />
 
         <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 opacity-0 transition-all duration-300 group-hover:opacity-100">
-          {realSocialUrl(member.instagram) ? (
-            <a href={member.instagram!} aria-label={`Instagram de ${member.nombre}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
-              <Instagram size={14} />
-            </a>
-          ) : null}
-          {realSocialUrl(member.linkedin) ? (
-            <a href={member.linkedin!} aria-label={`LinkedIn de ${member.nombre}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
-              <Linkedin size={14} />
-            </a>
-          ) : null}
           {member.email ? (
             <a href={`mailto:${member.email}`} aria-label={`Email de ${member.nombre}`} className="rounded-full border border-white/15 bg-black/40 p-2 text-white/70 transition-colors hover:text-quepia-cyan">
               <Mail size={14} />

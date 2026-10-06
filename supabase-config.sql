@@ -71,7 +71,7 @@ INSERT INTO public.configuracion (clave, valor, descripcion, tipo, categoria, or
 
 -- REDES SOCIALES
 INSERT INTO public.configuracion (clave, valor, descripcion, tipo, categoria, orden) VALUES
-('instagram', 'https://instagram.com/quepia.studio', 'Link a Instagram', 'url', 'redes', 1),
+('instagram', 'https://www.instagram.com/quepiastudio/', 'Link a Instagram', 'url', 'redes', 1),
 ('facebook', '', 'Link a Facebook (dejar vacío si no aplica)', 'url', 'redes', 2),
 ('linkedin', '', 'Link a LinkedIn', 'url', 'redes', 3),
 ('twitter', '', 'Link a Twitter/X', 'url', 'redes', 4),
@@ -104,8 +104,8 @@ INSERT INTO public.equipo (nombre, rol, bio, imagen_url, instagram, linkedin, em
   'Co-Fundador & Director Creativo',
   'Apasionado por el diseño y la tecnología. Lidera la visión creativa de Quepia, transformando ideas en experiencias visuales memorables.',
   'https://placehold.co/400x500/1a1a1a/881078/png?text=Lautaro',
-  'https://instagram.com/lautaro',
-  'https://linkedin.com/in/lautaro',
+  NULL,
+  NULL,
   'lautaro@quepia.com',
   1
 ),
@@ -114,8 +114,8 @@ INSERT INTO public.equipo (nombre, rol, bio, imagen_url, instagram, linkedin, em
   'Co-Fundadora & Directora de Estrategia',
   'Especialista en branding y comunicación. Se encarga de que cada proyecto conecte emocionalmente con el público objetivo.',
   'https://placehold.co/400x500/1a1a1a/2AE7E4/png?text=Camila',
-  'https://instagram.com/camila',
-  'https://linkedin.com/in/camila',
+  NULL,
+  NULL,
   'camila@quepia.com',
   2
 );

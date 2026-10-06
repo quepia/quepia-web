@@ -25,36 +25,31 @@ export const metadata: Metadata = {
     },
 };
 
-const teamJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'AboutPage',
-    url: 'https://quepia.com/sobre-nosotros',
-    name: 'Sobre Nosotros | Quepia',
-    description: 'Consultora creativa fundada en 2020 en Villa Carlos Paz, Córdoba, Argentina.',
-    mainEntity: {
-        '@type': 'Organization',
-        '@id': 'https://quepia.com/#organization',
-        name: 'Quepia',
-        foundingDate: '2020',
-        employee: [
-            {
-                '@type': 'Person',
-                name: 'Lautaro López Labrin',
-                jobTitle: 'Director Creativo',
-                worksFor: { '@type': 'Organization', name: 'Quepia' },
-            },
-            {
-                '@type': 'Person',
-                name: 'Camila De Angelis',
-                jobTitle: 'Diseñadora',
-                worksFor: { '@type': 'Organization', name: 'Quepia' },
-            },
-        ],
-    },
-};
-
 export default async function AboutPage() {
     const team = await getTeamMembersServer();
+    const people = team.map(member => ({
+        '@type': 'Person',
+        name: member.nombre,
+        jobTitle: member.rol,
+        worksFor: { '@id': 'https://quepia.com/#organization' },
+    }));
+    const teamJsonLd = {
+        '@context': 'https://schema.org',
+        '@type': 'AboutPage',
+        url: 'https://quepia.com/sobre-nosotros',
+        name: 'Sobre Nosotros | Quepia - Consultora Creativa',
+        description: 'Consultora creativa de Villa Carlos Paz, Córdoba, Argentina, desde 2020.',
+        mainEntity: {
+            '@type': 'Organization',
+            '@id': 'https://quepia.com/#organization',
+            name: 'Quepia - Consultora Creativa',
+            foundingDate: '2020',
+            ...(people.length ? {
+                employee: people,
+                founder: people.filter((_, index) => /fundador/i.test(team[index].rol)),
+            } : {}),
+        },
+    };
 
     return (
         <>

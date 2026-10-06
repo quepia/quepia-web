@@ -58,7 +58,7 @@ export default function HeroSection() {
           <h2 className="mb-4 text-lg text-white/80">Branding, redes sociales y producción audiovisual para marcas de Córdoba.</h2>
 
           <p className="mb-10 max-w-xl text-base leading-relaxed text-[#a1a1aa] md:text-lg">
-            Somos Quepia, una agencia creativa con sede en Villa Carlos Paz. Trabajamos con empresas de toda la provincia, combinando diseño, estrategia y producción de contenido.
+            Somos Quepia, una consultora creativa con sede en Villa Carlos Paz. Trabajamos con empresas de toda la provincia, combinando diseño, estrategia y producción de contenido.
           </p>
 
           <div className="flex flex-wrap items-center gap-5">

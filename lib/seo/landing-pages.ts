@@ -19,7 +19,7 @@ export const industries = [
   ] }
 ] as const;
 export const locations = [
-  { slug: 'villa-carlos-paz', title: 'Agencia creativa en Villa Carlos Paz, Córdoba, Argentina', sections: [
+  { slug: 'villa-carlos-paz', title: 'Consultora creativa en Villa Carlos Paz, Córdoba, Argentina', sections: [
     { title: 'Nuestra base de trabajo', text: 'Quepia tiene base en Villa Carlos Paz. Acompañamos marcas con branding, diseño gráfico, gestión de redes, fotografía, producción audiovisual y packaging. La cercanía permite coordinar relevamientos y jornadas de producción cuando el proyecto los requiere. Las reuniones también pueden hacerse por videollamada para facilitar las revisiones y compartir materiales sin depender de encuentros presenciales en cada etapa.' },
     { title: 'Comunicación para una ciudad turística', text: 'En negocios de turismo y servicios, las imágenes del espacio, la claridad de la propuesta y la información actualizada tienen un papel central. Podemos organizar producciones para mostrar ambientes, productos o actividades y convertirlas en piezas para distintos canales. El contenido se construye con datos aportados por cada marca. No suponemos que todos los negocios tienen la misma estacionalidad: revisamos sus objetivos y calendario antes de proponer una planificación.' },
     { title: 'Cómo coordinamos', text: 'Primero nos contás qué necesitás y qué materiales tenés. Después definimos alcance, entregables y revisiones. Cuando una producción requiere traslado, se acuerdan las condiciones en la propuesta. Si tu equipo trabaja fuera de Carlos Paz, podemos sostener el proceso a distancia y concentrar las tareas presenciales en jornadas planificadas. Para coordinar un encuentro, consultanos previamente por los canales de contacto.' }

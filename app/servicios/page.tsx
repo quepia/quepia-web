@@ -28,25 +28,26 @@ export const metadata: Metadata = {
 const serviciosJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Service',
-  serviceType: 'Diseño Gráfico y Branding',
+  serviceType: 'Gestión de redes sociales',
+  url: 'https://quepia.com/servicios/gestion-de-redes-sociales',
   provider: {
-    '@type': 'LocalBusiness',
+    '@type': 'ProfessionalService',
     '@id': 'https://quepia.com/#organization',
-    name: 'Quepia',
+    name: 'Quepia - Consultora Creativa',
   },
-  areaServed: { '@type': 'AdministrativeArea', name: 'Provincia de Córdoba, Argentina' },
+  areaServed: [
+    { '@type': 'City', name: 'Villa Carlos Paz' },
+    { '@type': 'Place', name: 'Valle de Punilla' },
+    { '@type': 'City', name: 'Córdoba' },
+    { '@type': 'AdministrativeArea', name: 'Provincia de Córdoba, Argentina' },
+  ],
   hasOfferCatalog: {
     '@type': 'OfferCatalog',
-    name: 'Servicios Creativos',
-    itemListElement: [
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Diseño Gráfico' } },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Branding' } },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Gestión de Redes Sociales' } },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Producción de Video' } },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Fotografía' } },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Cobertura con dron' } },
-      { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Diseño de Packaging' } },
-    ],
+    name: 'Servicios de Quepia - Consultora Creativa',
+    itemListElement: services.map(service => ({
+      '@type': 'Offer',
+      itemOffered: { '@type': 'Service', name: service.name, url: `https://quepia.com/servicios/${service.slug}` },
+    })),
   },
 };
 

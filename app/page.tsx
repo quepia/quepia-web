@@ -17,21 +17,21 @@ import { publicServiceTitle } from '@/lib/seo/public-services';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: { absolute: 'Agencia creativa en Córdoba: branding y redes | Quepia' },
+  title: { absolute: 'Consultora creativa en Córdoba: branding y redes | Quepia' },
   description: 'Branding, diseño gráfico, redes sociales, fotografía, video y dron en Villa Carlos Paz y toda la provincia de Córdoba, Argentina.',
   alternates: {
     canonical: 'https://quepia.com',
   },
   openGraph: {
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
-    description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Agencia creativa con sede en Villa Carlos Paz.',
+    description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Consultora creativa con sede en Villa Carlos Paz.',
     url: 'https://quepia.com',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Quepia Creative Agency' }],
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Quepia - Consultora Creativa' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
-    description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Agencia creativa con sede en Villa Carlos Paz.',
+    description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Consultora creativa con sede en Villa Carlos Paz.',
     images: ['/og-image.jpg'],
   },
 };
