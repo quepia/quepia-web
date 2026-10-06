@@ -19,7 +19,7 @@ export async function storyRequest<T = Record<string, unknown>>(input: object): 
 }
 
 export function StoryFields({ settings, onChange }: { settings: StorySettings; onChange: (settings: StorySettings) => void }) {
-  const set = <K extends keyof StorySettings>(key: K, value: StorySettings[K]) => onChange({ ...settings, [key]: value, ...(["request","rules"].includes(key) ? {prompt:""} : {}), ...(["design","primaryColor","accentColor","panelColor"].includes(key) ? {autoDesign:false} : {}) })
+  const set = <K extends keyof StorySettings>(key: K, value: StorySettings[K]) => onChange({ ...settings, [key]: value, ...(["request","rules","headline","cta","kicker","supportingText","backgroundSource","format","includeLogo"].includes(key) ? {prompt:""} : {}), ...(["design","primaryColor","accentColor","panelColor"].includes(key) ? {autoDesign:false} : {}) })
   return <div className="space-y-4">
     <label className="block text-xs text-white/60">Descripción de la historia
       <textarea rows={3} className={cn(STORY_INPUT,"mt-1.5")} value={settings.request} onChange={e => set("request", e.target.value)} maxLength={4000} placeholder="Qué querés comunicar y qué debería verse" />

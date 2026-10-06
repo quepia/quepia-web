@@ -53,9 +53,44 @@ export const STORY_JOB_LABELS: Record<StoryJobStatus, string> = {
   queued: "En cola", running: "Generando", succeeded: "Para revisar", failed: "Falló",
   needs_attention: "Requiere revisión", cancelled: "Cancelada",
 }
+// Read only explicitly labeled copy from older MCP cards; never infer it from
+// the card title or narrative. Saved fields, including empty strings, win.
+export function storyCopyFromDescription(description: string): Partial<StorySettings> {
+  const fields: Record<string, keyof StorySettings | null> = {
+    "objetivo": null, "visual": null, "referencias": null, "referencia": null,
+    "texto exacto": "headline", "titular": "headline", "titular exacto": "headline",
+    "cta": "cta", "llamado a la acción": "cta", "llamado a la accion": "cta",
+    "kicker": "kicker", "etiqueta": "kicker", "texto secundario": "supportingText",
+    "información secundaria": "supportingText", "informacion secundaria": "supportingText",
+    "restricciones": "rules",
+  }
+  const result: Partial<StorySettings> = {}
+  const markers = [...description.matchAll(/^[ \t]*(?:[-*]\s+)?(?:\*\*)?([^:\n]+?)(?:\*\*)?:[ \t]*(?:\*\*)?/gm)]
+    .filter(match => Object.hasOwn(fields, match[1].trim().toLowerCase()))
+  for (let i = 0; i < markers.length; i++) {
+    const match = markers[i]
+    const key = fields[match[1].trim().toLowerCase()]
+    if (!key || Object.hasOwn(result, key)) continue
+    const value = description.slice(match.index! + match[0].length, markers[i + 1]?.index ?? description.length).trim()
+    // An oversized block is ambiguous; leave it for AI preparation instead of truncating exact copy.
+    const parsed = storySettingsSchema.shape[key].safeParse(value)
+    if (parsed.success) Object.assign(result, { [key]: parsed.data })
+  }
+  return result
+}
+
 export function readStorySettings(metadata: unknown, task?: { descripcion?: string | null; due_date?: string | null }): StorySettings {
-  const result = storySettingsSchema.safeParse((metadata as { story?: unknown } | null)?.story)
-  const settings = result.success ? result.data : { ...EMPTY_STORY, referenceAssetIds: [], referenceDriveFileIds: [] }
+  const raw = (metadata as { story?: unknown } | null)?.story
+  const saved = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+  const inferred = storyCopyFromDescription(task?.descripcion || "")
+  // Validate fields separately so one stale field cannot discard all exact copy.
+  const values: Record<string, unknown> = { ...inferred }
+  for (const key of Object.keys(storySettingsSchema.shape) as (keyof StorySettings)[]) {
+    if (!Object.hasOwn(saved, key)) continue
+    const parsed = storySettingsSchema.shape[key].safeParse(saved[key])
+    if (parsed.success) values[key] = parsed.data
+  }
+  const settings = storySettingsSchema.parse(values)
   return { ...settings, renderMode: settings.backgroundSource === "bank" ? "ai-overlay" : "full-ai", mode: "creative", prompt: settings.renderMode === "legacy" ? "" : settings.prompt, request: settings.request || (task?.descripcion || "").trim().slice(0,4000), date: settings.date || task?.due_date?.slice(0,10) || "" }
 }
 

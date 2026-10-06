@@ -474,6 +474,21 @@ export const getTaskInputSchema = z
     rejectBothSelectors(context, value, "project_id", "project_query");
   });
 
+// Exact image copy lives in task.type_metadata.story, shared with the story editor.
+export const taskStoryInputSchema = z.object({
+  request: z.string().trim().max(4000).optional().describe("Creative direction and objective; not image copy"),
+  headline: z.string().trim().max(120).optional().describe("Exact main headline printed in the image"),
+  cta: z.string().trim().max(70).optional().describe("Exact call to action printed in the image"),
+  kicker: z.string().trim().max(60).optional(),
+  supportingText: z.string().trim().max(180).optional().describe("Exact secondary text printed in the image"),
+  rules: z.string().trim().max(3000).optional(),
+  format: z.enum(["story", "portrait", "square"]).optional(),
+  backgroundSource: z.enum(["bank", "ai"]).optional(),
+  referenceAssetIds: z.array(uuidSchema).max(4).optional(),
+  referenceDriveFileIds: z.array(z.string().regex(/^[a-zA-Z0-9_-]{10,200}$/)).max(4).optional(),
+  includeLogo: z.boolean().optional(),
+}).strict().refine(value => Object.keys(value).length > 0, "Supply at least one story field");
+
 export const createTaskInputSchema = z
   .object({
     idempotency_key: idempotencyKeySchema,
@@ -484,6 +499,7 @@ export const createTaskInputSchema = z
     title: taskTitleSchema,
     description: z.string().trim().max(5_000).optional(),
     social_copy: z.string().trim().max(5_000).optional(),
+    story: taskStoryInputSchema.optional(),
     priority: prioritySchema.optional(),
     deadline: deadlineSchema.optional(),
     labels: labelsSchema.optional(),
@@ -503,6 +519,7 @@ const batchTaskSchema = z
     title: taskTitleSchema,
     description: z.string().trim().max(5_000).optional(),
     social_copy: z.string().trim().max(5_000).optional(),
+    story: taskStoryInputSchema.optional(),
     priority: prioritySchema.optional(),
     deadline: deadlineSchema.optional(),
     labels: labelsSchema.optional(),
@@ -543,6 +560,7 @@ export const updateTaskInputSchema = z
     // null limpia el campo; omitirlo lo deja como esta.
     description: z.string().trim().max(5_000).nullable().optional(),
     social_copy: z.string().trim().max(5_000).nullable().optional(),
+    story: taskStoryInputSchema.optional(),
     priority: prioritySchema.optional(),
     deadline: deadlineSchema.nullable().optional(),
     labels: labelsSchema.optional(),
@@ -564,6 +582,7 @@ export const updateTaskInputSchema = z
       "title",
       "description",
       "social_copy",
+      "story",
       "priority",
       "deadline",
       "labels",

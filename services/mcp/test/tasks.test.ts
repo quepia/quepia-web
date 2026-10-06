@@ -446,3 +446,17 @@ describe("task tool call mapping", () => {
     });
   });
 });
+
+describe("structured story task copy", () => {
+  const story = { headline: "Escapate este finde", cta: "Consultanos", supportingText: "Cabañas junto al río", backgroundSource: "bank" };
+  it("accepts exact copy for individual, batch and story-only updates", () => {
+    expect(createTaskInputSchema.parse({ idempotency_key: IDEMPOTENCY_KEY, project_id: PROJECT_ID, title: "Historia del finde", story }).story).toEqual(story);
+    expect(createTasksBatchInputSchema.parse({ idempotency_key: IDEMPOTENCY_KEY, project_id: PROJECT_ID, tasks: [{ title: "Historia", story }] }).tasks[0].story).toEqual(story);
+    expect(updateTaskInputSchema.parse({ idempotency_key: IDEMPOTENCY_KEY, task_id: TASK_ID, story: { cta: "" } }).story).toEqual({ cta: "" });
+  });
+  it("rejects arbitrary metadata, invalid photo IDs and overlong exact copy", () => {
+    for (const story of [{ headline: "x".repeat(121) }, { referenceAssetIds: ["invented"] }, { admin: true }, {}]) {
+      expect(createTaskInputSchema.safeParse({ idempotency_key: IDEMPOTENCY_KEY, project_id: PROJECT_ID, title: "Historia", story }).success).toBe(false);
+    }
+  });
+});

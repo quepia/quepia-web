@@ -356,7 +356,7 @@ export const TASK_TOOLS = [
     rpc: "mcp_tasks_create_task",
     title: "Create a task",
     purpose:
-      "Creates one task at the end of its column. Without a column selector it lands in the first column of the project. For stories in a Historias column, put the complete piece brief in description using Objetivo:, Visual:, Texto exacto:, CTA:, Restricciones: and Referencias: (asset UUIDs or Drive file IDs from the client image bank). Do not use the card title as image copy. The Historias tab reads the description and prepares the image prompt automatically. The client brief reference_links entry with note Banco de imágenes identifies the Drive photo folder; do not invent reference IDs.",
+      "Creates one task at the end of its column. Without a column selector it lands in the first column of the project. For stories in a Historias column, supply story with publication-ready exact headline and cta (write the actual copy, never instructions such as adding a headline), plus kicker and supportingText when needed. Use story.request for objective and visual direction, story.rules for restrictions, story.format for dimensions, story.backgroundSource for bank or ai, and story.referenceAssetIds/referenceDriveFileIds for real photo IDs from project context. These attributes populate Editar historia directly and are preserved during generation. Keep title as an internal card name and description as the human-readable brief; social_copy is a caption, not text printed in the image. Read intelligence_get_project_context first, follow the client brief and approved strategy, and do not invent prices, promotions, contacts or reference IDs. If exact copy is supplied by the user, preserve it; otherwise compose concise finished copy from known facts. The brief reference_links entry with note Banco de imágenes identifies the photo folder. Legacy descriptions may use Objetivo:, Visual:, Titular exacto:, Texto secundario:, CTA: and Restricciones:.",
     inputSchema: createTaskInputSchema,
     writes: true,
     destructive: false,
@@ -366,7 +366,7 @@ export const TASK_TOOLS = [
     rpc: "mcp_tasks_create_tasks_batch",
     title: "Create many tasks at once",
     purpose:
-      `Creates up to ${TASK_BATCH_MAX} tasks in one project in a single write. Either every task is created or none is, and one operation_id undoes the whole batch. Use this to turn a plan into cards instead of calling tasks_create_task repeatedly. For stories in a Historias column, put the complete piece brief in description using Objetivo:, Visual:, Texto exacto:, CTA:, Restricciones: and Referencias: (asset UUIDs or Drive file IDs from the client image bank). Do not use the card title as image copy. The Historias tab reads the description and prepares the image prompt automatically. The client brief reference_links entry with note Banco de imágenes identifies the Drive photo folder; do not invent reference IDs.`,
+      `Creates up to ${TASK_BATCH_MAX} tasks in one project in a single write. Either every task is created or none is, and one operation_id undoes the whole batch. Use this to turn a plan into cards instead of calling tasks_create_task repeatedly. For stories in a Historias column, supply story with publication-ready exact headline and cta (write the actual copy, never instructions such as adding a headline), plus kicker and supportingText when needed. Use story.request for objective and visual direction, story.rules for restrictions, story.format for dimensions, story.backgroundSource for bank or ai, and story.referenceAssetIds/referenceDriveFileIds for real photo IDs from project context. These attributes populate Editar historia directly and are preserved during generation. Keep title as an internal card name and description as the human-readable brief; social_copy is a caption, not text printed in the image. Read intelligence_get_project_context first, follow the client brief and approved strategy, and do not invent prices, promotions, contacts or reference IDs. If exact copy is supplied by the user, preserve it; otherwise compose concise finished copy from known facts. The brief reference_links entry with note Banco de imágenes identifies the photo folder. Legacy descriptions may use Objetivo:, Visual:, Titular exacto:, Texto secundario:, CTA: and Restricciones:.`,
     inputSchema: createTasksBatchInputSchema,
     writes: true,
     destructive: false,
@@ -376,7 +376,7 @@ export const TASK_TOOLS = [
     rpc: "mcp_tasks_update_task",
     title: "Update a task",
     purpose:
-      "Changes fields, column or completion of one task. Send null in a nullable field to clear it; omitted fields stay as they are.",
+      "Changes fields, column or completion of one task. Send story to patch the story editor attributes (headline, cta, kicker, supportingText, request, rules, format, backgroundSource, reference IDs, includeLogo); omitted story fields keep their saved values and an empty string clears copy. Story changes invalidate the prepared image prompt so generation uses the new copy. Send null in a nullable task field to clear it; omitted fields stay as they are.",
     inputSchema: updateTaskInputSchema,
     writes: true,
     destructive: false,

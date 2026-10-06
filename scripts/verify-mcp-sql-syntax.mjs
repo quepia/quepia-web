@@ -19,6 +19,7 @@ const expectedMigrationSuffixes = [
   "_mcp_tasks_control_plane.sql",
   "_mcp_tasks_read_rpcs.sql",
   "_mcp_tasks_write_rpcs.sql",
+  "_mcp_story_task_contract.sql",
   "_mcp_tasks_detail_rpcs.sql",
   "_mcp_tasks_notifications_and_access.sql",
   "_mcp_tasks_notify_without_email.sql",
