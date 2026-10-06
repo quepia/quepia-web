@@ -2,6 +2,7 @@ import "server-only"
 import sharp from "sharp"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { ClientBrief } from "@/types/sistema"
+import { createAdminClient } from "@/lib/sistema/supabase/admin"
 import { ASSET_BUCKET } from "@/lib/sistema/assets-storage"
 import { downloadDriveFile, listDriveImageBank } from "@/lib/sistema/google-drive-backup"
 import { ZernioRouteError } from "@/lib/zernio/server"
@@ -65,12 +66,16 @@ export async function referencePaths(server: SupabaseClient, _taskId: string, pr
   }
   return paths
 }
-export async function readStoryReference(server: SupabaseClient, path: string) {
+export async function readStoryReference(_server: SupabaseClient, path: string) {
   let bytes: Uint8Array
   if (path.startsWith("drive:")) bytes=(await downloadDriveFile(path.slice(6),100*1024*1024)).data
   else {
-    const {data,error}=await server.storage.from(ASSET_BUCKET).download(path)
-    if (error || !data || data.size>100*1024*1024) throw new Error("No se pudo leer la referencia")
+    // Paths come from referencePaths (authorized, current, non-revoked project
+    // assets) or the authorized brief. Storage has no member SELECT policy for
+    // task photos; use the same server-only reader as the generation worker.
+    const {data,error}=await createAdminClient().storage.from(ASSET_BUCKET).download(path)
+    if (error || !data) throw new Error("No se pudo descargar la foto del proyecto", { cause: error })
+    if (data.size>100*1024*1024) throw new Error("La foto del proyecto supera el límite de 100 MB")
     bytes=new Uint8Array(await data.arrayBuffer())
   }
   return sharp(bytes,{limitInputPixels:100_000_000}).rotate().resize(2560,2560,{fit:"inside",withoutEnlargement:true}).png().toBuffer()
