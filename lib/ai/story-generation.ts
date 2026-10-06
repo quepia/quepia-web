@@ -37,7 +37,7 @@ export { referencePaths } from "./story-references"
 import { referencePaths, readStoryReference, storyDesignReferencePaths } from "./story-references"
 import { prepareStory } from "./story-preparation"
 
-export async function enqueueStories(session: QuepiaSession, projectId: string, ids: string[], batchKey: string, budget: number) {
+export async function enqueueStories(session: QuepiaSession, projectId: string, ids: string[], batchKey: string) {
   const model = STORY_MODEL()
   const { data: existing, error: existingError } = await session.server.from("sistema_story_generations").select("*")
     .eq("project_id",projectId).eq("created_by",session.user.id).eq("batch_key",batchKey)
@@ -73,7 +73,7 @@ export async function enqueueStories(session: QuepiaSession, projectId: string, 
     jobs.push({ ...snapshot, reserved_usd: storyReservation(settings), fingerprint: crypto.createHash("sha256").update(JSON.stringify(snapshot)).digest("hex") })
   }
   const { data, error } = await createAdminClient().rpc("sistema_enqueue_stories", {
-    p_actor: session.user.id, p_batch: batchKey, p_jobs: jobs, p_budget: budget,
+    p_actor: session.user.id, p_batch: batchKey, p_jobs: jobs, p_budget: Math.ceil(jobs.reduce((sum, job) => sum + job.reserved_usd, 0) * 100) / 100,
     p_daily_limit: Math.floor(envNumber("STORIES_DAILY_LIMIT", 50)), p_daily_budget: envNumber("STORIES_DAILY_BUDGET_USD", 25),
   })
   if (error) {

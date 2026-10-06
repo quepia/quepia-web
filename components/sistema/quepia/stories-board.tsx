@@ -29,7 +29,6 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
   const [count,setCount] = useState(5)
   const [date,setDate] = useState(today)
   const [columnId,setColumnId] = useState(columns[0]?.id || "")
-  const [budget,setBudget] = useState(5)
   const [rulesOpen,setRulesOpen] = useState(false)
   const [rules,setRules] = useState("")
   const [filter,setFilter] = useState("all")
@@ -91,7 +90,7 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
   }
   async function generate(){
     const batchKey=generationKey.current || crypto.randomUUID(); generationKey.current=batchKey
-    await storyRequest({action:"generate",projectId,taskIds:selected,batchKey,budget})
+    await storyRequest({action:"generate",projectId,taskIds:selected,batchKey})
     generationKey.current=null; setSelected([])
   }
 
@@ -105,13 +104,18 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
     {data&&!data.configured&&<p className="mb-4 rounded-lg bg-amber-500/10 p-3 text-xs text-amber-200">La generación con IA está pendiente de configuración. Podés preparar historias; para generar la pieza completa hace falta configurar OpenAI.</p>}
     {data&&!data.brief&&<p className="mb-4 rounded-lg bg-amber-500/10 p-3 text-xs text-amber-200">Este cliente necesita un brief para preparar prompts y generar imágenes con su identidad.</p>}
     {data&&<>
+      <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.025] p-4">
+        <p className="text-sm text-white/80">Saldo mensual disponible en la app: <strong className="text-quepia-cyan">USD {data.monthly.remaining.toFixed(2)}</strong></p>
+        <p className="mt-1 text-xs text-white/45">Compartido entre clientes · Límite: USD {data.monthly.limit.toFixed(2)} · Consumido: USD {data.monthly.spent.toFixed(2)} · Reservado: USD {data.monthly.reserved.toFixed(2)}. No representa el saldo de la cuenta de OpenAI.</p>
+      </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2"><select aria-label="Filtrar historias" className={cn(STORY_INPUT,"w-auto")} value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas las historias</option><option value="today">Hoy</option><option value="queued">En cola</option><option value="running">Generando</option><option value="succeeded">Para revisar</option><option value="failed">Fallidas</option><option value="needs_attention">Requieren revisión</option></select><button className={STORY_BUTTON} disabled={Boolean(busy)} onClick={()=>{setSelected(visibleTasks.slice(0,20).map(task=>task.id));generationKey.current=null}}>Seleccionar hasta 20</button></div>
         {pending&&<span className="flex items-center gap-2 text-xs text-quepia-cyan"><Loader2 size={13} className="animate-spin"/>Procesando historias</span>}
       </div>
       {selected.length>0&&<div className="mb-5 rounded-xl border border-quepia-cyan/20 bg-quepia-cyan/5 p-4">
-        <div className="flex flex-wrap items-center gap-3"><span className="text-sm text-white/80">{selected.length} seleccionadas</span><label className="flex items-center gap-2 text-xs text-white/60">Presupuesto del lote (USD)<input type="number" min={0} max={100} step={0.5} value={budget} className={cn(STORY_INPUT,"w-20")} onChange={e=>setBudget(Number(e.target.value))}/></label><button disabled={Boolean(busy)||!selectedReady||budget<reservation||reservation>(data?.monthly.remaining ?? 0)||selected.length>20} className={cn(STORY_BUTTON,"border-quepia-cyan/40 text-quepia-cyan")} onClick={()=>void action("generate",generate)}>{busy==="generate"?<Loader2 size={14} className="animate-spin"/>:<Sparkles size={14}/>}Generar seleccionadas</button><button className={STORY_BUTTON} onClick={()=>{setSelected([]);generationKey.current=null}}>Limpiar selección</button></div>
-        <p className="mt-2 text-[11px] text-white/45">Con fotos del banco, OpenAI genera el diseño en una capa transparente y el sistema la coloca sobre la foto original, sin regenerarla. Los textos, el logo y los recursos gráficos los resuelve la IA usando el brief y los diseños de referencia. Presupuesto mensual compartido: USD {data?.monthly.spent.toFixed(2)} / 5. Reservado: USD {data?.monthly.reserved.toFixed(2)}. Disponible: USD {data?.monthly.remaining.toFixed(2)}. Reserva de este lote: USD {reservation.toFixed(2)}. El costo real depende del consumo de OpenAI; no es una cotización ni un tope garantizado. Cada regeneración es un nuevo intento.</p>
+        <div className="flex flex-wrap items-center gap-3"><span className="text-sm text-white/80">{selected.length} seleccionadas</span><button disabled={Boolean(busy)||!selectedReady||reservation>(data?.monthly.remaining ?? 0)||selected.length>20} className={cn(STORY_BUTTON,"border-quepia-cyan/40 text-quepia-cyan")} onClick={()=>void action("generate",generate)}>{busy==="generate"?<Loader2 size={14} className="animate-spin"/>:<Sparkles size={14}/>}Generar seleccionadas</button><button className={STORY_BUTTON} onClick={()=>{setSelected([]);generationKey.current=null}}>Limpiar selección</button></div>
+        <p className="mt-2 text-[11px] text-white/45">Con fotos del banco, OpenAI genera el diseño en una capa transparente y el sistema la coloca sobre la foto original, sin regenerarla. Los textos, el logo y los recursos gráficos los resuelve la IA usando el brief y los diseños de referencia. Reserva automática de este lote: USD {reservation.toFixed(2)}. El costo real depende del consumo de OpenAI; no es una cotización ni un tope garantizado. Cada regeneración es un nuevo intento.</p>
+        {reservation>data.monthly.remaining&&<p role="status" className="mt-2 text-xs text-amber-200">El saldo mensual disponible de la app no alcanza para este lote. Seleccioná menos historias o esperá a que se libere saldo reservado.</p>}
         {!selectedReady&&<p className="mt-2 text-xs text-amber-200">Completá el brief para generar con IA, o elegí una foto para composición fiel. Esperá a que terminen las historias que ya están generando.</p>}
       </div>}
       {visibleTasks.length===0?<div className="rounded-2xl border border-dashed border-white/10 p-14 text-center"><ImageIcon className="mx-auto mb-3 text-white/20" size={32}/><p className="text-sm text-white/60">Todavía no hay historias en esta vista.</p><p className="mt-2 text-xs text-white/35">Creá una historia o prepará un lote desde una descripción.</p></div>:<div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">{visibleTasks.map(task=>{

@@ -21,7 +21,7 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create"), projectId: uuid, columnId: uuid, drafts: z.array(draftSchema).min(1).max(20) }),
   z.object({ action: z.literal("save"), projectId: uuid, taskId: uuid, title: z.string().trim().min(1).max(200), settings: storySettingsSchema }),
   z.object({ action: z.literal("prompt"), projectId: uuid, taskId: uuid, settings: storySettingsSchema }),
-  z.object({ action: z.literal("generate"), projectId: uuid, taskIds: z.array(uuid).min(1).max(20), batchKey: uuid, budget: z.number().min(0).max(100) }),
+  z.object({ action: z.literal("generate"), projectId: uuid, taskIds: z.array(uuid).min(1).max(20), batchKey: uuid }),
   z.object({ action: z.literal("process"), projectId: uuid }),
   z.object({ action: z.enum(["approve", "recover", "cancel"]), projectId: uuid, jobId: uuid }),
   z.object({ action: z.literal("profile"), projectId: uuid, rules: z.string().trim().max(8000) }),
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true })
     }
     if (input.action === "generate") {
-      const jobs = await enqueueStories(session, input.projectId, [...new Set(input.taskIds)], input.batchKey, input.budget)
+      const jobs = await enqueueStories(session, input.projectId, [...new Set(input.taskIds)], input.batchKey)
       after(async () => { try { await processStoryQueue(input.projectId) } catch { console.error("[Stories] No se pudo procesar la cola") } })
       return NextResponse.json({ jobs }, { status: 202 })
     }
