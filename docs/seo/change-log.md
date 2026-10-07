@@ -28,3 +28,11 @@
 - Archivos: `lib/seo/local-search.ts`, `components/seo/LocationPage.tsx`, `app/villa-carlos-paz/page.tsx`, `app/cordoba/page.tsx`, `public/llms.txt`.
 - Validación: lint de archivos modificados y typecheck correctos; build completo correcto con NODE_USE_ENV_PROXY=1 (advertencias previas en otros archivos). HTML generado de ambas páginas verificado: resumen y cuatro respuestas visibles por página, JSON-LD coincidente con el contenido, canonical y metadata locales. Publicación pendiente de verificar tras integrar el commit.
 - Propósito: facilitar la comprensión y recuperación de información local por personas y asistentes; llms.txt es complementario y no garantiza citas ni recomendaciones.
+
+### Verificación de publicación local
+
+- Commit de implementación: `df24ba8fcf104de1e50910cda92c4ff74cb3e86b`.
+- Vercel: despliegue `dpl_2EwnxvNhapV7og9xkM3B9DAiaCM6`, producción READY con el SHA esperado y alias `quepia.com`.
+- `/villa-carlos-paz` y `/cordoba`: HTTP 200, resumen y cuatro preguntas/respuestas presentes en HTML visible por página, datos Service y FAQPage coherentes, vínculo al proveedor `https://quepia.com/#organization`, canonical correcto, locale es_AR y robots index/follow.
+- `/llms.txt`: HTTP 200 y sección de cobertura local publicada con enlaces a ambas páginas.
+- Resultado: mejoras publicadas y verificadas por Codex. No se ha medido todavía un cambio en citas, recomendaciones o tráfico de asistentes.
