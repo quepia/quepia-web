@@ -8,7 +8,7 @@ import { useConfig } from '@/components/layout/ClientLayout';
 
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import JsonLd from '@/components/seo/JsonLd';
-import { whatsappUrl } from '@/components/seo/PublicContent';
+import { CONTACT_PHONE_DISPLAY, whatsappUrl } from '@/lib/contact';
 
 import ContactFormCard from '@/components/contact/ContactFormCard';
 import { getInstagramLabel, getInstagramUrl } from '@/lib/instagram';
@@ -43,7 +43,7 @@ export default function ContactoClient() {
     {
       icon: Phone,
       label: 'WhatsApp',
-      value: '+54 9 351 397-0227',
+      value: CONTACT_PHONE_DISPLAY,
       href: whatsappUrl(),
     },
     {

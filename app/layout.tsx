@@ -1,3 +1,4 @@
+import { CONTACT_PHONE } from '@/lib/contact';
 import JsonLd from "@/components/seo/JsonLd";
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
@@ -85,7 +86,7 @@ export default async function RootLayout({
     logo: 'https://quepia.com/Logo_Quepia.svg',
     image: 'https://quepia.com/og-image.jpg',
     email: config.email_contacto || 'hola@quepia.com',
-    telephone: '+54 9 351 397-0227',
+    telephone: CONTACT_PHONE,
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Villa Carlos Paz',

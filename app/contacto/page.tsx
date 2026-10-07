@@ -1,3 +1,4 @@
+import { CONTACT_PHONE } from '@/lib/contact';
 import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import type { Metadata } from 'next';
 import ContactoClient from './ContactoClient';
@@ -33,7 +34,7 @@ const contactJsonLd = {
         '@id': 'https://quepia.com/#organization',
         name: 'Quepia',
         email: 'hola@quepia.com',
-        telephone: '+54-351-397-0227',
+        telephone: CONTACT_PHONE,
         contactPoint: {
             '@type': 'ContactPoint',
             contactType: 'customer service',

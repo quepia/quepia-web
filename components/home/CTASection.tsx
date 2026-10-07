@@ -1,6 +1,6 @@
 'use client';
 
-import { whatsappUrl } from '@/components/seo/PublicContent';
+import { whatsappUrl } from '@/lib/contact';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 

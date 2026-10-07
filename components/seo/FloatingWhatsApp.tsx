@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { MessageCircle } from 'lucide-react';
 import { services } from '@/lib/seo/services';
 import { isTrackableRoute } from '@/lib/marketing-analytics';
-import { whatsappUrl } from './PublicContent';
+import { whatsappUrl } from '@/lib/contact';
 export default function FloatingWhatsApp() {
   const pathname = usePathname();
   const [formVisible, setFormVisible] = useState(false);

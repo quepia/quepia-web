@@ -5,7 +5,8 @@ import { projectSlug } from '@/lib/seo/projects-slug';
 import type { PublicProject } from '@/lib/seo/projects';
 import { getProjectCoverImage } from '@/lib/project-images';
 import { getProjectCategoryLabels } from '@/lib/project-categories';
-export const whatsappUrl = (service = 'mi proyecto') => `https://wa.me/543513970227?text=${encodeURIComponent(`Hola Quepia, quiero consultar por ${service}`)}`;
+import { whatsappUrl } from '@/lib/contact';
+export { whatsappUrl } from '@/lib/contact';
 export function PublicShell({ title, intro, path, children }: { title: string; intro?: string; path: string; children: React.ReactNode }) {
   return <section className="mx-auto max-w-[1200px] px-6 pb-28 pt-28 text-white md:px-12">
     <JsonLd data={breadcrumbs([{ name: title, path }])} />
