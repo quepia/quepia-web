@@ -17,7 +17,28 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const project = await getProject(slug);
   if (!project) notFound();
   const description = project.descripcion?.slice(0, 160) || `${project.titulo}: proyecto de ${getProjectCategoryLabels(project).join(', ')} realizado por Quepia, Villa Carlos Paz, Córdoba, Argentina.`;
-  return { title: `${project.titulo} | Caso de ${getProjectCategoryLabels(project).join(', ')}`, description, alternates: { canonical: `/trabajos/${slug}` }, openGraph: { title: project.titulo, description, url: `/trabajos/${slug}`, images: getProjectGalleryImages(project).slice(0, 1) } };
+  const socialTitle = `${project.titulo} | Quepia`;
+  const image = getProjectGalleryImages(project)[0] || '/og-image.jpg';
+  return {
+    title: `${project.titulo} | Caso de ${getProjectCategoryLabels(project).join(', ')}`,
+    description,
+    alternates: { canonical: `/trabajos/${slug}` },
+    openGraph: {
+      type: 'website',
+      locale: 'es_AR',
+      siteName: 'Quepia - Consultora Creativa',
+      title: socialTitle,
+      description,
+      url: `/trabajos/${slug}`,
+      images: [{ url: image, alt: `${project.titulo}: proyecto de Quepia` }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: socialTitle,
+      description,
+      images: [{ url: image, alt: `${project.titulo}: proyecto de Quepia` }],
+    },
+  };
 }
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
