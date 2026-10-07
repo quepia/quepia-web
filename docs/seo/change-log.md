@@ -18,3 +18,13 @@
 - HTML del build: las 16 fichas generadas tienen identidad y locale explícitos, títulos y descripciones coherentes entre Open Graph y Twitter, imagen del proyecto y texto alternativo.
 - Producción: Logo e Identidad CEL, Rohi Sommiers y Onix - Retrato y Productos respondieron HTTP 200 y pasaron esas comprobaciones de metadatos.
 - Resultado: corrección publicada y verificada; sin regresiones detectadas en las fichas revisadas. Registro realizado por Codex.
+
+## 2026-10-07 — Codex — búsqueda local y asistentes de IA
+
+- Alcance: `/villa-carlos-paz`, `/cordoba` y `/llms.txt`.
+- Problema: las páginas locales no ofrecían un resumen directo ni preguntas frecuentes locales; sus descripciones se cortaban desde el primer párrafo y las tarjetas sociales heredaban información genérica de la portada.
+- Cambio: resúmenes visibles con base real en Villa Carlos Paz y cobertura de Córdoba Capital/provincia, ocho preguntas y respuestas locales sobre servicios, logística y presupuesto; metadata local completa y consistente; datos Service vinculados a la organización y al área atendida; FAQPage con respuestas iguales al contenido visible; índice llms.txt ampliado con referencias a estas páginas.
+- Fuente factual: páginas de servicios y zonas ya publicadas. La gestión de redes y contenido orgánico mantiene la prioridad. No se añaden sucursales, cifras ni promesas de posicionamiento.
+- Archivos: `lib/seo/local-search.ts`, `components/seo/LocationPage.tsx`, `app/villa-carlos-paz/page.tsx`, `app/cordoba/page.tsx`, `public/llms.txt`.
+- Validación: lint de archivos modificados y typecheck correctos; build completo correcto con NODE_USE_ENV_PROXY=1 (advertencias previas en otros archivos). HTML generado de ambas páginas verificado: resumen y cuatro respuestas visibles por página, JSON-LD coincidente con el contenido, canonical y metadata locales. Publicación pendiente de verificar tras integrar el commit.
+- Propósito: facilitar la comprensión y recuperación de información local por personas y asistentes; llms.txt es complementario y no garantiza citas ni recomendaciones.
