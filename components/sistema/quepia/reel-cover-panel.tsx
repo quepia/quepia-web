@@ -285,7 +285,7 @@ export function ReelCoverPanel({
                                     src={selected.videoUrl}
                                     controls
                                     playsInline
-                                    preload="metadata"
+                                    preload="none"
                                     onLoadedMetadata={(e) => {
                                         setDuration(e.currentTarget.duration || 0)
                                         setVideoError("")

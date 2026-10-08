@@ -27,13 +27,6 @@ export const config = {
         '/admin/:path*',
         '/auth/:path*',
         '/oauth/:path*',
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public media, fonts, and WebAssembly assets
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|mp3|wav|ogg|woff|woff2|ttf|otf|wasm)$).*)',
+        // Public marketing/client pages do not need a first-party session refresh.
     ],
 };

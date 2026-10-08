@@ -1,5 +1,6 @@
 "use client"
 
+import { fetchAssetZip } from "@/lib/sistema/download-zip"
 import { createPortal } from "react-dom"
 import { useState, useEffect } from "react"
 import {
@@ -361,17 +362,7 @@ export function ClientAssetViewer({
             const versionIds = carouselGroup.map(({ asset }) => asset.current_version_id)
             const carouselName = activeAsset.nombre.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim() || "carousel"
 
-            const res = await fetch("/api/assets/zip", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token, versionIds, zipName: carouselName })
-            })
-
-            if (!res.ok) {
-                throw new Error("Error generando ZIP")
-            }
-
-            const blob = await res.blob()
+            const blob = await fetchAssetZip({ token, versionIds, zipName: carouselName })
             const url = URL.createObjectURL(blob)
             const link = document.createElement("a")
             link.href = url
@@ -379,13 +370,13 @@ export function ClientAssetViewer({
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
-            URL.revokeObjectURL(url)
+            setTimeout(() => URL.revokeObjectURL(url), 60_000)
         } catch (e) {
             console.error("Error downloading carousel:", e)
             trackExperienceMetric("errors_shown")
             toast({
                 title: "No se pudo descargar el carrusel",
-                description: "Prueba descargar cada imagen de forma individual.",
+                description: e instanceof Error ? e.message : "Prueba descargar cada imagen de forma individual.",
                 variant: "error"
             })
         } finally {

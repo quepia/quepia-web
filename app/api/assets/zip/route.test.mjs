@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { inflateRawSync } from 'node:zlib'
 import { projectModule } from '../../../../scripts/lib/load-project-module.mjs'
 
-function loadRoute({ project = 'project', missing = false } = {}) {
+function loadRoute({ project = 'project', missing = false, storageOnly = false } = {}) {
   const fetched = []
   const logged = []
   const versions = [
@@ -12,6 +12,7 @@ function loadRoute({ project = 'project', missing = false } = {}) {
     { id: 'drive-version', version_number: 2, storage_path: null, file_url: 'https://drive.google.com/file/d/drive-id/view', drive_file_id: 'drive-id', original_filename: 'design.webp',
       asset: { id: 'drive-asset', nombre: 'design', task_id: 'task', project_id: project, access_revoked: false } },
   ]
+  if (storageOnly) versions.pop()
   const admin = { from(table) {
     assert.notEqual(table, 'sistema_asset_zip_cache', 'ZIP caching must not write or read permanent archives')
     const query = {
@@ -83,4 +84,27 @@ test('a missing original produces an error instead of a partial ZIP', async () =
   const route = loadRoute({ missing: true })
   assert.equal((await route.POST(request())).status, 502)
   assert.equal(route.logged.length, 0)
+})
+
+const manifestRequest = () => new Request('https://quepia.test/api/assets/zip', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ token: 'client-token', versionIds: ['storage-version'], delivery: 'manifest' }),
+})
+
+test('Storage manifest signs authorized originals without fetching binary data', async t => {
+  t.mock.method(globalThis, 'fetch', () => { throw new Error('Binary traffic must bypass Vercel') })
+  const route = loadRoute({ storageOnly: true })
+  const response = await route.POST(manifestRequest())
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('cache-control'), 'private, no-store')
+  const manifest = await response.json()
+  assert.deepEqual(manifest.downloads, [{ name: 'storage-version-photo-v1.png', url: 'https://storage.example/original' }])
+  assert.deepEqual(manifest.texts, [{ name: 'copy-task-task.txt', text: 'caption' }])
+  assert.equal(route.logged.length, 1)
+})
+
+test('manifest cannot expose targets from another project', async () => {
+  const route = loadRoute({ project: 'other-project', storageOnly: true })
+  assert.equal((await route.POST(manifestRequest())).status, 403)
+  assert.deepEqual(route.fetched, [])
 })

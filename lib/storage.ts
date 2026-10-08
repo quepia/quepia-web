@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/client';
 
 const BUCKET_NAME = 'project-images';
 const MAX_UPLOAD_RETRIES = 2;
-const UPLOAD_TIMEOUT_MS = 45_000;
 const MAX_IMAGE_DIMENSION = 2400;
 const MIN_SIZE_TO_COMPRESS = 200_000;
 
@@ -84,23 +83,6 @@ async function compressImageIfNeeded(file: File): Promise<File> {
     }
 }
 
-async function postBinaryWithTimeout(url: string, file: File): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
-    try {
-        return await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': file.type || 'application/octet-stream',
-            },
-            body: file,
-            signal: controller.signal,
-        });
-    } finally {
-        clearTimeout(timeout);
-    }
-}
-
 async function requestSignedUploadTarget(folder: string, file: File): Promise<SignedUploadTarget> {
     const response = await fetch('/api/storage/upload-url', {
         method: 'POST',
@@ -140,52 +122,22 @@ async function requestSignedUploadTarget(folder: string, file: File): Promise<Si
  */
 export async function uploadImage(file: File, folder: string = 'proyectos'): Promise<string> {
     const preparedFile = await compressImageIfNeeded(file);
-    const filename = sanitizeFilename(preparedFile.name || file.name);
     let lastError = 'Error desconocido';
-
-    try {
-        const target = await requestSignedUploadTarget(folder, preparedFile);
-        const supabase = createClient();
-        const { error } = await supabase.storage
-            .from(target.bucket)
-            .uploadToSignedUrl(target.path, target.token, preparedFile);
-        if (error) {
-            throw new Error(error.message);
-        }
-        return target.publicUrl;
-    } catch (error) {
-        lastError = error instanceof Error ? error.message : 'fallo subida firmada';
-    }
-
+    const supabase = createClient();
     for (let attempt = 0; attempt <= MAX_UPLOAD_RETRIES; attempt += 1) {
         try {
-            const query = new URLSearchParams({
-                folder,
-                filename,
-            });
-
-            const response = await postBinaryWithTimeout(`/api/storage/upload?${query.toString()}`, preparedFile);
-
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                const detail = typeof payload?.error === 'string' ? payload.error : `HTTP ${response.status}`;
-                lastError = detail;
-            } else if (typeof payload?.url === 'string' && payload.url.length > 0) {
-                return payload.url;
-            } else {
-                lastError = 'respuesta inválida del servidor';
-            }
+            // A fresh target per attempt avoids reusing a partially completed upload.
+            // File bytes always travel directly to Storage, never through our API.
+            const target = await requestSignedUploadTarget(folder, preparedFile);
+            const { error } = await supabase.storage
+                .from(target.bucket)
+                .uploadToSignedUrl(target.path, target.token, preparedFile);
+            if (error) throw new Error(error.message);
+            return target.publicUrl;
         } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-                lastError = `timeout de subida (${UPLOAD_TIMEOUT_MS / 1000}s)`;
-            } else {
-                lastError = error instanceof Error ? error.message : 'fallo de red';
-            }
+            lastError = error instanceof Error ? error.message : 'fallo de subida directa';
         }
-
-        if (attempt < MAX_UPLOAD_RETRIES) {
-            await delay(400 * (attempt + 1));
-        }
+        if (attempt < MAX_UPLOAD_RETRIES) await delay(400 * (attempt + 1));
     }
 
     throw new Error(`Error uploading image: ${lastError}`);

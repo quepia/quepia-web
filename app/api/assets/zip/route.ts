@@ -194,6 +194,31 @@ export async function POST(request: Request) {
       }
     }
 
+    // Return only authorized, short-lived download targets when every original
+    // can be fetched directly by the browser. Drive originals remain private.
+    if (body?.delivery === "manifest" && files.every(file => isStoragePath(file.storage_path))) {
+      const downloads = await Promise.all(files.map(async file => {
+        const url = await createSignedUrl(file.storage_path, 15 * 60)
+        if (!url) throw new Error("No se pudo autorizar uno de los originales")
+        return {
+          name: `${file.version_id}-${buildZipEntryName(file.asset_name, file.original_filename ?? undefined, file.version_number)}`,
+          url,
+        }
+      }))
+      const texts = taskIds.flatMap(id => {
+        const task = taskMap.get(id)
+        return task?.social_copy ? [{ name: `copy-${id}-${sanitizeFilename(task.titulo || "tarea")}.txt`, text: task.social_copy }] : []
+      })
+      await logAssetAccess({
+        asset_id: files[0].asset_id, asset_version_id: files[0].version_id,
+        project_id: projectId || files[0].project_id, task_id: files[0].task_id,
+        actor_user_id: actorUserId, client_access_id: clientAccessId,
+        event_type: "zip", source, ip: request.headers.get("x-forwarded-for"),
+        user_agent: request.headers.get("user-agent"),
+      })
+      return NextResponse.json({ downloads, texts }, { headers: { "Cache-Control": "private, no-store" } })
+    }
+
     const archive = archiver("zip", { zlib: { level: 9 } })
     const stream = new PassThrough()
     const chunks: Buffer[] = []

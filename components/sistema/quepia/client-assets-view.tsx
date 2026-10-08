@@ -1,5 +1,6 @@
 "use client"
 
+import { fetchAssetZip } from "@/lib/sistema/download-zip"
 import React, { useState, useEffect, useMemo, useRef } from "react"
 import {
     Search,
@@ -77,7 +78,7 @@ function AssetPreview({ item, className }: { item: ClientAsset; className?: stri
                 muted
                 playsInline
                 loop
-                preload="metadata"
+                preload="none"
                 onMouseOver={e => e.currentTarget.play()}
                 onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0 }}
             />
@@ -428,13 +429,8 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
         if (versionIds.length === 0) return
 
         try {
-            const res = await fetch("/api/assets/zip", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token, versionIds, scope: "selected" })
-            })
-            if (!res.ok) throw new Error("Error generando ZIP")
-            const url = URL.createObjectURL(await res.blob())
+            const blob = await fetchAssetZip({ token, versionIds, scope: "selected" })
+            const url = URL.createObjectURL(blob)
             const link = document.createElement("a")
             link.href = url
             link.download = "quepia-assets.zip"
@@ -442,8 +438,8 @@ export function ClientAssetsView({ tasks, token, clientName, onUpdate }: ClientA
             link.click()
             link.remove()
             setTimeout(() => URL.revokeObjectURL(url), 60_000)
-        } catch {
-            toast({ title: "No se pudo descargar la selección", description: "Intentá nuevamente.", variant: "error" })
+        } catch (error) {
+            toast({ title: "No se pudo descargar la selección", description: error instanceof Error ? error.message : "Intentá nuevamente.", variant: "error" })
         }
     }
 
