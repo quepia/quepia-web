@@ -90,6 +90,8 @@ export async function privateImage(admin: SupabaseClient, path: string, maxBytes
   return sharp(Buffer.from(await data.arrayBuffer()), { limitInputPixels: 40_000_000 }).rotate().png().toBuffer()
 }
 
+class OpenAIImageRejectedError extends Error {}
+
 export async function generateOpenAIImage(input: { model: string; prompt: string; settings: StorySettings; references: Buffer[] }) {
   const key = process.env.OPENAI_API_KEY
   if (!key) throw new Error("Configurá OPENAI_API_KEY para generar")
@@ -109,6 +111,7 @@ export async function generateOpenAIImage(input: { model: string; prompt: string
   // No automatic provider retries: a timed-out call may already have been billed.
   const response = await fetch(`https://api.openai.com/v1/images/${endpoint}`, { method: "POST", headers, body, signal: AbortSignal.timeout(210_000) })
   if (!response.ok) {
+    const rejectionError = (message: string) => response.status === 400 ? new OpenAIImageRejectedError(message) : new Error(message)
     const payload = await response.json().catch(() => null)
     const code = payload?.error?.code
     const providerMessage = typeof payload?.error?.message === "string"
@@ -120,13 +123,13 @@ export async function generateOpenAIImage(input: { model: string; prompt: string
       size: parameters.size, referenceCount: input.references.length,
       message: providerMessage,
     })
-    if (response.status === 401) throw new Error("OpenAI rechazó la API key. Revisá OPENAI_API_KEY en Vercel.")
-    if (response.status === 429) throw new Error("OpenAI alcanzó su límite de uso o saldo. Revisá la facturación.")
-    if (code === "moderation_blocked" || code === "content_policy_violation") throw new Error("OpenAI bloqueó el pedido por sus reglas de contenido. Ajustá el texto o las referencias antes de volver a generar.")
-    if (response.status === 403) throw new Error("OpenAI no permite generar imágenes con esta cuenta. Revisá los permisos del proyecto y la verificación de la organización.")
-    if (code === "model_not_found") throw new Error("El modelo no está disponible para esta cuenta de OpenAI.")
-    if (response.status === 400 && providerMessage) throw new Error(`OpenAI rechazó el pedido: ${providerMessage}`)
-    throw new Error(`OpenAI no pudo generar la imagen (HTTP ${response.status}). Revisá el pedido y el acceso al modelo.`)
+    if (response.status === 401) throw rejectionError("OpenAI rechazó la API key. Revisá OPENAI_API_KEY en Vercel.")
+    if (response.status === 429) throw rejectionError("OpenAI alcanzó su límite de uso o saldo. Revisá la facturación.")
+    if (code === "moderation_blocked" || code === "content_policy_violation") throw rejectionError("OpenAI bloqueó el pedido por sus reglas de contenido. Ajustá el texto o las referencias antes de volver a generar.")
+    if (response.status === 403) throw rejectionError("OpenAI no permite generar imágenes con esta cuenta. Revisá los permisos del proyecto y la verificación de la organización.")
+    if (code === "model_not_found") throw rejectionError("El modelo no está disponible para esta cuenta de OpenAI.")
+    if (response.status === 400 && providerMessage) throw rejectionError(`OpenAI rechazó el pedido: ${providerMessage}`)
+    throw rejectionError(`OpenAI no pudo generar la imagen (HTTP ${response.status}). Revisá el pedido y el acceso al modelo.`)
   }
   const payload = await response.json()
   const encoded = payload?.data?.[0]?.b64_json
@@ -206,7 +209,7 @@ export async function runStoryJob(admin: SupabaseClient, job: WorkerJob) {
       ...(basePath ? { base_path: basePath } : {}),
       ...(outputPath ? { output_path: outputPath } : {}),
       ...(usage ? { usage, cost_usd: imageUsageCost(usage), provider_request_id: requestId } : {}),
-      ...(!providerStarted && !job.base_path ? { cost_usd: 0 } : {}),
+      ...((!providerStarted || error instanceof OpenAIImageRejectedError) && !job.base_path && !usage ? { cost_usd: 0 } : {}),
     }).eq("id", job.id).in("status", ["running", "needs_attention"])
   }
 }
