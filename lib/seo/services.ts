@@ -41,6 +41,30 @@ export const services = [
     ],
     "faq": [
       {
+        "q": "¿Puedo delegar el contenido de Instagram de mi negocio?",
+        "a": "Podemos trabajar la planificación, el calendario, el diseño y la redacción de contenidos. Antes de empezar acordamos las plataformas, las cantidades y quién programa o publica las piezas. La gestión de redes no supone automáticamente que todas las tareas de la cuenta estén incluidas."
+      },
+      {
+        "q": "¿El servicio incluye responder mensajes y comentarios?",
+        "a": "La respuesta a mensajes y comentarios es una responsabilidad distinta de producir contenidos. Definimos quién se encarga de la atención y de validar la información comercial antes de comenzar; no está incluida automáticamente en la propuesta."
+      },
+      {
+        "q": "¿Quién produce las fotos y los reels?",
+        "a": "El alcance puede incluir edición de reels. Si necesitás fotografías o grabaciones nuevas, coordinamos una producción y la presupuestamos según las locaciones, jornadas y entregables. También podemos revisar cómo integrar el material que ya tiene tu equipo."
+      },
+      {
+        "q": "¿Puedo contratar redes sociales y branding juntos?",
+        "a": "Sí. Podemos coordinar identidad visual y contenidos para redes con un criterio común. La propuesta distingue los entregables de branding, diseño y producción para que puedas evaluar el alcance de cada etapa."
+      },
+      {
+        "q": "¿Qué diferencia hay entre producir contenido y hacer community management?",
+        "a": "Producir contenido comprende preparar las piezas, sus textos y formatos. La atención cotidiana de la comunidad incluye otras tareas, como responder comentarios y mensajes. Al comparar propuestas, revisá quién publica, quién atiende consultas y qué seguimiento se acuerda."
+      },
+      {
+        "q": "¿Quepia gestiona Meta Ads o Google Ads?",
+        "a": "No gestionamos pauta publicitaria. Nuestro trabajo se enfoca en estrategia de marca y contenido orgánico. Diseñar piezas para una campaña no incluye configurar anuncios, administrar inversión ni optimizar una cuenta publicitaria."
+      },
+      {
         "q": "¿Cómo se define el presupuesto?",
         "a": "Según los entregables, las revisiones y la producción necesaria. Contanos el objetivo y los materiales disponibles para evaluar el alcance."
       },
