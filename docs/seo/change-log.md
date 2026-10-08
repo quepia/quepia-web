@@ -94,3 +94,11 @@
 - Repo: `rg` sin rastros de `397-0227`, `3970227`, `3513970227` ni enlaces `wa.me` sin el 9; solo quedan números de ejemplo en formularios y tests, y valores de muestra en `supabase-config.sql`.
 - Producción: home, `/contacto`, `/sobre-nosotros`, `/llms.txt` y las 36 URLs del sitemap revisadas sin el número anterior. El JSON-LD tiene `telephone` +5493517186433, los enlaces de WhatsApp apuntan a `wa.me/5493517186433` y la configuración pública muestra +54 9 351 718-6433.
 - Cambio: ninguno en código; solo este registro.
+
+## 2026-10-08 — Codex — metadata de Valle de Punilla
+
+- Evidencia: `/valle-de-punilla` respondía HTTP 200 pero `og:url` apuntaba a `https://quepia.com` y Open Graph/Twitter utilizaban el título de portada. Esta ruta no estaba incluida en la corrección de metadata local anterior.
+- Cambio: título, descripción y URL social específicos, coherentes con canonical; identidad Quepia, locale es_AR y texto alternativo de imagen. La descripción resume servicios ya visibles y la base real en Villa Carlos Paz.
+- Archivo: `app/valle-de-punilla/page.tsx`. Se conservan las mejoras recientes de redes sociales y el contenido de las otras zonas.
+- Validación: instalación con lockfile congelado, lint del archivo modificado, typecheck y build completo correctos (advertencias existentes en otros archivos/dependencias). HTML generado validado: canonical, URL social, títulos y descripciones coherentes, locale es_AR e indexación. Publicación pendiente de verificar tras integrar el commit.
+- Motivo: que la página de cobertura de Punilla se identifique correctamente al compartirla, sin confundirla con la portada. No se añaden páginas ni afirmaciones comerciales nuevas.
