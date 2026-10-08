@@ -28,9 +28,9 @@ Quepia no gestiona pauta publicitaria: diseña los creativos y piezas para campa
 
 ## Rubros
 
-- [Turismo y hotelería](https://quepia.com/rubros/turismo-y-hoteleria)
-- [Inmobiliarias](https://quepia.com/rubros/inmobiliarias)
-- [Gastronomía](https://quepia.com/rubros/gastronomia)
+- [Turismo y hotelería](https://quepia.com/rubros/turismo-y-hoteleria): contenido orgánico para redes, fotografía y producción audiovisual para mostrar alojamientos y propuestas turísticas.
+- [Inmobiliarias](https://quepia.com/rubros/inmobiliarias): fotografía inmobiliaria, producción audiovisual, branding y contenido para redes.
+- [Gastronomía](https://quepia.com/rubros/gastronomia): contenido orgánico para redes, fotografía de producto, identidad visual, diseño gráfico y packaging.
 
 ## Cobertura local y consultas frecuentes
 

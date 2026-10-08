@@ -36,3 +36,13 @@
 - `/villa-carlos-paz` y `/cordoba`: HTTP 200, resumen y cuatro preguntas/respuestas presentes en HTML visible por página, datos Service y FAQPage coherentes, vínculo al proveedor `https://quepia.com/#organization`, canonical correcto, locale es_AR y robots index/follow.
 - `/llms.txt`: HTTP 200 y sección de cobertura local publicada con enlaces a ambas páginas.
 - Resultado: mejoras publicadas y verificadas por Codex. No se ha medido todavía un cambio en citas, recomendaciones o tráfico de asistentes.
+
+## 2026-10-08 — Codex — páginas por rubro y cobertura local
+
+- Evidencia en producción: `/rubros/turismo-y-hoteleria` respondía HTTP 200 pero `og:url` apuntaba a la portada; Open Graph y Twitter mostraban el título y descripción genéricos del inicio. La misma plantilla se utiliza para inmobiliarias y gastronomía.
+- Alcance: las tres páginas `/rubros/*` existentes y sus referencias en `/llms.txt`.
+- Cambio: metadata específica y URL social coincidente con canonical; resúmenes visibles de servicios por rubro, base en Villa Carlos Paz y atención de Córdoba; enlaces contextuales a las dos páginas locales; datos WebPage con descripción igual al resumen y referencia a la organización; descripciones útiles de los rubros en llms.txt.
+- Fuente factual: servicios y contenido de los rubros ya publicados. Se conservan los casos reales y el diseño. No se añaden páginas, clientes, sucursales ni métricas.
+- Archivos: `app/rubros/[slug]/page.tsx`, `lib/seo/landing-pages.ts`, `public/llms.txt`.
+- Validación: lint y typecheck correctos. Build completo correcto con NODE_USE_ENV_PROXY=1 (advertencias previas en otros archivos). HTML de los tres rubros verificado: metadata, canonical/og:url, resumen visible, datos WebPage y enlaces locales. Publicación pendiente de verificar tras integrar el commit.
+- Motivo: corregir la identidad de las URLs compartidas y facilitar la comprensión de servicios y cobertura local por personas y asistentes.
