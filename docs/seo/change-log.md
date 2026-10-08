@@ -102,3 +102,10 @@
 - Archivo: `app/valle-de-punilla/page.tsx`. Se conservan las mejoras recientes de redes sociales y el contenido de las otras zonas.
 - Validación: instalación con lockfile congelado, lint del archivo modificado, typecheck y build completo correctos (advertencias existentes en otros archivos/dependencias). HTML generado validado: canonical, URL social, títulos y descripciones coherentes, locale es_AR e indexación. Publicación pendiente de verificar tras integrar el commit.
 - Motivo: que la página de cobertura de Punilla se identifique correctamente al compartirla, sin confundirla con la portada. No se añaden páginas ni afirmaciones comerciales nuevas.
+
+### Verificación de publicación de Punilla
+
+- Commit: `9517a13e78192fa271e6a17be4adcd6eb2bdc24f`.
+- Vercel: `dpl_3fxAA71HoaguMyK8E8wbFrPrYtar`, producción READY con el SHA esperado y alias quepia.com.
+- `/valle-de-punilla`: HTTP 200 en producción, og:url propio, títulos y descripciones coincidentes en Open Graph/Twitter, locale es_AR y robots index/follow. Canonical comprobado en el HTML del build.
+- Resultado: publicado y verificado por Codex. No se midieron cambios de tráfico ni citas de asistentes.
