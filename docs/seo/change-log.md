@@ -1,5 +1,36 @@
 # Registro de mejoras SEO
 
+## 2026-10-06 — Grokbot — metadatos de servicios, estrategia de marca, llms.txt y datos estructurados
+
+- Registro: realizado el 2026-10-08 por Grokbot sobre cambios publicados el 2026-10-06 (horas en ART, UTC-3).
+- `79af4d9` — og/twitter en servicios.
+  - Evidencia: las 7 páginas `/servicios/*` definían `openGraph` sin imagen; Next reemplazaba el del layout y se perdían `og:image`, `og:locale` y `og:site_name`, y heredaban el `twitter:title` genérico "Quepia - (RE)INVENTÁ TU MARCA".
+  - Cambio: `type`, locale es_AR, `siteName`, `og:image` (`/og-image.jpg`, 1024×537, alt por servicio), `og:title` por servicio y bloque `twitter` `summary_large_image` con título, descripción e imagen.
+  - Archivo: `app/servicios/[slug]/page.tsx`.
+- `6ed2fac` — marketing como estrategia de marca, sin referencias a pauta.
+  - Motivo: pedido de la usuaria; en Quepia "marketing" significa estrategia de marca, nunca gestión de pauta.
+  - Cambio: la marquesina muestra "Estrategia de marca" y la consulta de servicios de la home trae solo `titulo, orden` (las features viejas del registro "Marketing" ya no viajan en el payload); "Comunidad & contenido orgánico"; plan Premium con "Creativos para campañas (diseño de piezas)"; descripción por defecto, og:description y JSON-LD con estrategia de marca y contenido orgánico; llms.txt sin "Marketing Digital".
+  - Archivos: `app/page.tsx`, `lib/seo/public-services.ts`, `components/home/MarqueeSection.tsx`, `components/home/ServicesGrid.tsx`, `components/home/PlansSection.tsx`, `app/layout.tsx`, `public/llms.txt`, `supabase-seed.sql` (solo seed del repo; la base de producción no se tocó).
+- `e5c16e4` — llms.txt, datos estructurados y nombre de marca "Quepia - Consultora Creativa".
+  - Cambio: llms.txt reescrito (redes como servicio principal, enlaces a servicios, rubros, zonas, casos, precios y contacto, Instagram @quepiastudio, aclaración de que no se gestiona pauta); JSON-LD con `name` "Quepia - Consultora Creativa", `foundingDate` 2020, `sameAs` solo Instagram, `knowsAbout`, `areaServed` (Villa Carlos Paz, Punilla, Córdoba) y catálogo de servicios con URLs; `siteName` y textos de "agencia creativa" a "consultora creativa"; `/sobre-nosotros` sin perfiles personales de relleno.
+  - Archivos: `app/layout.tsx`, `app/page.tsx`, `app/servicios/[slug]/page.tsx`, `app/servicios/page.tsx`, `app/sobre-nosotros/page.tsx`, `components/about/AboutClient.tsx`, `components/home/HeroSection.tsx`, `lib/instagram.ts`, `lib/seo/landing-pages.ts`, `public/llms.txt`, `supabase-config.sql`.
+- `fe51700` — completa `e5c16e4`.
+  - Evidencia: los datos del equipo seguían llegando al cliente con enlaces de relleno (`linkedin.com/in/camila`) aunque ya no se mostraban; la home pisaba `siteName`/locale del layout.
+  - Archivos: `app/page.tsx`, `app/sobre-nosotros/page.tsx`.
+- Motivo general: metadatos sociales correctos al compartir, identidad de marca coherente y descripción fiel de los servicios para personas y asistentes. No implica un aumento de ranking garantizado.
+- Validación previa al push: Node 22 con `pnpm install --frozen-lockfile`, typecheck y lint de los archivos tocados correctos; `pnpm build` correcto (solo advertencias previas), contra un mock vacío de Supabase y sin credenciales; HTML generado revisado. `git pull --rebase` antes de cada push, sin force push.
+
+### Verificación de publicación (Grokbot)
+
+- Vercel, producción READY con el SHA esperado: `79af4d9` → `dpl_72VXZRxYMbrrFMX3xnBtoHwi4xmF` (06/10 16:13); `6ed2fac` → `dpl_5gPnu9usaznXTUXxMAHFud3xXz8s` (17:47); `e5c16e4` → `dpl_6AL9apxfcAkUpVuhEMJpRiR3S4xB` (18:01); `fe51700` → `dpl_JCdppUUBE6Ge9xoWadyby8mr6SpS` (18:07).
+- Revalidado en producción el 2026-10-08 (deploy vigente `eb73459`, `dpl_EPY8rDVH38ZUsExRsfkk5vDhW9CK`):
+  - Las 7 páginas `/servicios/*`: HTTP 200, `og:image` `https://quepia.com/og-image.jpg`, `og:locale` es_AR, `og:site_name` "Quepia - Consultora Creativa" y `twitter:title` propio de cada servicio.
+  - Home: "Estrategia de marca", "Comunidad & contenido orgánico" y "Creativos para campañas" presentes; sin "Email marketing", "SEO/SEM", "Publicidad tradicional", "marketing digital" ni "campañas publicitarias". `/precios` coherente.
+  - Home: JSON-LD parseable (`LocalBusiness`/`ProfessionalService`, nombre, `foundingDate`, `sameAs`, `areaServed`, `knowsAbout` y catálogo de servicios) y `og:site_name` "Quepia - Consultora Creativa".
+  - `/sobre-nosotros`: HTTP 200, sin `linkedin.com/in/` en HTML ni payload; JSON-LD parseable.
+  - `/llms.txt`: HTTP 200, marca, enlaces y aclaración sobre pauta presentes.
+- Resultado: los cuatro commits siguen publicados y vigentes; las mejoras posteriores de Codex (fichas, páginas locales y rubros) los conservan.
+
 ## 2026-10-07 — Codex — ejecución de la tarde adelantada
 
 - Alcance: fichas públicas `/trabajos/[slug]`.
@@ -54,3 +85,11 @@
 - Los tres rubros respondieron HTTP 200 en producción: URL Open Graph correcta, títulos y descripciones específicos coincidentes entre tarjetas sociales, robots index/follow, datos WebPage y resumen visible coherentes, enlaces a Villa Carlos Paz y Córdoba.
 - `/llms.txt`: HTTP 200 con las descripciones actualizadas de los rubros.
 - Resultado: publicado y verificado por Codex. No se han medido cambios en posiciones, tráfico o citas de asistentes.
+
+## 2026-10-08 — Grokbot — verificación del teléfono de contacto
+
+- Alcance: número nuevo +54 9 3517 18-6433 (`https://wa.me/5493517186433`) frente al anterior 351 397-0227.
+- Evidencia: el cambio ya estaba publicado en `fddab6c` (07/10, "fix: update and centralize Quepia contact phone", producción READY `dpl_GgiipMXkPNcPfva2woVn6PSRgfhb`), que centraliza el número en `lib/contact.ts`.
+- Repo: `rg` sin rastros de `397-0227`, `3970227`, `3513970227` ni enlaces `wa.me` sin el 9; solo quedan números de ejemplo en formularios y tests, y valores de muestra en `supabase-config.sql`.
+- Producción: home, `/contacto`, `/sobre-nosotros`, `/llms.txt` y las 36 URLs del sitemap revisadas sin el número anterior. El JSON-LD tiene `telephone` +5493517186433, los enlaces de WhatsApp apuntan a `wa.me/5493517186433` y la configuración pública muestra +54 9 351 718-6433.
+- Cambio: ninguno en código; solo este registro.
