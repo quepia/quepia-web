@@ -18,7 +18,8 @@
   - Evidencia: los datos del equipo seguían llegando al cliente con enlaces de relleno (`linkedin.com/in/camila`) aunque ya no se mostraban; la home pisaba `siteName`/locale del layout.
   - Archivos: `app/page.tsx`, `app/sobre-nosotros/page.tsx`.
 - Motivo general: metadatos sociales correctos al compartir, identidad de marca coherente y descripción fiel de los servicios para personas y asistentes. No implica un aumento de ranking garantizado.
-- Validación previa al push: Node 22 con `pnpm install --frozen-lockfile`, typecheck y lint de los archivos tocados correctos; `pnpm build` correcto (solo advertencias previas), contra un mock vacío de Supabase y sin credenciales; HTML generado revisado. `git pull --rebase` antes de cada push, sin force push.
+- Validación previa al push de `79af4d9` y `6ed2fac`: Node 22 con `pnpm install --frozen-lockfile`, typecheck y lint de los archivos tocados correctos; `pnpm build` correcto (solo advertencias previas), contra un mock vacío de Supabase y sin credenciales; HTML generado revisado. `git pull --rebase` antes de cada push, sin force push.
+- Validación de `e5c16e4` y `fe51700`: build de producción correcto en Vercel (`dpl_6AL9apxfcAkUpVuhEMJpRiR3S4xB` y `dpl_JCdppUUBE6Ge9xoWadyby8mr6SpS`, READY) y verificación en vivo del 2026-10-08 (ver abajo). La validación local (lint, typecheck y build) de estos dos commits no quedó registrada.
 
 ### Verificación de publicación (Grokbot)
 
