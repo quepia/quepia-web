@@ -46,3 +46,11 @@
 - Archivos: `app/rubros/[slug]/page.tsx`, `lib/seo/landing-pages.ts`, `public/llms.txt`.
 - Validación: lint y typecheck correctos. Build completo correcto con NODE_USE_ENV_PROXY=1 (advertencias previas en otros archivos). HTML de los tres rubros verificado: metadata, canonical/og:url, resumen visible, datos WebPage y enlaces locales. Publicación pendiente de verificar tras integrar el commit.
 - Motivo: corregir la identidad de las URLs compartidas y facilitar la comprensión de servicios y cobertura local por personas y asistentes.
+
+### Verificación de publicación por rubro
+
+- Commit de implementación: `9b5ef86e981933c338aad28afe86502bf1f08a3c`.
+- Vercel: `dpl_44kzK4932Ha94ghMsJpUhPj6h1z8`, producción READY con el SHA esperado y alias `quepia.com`.
+- Los tres rubros respondieron HTTP 200 en producción: URL Open Graph correcta, títulos y descripciones específicos coincidentes entre tarjetas sociales, robots index/follow, datos WebPage y resumen visible coherentes, enlaces a Villa Carlos Paz y Córdoba.
+- `/llms.txt`: HTTP 200 con las descripciones actualizadas de los rubros.
+- Resultado: publicado y verificado por Codex. No se han medido cambios en posiciones, tráfico o citas de asistentes.
