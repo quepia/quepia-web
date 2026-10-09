@@ -45,6 +45,8 @@ const StoriesBoard = dynamic(() => import("./stories-board").then(module => modu
 // Re-export types for backward compatibility
 export type { Task, ColumnWithTasks as ColumnType }
 
+type TaskSortOrder = "deadline" | "priority"
+
 interface KanbanBoardProps {
     projectId?: string
     projectName: string
@@ -67,6 +69,27 @@ export function KanbanBoard({
     const { toast } = useToast()
     const { confirm } = useConfirm()
     const [showCompletedTasks, setShowCompletedTasks] = useState(false)
+    const [taskSortOrder, setTaskSortOrder] = useState<TaskSortOrder>("deadline")
+    const sortStorageKey = `quepia:kanban:task-sort:${userId || "anonymous"}`
+
+    useEffect(() => {
+        try {
+            const saved = window.localStorage.getItem(sortStorageKey)
+            setTaskSortOrder(saved === "priority" ? "priority" : "deadline")
+        } catch {
+            setTaskSortOrder("deadline")
+        }
+    }, [sortStorageKey])
+
+    const handleTaskSortChange = (order: TaskSortOrder) => {
+        setTaskSortOrder(order)
+        try {
+            window.localStorage.setItem(sortStorageKey, order)
+        } catch {
+            // Sorting remains available when browser storage is disabled.
+        }
+    }
+
     const [boardView, setBoardView] = useState<"tasks" | "stories">("tasks")
     const { columns, loading, error, createTask, updateTask, moveTask, reorderColumns, duplicateTask, deleteTask, clearCompletedTasks, silentRefresh } = useTasks(projectId, {
         includeCompletedThumbnails: showCompletedTasks,
@@ -488,6 +511,19 @@ export function KanbanBoard({
                     <div role="group" aria-label="Vista del Kanban" className="flex rounded-lg border border-white/10 p-0.5">
                         {(["tasks", "stories"] as const).map(view => <button key={view} aria-pressed={boardView === view} onClick={() => setBoardView(view)} className={cn("rounded-md px-3 py-1.5 text-xs", boardView === view ? "bg-quepia-cyan/10 text-quepia-cyan" : "text-white/50 hover:text-white")}>{view === "tasks" ? "Tareas" : "Historias"}</button>)}
                     </div>
+                    {boardView === "tasks" && (
+                        <label className="flex h-9 items-center gap-2 rounded-lg border border-white/10 px-3 text-xs text-white/70">
+                            Ordenar por
+                            <select
+                                value={taskSortOrder}
+                                onChange={(event) => handleTaskSortChange(event.target.value as TaskSortOrder)}
+                                className="min-w-0 rounded bg-[#0a0a0a] text-white outline-none focus-visible:ring-1 focus-visible:ring-quepia-cyan"
+                            >
+                                <option value="deadline">Fecha de vencimiento</option>
+                                <option value="priority">Prioridad</option>
+                            </select>
+                        </label>
+                    )}
                     <button
                         onClick={() => setShowCompletedTasks((prev) => !prev)}
                         className={cn(
@@ -531,6 +567,7 @@ export function KanbanBoard({
                         <KanbanColumn
                             key={column.id}
                             column={column}
+                            taskSortOrder={taskSortOrder}
                             onTaskClick={onTaskClick}
                             onToggleComplete={handleToggleComplete}
                             onAddTaskClick={() => setAddingTaskColumn(column.id)}
@@ -688,6 +725,7 @@ interface KanbanColumnProps {
     userId?: string
     onAssetsUploaded?: () => void
     showCompletedTasks: boolean
+    taskSortOrder: TaskSortOrder
 }
 
 function KanbanColumn({
@@ -736,6 +774,7 @@ function KanbanColumn({
     userId,
     onAssetsUploaded: onAssetsUploadedProp,
     showCompletedTasks,
+    taskSortOrder,
 }: KanbanColumnProps) {
     const [showMenu, setShowMenu] = useState(false)
     const [editingWip, setEditingWip] = useState(false)
@@ -746,11 +785,19 @@ function KanbanColumn({
             : column.tasks.filter((task) => !task.completed)
 
         return [...filteredTasks].sort((a, b) => {
+            if (taskSortOrder === "deadline") {
+                const aDate = getTaskDeadlineDateKey(a)
+                const bDate = getTaskDeadlineDateKey(b)
+                if (!aDate && bDate) return 1
+                if (aDate && !bDate) return -1
+                const deadlineDiff = (aDate || "").localeCompare(bDate || "")
+                if (deadlineDiff !== 0) return deadlineDiff
+            }
             const priorityDiff = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
             if (priorityDiff !== 0) return priorityDiff
             return a.orden - b.orden
         })
-    }, [column.tasks, showCompletedTasks])
+    }, [column.tasks, showCompletedTasks, taskSortOrder])
     const hiddenCompletedCount = column.tasks.length - visibleTasks.length
 
     const isAtWipLimit = column.wip_limit !== null && column.wip_limit !== undefined && column.tasks.length >= column.wip_limit
