@@ -6,6 +6,11 @@ import { cn } from "@/lib/sistema/utils"
 import type { Expense, ExpenseWithCategory, ExpenseInsert, ExpenseUpdate, ExpenseCategory, ExpenseSubcategory, Account, Currency, AccountingCounterparty, ExpenseAnalytics, ExpenseType } from "@/types/accounting"
 import { AccountingExpenseAnalytics } from "./accounting-expense-analytics"
 
+function getTodayDate() {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 interface AccountingExpensesViewProps {
     expenses: ExpenseWithCategory[]
     loading: boolean
@@ -52,7 +57,7 @@ export function AccountingExpensesView({
     const [uploadingId, setUploadingId] = useState<string | null>(null)
     const [viewMode, setViewMode] = useState<'records' | 'analysis'>('records')
     // Form state
-    const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0])
+    const [formDate, setFormDate] = useState(getTodayDate)
     const [formCategoryId, setFormCategoryId] = useState("")
     const [formDescription, setFormDescription] = useState("")
     const [formAmount, setFormAmount] = useState("")
@@ -95,7 +100,7 @@ export function AccountingExpensesView({
     })
 
     const resetForm = () => {
-        setFormDate(new Date().toISOString().split('T')[0])
+        setFormDate(getTodayDate())
         setFormCategoryId("")
         setFormDescription("")
         setFormAmount("")
@@ -375,7 +380,7 @@ export function AccountingExpensesView({
                             </tr>
                         ) : (
                             filteredExpenses.map((expense) => {
-                                const isFuture = new Date(expense.date + 'T12:00:00') > new Date(new Date().toDateString())
+                                const isFuture = expense.date > getTodayDate()
                                 return (
                                     <tr key={expense.id} className={cn("hover:bg-white/[0.02] transition-colors", isFuture && "opacity-60")}>
                                         <td className="px-6 py-4 text-white/60 tabular-nums">
