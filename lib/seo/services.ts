@@ -3,8 +3,8 @@ export const services = [
     "slug": "gestion-de-redes-sociales",
     "name": "Gestión de redes sociales",
     "category": "redes-sociales",
-    "title": "Gestión de redes sociales en Córdoba",
-    "description": "Gestión de redes sociales para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
+    "title": "Gestión de redes sociales en Carlos Paz y Córdoba",
+    "description": "Gestión de redes sociales en Villa Carlos Paz y Córdoba: planificación, contenido, diseño y reels para tu marca. Pedí tu propuesta.",
     "sections": [
       {
         "title": "Una presencia que tenga sentido",

@@ -109,3 +109,13 @@
 - Vercel: `dpl_3fxAA71HoaguMyK8E8wbFrPrYtar`, producción READY con el SHA esperado y alias quepia.com.
 - `/valle-de-punilla`: HTTP 200 en producción, og:url propio, títulos y descripciones coincidentes en Open Graph/Twitter, locale es_AR y robots index/follow. Canonical comprobado en el HTML del build.
 - Resultado: publicado y verificado por Codex. No se midieron cambios de tráfico ni citas de asistentes.
+
+## 2026-10-12 — Grokbot — title y description de gestión de redes con Villa Carlos Paz (SEO-29a)
+
+- Alcance: `/servicios/gestion-de-redes-sociales` (title, H1, og:title, twitter:title, meta description, bajada visible y descripción del schema Service, que salen de la misma entrada).
+- Evidencia: el title era "Gestión de redes sociales en Córdoba | Quepia", sin la ciudad base, y la description tenía 163 caracteres (por encima de 155, se corta en resultados). Ningún commit reciente de Codex (`d2d0d70` sumó FAQ en la misma entrada) había cambiado estos dos campos.
+- Cambio: title "Gestión de redes sociales en Carlos Paz y Córdoba" (58 caracteres con " | Quepia"); description de 131 caracteres: "Gestión de redes sociales en Villa Carlos Paz y Córdoba: planificación, contenido, diseño y reels para tu marca. Pedí tu propuesta." Se conservan las FAQ y secciones de Codex. La URL no cambia.
+- Motivo: sumar la ciudad base a la página del servicio principal y evitar el corte de la description. No garantiza mejoras de ranking.
+- Archivo: `lib/seo/services.ts` (2 líneas).
+- Validación: eslint del archivo, typecheck y build completo correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado con el title y la description nuevos.
+- Publicación: pendiente de verificar tras el push; se agregará una entrada de verificación.
