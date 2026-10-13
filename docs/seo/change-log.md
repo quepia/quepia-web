@@ -129,3 +129,12 @@
 - Motivo: facilitar la navegación entre servicio, cobertura y evidencia publicada, y hacer explícitas esas relaciones para lectores de datos estructurados. No implica una mejora de ranking garantizada.
 - Se conservan el title/description recientes, las FAQ, los casos y las condiciones de alcance. No se incorporan datos o métricas nuevas.
 - Validación: lint, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML generado verificado: enlaces locales, diez FAQ conservadas y todas las referencias a casos del schema presentes también como enlaces y títulos visibles. Publicación pendiente de verificar tras integrar el commit.
+
+### Verificación de publicación de enlaces y casos del servicio
+
+- Commit de implementación: `3db356eb27d1a663f1c3cb502b6dd6fb80dabb3b`.
+- Vercel: `dpl_8Z7hJv1TVGcDiiJNwcfJvapr7h3j`, producción READY, SHA esperado y alias quepia.com.
+- Gestión de redes: HTTP 200, sección local publicada con enlaces a ambas zonas, Service con identificador estable y tres casos subjectOf presentes también como enlaces visibles.
+- Branding: HTTP 200 y schema Service con identificador estable; se conservan su contenido y presentación.
+- Resultado: publicado y verificado por Codex. Se actualizó la automatización para evaluar oportunidades autónomas de contenido/enlaces además de errores técnicos, sin depender de materiales nuevos del usuario ni inventar datos.
+- No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
