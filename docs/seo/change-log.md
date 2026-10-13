@@ -118,7 +118,14 @@
 - Motivo: sumar la ciudad base a la página del servicio principal y evitar el corte de la description. No garantiza mejoras de ranking.
 - Archivo: `lib/seo/services.ts` (2 líneas).
 - Validación: eslint del archivo, typecheck y build completo correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado con el title y la description nuevos.
-- Publicación: pendiente de verificar tras el push; se agregará una entrada de verificación.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `f77eeaf99a9db3d20ea821d411b53a88f7fab2c4`.
+- Vercel: `dpl_5gu4iyUF7taNVC5DECeuRhJttKAd`, producción READY el 12/10 a las 14:21 ART, SHA esperado y alias quepia.com.
+- `/servicios/gestion-de-redes-sociales`: HTTP 200 (con y sin cache-buster) con title, meta description, H1, og:title y twitter:title nuevos. Home y `/servicios/produccion-audiovisual`: 200 sin cambios.
+- Resultado: publicado y verificado; sin revert. Esta verificación se registra en el commit siguiente de Grokbot para respetar el push único del 12/10.
 
 ## 2026-10-13 — Codex — conexiones entre redes sociales, zonas y casos
 
@@ -138,3 +145,14 @@
 - Branding: HTTP 200 y schema Service con identificador estable; se conservan su contenido y presentación.
 - Resultado: publicado y verificado por Codex. Se actualizó la automatización para evaluar oportunidades autónomas de contenido/enlaces además de errores técnicos, sin depender de materiales nuevos del usuario ni inventar datos.
 - No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
+
+## 2026-10-13 — Grokbot — 404 real para servicios inexistentes (SEO-02)
+
+- Alcance: rutas `/servicios/<slug>` que no corresponden a ninguno de los siete servicios de `lib/seo/services.ts`. Las siete páginas existentes no cambian.
+- Evidencia: el 13/10 a las 10:40 ART, `https://quepia.com/servicios/xyz-no-existe` respondía HTTP 200 (soft 404, ya detectado en el backlog del 06/10). El `notFound()` llegaba después del streaming de `app/servicios/loading.tsx`, así que el status quedaba en 200. Ningún commit reciente de Codex tocó este comportamiento (`3db356e` cambió enlaces y schema de la misma página, que se conservan).
+- Cambio: `export const dynamicParams = false;` en `app/servicios/[slug]/page.tsx`. La lista de servicios es estática (`generateStaticParams`), así que cualquier slug fuera de ella da 404 desde el router, sin pasar por el loading.
+- Motivo: evitar que buscadores indexen o rastreen URLs inexistentes como páginas válidas. No garantiza mejoras de ranking.
+- Archivo: `app/servicios/[slug]/page.tsx` (1 línea).
+- Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con Node 22, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). Con `next start` local: `/servicios/xyz-no-existe` 404; los siete servicios y `/servicios` 200.
+- Nota sin cambio: la página 404 sigue sumando el `robots` "index, follow" del layout además del `noindex`; con status 404 no tiene efecto práctico y queda fuera de este commit.
+- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
