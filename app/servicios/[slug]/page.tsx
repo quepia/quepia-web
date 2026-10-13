@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { services } from '@/lib/seo/services';
-import { getPublicProjects } from '@/lib/seo/projects';
+import { getPublicProjects, projectSlug } from '@/lib/seo/projects';
 import { projectMatchesCategory } from '@/lib/project-categories';
 import { PublicShell, ContentSection, ContactCta, ProjectCards, Faq } from '@/components/seo/PublicContent';
 import JsonLd from '@/components/seo/JsonLd';
@@ -41,12 +41,18 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const service = services.find(item => item.slug === slug);
   if (!service) notFound();
   const projects = (await getPublicProjects()).filter(project => projectMatchesCategory(project, service.category));
+  const featuredProjects = projects.slice(0, 3);
+  const serviceUrl = `https://quepia.com/servicios/${slug}`;
   return <PublicShell title={service.title} intro={service.description} path={`/servicios/${slug}`}>
-    <JsonLd data={{ '@context': 'https://schema.org', '@type': 'Service', name: service.name, description: service.description, url: `https://quepia.com/servicios/${slug}`, provider: { '@id': 'https://quepia.com/#organization' }, areaServed: { '@type': 'AdministrativeArea', name: 'Provincia de Córdoba, Argentina' } }} />
+    <JsonLd data={{ '@context': 'https://schema.org', '@type': 'Service', '@id': `${serviceUrl}#service`, name: service.name, description: service.description, url: serviceUrl, provider: { '@id': 'https://quepia.com/#organization' }, areaServed: { '@type': 'AdministrativeArea', name: 'Provincia de Córdoba, Argentina' }, ...(slug === 'gestion-de-redes-sociales' && featuredProjects.length > 0 ? { subjectOf: featuredProjects.map(project => ({ '@type': 'WebPage', name: project.titulo, url: `https://quepia.com/trabajos/${projectSlug(project)}` })) } : {}) }} />
     <ContactCta service={service.name} />
     <Link href="#consulta" className="inline-flex min-h-11 items-center text-[#2ae7e4] underline underline-offset-4">Ir al formulario de este servicio →</Link>
-    {projects.length > 0 && <section><h2 className="mb-6 font-display text-2xl">{slug === 'filmacion-con-dron-cordoba' ? 'Producciones audiovisuales relacionadas' : `Trabajos de ${service.name.toLowerCase()}`}</h2>{slug === 'filmacion-con-dron-cordoba' && <p className="mb-6 text-white/75">Conocé nuestro trabajo audiovisual. La incorporación de tomas aéreas se evalúa según cada locación y proyecto.</p>}<ProjectCards projects={projects.slice(0, 3)} /></section>}
+    {projects.length > 0 && <section><h2 className="mb-6 font-display text-2xl">{slug === 'filmacion-con-dron-cordoba' ? 'Producciones audiovisuales relacionadas' : `Trabajos de ${service.name.toLowerCase()}`}</h2>{slug === 'filmacion-con-dron-cordoba' && <p className="mb-6 text-white/75">Conocé nuestro trabajo audiovisual. La incorporación de tomas aéreas se evalúa según cada locación y proyecto.</p>}<ProjectCards projects={featuredProjects} /></section>}
     {service.sections.map(section => <ContentSection key={section.title} title={section.title}><p>{section.text}</p></ContentSection>)}
+
+    {slug === 'gestion-de-redes-sociales' ? <ContentSection title="Coordiná el servicio según tu ciudad">
+      <p>Tenemos base en <Link className="text-[#2ae7e4] underline underline-offset-4" href="/villa-carlos-paz">Villa Carlos Paz</Link> y trabajamos con marcas de <Link className="text-[#2ae7e4] underline underline-offset-4" href="/cordoba">Córdoba Capital y la provincia</Link>. La planificación y las revisiones pueden hacerse a distancia. Si necesitás fotos o videos nuevos para tus redes, acordamos las jornadas y los traslados según el proyecto. Consultá en cada zona cómo coordinamos el trabajo y qué información compartir para pedir una propuesta.</p>
+    </ContentSection> : null}
 
     <ContentSection title="Servicios y rubros relacionados"><div className="flex flex-wrap gap-5">{services.filter(item => item.slug !== slug).map(item => <Link className="text-[#2ae7e4]" key={item.slug} href={`/servicios/${item.slug}`}>{item.name}</Link>)}<Link href="/rubros/turismo-y-hoteleria">Turismo y hotelería</Link><Link href="/rubros/inmobiliarias">Inmobiliarias</Link><Link href="/rubros/gastronomia">Gastronomía</Link></div></ContentSection>
     <ContactFormCard initialService={service.slug} source={`service_${service.slug}`} title={`Consultá por ${service.name.toLowerCase()}`} /><Faq items={service.faq} /><SocialProof /><ContactCta service={service.name} />

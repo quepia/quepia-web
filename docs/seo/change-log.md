@@ -119,3 +119,13 @@
 - Archivo: `lib/seo/services.ts` (2 líneas).
 - Validación: eslint del archivo, typecheck y build completo correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado con el title y la description nuevos.
 - Publicación: pendiente de verificar tras el push; se agregará una entrada de verificación.
+
+## 2026-10-13 — Codex — conexiones entre redes sociales, zonas y casos
+
+- Oportunidad: la página del servicio principal describía su cobertura en texto, pero no enlazaba en ese contexto a las páginas locales. Su schema Service no conectaba los casos públicos mostrados con el servicio.
+- Cambio: sección visible con enlaces contextuales a Villa Carlos Paz y Córdoba Capital/provincia, información de coordinación ya publicada, identificador estable del Service y referencias subjectOf a las fichas de casos de redes mostradas en la misma página. Se reutiliza una sola selección de proyectos para HTML y schema.
+- Alcance: enlaces y relaciones del servicio de redes; identificador estable del schema Service en las siete páginas existentes.
+- Archivo: `app/servicios/[slug]/page.tsx`.
+- Motivo: facilitar la navegación entre servicio, cobertura y evidencia publicada, y hacer explícitas esas relaciones para lectores de datos estructurados. No implica una mejora de ranking garantizada.
+- Se conservan el title/description recientes, las FAQ, los casos y las condiciones de alcance. No se incorporan datos o métricas nuevas.
+- Validación: lint, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML generado verificado: enlaces locales, diez FAQ conservadas y todas las referencias a casos del schema presentes también como enlaces y títulos visibles. Publicación pendiente de verificar tras integrar el commit.
