@@ -8,4 +8,4 @@ export const getPublicProjects = unstable_cache(async (): Promise<PublicProject[
   const { data, error } = await createPublicClient().from('proyectos').select('*').order('orden');
   if (error) throw new Error(`No se pudo cargar el portfolio: ${error.message}`);
   return (data || []).map(correctProjectCopy);
-}, ['public-seo-projects'], { revalidate: 300 });
+}, ['public-seo-projects'], { revalidate: 3600, tags: ["public-seo-projects"] });

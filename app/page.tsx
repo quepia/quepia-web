@@ -13,8 +13,8 @@ import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import { getSiteConfigServer } from '@/lib/fetchConfigServer';
 import { publicServiceTitle } from '@/lib/seo/public-services';
 
-// ISR: Revalidate every 60 seconds
-export const revalidate = 60;
+// Hourly fallback; admin saves revalidate public content on demand.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: { absolute: 'Consultora creativa en Córdoba: branding y redes | Quepia' },

@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { getTeamMembersServer } from '@/lib/fetchConfigServer';
 import AboutClient from '@/components/about/AboutClient';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
     title: 'Sobre Nosotros',

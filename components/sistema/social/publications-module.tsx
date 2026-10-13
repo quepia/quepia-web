@@ -1,5 +1,7 @@
 "use client"
 
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling"
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { CalendarDays, RefreshCw, X } from "lucide-react"
 import { ZernioPublishingPanel } from "../quepia/zernio-publishing-panel"
@@ -55,7 +57,8 @@ export function PublicationsModule() {
     finally { if (sync) inFlight.current = false; if (requestGeneration === generation.current) setBusy(false) }
   }, [page, status, account, searchQuery])
   useEffect(() => { const timer = setTimeout(() => { setSearchQuery(search); setPage(0) }, 300); return () => clearTimeout(timer) }, [search])
-  useEffect(() => { void load(); const timer = setInterval(() => { if (document.visibilityState === "visible") void load(true) }, 60000); return () => clearInterval(timer) }, [load])
+  useEffect(() => { void load() }, [load])
+  useVisiblePolling(() => load(true), 180_000)
   useEffect(() => {
     if (!editing) return
     const previousFocus = document.activeElement as HTMLElement | null

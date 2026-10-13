@@ -1,5 +1,7 @@
 "use client"
 
+import { refreshPublicSiteAfterSave } from "@/lib/revalidate-public-site-client"
+
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Servicio, ServicioInsert, SERVICE_ICONS, CATEGORIES } from '@/types/database';
@@ -111,6 +113,7 @@ export function AdminServicesView() {
                 if (error) throw error;
             }
 
+            await refreshPublicSiteAfterSave();
             await fetchServicios();
             setModalOpen(false);
             resetForm();
@@ -133,6 +136,7 @@ export function AdminServicesView() {
 
             if (error) throw error;
 
+            await refreshPublicSiteAfterSave();
             await fetchServicios();
             setDeleteConfirm(null);
         } catch (error) {

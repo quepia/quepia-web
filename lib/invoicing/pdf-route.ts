@@ -1,4 +1,6 @@
 import "server-only"
+import { createHash } from "node:crypto"
+import { createPdfCache } from "./pdf-cache"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { isUuid } from "@/lib/mcp/contracts"
@@ -6,6 +8,8 @@ import { errorResponse } from "./http"
 import type { InvoiceDocument } from "./invoice-document"
 import { renderInvoicePdf } from "./invoice-pdf"
 import { firstPartyInvoicingSession } from "./route-auth"
+
+const cachedPdf = createPdfCache()
 
 /**
  * GET de un PDF de comprobante. ?download=1 lo baja como archivo; sin el
@@ -29,7 +33,9 @@ export async function comprobantePdfResponse(
     return errorResponse("NOT_FOUND", "El comprobante no existe o no está autorizado.", 404)
   }
 
-  const pdf = await renderInvoicePdf(doc)
+  // Load with the authorized session on EVERY request before sharing render bytes.
+  const key = createHash("sha256").update("invoice-pdf-v1:").update(JSON.stringify(doc)).digest("hex")
+  const pdf = await cachedPdf(key, () => renderInvoicePdf(doc))
   const download = new URL(request.url).searchParams.get("download") === "1"
   return new Response(new Uint8Array(pdf), {
     headers: {

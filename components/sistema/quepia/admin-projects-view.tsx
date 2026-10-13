@@ -1,5 +1,7 @@
 "use client"
 
+import { refreshPublicSiteAfterSave } from "@/lib/revalidate-public-site-client"
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { uploadImage, deleteImage } from '@/lib/storage';
@@ -342,6 +344,7 @@ export function AdminProjectsView() {
 
             await saveProyecto(supabase, data, editingId);
 
+            await refreshPublicSiteAfterSave();
             await fetchProyectos();
             setModalOpen(false);
             resetForm();
@@ -377,6 +380,7 @@ export function AdminProjectsView() {
 
             if (error) throw error;
 
+            await refreshPublicSiteAfterSave();
             await fetchProyectos();
             setDeleteConfirm(null);
         } catch (error) {
@@ -393,6 +397,7 @@ export function AdminProjectsView() {
             .eq('id', proyecto.id);
 
         if (!error) {
+            await refreshPublicSiteAfterSave();
             fetchProyectos();
         }
     };

@@ -1,5 +1,7 @@
 "use client"
 
+import { refreshPublicSiteAfterSave } from "@/lib/revalidate-public-site-client"
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Configuracion, CONFIG_CATEGORIES } from '@/types/database';
@@ -60,6 +62,7 @@ export function AdminConfigView() {
             console.error('Error saving:', error);
             alert('Error al guardar');
         } else {
+            await refreshPublicSiteAfterSave();
             setSaved(item.clave);
             setTimeout(() => setSaved(null), 2000);
             fetchConfig();

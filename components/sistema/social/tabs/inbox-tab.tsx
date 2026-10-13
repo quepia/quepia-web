@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling"
+
+import { useMemo, useState } from "react"
 import { Bot, Lock, MessageCircle, MessagesSquare, Send, StickyNote, User } from "lucide-react"
 import { cn } from "@/lib/sistema/utils"
 import { formatDateTime, paramsQuery, relativeAge, socialFetch, useSocialData, SocialApiError } from "../social-api"
@@ -55,12 +57,7 @@ export function InboxTab({ scope }: TabProps) {
   const attention = useSocialData<AttentionResult>(`/api/admin/social/analytics?op=attention&${paramsQuery(scope)}`)
   const { reload } = threads
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") reload()
-    }, 30_000)
-    return () => clearInterval(timer)
-  }, [reload])
+  useVisiblePolling(reload, 60_000, !threads.loading)
 
   const sla = attention.data?.result
   return (

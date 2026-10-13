@@ -20,5 +20,6 @@
       "path": "/api/internal/monthly-backups",
       "schedule": "0 8 * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "node scripts/ignore-docs-build.mjs"
 }

@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling"
+
+import { useRef, useState } from "react"
 import { AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react"
 import { formatDateTime, paramsQuery, relativeAge, socialFetch, useSocialData, SocialApiError } from "../social-api"
 import { Button, ErrorState, Loading, Panel, PLATFORM_LABEL, Select } from "../social-ui"
@@ -35,12 +37,7 @@ export function ConnectionsTab({ scope, onScopesChanged }: TabProps & { onScopes
   const [syncing, setSyncing] = useState(false)
   const syncLock = useRef(false)
   const { reload } = inventory
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") reload()
-    }, 30_000)
-    return () => clearInterval(timer)
-  }, [reload])
+  useVisiblePolling(reload, 120_000, !inventory.loading)
   const synchronize = async (kinds: string[]) => {
     if (syncLock.current) return
     syncLock.current = true

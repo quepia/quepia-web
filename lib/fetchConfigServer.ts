@@ -1,5 +1,5 @@
 import { createPublicClient } from '@/lib/supabase/public';
-import { Configuracion, Equipo } from '@/types/database';
+import { Configuracion, Equipo, Proyecto } from '@/types/database';
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 
@@ -23,7 +23,7 @@ const getCachedSiteConfig = unstable_cache(async () => {
 
     if (error) throw error;
     return formatConfig(data || []);
-}, ['public-site-config-v1'], { revalidate: 60 });
+}, ['public-site-config-v1'], { revalidate: 3600, tags: ["public-site-config"] });
 
 // Deduplicate the layout and page reads in the same render, including errors.
 export const getSiteConfigServer = cache(async (): Promise<Record<string, string>> => {
@@ -55,3 +55,14 @@ export const getTeamMembersServer = async () => {
         return [];
     }
 };
+
+// /trabajos keeps its query-string filter and ordering; share only anonymous data.
+export const getPortfolioProjectsServer = unstable_cache(async (): Promise<Proyecto[]> => {
+    const { data, error } = await createPublicClient()
+        .from('proyectos')
+        .select('*')
+        .order('orden', { ascending: true })
+        .order('fecha_creacion', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}, ['public-portfolio-projects-v1'], { revalidate: 3600, tags: ['public-portfolio-projects'] });

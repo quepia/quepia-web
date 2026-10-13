@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { services } from '@/lib/seo/services';
 import ServiciosClient from './ServiciosClient';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: 'Servicios creativos para empresas de Córdoba',

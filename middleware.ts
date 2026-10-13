@@ -22,7 +22,9 @@ export const config = {
     matcher: [
         // Protected endpoints must retain session/MFA checks even when an ID
         // happens to end with a public asset extension.
-        '/api/:path*',
+        '/api',
+        // These two service handlers independently require CRON_SECRET.
+        '/api/((?!internal/social/process$|internal/monthly-backups$).*)',
         '/sistema/:path*',
         '/admin/:path*',
         '/auth/:path*',

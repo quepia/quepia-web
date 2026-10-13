@@ -1,5 +1,7 @@
 "use client"
 
+import { refreshPublicSiteAfterSave } from "@/lib/revalidate-public-site-client"
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Equipo, EquipoInsert } from '@/types/database';
@@ -104,6 +106,7 @@ export function AdminTeamView() {
                 if (error) throw error;
             }
 
+            await refreshPublicSiteAfterSave();
             setModalOpen(false);
             resetForm();
             fetchEquipo();
@@ -120,6 +123,7 @@ export function AdminTeamView() {
         if (error) {
             console.error('Error deleting:', error);
         } else {
+            await refreshPublicSiteAfterSave();
             setDeleteConfirm(null);
             fetchEquipo();
         }

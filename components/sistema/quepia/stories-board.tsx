@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Check, ImageIcon, Loader2, Plus, RefreshCw, Send, Sparkles, X } from "lucide-react"
 import type { ClientBrief, ColumnWithTasks, Task } from "@/types/sistema"
@@ -51,11 +52,7 @@ export function StoriesBoard({ projectId, columns, onTaskClick, onChanged }: {
   },[projectId])
   useEffect(()=>{ mounted.current=true; void load(); return ()=>{mounted.current=false} },[load])
   const pending = data?.jobs.some(job=>["queued","running"].includes(job.status)) || false
-  useEffect(()=>{
-    if(!pending) return
-    const timer = setInterval(()=>void load(),6000)
-    return ()=>clearInterval(timer)
-  },[pending,load])
+  useVisiblePolling(load, 15_000, pending)
   // The persisted queue can resume after reload. Atomic claims cap concurrency.
   const queueAvailable = data?.jobs.some(job=>job.status==="queued") && (data?.jobs.filter(job=>job.status==="running").length || 0)<2
   useEffect(()=>{

@@ -2,10 +2,10 @@ import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import { correctProjectCopy } from '@/lib/seo/public-copy';
 import type { Metadata } from 'next';
 import WorksClient from './works-client';
-import { createPublicClient } from '@/lib/supabase/public';
+import { getPortfolioProjectsServer } from '@/lib/fetchConfigServer';
 import { CATEGORIES } from '@/types/database';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: 'Portfolio de Proyectos',
@@ -49,12 +49,10 @@ export default async function Page({ searchParams }: TrabajosPageProps) {
     const requestedCategory = params?.category ?? 'branding';
     const validCategory = CATEGORIES.find((category) => category.id === requestedCategory)?.id ?? CATEGORIES[0]?.id ?? 'branding';
 
-    const supabase = createPublicClient();
-    const { data: proyectos } = await supabase
-        .from('proyectos')
-        .select('*')
-        .order('orden', { ascending: true })
-        .order('fecha_creacion', { ascending: false });
+    const proyectos = await getPortfolioProjectsServer().catch((error) => {
+        console.error('Error fetching public portfolio:', error);
+        return [];
+    });
 
     return (
         <>
@@ -64,7 +62,7 @@ export default async function Page({ searchParams }: TrabajosPageProps) {
             />
             <JsonLd data={breadcrumbs([{ name: 'Trabajos', path: '/trabajos' }])} />
             <WorksClient
-                proyectos={(proyectos || []).map(correctProjectCopy)}
+                proyectos={proyectos.map(proyecto => correctProjectCopy(proyecto))}
                 initialCategory={validCategory}
             />
         </>
