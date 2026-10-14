@@ -7,6 +7,7 @@ import { getPublicProjects, projectSlug } from '@/lib/seo/projects';
 import { getProjectGalleryImages } from '@/lib/project-images';
 import { getProjectCategoryLabels, projectMatchesCategory } from '@/lib/project-categories';
 import { services } from '@/lib/seo/services';
+import { industries, normalizedName } from '@/lib/seo/landing-pages';
 import { PublicShell, ContentSection, ContactCta } from '@/components/seo/PublicContent';
 import JsonLd from '@/components/seo/JsonLd';
 export const revalidate = 300;
@@ -46,6 +47,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   if (!project) notFound();
   const labels = getProjectCategoryLabels(project);
   const study = caseStudy(project);
+  const relatedIndustries = industries.filter(industry => industry.names.some(name => normalizedName(project.titulo).includes(normalizedName(name))));
   return <PublicShell title={project.titulo} path={`/trabajos/${slug}`}>
     <JsonLd data={{ '@context': 'https://schema.org', '@type': 'CreativeWork', name: project.titulo, description: project.descripcion || undefined, url: `https://quepia.com/trabajos/${slug}`, creator: { '@id': 'https://quepia.com/#organization' }, image: getProjectGalleryImages(project), dateModified: project.updated_at || project.fecha_actualizacion || undefined }} />
     <ContentSection title="El proyecto"><p className="whitespace-pre-line">{project.descripcion || 'Explorá los servicios realizados y las imágenes del proyecto.'}</p></ContentSection>
@@ -53,6 +55,10 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     <ContentSection title="Servicios realizados"><p>{labels.join(' · ')}</p>{project.ciudad && <p className="mt-3">Ciudad del cliente: {project.ciudad}</p>}</ContentSection>
     <div className="grid gap-6 md:grid-cols-2">{getProjectGalleryImages(project).map((src, index) => <div key={src} className="relative aspect-[4/3] overflow-hidden rounded-2xl"><Image src={src} alt={`${project.titulo}: ${labels.join(', ')}${project.ciudad ? ` en ${project.ciudad}` : ''}, imagen ${index + 1}`} fill sizes="(max-width: 768px) 90vw, 550px" className="object-contain" priority={index === 0} /></div>)}</div>
     <ContentSection title="Conocé estos servicios"><div className="flex flex-wrap gap-5">{services.filter(service => projectMatchesCategory(project, service.category)).map(service => <Link key={service.slug} className="text-[#2ae7e4]" href={`/servicios/${service.slug}`}>{service.name}</Link>)}<Link href="/trabajos">Todos los proyectos</Link></div></ContentSection>
+    {relatedIndustries.length > 0 ? <ContentSection title="Servicios y otros casos de este rubro">
+      <p className="mb-4">Conocé cómo trabajamos con negocios de este rubro y explorá otros proyectos publicados.</p>
+      <div className="flex flex-wrap gap-5">{relatedIndustries.map(industry => <Link key={industry.slug} className="text-[#2ae7e4] underline underline-offset-4" href={`/rubros/${industry.slug}`}>{industry.title}</Link>)}</div>
+    </ContentSection> : null}
     <ContactCta service={labels.join(', ')} />
   </PublicShell>;
 }

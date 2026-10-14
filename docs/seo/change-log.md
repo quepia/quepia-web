@@ -156,3 +156,12 @@
 - Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con Node 22, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). Con `next start` local: `/servicios/xyz-no-existe` 404; los siete servicios y `/servicios` 200.
 - Nota sin cambio: la página 404 sigue sumando el `robots` "index, follow" del layout además del `noindex`; con status 404 no tiene efecto práctico y queda fuera de este commit.
 - Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
+
+## 2026-10-14 — Codex — navegación entre casos y rubros
+
+- Oportunidad comprobada: la ficha de Hotel Bahía Norte (HTTP 200) enlazaba a los servicios, pero no a turismo y hotelería; las páginas de rubros ya enlazaban a sus casos. La relación era navegable en una sola dirección.
+- Cambio: sección visible en fichas que pertenecen a un rubro ya definido, con enlaces hacia los servicios y casos de ese rubro. Se utiliza exactamente el criterio de asociación existente en `/rubros/[slug]`, sin asignar rubros nuevos ni cambiar las categorías de los proyectos.
+- Archivo: `app/trabajos/[slug]/page.tsx`.
+- Motivo: conectar evidencia publicada con el contenido de contratación y permitir descubrir otros casos relacionados. Las páginas de rubros explican la cobertura desde Villa Carlos Paz hacia Córdoba.
+- Se conservan galerías, descripciones, schema, metadata y enlaces existentes. Las fichas sin asociación publicada no muestran la sección.
+- Validación: lint, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML de las 16 fichas comprobado: enlaces a páginas de rubro existentes en los casos asociados, sección ausente cuando no hay asociación; ejemplos de turismo, gastronomía e inmobiliarias verificados. Publicación pendiente de verificar tras integrar el commit.
