@@ -165,3 +165,11 @@
 - Motivo: conectar evidencia publicada con el contenido de contratación y permitir descubrir otros casos relacionados. Las páginas de rubros explican la cobertura desde Villa Carlos Paz hacia Córdoba.
 - Se conservan galerías, descripciones, schema, metadata y enlaces existentes. Las fichas sin asociación publicada no muestran la sección.
 - Validación: lint, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML de las 16 fichas comprobado: enlaces a páginas de rubro existentes en los casos asociados, sección ausente cuando no hay asociación; ejemplos de turismo, gastronomía e inmobiliarias verificados. Publicación pendiente de verificar tras integrar el commit.
+
+### Verificación de publicación de casos y rubros
+
+- Commit de implementación: `ea189a6063a487c1ac4e05841aaf5e6a252ff949`.
+- Vercel: `dpl_DmY2SsttJBHGkQnXyCLjpzUSrXfC`, producción READY con el SHA esperado y alias quepia.com.
+- Hotel Bahía Norte, Inmobiliaria Noe García Roñoni y Mike Donas: HTTP 200, sección visible y enlace al rubro correspondiente publicados; canonical e index/follow conservados.
+- Build: tres fichas con relación existente muestran la sección y trece sin relación no la muestran.
+- Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
