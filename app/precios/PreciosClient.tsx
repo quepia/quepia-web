@@ -1,11 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import type { ReactNode } from 'react';
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground';
 import PlansSection from '@/components/home/PlansSection';
 import ContactFormCard from '@/components/contact/ContactFormCard';
 
-export default function PreciosClient() {
+export default function PreciosClient({ children }: { children: ReactNode }) {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0a0a0a] text-white">
       <BrandDepthBackground variant="subtle" />
@@ -40,6 +41,10 @@ export default function PreciosClient() {
         </section>
 
         <PlansSection />
+
+        <section className="relative py-10 md:py-14" aria-label="Preguntas sobre planes y presupuestos">
+          <div className="mx-auto w-full max-w-[1400px] px-6 md:px-12 lg:px-20">{children}</div>
+        </section>
 
         <section id="consulta" className="relative overflow-hidden py-16 md:py-24">
           <div className="pointer-events-none absolute inset-0">

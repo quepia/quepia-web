@@ -190,3 +190,13 @@
 - Archivo: `components/home/ProcessSection.tsx` (parche mínimo).
 - Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
 - Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot (o en `/workspace/quepia/seo/changelog.md` de esta rutina).
+
+## 2026-10-14 — Codex — respuestas de contratación en planes
+
+- Oportunidad comprobada: `/precios` mostraba los planes y el formulario, pero no respondía directamente cómo se cotiza, qué información enviar, si puede contratarse un servicio por separado ni cómo coordinar desde Córdoba Capital.
+- Cambio: cuatro respuestas visibles y FAQPage coincidente, basadas en el alcance ya publicado en servicios y zonas; enlace contextual al servicio principal de gestión de redes.
+- Archivos: `app/precios/page.tsx`, `app/precios/PreciosClient.tsx`.
+- Implementación: preguntas y enlace renderizados como contenido del servidor dentro de la página existente, conservando planes, formulario y diseño. Las respuestas están en HTML sin depender de interacción ni de cargar datos nuevos.
+- Motivo: cubrir consultas de contratación con información clara y enlazar los planes con tareas y casos reales del servicio principal. No se publican importes, promesas de resultados ni condiciones nuevas.
+- Fuente factual: páginas actuales de servicios y cobertura local. No requiere materiales nuevos del usuario.
+- Validación: lint de archivos modificados, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML generado comprobado: cuatro preguntas/respuestas idénticas al FAQPage, planes y formulario conservados, un H1, canonical y enlace al servicio correctos. Publicación pendiente de verificar tras integrar el commit.
