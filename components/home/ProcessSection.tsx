@@ -46,16 +46,7 @@ export default function ProcessSection() {
       >
         <div className="absolute inset-x-[-12%] inset-y-[-6%] overflow-hidden" style={ambientVideoMask}>
           <AmbientVideo src={encodeURI(ambientVideoSrc)} className="absolute inset-0 h-full w-full scale-[1.85] object-cover opacity-[0.14] blur-[52px]" />
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover opacity-[0.22]"
-            src={encodeURI(ambientVideoSrc)}
-            style={{ transform: 'scale(1.36)', objectPosition: 'center center' }}
-          />
+          <AmbientVideo src={encodeURI(ambientVideoSrc)} className="absolute inset-0 h-full w-full object-cover opacity-[0.22] scale-[1.36]" />
         </div>
 
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(42,231,228,0.08)_0%,rgba(155,44,138,0.06)_28%,rgba(5,5,5,0)_56%,rgba(5,5,5,0.62)_100%)]" />

@@ -155,7 +155,14 @@
 - Archivo: `app/servicios/[slug]/page.tsx` (1 línea).
 - Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con Node 22, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). Con `next start` local: `/servicios/xyz-no-existe` 404; los siete servicios y `/servicios` 200.
 - Nota sin cambio: la página 404 sigue sumando el `robots` "index, follow" del layout además del `noindex`; con status 404 no tiene efecto práctico y queda fuera de este commit.
-- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `b4a0d035b2fe019f1baa9f26040593c93762d45c`.
+- Vercel: `dpl_4xvmouqRC4LYo5AVhPmfZs3QK9Hw`, producción READY el 13/10 a las 10:44 ART, SHA esperado y alias quepia.com.
+- Revalidado el 14/10 a las 10:25 ART (deploy vigente `c634286` / `dpl_jndtcnfGzk8xjg6fE6Wtoe3hRQs2`): `/servicios/xyz-no-existe` y `/servicios/otro-inexistente` HTTP 404; los siete servicios (`gestion-de-redes-sociales`, `produccion-audiovisual`, `fotografia-de-producto`, `branding-e-identidad`, `diseno-grafico`, `filmacion-con-dron-cordoba`, `packaging`), `/` y `/servicios` HTTP 200.
+- Resultado: publicado y vigente; sin revert. Esta verificación se registra en el commit de SEO-01 para respetar el push único del 13/10.
 
 ## 2026-10-14 — Codex — navegación entre casos y rubros
 
@@ -173,3 +180,13 @@
 - Hotel Bahía Norte, Inmobiliaria Noe García Roñoni y Mike Donas: HTTP 200, sección visible y enlace al rubro correspondiente publicados; canonical e index/follow conservados.
 - Build: tres fichas con relación existente muestran la sección y trece sin relación no la muestran.
 - Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
+
+## 2026-10-14 — Grokbot — no cargar video ProcessSection en mobile (SEO-01)
+
+- Alcance: video ambient de `components/home/ProcessSection.tsx` en la home (capa nítida sobre el blur).
+- Evidencia: había un `<video autoPlay muted loop playsInline preload="metadata">` crudo (mismo mp4 de 14,8 MB que el `AmbientVideo` blur) que se descargaba también en mobile. `AmbientVideo` ya evita mobile y reduced-motion, y usa poster `/images/video-poster.webp`. Ningún commit reciente de Codex tocó este archivo (`ea189a6` / `c634286` son casos↔rubros).
+- Cambio: reemplazar el `<video>` crudo por un segundo `<AmbientVideo src={encodeURI(ambientVideoSrc)} className="absolute inset-0 h-full w-full object-cover opacity-[0.22] scale-[1.36]" />`. Se conserva el blur y el resto del diseño.
+- Motivo: evitar la descarga del mp4 en celular y con prefers-reduced-motion; mejorar peso/LCP de la home en mobile. No garantiza mejoras de ranking.
+- Archivo: `components/home/ProcessSection.tsx` (parche mínimo).
+- Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
+- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot (o en `/workspace/quepia/seo/changelog.md` de esta rutina).
