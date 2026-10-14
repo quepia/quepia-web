@@ -200,3 +200,10 @@
 - Motivo: cubrir consultas de contratación con información clara y enlazar los planes con tareas y casos reales del servicio principal. No se publican importes, promesas de resultados ni condiciones nuevas.
 - Fuente factual: páginas actuales de servicios y cobertura local. No requiere materiales nuevos del usuario.
 - Validación: lint de archivos modificados, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML generado comprobado: cuatro preguntas/respuestas idénticas al FAQPage, planes y formulario conservados, un H1, canonical y enlace al servicio correctos. Publicación pendiente de verificar tras integrar el commit.
+
+### Verificación de publicación de respuestas de planes
+
+- Commit de implementación: `2ea8a018bed2ed38b80a67090b7f1eae95221c81`.
+- Vercel: `dpl_27FrDC83SgWms5NhjkG4xWFSkhPT`, producción READY, SHA esperado y alias quepia.com.
+- `/precios`: HTTP 200, cuatro preguntas/respuestas presentes en HTML y coincidentes con FAQPage; enlace a gestión de redes, formulario y canonical conservados.
+- Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
