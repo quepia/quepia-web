@@ -189,7 +189,15 @@
 - Motivo: evitar la descarga del mp4 en celular y con prefers-reduced-motion; mejorar peso/LCP de la home en mobile. No garantiza mejoras de ranking.
 - Archivo: `components/home/ProcessSection.tsx` (parche mínimo).
 - Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
-- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot (o en `/workspace/quepia/seo/changelog.md` de esta rutina).
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `19851d2564fef058cc8b8d9cbe8162689b31a815`.
+- Vercel: `dpl_ET9DNUyF48hVWmnCJ8qz1z8qFGJm`, producción READY el 14/10 a las 10:29 ART, SHA esperado y alias quepia.com.
+- 14/10, 10:30 ART: home HTTP 200 (con y sin cache-buster), 0 apariciones de `preload="metadata"` y de "ANIMACIONES" en el HTML; las capas de ProcessSection salen como `<video … poster="/images/video-poster.webp" preload="none">` sin `src`; texto "No solo diseñamos, construimos sistemas." presente.
+- Revalidado el 15/10 a las 10:22 ART (deploy vigente `4feace0` / `dpl_EviGPRPvoTjEx7AexqoxUA6jFaBc`): mismo resultado en la home (200, sin `preload="metadata"` ni "ANIMACIONES", videos con `preload="none"` y poster).
+- Resultado: publicado y vigente; sin revert. Esta verificación se registra en el commit de IA-02 para respetar el push único del 14/10. Pendiente opcional: Lighthouse mobile y recomprimir el mp4.
 
 ## 2026-10-14 — Codex — respuestas de contratación en planes
 
@@ -207,3 +215,13 @@
 - Vercel: `dpl_27FrDC83SgWms5NhjkG4xWFSkhPT`, producción READY, SHA esperado y alias quepia.com.
 - `/precios`: HTTP 200, cuatro preguntas/respuestas presentes en HTML y coincidentes con FAQPage; enlace a gestión de redes, formulario y canonical conservados.
 - Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
+
+## 2026-10-15 — Grokbot — punto de contacto en el schema de la organización (IA-02)
+
+- Alcance: JSON-LD `LocalBusiness`/`ProfessionalService` (`@id` `https://quepia.com/#organization`) que sale en todas las páginas públicas desde `app/layout.tsx`. No hay cambio visible.
+- Evidencia: el 15/10 a las 10:20 ART el schema de la organización tenía `telephone` y `email`, pero no `contactPoint`; solo `/contacto` declaraba un `ContactPoint`, sin teléfono. `founder` ya está cubierto: `/sobre-nosotros` lo declara sobre el mismo `@id` con los datos visibles del equipo (Lautaro López Labrin y Camila De Angelis), así que no se duplica en el layout. Ningún commit reciente de Codex tocó `app/layout.tsx` (`2ea8a01` y `4feace0` son de `/precios`).
+- Cambio: `contactPoint` con `contactType` "customer service", el teléfono centralizado (`CONTACT_PHONE`, +5493517186433), el mismo email que ya usa el schema, `url` `https://quepia.com/contacto`, `areaServed` "AR" y `availableLanguage` "Spanish" (igual que `/contacto`).
+- Motivo: que buscadores y asistentes encuentren en la entidad de Quepia un canal de contacto explícito y coherente con lo publicado. No garantiza mejoras de ranking ni citas.
+- Archivo: `app/layout.tsx` (9 líneas agregadas).
+- Validación: eslint del archivo (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de `/contacto`: `contactPoint` presente y parseable, con el número nuevo; sin rastros del número anterior.
+- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.

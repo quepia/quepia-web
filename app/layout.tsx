@@ -87,6 +87,15 @@ export default async function RootLayout({
     image: 'https://quepia.com/og-image.jpg',
     email: config.email_contacto || 'hola@quepia.com',
     telephone: CONTACT_PHONE,
+    contactPoint: {
+      '@type': 'ContactPoint',
+      contactType: 'customer service',
+      telephone: CONTACT_PHONE,
+      email: config.email_contacto || 'hola@quepia.com',
+      url: 'https://quepia.com/contacto',
+      areaServed: 'AR',
+      availableLanguage: 'Spanish',
+    },
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Villa Carlos Paz',
