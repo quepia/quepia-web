@@ -235,3 +235,11 @@
 - Motivo: permitir encontrar y comparar el alcance del servicio con respuestas directas, tanto en HTML como en FAQPage. No se amplían entregables incluidos ni se incorporan precios, plazos, resultados o demanda de búsquedas supuesta.
 - Se conservan la prioridad y el contenido de gestión de redes, así como las mejoras locales y de contacto recientes.
 - Validación: instalación con lockfile congelado, lint del archivo, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML y FAQPage comprobados: siete respuestas de branding coincidentes y diez preguntas de gestión de redes conservadas. Publicación pendiente de verificar tras integrar el commit.
+
+### Verificación de publicación de respuestas de branding
+
+- Commit de implementación: `b3d172530cef81c9d271c58e9e56349024a3d56a`.
+- Vercel: `dpl_5yFCySgSTNb369ZgzWQTtYnsKk7J`, producción READY, SHA esperado y alias quepia.com.
+- Branding: HTTP 200, siete respuestas coincidentes entre HTML y FAQPage, canonical e index/follow correctos.
+- Gestión de redes: HTTP 200, sus diez respuestas conservadas y coincidentes con FAQPage; canonical e index/follow correctos.
+- Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
