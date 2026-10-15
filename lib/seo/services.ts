@@ -242,6 +242,18 @@ export const services = [
     ],
     "faq": [
       {
+        "q": "¿Qué puede incluir un proyecto de identidad visual?",
+        "a": "Según el alcance, puede incluir logotipo, variantes, paleta cromática, tipografías y criterios de aplicación. También se pueden acordar piezas iniciales y una guía de uso. La propuesta detalla los archivos, versiones y aplicaciones que se entregan; no todos los proyectos necesitan los mismos recursos."
+      },
+      {
+        "q": "¿Tengo que cambiar el logo para mejorar una marca existente?",
+        "a": "No necesariamente. Primero revisamos los elementos actuales, su legibilidad y los usos que necesita la marca. Ese diagnóstico permite decidir si conviene conservar recursos, ajustar o ampliar el sistema, o desarrollar una nueva dirección visual. No todo proceso requiere reemplazar la identidad completa."
+      },
+      {
+        "q": "¿El branding incluye publicaciones para redes, packaging o cartelería?",
+        "a": "Son aplicaciones de la identidad y se definen en el alcance. Un envase, un cartel o un conjunto de publicaciones requieren entregables propios; no están incluidos automáticamente por desarrollar el sistema visual. Podemos coordinar esas piezas con una base común y acordar las prioridades de cada etapa."
+      },
+      {
         "q": "¿Cómo se define el presupuesto?",
         "a": "Según los entregables, las revisiones y la producción necesaria. Contanos el objetivo y los materiales disponibles para evaluar el alcance."
       },

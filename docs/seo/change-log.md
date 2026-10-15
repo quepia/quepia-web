@@ -225,3 +225,13 @@
 - Archivo: `app/layout.tsx` (9 líneas agregadas).
 - Validación: eslint del archivo (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de `/contacto`: `contactPoint` presente y parseable, con el número nuevo; sin rastros del número anterior.
 - Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
+
+## 2026-10-15 — Codex — respuestas específicas de branding
+
+- Oportunidad: la página de branding tenía cuatro preguntas frecuentes generales compartidas con otros servicios; los alcances particulares solo se explicaban en párrafos extensos de la misma página.
+- Cambio: tres preguntas/respuestas específicas sobre entregables de identidad visual, conservación o renovación del logo y alcance separado de redes, packaging y cartelería. Se conservan las cuatro preguntas anteriores.
+- Archivo: `lib/seo/services.ts` (solo entrada branding-e-identidad).
+- Fuente factual: secciones publicadas «Qué incluye una identidad», «Para marcas nuevas y existentes», «Entregables y uso cotidiano» e «Identidad conectada con contenidos».
+- Motivo: permitir encontrar y comparar el alcance del servicio con respuestas directas, tanto en HTML como en FAQPage. No se amplían entregables incluidos ni se incorporan precios, plazos, resultados o demanda de búsquedas supuesta.
+- Se conservan la prioridad y el contenido de gestión de redes, así como las mejoras locales y de contacto recientes.
+- Validación: instalación con lockfile congelado, lint del archivo, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML y FAQPage comprobados: siete respuestas de branding coincidentes y diez preguntas de gestión de redes conservadas. Publicación pendiente de verificar tras integrar el commit.
