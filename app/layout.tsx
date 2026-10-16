@@ -106,6 +106,7 @@ export default async function RootLayout({
     sameAs: [OFFICIAL_INSTAGRAM_URL],
     knowsAbout: [
       'Gestión de redes sociales',
+      'Community manager',
       'Contenido orgánico para redes sociales',
       'Producción audiovisual',
       'Filmación con dron',

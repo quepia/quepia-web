@@ -224,7 +224,15 @@
 - Motivo: que buscadores y asistentes encuentren en la entidad de Quepia un canal de contacto explícito y coherente con lo publicado. No garantiza mejoras de ranking ni citas.
 - Archivo: `app/layout.tsx` (9 líneas agregadas).
 - Validación: eslint del archivo (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de `/contacto`: `contactPoint` presente y parseable, con el número nuevo; sin rastros del número anterior.
-- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `ba053165f83b4441f9fd6fa91a5bd6081e8aa70c`.
+- Vercel: `dpl_YRtyxmmu7rggzrpW9YK6sZMWnVTi`, producción READY el 15/10 a las 10:23 ART, SHA esperado; statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 15/10, 10:26 ART: `/`, `/contacto`, `/sobre-nosotros`, `/servicios`, `/servicios/gestion-de-redes-sociales`, `/precios` y `/villa-carlos-paz` HTTP 200 (home y contacto también con cache-buster), todas con el `contactPoint` nuevo; 0 rastros del número anterior. `/servicios/xyz-no-existe` 404.
+- Revalidado el 16/10 a las 10:22 ART (deploy vigente `df7bfac`): home y `/contacto` HTTP 200 con `contactPoint.telephone` +5493517186433 y `contactType` "customer service".
+- Resultado: publicado y vigente; sin revert. Esta verificación se registra en el commit de SEO-29b para respetar el push único del 15/10. Pendiente (usuaria): `openingHoursSpecification` solo si confirma el horario de /contacto.
 
 ## 2026-10-15 — Codex — respuestas específicas de branding
 
@@ -243,3 +251,14 @@
 - Branding: HTTP 200, siete respuestas coincidentes entre HTML y FAQPage, canonical e index/follow correctos.
 - Gestión de redes: HTTP 200, sus diez respuestas conservadas y coincidentes con FAQPage; canonical e index/follow correctos.
 - Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
+
+## 2026-10-16 — Grokbot — sección Community manager en gestión de redes (SEO-29b)
+
+- Alcance: `/servicios/gestion-de-redes-sociales` (sección visible nueva) y `knowsAbout` del schema de la organización en todas las páginas públicas.
+- Evidencia: el 16/10 a las 10:21 ART, la keyword "community manager" no aparecía en páginas públicas (solo "community management" en una FAQ de Codex). El backlog priorizaba SEO-29b como siguiente ítem diario. Ningún commit reciente de Codex tocó esta sección (`b3d1725` / `df7bfac` son FAQ de branding).
+- Cambio: sección H2 "Community manager en Villa Carlos Paz y Córdoba" (~102 palabras) tras "Qué incluye": tareas incluidas (planificación, diseño, redacción, publicación), cobertura local (Carlos Paz, Punilla, Capital), comentarios/mensajes no incluidos por defecto (add-on opcional con automatizaciones), sin promesas de resultados. En `knowsAbout` se suma "Community manager" (previsto en IA-02 al publicar SEO-29b).
+- Motivo: cubrir la intención *community manager Villa Carlos Paz / Córdoba*, hoy sin cobertura en el cuerpo. No garantiza mejoras de ranking.
+- Archivos: `lib/seo/services.ts`, `app/layout.tsx`.
+- Validación: eslint de los archivos (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado con el H2 nuevo y `knowsAbout` con "Community manager".
+- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
+

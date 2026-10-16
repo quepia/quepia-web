@@ -15,6 +15,10 @@ export const services = [
         "text": "El alcance puede combinar planificación de contenidos, diseño de publicaciones, redacción de textos, edición de reels y organización de un calendario. La cantidad de piezas, las plataformas y las tareas de publicación se acuerdan en la propuesta. Si hace falta una jornada de fotografía o video, la presupuestamos según la producción necesaria. También definimos quién responde consultas y quién aprueba los contenidos: son responsabilidades distintas que conviene dejar claras antes de arrancar."
       },
       {
+        "title": "Community manager en Villa Carlos Paz y Córdoba",
+        "text": "Cuando buscás un community manager para tu negocio en Villa Carlos Paz, el Valle de Punilla o Córdoba Capital, en Quepia ese rol se traduce en la gestión de redes: planificación del calendario, diseño de publicaciones, redacción de textos y publicación en los canales acordados. Coordinamos el trabajo de forma remota o presencial según lo que haga falta mostrar. Responder comentarios y mensajes no está incluido por defecto; es un add-on opcional, con automatizaciones, si tu marca lo necesita. No prometemos resultados de alcance ni ventas: el plan se arma alrededor de tu operación y de lo que tu audiencia necesita saber."
+      },
+      {
         "title": "Para quién es",
         "text": "Este servicio sirve para negocios que necesitan ordenar su comunicación y para marcas que ya tienen una identidad pero les cuesta traducirla a publicaciones. Un hotel puede mostrar habitaciones, ubicación y experiencias; una inmobiliaria necesita presentar propiedades con información precisa; un comercio puede explicar productos y responder dudas frecuentes. No todos requieren publicar lo mismo ni con la misma frecuencia. El plan se construye alrededor de tu operación y de lo que tu audiencia necesita saber."
       },
