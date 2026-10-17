@@ -13,7 +13,7 @@ export const metadata: Metadata = {
         title: 'Contacto | Quepia - Consultora Creativa',
         description: '¿Tenés un proyecto en mente? Contactanos y hagámoslo realidad. Coordinamos una primera conversación para definir el alcance.',
         url: 'https://quepia.com/contacto',
-        images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Contacto Quepia' }],
+        images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Contacto Quepia' }],
     },
     twitter: {
         card: 'summary_large_image',

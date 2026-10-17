@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: 'Quepia - (RE)INVENTÁ TU MARCA',
     description: 'Branding, redes sociales y producción audiovisual para marcas de Córdoba. Consultora creativa con sede en Villa Carlos Paz.',
     url: 'https://quepia.com',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Quepia - Consultora Creativa' }],
+    images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Quepia - Consultora Creativa' }],
   },
   twitter: {
     card: 'summary_large_image',

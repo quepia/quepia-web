@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     description:
       'Conocé los planes Esencial, Plus y Premium para tu marca.',
     url: 'https://quepia.com/precios',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Planes Quepia' }],
+    images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Planes Quepia' }],
   },
   twitter: {
     card: 'summary_large_image',

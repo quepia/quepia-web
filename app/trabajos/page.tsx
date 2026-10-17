@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     title: 'Portfolio | Quepia - Proyectos de Branding y Diseño',
     description: 'Proyectos de branding, identidad visual y diseño gráfico para empresas de Córdoba y toda Argentina.',
     url: 'https://quepia.com/trabajos',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Portfolio Quepia' }],
+    images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Portfolio Quepia' }],
   },
   twitter: {
     card: 'summary_large_image',

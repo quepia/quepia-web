@@ -262,3 +262,11 @@
 - Validación: eslint de los archivos (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado con el H2 nuevo y `knowsAbout` con "Community manager".
 - Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
 
+
+## 2026-10-17 — Codex — dimensiones reales de imagen social
+
+- Evidencia: la portada de producción respondía HTTP 200 y declaraba `og:image:width=1200` y `og:image:height=630`, pero el JPEG `/og-image.jpg` es 1024×537. Se comprobó que el archivo local coincide por hash con el de main.
+- Cambio: declarar 1024×537 en la metadata del layout, portada, servicios, trabajos, contacto, sobre nosotros, planes y privacidad. Las páginas individuales de servicios ya tenían las medidas correctas y se conservan.
+- Archivos: `app/layout.tsx`, `app/page.tsx`, `app/servicios/page.tsx`, `app/trabajos/page.tsx`, `app/contacto/page.tsx`, `app/sobre-nosotros/page.tsx`, `app/precios/page.tsx`, `app/privacidad/page.tsx`.
+- Motivo: que los consumidores de Open Graph reciban información fiel del recurso publicado. No se cambia ni se reescala la imagen, ni se alteran textos, URLs, diseño o datos comerciales.
+- Validación: instalación con lockfile congelado, lint de archivos modificados (advertencia previa de fuentes), typecheck y build completo correctos. HTML de siete páginas públicas y del servicio principal comprobado con el servidor de producción local (HTTP 200 en todas): URL de imagen conservada, dimensiones 1024×537 e index/follow. Publicación pendiente de verificar tras integrar el commit.

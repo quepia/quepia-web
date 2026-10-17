@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     description:
       'Conocé cómo Quepia recopila, utiliza, protege y conserva tus datos personales conforme a la normativa argentina.',
     url: 'https://quepia.com/privacidad',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Política de Privacidad Quepia' }],
+    images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Política de Privacidad Quepia' }],
   },
   twitter: {
     card: 'summary_large_image',

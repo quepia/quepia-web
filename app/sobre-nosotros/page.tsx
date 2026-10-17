@@ -15,7 +15,7 @@ export const metadata: Metadata = {
         title: 'El equipo detrás de Quepia | Villa Carlos Paz',
         description: 'Conocé a Lautaro y Camila, el equipo creativo de Quepia. Apasionados por transformar marcas en experiencias visuales memorables.',
         url: 'https://quepia.com/sobre-nosotros',
-        images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Equipo Quepia' }],
+        images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Equipo Quepia' }],
     },
     twitter: {
         card: 'summary_large_image',

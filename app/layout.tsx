@@ -35,8 +35,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: '/og-image.jpg',
-        width: 1200, // Ajusta según la imagen real si es necesario
-        height: 630,
+        width: 1024,
+        height: 537,
         alt: 'Quepia - Consultora Creativa: (RE)INVENTÁ TU MARCA',
       },
     ],
