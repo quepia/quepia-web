@@ -270,3 +270,10 @@
 - Archivos: `app/layout.tsx`, `app/page.tsx`, `app/servicios/page.tsx`, `app/trabajos/page.tsx`, `app/contacto/page.tsx`, `app/sobre-nosotros/page.tsx`, `app/precios/page.tsx`, `app/privacidad/page.tsx`.
 - Motivo: que los consumidores de Open Graph reciban información fiel del recurso publicado. No se cambia ni se reescala la imagen, ni se alteran textos, URLs, diseño o datos comerciales.
 - Validación: instalación con lockfile congelado, lint de archivos modificados (advertencia previa de fuentes), typecheck y build completo correctos. HTML de siete páginas públicas y del servicio principal comprobado con el servidor de producción local (HTTP 200 en todas): URL de imagen conservada, dimensiones 1024×537 e index/follow. Publicación pendiente de verificar tras integrar el commit.
+
+### Verificación de publicación de dimensiones de imagen
+
+- Commit de implementación: `67db1aa04a2c040e7f1f01d0582148943e5c26bc`.
+- Vercel: `dpl_45h4gj9FKS2yyrMR84TfiDs2kAXW`, producción READY, SHA esperado y alias quepia.com.
+- Portada, servicios, trabajos, contacto, sobre nosotros, precios, privacidad y servicio principal: HTTP 200 en producción, `og:image` conservado y dimensiones 1024×537 correctas en todas las respuestas.
+- Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
