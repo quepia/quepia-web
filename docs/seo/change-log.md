@@ -286,3 +286,10 @@
 - Motivo: facilitar la consulta de alcance, proceso y cobertura, y permitir enlaces directos a esos apartados. No se reescribe contenido, no se añaden servicios ni se alteran canonical, schema o condiciones comerciales.
 - Implementación sin JavaScript adicional de navegación: enlaces HTML de fragmento y secciones del servidor. El componente compartido admite un id opcional; sus otros usos conservan su contenido.
 - Validación: lint, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML de siete servicios comprobado: 57 enlaces a apartados, cada uno con un destino único; un H1 y el destino del formulario conservados en cada página. Publicación pendiente de verificar tras integrar el commit.
+
+### Verificación de publicación del índice de servicios
+
+- Commit de implementación: `f71596bd2151411533233df7e4a10a3e09f37b5f`.
+- Vercel: `dpl_aRm1uV1qkS5NQsiv9SpwZEdqBm6T`, producción READY, SHA esperado y alias quepia.com.
+- Siete servicios: HTTP 200, índice accesible publicado y 57 enlaces con destino único en conjunto (nueve en redes y ocho en cada otro servicio). Canonical e index/follow conservados.
+- Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
