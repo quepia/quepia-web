@@ -277,3 +277,12 @@
 - Vercel: `dpl_45h4gj9FKS2yyrMR84TfiDs2kAXW`, producción READY, SHA esperado y alias quepia.com.
 - Portada, servicios, trabajos, contacto, sobre nosotros, precios, privacidad y servicio principal: HTTP 200 en producción, `og:image` conservado y dimensiones 1024×537 correctas en todas las respuestas.
 - Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
+
+## 2026-10-18 — Codex — índice y enlaces a secciones de servicios
+
+- Evidencia: gestión de redes respondía HTTP 200 con 14 H2 y un único enlace interno de fragmento al formulario. Los apartados del servicio no tenían destinos propios para consulta directa.
+- Cambio: índice accesible en las siete páginas de servicios existentes, generado desde sus títulos reales; identificadores estables derivados de cada título y margen de desplazamiento para el encabezado fijo. Se mantiene el acceso al formulario.
+- Archivos: `app/servicios/[slug]/page.tsx`, `components/seo/PublicContent.tsx`.
+- Motivo: facilitar la consulta de alcance, proceso y cobertura, y permitir enlaces directos a esos apartados. No se reescribe contenido, no se añaden servicios ni se alteran canonical, schema o condiciones comerciales.
+- Implementación sin JavaScript adicional de navegación: enlaces HTML de fragmento y secciones del servidor. El componente compartido admite un id opcional; sus otros usos conservan su contenido.
+- Validación: lint, typecheck y build completo correctos (advertencias previas ajenas al cambio). HTML de siete servicios comprobado: 57 enlaces a apartados, cada uno con un destino único; un H1 y el destino del formulario conservados en cada página. Publicación pendiente de verificar tras integrar el commit.

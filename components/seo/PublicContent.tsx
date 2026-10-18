@@ -16,8 +16,8 @@ export function PublicShell({ title, intro, path, children }: { title: string; i
     <div className="mt-12 space-y-12">{children}</div>
   </section>;
 }
-export function ContentSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="max-w-3xl"><h2 className="mb-4 font-display text-2xl text-white">{title}</h2><div className="leading-relaxed text-[#a1a1aa]">{children}</div></section>;
+export function ContentSection({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
+  return <section id={id} className="max-w-3xl scroll-mt-28"><h2 className="mb-4 font-display text-2xl text-white">{title}</h2><div className="leading-relaxed text-[#a1a1aa]">{children}</div></section>;
 }
 export function ContactCta({ service }: { service?: string }) {
   return <div className="flex flex-wrap gap-5"><a data-service={service} href={whatsappUrl(service)} className="rounded-full bg-[#2ae7e4] px-6 py-3 font-medium text-black">Consultá por WhatsApp</a><Link href={`/contacto${service ? `?servicio=${encodeURIComponent(service)}` : ''}`} className="rounded-full border border-white/20 px-6 py-3">Contanos tu proyecto</Link></div>;
