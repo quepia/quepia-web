@@ -302,4 +302,4 @@
 - Archivos: `app/trabajos/page.tsx`, `app/trabajos/loading.tsx` → `app/trabajos/works-loading.tsx` (skeleton sin cambios).
 - Motivo: responder con un estado HTTP fiel cuando no existe una ficha, conservando URLs, diseño y carga progresiva del listado.
 - Validación: ESLint de los archivos afectados, typecheck y build de producción correctos. Servidor de producción local: dos fichas inexistentes devuelven 404 tanto para navegador como Googlebot; listado y caso Hotel Bahía Norte devuelven 200 con canonical correcto; servicio inexistente conserva 404. Dominio quepia.com verificado en el proyecto autorizado y HEAD remoto sin cambios concurrentes.
-- Publicación: pendiente de verificar en Vercel y dominio público; se registra a continuación.
+- Publicación verificada: commit `171e4284479f4e769fc44fd1fc00c34a5969fa85`, despliegue `dpl_A53xsjXzxbq86SaypUp1NQrRnf3j` READY, mismo SHA y alias quepia.com. En producción, `/trabajos/caso-inexistente-seo` y `/trabajos/caso-inexistente-20261019-publicacion` responden 404 con noindex; `/trabajos` y la ficha Hotel Bahía Norte responden 200 con canonical propio y sin noindex. Sin regresiones observadas en estas comprobaciones.
