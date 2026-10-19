@@ -1,7 +1,9 @@
 import JsonLd, { breadcrumbs } from '@/components/seo/JsonLd';
 import { correctProjectCopy } from '@/lib/seo/public-copy';
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import WorksClient from './works-client';
+import WorksLoading from './works-loading';
 import { getPortfolioProjectsServer } from '@/lib/fetchConfigServer';
 import { CATEGORIES } from '@/types/database';
 
@@ -44,7 +46,11 @@ interface TrabajosPageProps {
     searchParams?: Promise<{ category?: string }>;
 }
 
-export default async function Page({ searchParams }: TrabajosPageProps) {
+export default function Page(props: TrabajosPageProps) {
+    return <Suspense fallback={<WorksLoading />}><PortfolioContent {...props} /></Suspense>;
+}
+
+async function PortfolioContent({ searchParams }: TrabajosPageProps) {
     const params = await searchParams;
     const requestedCategory = params?.category ?? 'branding';
     const validCategory = CATEGORIES.find((category) => category.id === requestedCategory)?.id ?? CATEGORIES[0]?.id ?? 'branding';

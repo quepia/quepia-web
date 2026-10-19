@@ -293,3 +293,13 @@
 - Vercel: `dpl_aRm1uV1qkS5NQsiv9SpwZEdqBm6T`, producción READY, SHA esperado y alias quepia.com.
 - Siete servicios: HTTP 200, índice accesible publicado y 57 enlaces con destino único en conjunto (nueve en redes y ocho en cada otro servicio). Canonical e index/follow conservados.
 - Resultado: publicado y verificado por Codex. No se midieron cambios de posiciones, tráfico ni recomendaciones de asistentes.
+
+## 2026-10-19 — Codex — respuesta 404 de fichas inexistentes
+
+- Evidencia en producción: `/trabajos/caso-inexistente-seo` devolvía HTTP 200; las rutas inexistentes equivalentes de servicios y rubros devolvían 404.
+- Causa: el loading de `/trabajos` era una frontera de streaming compartida con las fichas `[slug]`, por lo que podía enviarse la respuesta 200 antes de que `notFound()` resolviera un caso inexistente.
+- Cambio: conservar el mismo skeleton con Suspense explícito solo en el listado; renombrar el loading de ruta a componente ordinario. Las fichas dejan de heredar esa frontera. No se fija dynamicParams=false: se mantiene la posibilidad de publicar trabajos nuevos desde los datos del portfolio.
+- Archivos: `app/trabajos/page.tsx`, `app/trabajos/loading.tsx` → `app/trabajos/works-loading.tsx` (skeleton sin cambios).
+- Motivo: responder con un estado HTTP fiel cuando no existe una ficha, conservando URLs, diseño y carga progresiva del listado.
+- Validación: ESLint de los archivos afectados, typecheck y build de producción correctos. Servidor de producción local: dos fichas inexistentes devuelven 404 tanto para navegador como Googlebot; listado y caso Hotel Bahía Norte devuelven 200 con canonical correcto; servicio inexistente conserva 404. Dominio quepia.com verificado en el proyecto autorizado y HEAD remoto sin cambios concurrentes.
+- Publicación: pendiente de verificar en Vercel y dominio público; se registra a continuación.
