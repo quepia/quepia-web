@@ -322,3 +322,14 @@
 - Archivo: `lib/seo/services.ts` (solo entrada redes / faq).
 - Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
 - Publicación: pendiente de verificar tras el push; la verificación completa queda en `/workspace/quepia/seo/changelog.md` (push único; se completa en el próximo commit de Grokbot en este archivo si hace falta).
+
+
+## 2026-10-19 — Codex — conexión de cobertura local con rubros y casos
+
+- Evidencia: `/villa-carlos-paz` y `/cordoba` responden 200 pero no contienen enlaces a `/rubros/*`. Los tres rubros publicados ya explican alcances concretos y muestran casos verificables.
+- Cambio: sección contextual «Contenido según tu rubro» en esas dos páginas locales, con enlaces a turismo y hotelería, inmobiliarias y gastronomía y una referencia al caso que puede consultarse en cada destino. El contenido orgánico para redes encabeza la sección.
+- Fuente: páginas de rubros y casos ya publicados (Hotel Bahía Norte, Inmobiliaria Noe García Roñoni y Mike Donas). No se atribuyen ciudades a esos casos ni resultados, entregables adicionales o nuevas sucursales.
+- Archivo: `components/seo/LocationPage.tsx`; registro en `docs/seo/change-log.md`.
+- Motivo: conectar consultas de cobertura con información para contratar según el negocio y facilitar la navegación y el rastreo de contenido existente. No se crean páginas ni se amplían servicios.
+- Validación: lint del componente, typecheck y build de producción correctos (advertencias previas ajenas al cambio). Servidor de producción local: ambas páginas 200, tres enlaces de rubro en HTML por página, un H1, JSON-LD parseable, canonical propio y sin noindex. Valle de Punilla conserva su contenido y metadata. Los tres destinos públicos responden 200 con canonical propio y los casos indicados.
+- Publicación: pendiente de verificación del despliegue y dominio público.
