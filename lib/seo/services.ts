@@ -49,8 +49,12 @@ export const services = [
         "a": "Podemos trabajar la planificación, el calendario, el diseño y la redacción de contenidos. Antes de empezar acordamos las plataformas, las cantidades y quién programa o publica las piezas. La gestión de redes no supone automáticamente que todas las tareas de la cuenta estén incluidas."
       },
       {
+        "q": "¿Trabajan como community manager para negocios de Villa Carlos Paz y Córdoba?",
+        "a": "Sí. En Quepia - Consultora Creativa el rol de community manager se traduce en planificación, diseño, redacción y publicación en los canales acordados. Tenemos base en Villa Carlos Paz y cubrimos el Valle de Punilla y Córdoba. Responder comentarios y mensajes no está incluido por defecto; es un add-on opcional, con automatizaciones, si tu marca lo necesita."
+      },
+      {
         "q": "¿El servicio incluye responder mensajes y comentarios?",
-        "a": "La respuesta a mensajes y comentarios es una responsabilidad distinta de producir contenidos. Definimos quién se encarga de la atención y de validar la información comercial antes de comenzar; no está incluida automáticamente en la propuesta."
+        "a": "No está incluido por defecto; es opcional, con automatizaciones, si lo pedís. Responder mensajes y comentarios es una responsabilidad distinta de producir contenidos: definimos quién se encarga de la atención y de validar la información comercial antes de comenzar."
       },
       {
         "q": "¿Quién produce las fotos y los reels?",
@@ -65,8 +69,8 @@ export const services = [
         "a": "Producir contenido comprende preparar las piezas, sus textos y formatos. La atención cotidiana de la comunidad incluye otras tareas, como responder comentarios y mensajes. Al comparar propuestas, revisá quién publica, quién atiende consultas y qué seguimiento se acuerda."
       },
       {
-        "q": "¿Quepia gestiona Meta Ads o Google Ads?",
-        "a": "No gestionamos pauta publicitaria. Nuestro trabajo se enfoca en estrategia de marca y contenido orgánico. Diseñar piezas para una campaña no incluye configurar anuncios, administrar inversión ni optimizar una cuenta publicitaria."
+        "q": "¿Se encargan de la publicidad paga?",
+        "a": "No. Diseñamos piezas y creativos para anuncios; la gestión de la pauta (Meta Ads, Google Ads, inversión u optimización de cuentas publicitarias) no está incluida. Nuestro trabajo se enfoca en estrategia de marca y contenido orgánico."
       },
       {
         "q": "¿Cómo se define el presupuesto?",

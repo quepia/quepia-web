@@ -260,8 +260,14 @@
 - Motivo: cubrir la intención *community manager Villa Carlos Paz / Córdoba*, hoy sin cobertura en el cuerpo. No garantiza mejoras de ranking.
 - Archivos: `lib/seo/services.ts`, `app/layout.tsx`.
 - Validación: eslint de los archivos (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado con el H2 nuevo y `knowsAbout` con "Community manager".
-- Publicación: pendiente de verificar tras el push; se agregará la verificación en el próximo commit de Grokbot.
+- Publicación: verificada (ver abajo).
 
+### Verificación de publicación (Grokbot)
+
+- Commit: `6303e803d736e5cac173669fc09e3c726c24b8ec`.
+- Vercel: `dpl_2xAUDDA3v243SwLBcQGDwhXjjszG`, producción READY el 16/10 ~10:29 ART, SHA esperado y alias quepia.com; statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 16/10, ~10:31 ART: `/servicios/gestion-de-redes-sociales` HTTP 200 (con y sin cache-buster) con H2 "Community manager en Villa Carlos Paz y Córdoba", texto del add-on opcional y `knowsAbout` con "Community manager". Home 200 con el mismo `knowsAbout`. `/servicios/produccion-audiovisual` 200 sin la sección nueva. `/servicios/xyz-no-existe` 404.
+- Resultado: publicado y vigente; sin revert. Esta verificación se registra en el commit de SEO-29c para respetar el push único del 16/10.
 
 ## 2026-10-17 — Codex — dimensiones reales de imagen social
 
@@ -303,3 +309,16 @@
 - Motivo: responder con un estado HTTP fiel cuando no existe una ficha, conservando URLs, diseño y carga progresiva del listado.
 - Validación: ESLint de los archivos afectados, typecheck y build de producción correctos. Servidor de producción local: dos fichas inexistentes devuelven 404 tanto para navegador como Googlebot; listado y caso Hotel Bahía Norte devuelven 200 con canonical correcto; servicio inexistente conserva 404. Dominio quepia.com verificado en el proyecto autorizado y HEAD remoto sin cambios concurrentes.
 - Publicación verificada: commit `171e4284479f4e769fc44fd1fc00c34a5969fa85`, despliegue `dpl_A53xsjXzxbq86SaypUp1NQrRnf3j` READY, mismo SHA y alias quepia.com. En producción, `/trabajos/caso-inexistente-seo` y `/trabajos/caso-inexistente-20261019-publicacion` responden 404 con noindex; `/trabajos` y la ficha Hotel Bahía Norte responden 200 con canonical propio y sin noindex. Sin regresiones observadas en estas comprobaciones.
+
+## 2026-10-19 — Grokbot — FAQ community manager y publicidad paga en redes (SEO-29c / IA-05)
+
+- Autor: Grokbot. Fecha: 2026-10-19 (hora de Córdoba, ART).
+- Alcance: `/servicios/gestion-de-redes-sociales`, array `faq` de la entrada `gestion-de-redes-sociales` en `lib/seo/services.ts` (FAQ visibles + FAQPage JSON-LD).
+- Evidencia / motivo: el backlog priorizaba SEO-29c (+ parte de IA-05). En main `8dcac81` ya había 10 FAQs; faltaba la pregunta natural de community manager local; la de Meta Ads/Google Ads no coincidía con "¿Se encargan de la publicidad paga?"; la de mensajes/comentarios no arrancaba con un no directo. Ningún commit reciente de Codex tocó estas FAQs de redes (últimos: portfolio 404 `171e428` / `8dcac81`).
+- Cambio:
+  - Se agregó FAQ "¿Trabajan como community manager para negocios de Villa Carlos Paz y Córdoba?" (sí directo; planificación, diseño, redacción y publicación; base Carlos Paz, Punilla y Córdoba; comentarios/mensajes no incluidos por defecto, opcional con automatizaciones; sin promesas ni cifras).
+  - Se reemplazó "¿Quepia gestiona Meta Ads o Google Ads?" por "¿Se encargan de la publicidad paga?" (no directo; creativos sí, gestión de pauta Meta/Google/inversión/optimización no incluida; estrategia de marca y contenido orgánico).
+  - Se reforzó "¿El servicio incluye responder mensajes y comentarios?" para que la primera oración diga que no está incluido por defecto / es opcional con automatizaciones (IA-05). Se conservan el resto de FAQs de Codex.
+- Archivo: `lib/seo/services.ts` (solo entrada redes / faq).
+- Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
+- Publicación: pendiente de verificar tras el push; la verificación completa queda en `/workspace/quepia/seo/changelog.md` (push único; se completa en el próximo commit de Grokbot en este archivo si hace falta).
