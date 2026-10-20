@@ -4,24 +4,25 @@ import Link from 'next/link';
 import { Faq } from '@/components/seo/PublicContent';
 import PreciosClient from './PreciosClient';
 
+const pageTitle = 'Planes y presupuestos para tu marca';
+const pageDescription = 'Conocé los planes Esencial, Plus y Premium de Quepia. Cada propuesta se cotiza según entregables, revisiones y producción necesaria.';
+
 export const metadata: Metadata = {
-  title: 'Precios | Quepia - Consultora Creativa',
-  description:
-    'Planes comerciales de Quepia para ordenar, activar y escalar la presencia digital de tu marca.',
+  title: pageTitle,
+  description: pageDescription,
   alternates: {
     canonical: 'https://quepia.com/precios',
   },
   openGraph: {
-    title: 'Precios | Quepia',
-    description:
-      'Conocé los planes Esencial, Plus y Premium para tu marca.',
+    title: `${pageTitle} | Quepia`,
+    description: pageDescription,
     url: 'https://quepia.com/precios',
     images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Planes Quepia' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Precios | Quepia',
-    description: 'Planes comerciales para marcas que quieren comunicar con más claridad.',
+    title: `${pageTitle} | Quepia`,
+    description: pageDescription,
     images: ['/og-image.jpg'],
   },
 };
@@ -30,8 +31,8 @@ const pricingJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
   url: 'https://quepia.com/precios',
-  name: 'Precios | Quepia',
-  description: 'Planes comerciales de Quepia para marcas en distintas etapas de crecimiento.',
+  name: `${pageTitle} | Quepia`,
+  description: pageDescription,
 };
 
 const quoteQuestions = [

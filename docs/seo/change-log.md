@@ -334,3 +334,13 @@
 - Validación: lint del componente, typecheck y build de producción correctos (advertencias previas ajenas al cambio). Servidor de producción local: ambas páginas 200, tres enlaces de rubro en HTML por página, un H1, JSON-LD parseable, canonical propio y sin noindex. Valle de Punilla conserva su contenido y metadata. Los tres destinos públicos responden 200 con canonical propio y los casos indicados.
 - Publicación verificada: commit `56c0c1184e1d13c2eea4a2431d7c00cba1b2f573`; Vercel `dpl_8Q9TGYG9VkBXVkaKvjFZx8KYmLND` READY con el mismo SHA y alias quepia.com. El push no generó un despliegue visible; se inició desde ese commit mediante la conexión Git de Vercel, sin cambiar configuración.
 - Comprobación pública: Villa Carlos Paz y Córdoba devuelven 200 con la nueva sección y tres enlaces de rubro en HTML cada una; un H1, canonical propio y sin noindex. Valle de Punilla y gestión de redes conservan 200, H1 y canonical correcto. Sin regresiones observadas en esas comprobaciones. No se midieron cambios de ranking, tráfico o recomendaciones de IA.
+
+
+## 2026-10-20 — Codex — metadata de planes y presupuestos
+
+- Problema comprobado: `/precios` responde 200 pero publica «Precios | Quepia - Consultora Creativa | Quepia» en title, al repetir la marca del título local y la plantilla del layout. Las descripciones de búsqueda, Open Graph, Twitter y WebPage eran diferentes y no explicaban la cotización según alcance.
+- Cambio: título de página sin marca local duplicada; «Planes y presupuestos para tu marca» con una sola marca añadida por la plantilla. Títulos sociales y nombre WebPage coherentes. Descripción compartida que menciona los tres planes existentes y la cotización por entregables, revisiones y producción, según la FAQ visible.
+- Archivos: `app/precios/page.tsx` y `docs/seo/change-log.md`.
+- Razón: describir con claridad qué puede consultarse en la página y eliminar la repetición comprobada; sin alterar planes, condiciones, precios, diseño, formulario ni URL.
+- Comprobaciones: instalación con lockfile congelado, lint, typecheck y build de producción correctos (advertencias previas ajenas al cambio). HTML del servidor de producción local: 200; title y títulos sociales «Planes y presupuestos para tu marca | Quepia» con una sola marca; descripciones coincidentes y WebPage coherente; canonical propio, un H1, indexabilidad y cuatro FAQ conservados.
+- Publicación: pendiente de verificar en Vercel y quepia.com.
