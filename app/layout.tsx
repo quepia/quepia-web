@@ -96,6 +96,15 @@ export default async function RootLayout({
       areaServed: 'AR',
       availableLanguage: 'Spanish',
     },
+    // Horario confirmado por Quepia el 16/10/2026; coincide con lo visible en /contacto.
+    openingHoursSpecification: [
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        opens: '09:00',
+        closes: '18:00',
+      },
+    ],
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Villa Carlos Paz',

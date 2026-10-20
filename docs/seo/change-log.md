@@ -321,7 +321,14 @@
   - Se reforzó "¿El servicio incluye responder mensajes y comentarios?" para que la primera oración diga que no está incluido por defecto / es opcional con automatizaciones (IA-05). Se conservan el resto de FAQs de Codex.
 - Archivo: `lib/seo/services.ts` (solo entrada redes / faq).
 - Validación: eslint del archivo, `pnpm typecheck` y `pnpm build` con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
-- Publicación: pendiente de verificar tras el push; la verificación completa queda en `/workspace/quepia/seo/changelog.md` (push único; se completa en el próximo commit de Grokbot en este archivo si hace falta).
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `5add058c9300dc028fd846273cb557b5cfcf278f`.
+- Vercel: `dpl_FhWg5YFa7qSWSYJRAvYi3iz25eWy`, producción READY el 19/10 ~10:46 ART, SHA esperado y alias quepia.com; statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 19/10, ~10:46 ART: `/servicios/gestion-de-redes-sociales` HTTP 200 (con y sin cache-buster) con las FAQ "¿Trabajan como community manager para negocios de Villa Carlos Paz y Córdoba?" y "¿Se encargan de la publicidad paga?", sin "¿Quepia gestiona Meta Ads o Google Ads?", y FAQPage JSON-LD coherente con las 11 preguntas visibles. Home y `/servicios/produccion-audiovisual` 200; `/servicios/xyz-no-existe` 404. Revalidado el 20/10 a las 10:23 ART: 200 y mismas FAQ presentes.
+- Resultado: publicado y vigente; sin revert. Esta verificación se registra en el commit de horario de atención del 20/10 para respetar el push único del 19/10.
 
 
 ## 2026-10-19 — Codex — conexión de cobertura local con rubros y casos
@@ -344,3 +351,14 @@
 - Razón: describir con claridad qué puede consultarse en la página y eliminar la repetición comprobada; sin alterar planes, condiciones, precios, diseño, formulario ni URL.
 - Comprobaciones: instalación con lockfile congelado, lint, typecheck y build de producción correctos (advertencias previas ajenas al cambio). HTML del servidor de producción local: 200; title y títulos sociales «Planes y presupuestos para tu marca | Quepia» con una sola marca; descripciones coincidentes y WebPage coherente; canonical propio, un H1, indexabilidad y cuatro FAQ conservados.
 - Publicación verificada: implementación `78b6f03699969c366f892119f1a1b2161cb5b423`, despliegue `dpl_8AaVxz4hzKBrjsKUFWqYUUsH2BTt` READY con el mismo SHA y alias quepia.com. `/precios` responde 200 con título de una sola marca, títulos sociales y las tres descripciones esperadas, canonical propio, un H1 y sin noindex. Gestión de redes conserva 200, título, canonical e indexabilidad. Sin regresiones observadas en estas comprobaciones. No se midieron posiciones ni recomendaciones de IA.
+
+
+## 2026-10-20 — Grokbot — horario de atención en el schema de la organización (IA-02)
+
+- Autor: Grokbot. Fecha: 2026-10-20 (hora de Córdoba, ART).
+- Alcance: JSON-LD `LocalBusiness`/`ProfessionalService` (`@id` `https://quepia.com/#organization`) del layout, presente en todas las páginas públicas.
+- Evidencia / motivo: el schema de la organización no tenía `openingHoursSpecification` (pendiente anotado en la entrada de IA-02 del 15/10). Quepia confirmó el 16/10 el horario lunes a viernes de 9:00 a 18:00, el mismo que se ve en `/contacto` (comprobado en producción el 20/10 a las 10:21 ART: «Lunes a Viernes, 9:00 - 18:00»). Ningún commit reciente de Codex tocó este bloque (`78b6f03` / `8c5c9fe` son de `/precios`).
+- Cambio: `openingHoursSpecification` con un `OpeningHoursSpecification` de lunes a viernes, `opens` 09:00 y `closes` 18:00. No se tocan textos visibles, `contactPoint`, dirección ni datos del panel.
+- Archivo: `app/layout.tsx`.
+- Validación: eslint del archivo (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de `/` y `/contacto` con el JSON-LD parseable y el horario nuevo.
+- Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
