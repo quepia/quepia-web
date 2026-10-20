@@ -362,3 +362,14 @@
 - Archivo: `app/layout.tsx`.
 - Validación: eslint del archivo (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de `/` y `/contacto` con el JSON-LD parseable y el horario nuevo.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
+
+
+## 2026-10-20 — Codex — GEO: fuentes citables de trabajos recientes
+
+- Evidencia: el commit b4f362c publica siete muestras en inicio y `/trabajos`. Las tarjetas no tenían destinos individuales y llms.txt no las indexaba; turismo no enlazaba las nuevas muestras de Camping La Ribera y Nueva Generación.
+- Cambio: ids estables y margen para encabezado fijo en las siete tarjetas; enlaces contextuales desde turismo a las dos muestras pertinentes; índice complementario de las siete muestras en llms.txt con URLs públicas de portfolio y fragmentos.
+- Fuentes: textos y muestras de `RecentWorkSection` ya publicados. Se conserva el alcance exacto (diseño, reels o cobertura según cada tarjeta), sin afirmar gestión integral de redes, resultados, ubicaciones adicionales ni páginas independientes.
+- Archivos: `components/works/RecentWorkSection.tsx`, `app/rubros/[slug]/page.tsx`, `public/llms.txt`, `docs/seo/change-log.md`.
+- Razón SEO/GEO: hacer accesibles referencias propias concretas desde el contenido temático y facilitar consulta y citas con enlaces a su descripción visible. llms.txt es complementario; no garantiza descubrimiento, citas ni posiciones.
+- Validaciones: lint de ambos TSX, typecheck y build completos correctos (advertencias previas). Servidor de producción local: siete destinos únicos presentes en inicio y portfolio, siete enlaces de llms.txt resueltos a esos ids, dos enlaces contextuales correctos en turismo; inmobiliarias no recibe la sección. HTTP 200, un H1 e indexabilidad conservados; canonical propio de los rubros comprobado. Revisión React: componentes de servidor, sin hooks ni dependencias nuevas; preload none de videos conservado.
+- Publicación: pendiente de verificar.
