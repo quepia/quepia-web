@@ -167,6 +167,19 @@ export default function PlansSection() {
           })}
         </div>
 
+        <div className="mt-8 rounded-2xl border border-[#2ae7e4]/20 bg-[#2ae7e4]/[0.04] p-6 md:flex md:items-center md:justify-between md:gap-8">
+          <div>
+            <h3 className="font-display text-xl text-white">Beneficios para empezar y seguir creciendo.</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#a1a1aa]">
+              Descuentos en tu primer trabajo y beneficios para clientes fieles al contratar un plan mensual.
+              Consultanos las condiciones y armamos una propuesta para tu marca.
+            </p>
+          </div>
+          <Link href="/contacto" className="mt-4 inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full border border-white/20 px-5 py-3 text-sm text-white transition-colors hover:border-[#2ae7e4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2ae7e4] md:mt-0">
+            Consultar beneficios <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+
         <DroneService />
       </div>
     </section>

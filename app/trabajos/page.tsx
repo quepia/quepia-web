@@ -11,20 +11,20 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: 'Portfolio de Proyectos',
-  description: 'Mirá nuestros proyectos de branding, diseño gráfico e identidad visual para empresas de Córdoba y Argentina.',
+  description: 'Mirá nuestros trabajos de branding, diseño, videos para redes, coberturas de turismo y filmación con dron en Córdoba y Argentina.',
   alternates: {
     canonical: 'https://quepia.com/trabajos',
   },
   openGraph: {
-    title: 'Portfolio | Quepia - Proyectos de Branding y Diseño',
-    description: 'Proyectos de branding, identidad visual y diseño gráfico para empresas de Córdoba y toda Argentina.',
+    title: 'Portfolio | Quepia - Branding, Video y Dron',
+    description: 'Branding, diseño, producción audiovisual y coberturas con dron para empresas de Córdoba y Argentina.',
     url: 'https://quepia.com/trabajos',
     images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Portfolio Quepia' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Portfolio de Proyectos | Quepia',
-    description: 'Casos reales de branding, diseño e identidad visual desarrollados por Quepia.',
+    description: 'Trabajos de branding, diseño, producción audiovisual y turismo realizados por Quepia.',
     images: ['/og-image.jpg'],
   },
 };
@@ -34,7 +34,7 @@ const portfolioJsonLd = {
   '@type': 'CollectionPage',
   url: 'https://quepia.com/trabajos',
   name: 'Portfolio de Proyectos | Quepia',
-  description: 'Proyectos de branding, diseño gráfico e identidad visual realizados por Quepia.',
+  description: 'Proyectos de branding, diseño, producción audiovisual y filmación con dron realizados por Quepia.',
   provider: {
     '@type': 'LocalBusiness',
     '@id': 'https://quepia.com/#organization',

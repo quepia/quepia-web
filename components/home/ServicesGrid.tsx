@@ -23,7 +23,7 @@ const expertiseCards: ExpertiseCardConfig[] = [
   {
     title: 'Identidad y Branding',
     description:
-      'Ordenamos la identidad de tu marca con logotipo, criterios de color y tipografía, y aplicaciones acordadas para tus canales.',
+      'Construimos tu identidad con moodboards iniciales, reuniones por Meet, logotipo, colores y tipografías que dan forma a tu marca.',
     label: 'Sistema de marca',
     hoverGlow: 'rgba(244, 106, 210, 0.12)',
     videoSrc: '/VIDEOS CARDS/Identidad y Branding.mp4',
@@ -43,7 +43,7 @@ const expertiseCards: ExpertiseCardConfig[] = [
   {
     title: 'Producción Audiovisual',
     description:
-      'Capturamos la esencia de tu proyecto con fotografía, producción de video y cobertura aérea con dron.',
+      'Coberturas completas para empresas de turismo, viajes y egresados. Fotografía, videos editados y tomas con dron para contar cada experiencia.',
     label: 'Foto, video y dron',
     hoverGlow: 'rgba(255, 138, 91, 0.12)',
     videoSrc: '/VIDEOS CARDS/produccion-audiovisual.mp4',

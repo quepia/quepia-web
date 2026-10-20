@@ -16,6 +16,7 @@ import {
   projectMatchesCategory,
 } from '@/lib/project-categories'
 import BrandDepthBackground from '@/components/ui/BrandDepthBackground'
+import RecentWorkSection from '@/components/works/RecentWorkSection'
 import MarqueeSection from '@/components/home/MarqueeSection'
 
 interface WorksClientProps {
@@ -429,7 +430,7 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
               </h1>
 
               <p className="mt-5 max-w-2xl text-[0.98rem] leading-relaxed text-[#a1a1aa] md:text-[1.05rem]">
-                Explorá casos reales de branding, diseño y estrategia aplicados a desafíos concretos.
+                Explorá nuestros trabajos de branding, diseño, producción audiovisual y coberturas con dron.
               </p>
 
               <div className="mt-8 grid max-w-[560px] grid-cols-2 gap-3">
@@ -445,6 +446,8 @@ export default function WorksPage({ proyectos, initialCategory }: WorksClientPro
             </motion.div>
           </div>
         </section>
+
+        <RecentWorkSection />
 
         <MarqueeSection />
 

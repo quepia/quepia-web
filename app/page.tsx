@@ -2,6 +2,7 @@ import { correctProjectCopy } from '@/lib/seo/public-copy';
 import SocialProof from '@/components/seo/SocialProof';
 import type { Metadata } from 'next';
 import { createPublicClient } from '@/lib/supabase/public';
+import RecentWorkSection from '@/components/works/RecentWorkSection';
 import HomeCarousel from '@/components/home/HomeCarousel';
 import ServicesGrid from '@/components/home/ServicesGrid';
 import HeroSection from '@/components/home/HeroSection';
@@ -81,6 +82,8 @@ export default async function Home() {
             <HomeCarousel proyectos={proyectos.map(correctProjectCopy)} />
           )}
         </section>
+
+        <RecentWorkSection />
 
         <section
           id="expertise"

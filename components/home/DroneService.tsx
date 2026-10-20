@@ -16,7 +16,7 @@ export default function DroneService() {
                 Cobertura con dron
               </h3>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#a1a1aa]">
-                Sumá otra perspectiva a tu proyecto con imágenes y videos aéreos. Contanos qué necesitás y armamos una propuesta a medida.
+                Filmación aérea para edificios, flotas empresariales, espacios turísticos y eventos deportivos. Sumamos tomas con dron y edición para mostrar tu proyecto desde otra perspectiva.
               </p>
             </div>
             <Link
