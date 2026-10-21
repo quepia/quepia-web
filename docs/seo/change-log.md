@@ -361,7 +361,14 @@
 - Cambio: `openingHoursSpecification` con un `OpeningHoursSpecification` de lunes a viernes, `opens` 09:00 y `closes` 18:00. No se tocan textos visibles, `contactPoint`, dirección ni datos del panel.
 - Archivo: `app/layout.tsx`.
 - Validación: eslint del archivo (solo la advertencia previa de fuentes), `pnpm typecheck` y `pnpm build` correctos con Node 22 y NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de `/` y `/contacto` con el JSON-LD parseable y el horario nuevo.
-- Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `b4afddfecc259d92244dd95c3c6bd842721138de`.
+- Vercel: `dpl_5SVFQBF1AVsPcceJH1EBMvxGNp3x`, statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success (20/10 ~10:27 ART).
+- 20/10, 10:27 ART: `/`, `/contacto`, `/sobre-nosotros`, `/servicios/gestion-de-redes-sociales`, `/precios` y `/villa-carlos-paz` HTTP 200 con `openingHoursSpecification` lunes a viernes 09:00 a 18:00 y sin rastros del número anterior; `/servicios/xyz-no-existe` 404. Revalidado el 21/10 a las 10:24 ART: `/` y `/contacto` 200 (con cache-buster) con el horario en el JSON-LD.
+- Resultado: publicado y vigente; sin revert. Esta verificación se registra en el commit de SEO-30 del 21/10 para respetar el push único del 20/10.
 
 
 ## 2026-10-20 — Codex — GEO: fuentes citables de trabajos recientes
@@ -373,3 +380,19 @@
 - Razón SEO/GEO: hacer accesibles referencias propias concretas desde el contenido temático y facilitar consulta y citas con enlaces a su descripción visible. llms.txt es complementario; no garantiza descubrimiento, citas ni posiciones.
 - Validaciones: lint de ambos TSX, typecheck y build completos correctos (advertencias previas). Servidor de producción local: siete destinos únicos presentes en inicio y portfolio, siete enlaces de llms.txt resueltos a esos ids, dos enlaces contextuales correctos en turismo; inmobiliarias no recibe la sección. HTTP 200, un H1 e indexabilidad conservados; canonical propio de los rubros comprobado. Revisión React: componentes de servidor, sin hooks ni dependencias nuevas; preload none de videos conservado.
 - Publicación verificada: commit `c4d1db0822ceb188f038fa5582b61d30e8c4c5f2`, Vercel `dpl_A3HNrPvn4DTWC5pEQJ6rjZzwkuiz` READY con mismo SHA y alias quepia.com. Inicio, portfolio, turismo y llms.txt responden 200. Los siete enlaces de llms.txt tienen un destino único en el HTML público del portfolio; turismo contiene los dos enlaces esperados; las páginas HTML conservan canonical propio y no tienen noindex. No se observaron regresiones en estas comprobaciones. Oportunidad razonada GEO implementada; sin medición de citas, tráfico o posiciones.
+
+
+## 2026-10-21 — Grokbot — «agencia de comunicación» en Villa Carlos Paz y home (SEO-30)
+
+- Autor: Grokbot. Fecha: 2026-10-21 (hora de Córdoba, ART).
+- Alcance: `/villa-carlos-paz` (title, description, og/twitter, párrafo de introducción, Service JSON-LD y primer H2) y meta description de la home. H1 de `/villa-carlos-paz` y title de la home sin cambios.
+- Evidencia / motivo: propuesta SEO-30 del backlog (16/10), aprobada por la usuaria vía QUEP.IA el 20/10 con estos textos. La búsqueda «agencia de comunicación carlos paz» no mostraba a Quepia y el término no figuraba en ningún title, description, H1/H2 ni texto visible del sitio. Ningún commit reciente de Codex lo resolvió (últimos: `c4d1db0` / `e06cede`, muestras recientes y llms.txt). Se usa «agencia de comunicación» solo para describir la gestión de redes, contenido y estrategia de marca; no se atribuyen prensa, relaciones públicas ni pauta.
+- Cambio:
+  - Title de `/villa-carlos-paz`: «Consultora creativa y agencia de comunicación en Villa Carlos Paz | Quepia» (el template agrega la marca; el H1 conserva «Consultora creativa en Villa Carlos Paz, Córdoba, Argentina»).
+  - Description de `/villa-carlos-paz` (también og/twitter): «Quepia - Consultora Creativa: gestión de redes sociales, community manager, branding y video para marcas de Villa Carlos Paz. Una agencia de comunicación con base en la ciudad.»
+  - Introducción de `/villa-carlos-paz` (y `description` del Service JSON-LD): arranca con «Quepia es una consultora creativa con base en Villa Carlos Paz, Córdoba. Trabajamos como agencia de comunicación para marcas locales: gestión de redes sociales, contenido y estrategia de marca.»; se conserva el resto (branding, diseño, foto, video, packaging, coordinación a distancia).
+  - H2 «Nuestra base de trabajo» → «Gestión de redes y community manager en Villa Carlos Paz», con el texto ajustado al alcance confirmado (planificación, diseño, redacción y publicación; comentarios y mensajes no incluidos por defecto, opcional con automatizaciones).
+  - Meta description de la home: «Gestión de redes sociales, branding y video para marcas de Córdoba. Quepia - Consultora Creativa, agencia de comunicación con base en Villa Carlos Paz.» (og/twitter de la home sin cambios).
+- Archivos: `app/villa-carlos-paz/page.tsx`, `lib/seo/local-search.ts`, `lib/seo/landing-pages.ts`, `app/page.tsx`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint de los cuatro archivos sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: title, description y og:title nuevos en `/villa-carlos-paz`, un H1 sin cambios, H2 renombrado; description nueva en la home.
+- Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.

@@ -19,7 +19,7 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: { absolute: 'Consultora creativa en Córdoba: branding y redes | Quepia' },
-  description: 'Gestión de redes sociales, branding y producción de contenido para marcas de Córdoba. Quepia Consultora Creativa, con base en Villa Carlos Paz.',
+  description: 'Gestión de redes sociales, branding y video para marcas de Córdoba. Quepia - Consultora Creativa, agencia de comunicación con base en Villa Carlos Paz.',
   alternates: {
     canonical: 'https://quepia.com',
   },

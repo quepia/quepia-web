@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 
 export const localSearch = {
   'villa-carlos-paz': {
-    description: 'Gestión de redes sociales, contenido orgánico, branding y producción audiovisual en Villa Carlos Paz. Quepia, consultora creativa con base en la ciudad.',
-    summary: 'Quepia es una consultora creativa con base en Villa Carlos Paz, Córdoba, Argentina. Su servicio principal es la gestión de redes sociales y contenido orgánico para marcas. También realiza branding, diseño gráfico, fotografía, producción audiovisual y packaging. Las reuniones y revisiones pueden hacerse a distancia; las jornadas de producción se coordinan según el proyecto.',
+    description: 'Quepia - Consultora Creativa: gestión de redes sociales, community manager, branding y video para marcas de Villa Carlos Paz. Una agencia de comunicación con base en la ciudad.',
+    summary: 'Quepia es una consultora creativa con base en Villa Carlos Paz, Córdoba. Trabajamos como agencia de comunicación para marcas locales: gestión de redes sociales, contenido y estrategia de marca. También realizamos branding, diseño gráfico, fotografía, producción audiovisual y packaging. Las reuniones y revisiones pueden hacerse a distancia; las jornadas de producción se coordinan según el proyecto.',
     area: { '@type': 'City', name: 'Villa Carlos Paz', containedInPlace: { '@type': 'AdministrativeArea', name: 'Córdoba, Argentina' } },
     faq: [
       { q: '¿Dónde tiene base Quepia?', a: 'Quepia tiene base en Villa Carlos Paz, provincia de Córdoba, Argentina. Las reuniones presenciales se coordinan previamente por sus canales de contacto.' },
