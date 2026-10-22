@@ -395,4 +395,21 @@
   - Meta description de la home: «Gestión de redes sociales, branding y video para marcas de Córdoba. Quepia - Consultora Creativa, agencia de comunicación con base en Villa Carlos Paz.» (og/twitter de la home sin cambios).
 - Archivos: `app/villa-carlos-paz/page.tsx`, `lib/seo/local-search.ts`, `lib/seo/landing-pages.ts`, `app/page.tsx`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint de los cuatro archivos sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: title, description y og:title nuevos en `/villa-carlos-paz`, un H1 sin cambios, H2 renombrado; description nueva en la home.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `ec3c08f`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 22/10, 10:25 ART (con cache-buster): `/`, `/villa-carlos-paz` y `/contacto` HTTP 200; title de `/villa-carlos-paz` «Consultora creativa y agencia de comunicación en Villa Carlos Paz | Quepia» y la home con la description nueva («agencia de comunicación con base en Villa Carlos Paz»).
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-29f del 22/10.
+
+
+## 2026-10-22 — Grokbot — enlace contextual a gestión de redes desde zonas y rubros (SEO-29f)
+
+- Autor: Grokbot. Fecha: 2026-10-22 (hora de Córdoba, ART).
+- Alcance: sección «Servicios disponibles» de `/villa-carlos-paz`, `/cordoba` y `/valle-de-punilla`, y sección «Servicios para tu marca» de las páginas `/rubros/*`.
+- Evidencia / motivo: ítem SEO-29f del backlog. Gestión de redes sociales es el servicio principal, pero desde zonas y rubros solo se enlazaba con el nombre del servicio dentro de una lista de links iguales; no había un enlace contextual con texto ancla descriptivo («community manager»). Ningún commit reciente de Codex lo resolvió (últimos: `c4d1db0`, `e06cede`, `56c0c11`; este último agregó links a rubros, no al servicio).
+- Cambio: un párrafo antes de la lista de servicios: «Nuestro servicio principal es la gestión de redes sociales y community manager: planificación, diseño, redacción y publicación de contenido orgánico…», con el enlace a `/servicios/gestion-de-redes-sociales`. Alcance alineado con lo confirmado (sin respuesta a comentarios/mensajes ni pauta). Lista de servicios, H1/H2, metadata y URLs sin cambios.
+- Archivos: `components/seo/LocationPage.tsx`, `app/rubros/[slug]/page.tsx`.
+- Validación: Node 22, `pnpm install --frozen-lockfile`, eslint de ambos archivos sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: un enlace nuevo en `/villa-carlos-paz`, `/cordoba`, `/valle-de-punilla` y `/rubros/turismo-y-hoteleria`.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
