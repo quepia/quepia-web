@@ -412,4 +412,20 @@
 - Cambio: un párrafo antes de la lista de servicios: «Nuestro servicio principal es la gestión de redes sociales y community manager: planificación, diseño, redacción y publicación de contenido orgánico…», con el enlace a `/servicios/gestion-de-redes-sociales`. Alcance alineado con lo confirmado (sin respuesta a comentarios/mensajes ni pauta). Lista de servicios, H1/H2, metadata y URLs sin cambios.
 - Archivos: `components/seo/LocationPage.tsx`, `app/rubros/[slug]/page.tsx`.
 - Validación: Node 22, `pnpm install --frozen-lockfile`, eslint de ambos archivos sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: un enlace nuevo en `/villa-carlos-paz`, `/cordoba`, `/valle-de-punilla` y `/rubros/turismo-y-hoteleria`.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `59283cc`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 23/10, 10:25 ART (con cache-buster): `/villa-carlos-paz`, `/cordoba`, `/valle-de-punilla`, `/rubros/turismo-y-hoteleria`, `/rubros/gastronomia` y `/rubros/inmobiliarias` HTTP 200, un H1 cada una y el párrafo «Nuestro servicio principal es la gestión de redes sociales y community manager…» con enlace a `/servicios/gestion-de-redes-sociales`.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-29d del 23/10.
+
+## 2026-10-23 — Grokbot — sección «Contenido para redes» en gestión de redes (SEO-29d)
+
+- Autor: Grokbot. Fecha: 2026-10-23 (hora de Córdoba, ART).
+- Alcance: `/servicios/gestion-de-redes-sociales`, una sección nueva después de «Community manager en Villa Carlos Paz y Córdoba». Title, description, H1, FAQ, URLs y el resto de los servicios sin cambios.
+- Evidencia / motivo: ítem SEO-29d del backlog. La página mencionaba reels solo dentro de «Qué incluye» y en una FAQ, sin una sección que respondiera la intención «contenido para redes» (reels, fotos, publicaciones e historias) con foco local. Ningún commit reciente de Codex lo resolvió (últimos: `b4f362c`, `c4d1db0`, `e06cede`).
+- Cambio: H2 «Contenido para redes: reels, fotos y publicaciones» con un párrafo sobre qué muestra cada formato, la planificación de una jornada de producción para comercios y alojamientos de Villa Carlos Paz y el Valle de Punilla, y la coordinación de foto y video como producción aparte. Sin clientes, cifras ni promesas de resultados; sin pauta ni atención de comentarios.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: un H1, la sección nueva y su enlace en el índice de apartados (`#detalle-contenido-para-redes-reels-fotos-y-publicaciones`).
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.

@@ -19,6 +19,10 @@ export const services = [
         "text": "Cuando buscás un community manager para tu negocio en Villa Carlos Paz, el Valle de Punilla o Córdoba Capital, en Quepia ese rol se traduce en la gestión de redes: planificación del calendario, diseño de publicaciones, redacción de textos y publicación en los canales acordados. Coordinamos el trabajo de forma remota o presencial según lo que haga falta mostrar. Responder comentarios y mensajes no está incluido por defecto; es un add-on opcional, con automatizaciones, si tu marca lo necesita. No prometemos resultados de alcance ni ventas: el plan se arma alrededor de tu operación y de lo que tu audiencia necesita saber."
       },
       {
+        "title": "Contenido para redes: reels, fotos y publicaciones",
+        "text": "El contenido para redes se arma según lo que cada formato tiene que mostrar. Los reels sirven para presentar un producto, un espacio o una novedad en pocos segundos; las fotos muestran con detalle habitaciones, platos, vidrieras o al equipo; las publicaciones y las historias ordenan promociones, horarios y datos que tu público necesita tener a mano. Para comercios y alojamientos de Villa Carlos Paz y el Valle de Punilla podemos planificar una jornada de producción que alimente varias semanas del calendario. Cuando hace falta grabar o fotografiar, lo coordinamos como una producción audiovisual o fotográfica, y adaptamos el diseño de cada pieza al formato vertical, al feed o a las historias."
+      },
+      {
         "title": "Para quién es",
         "text": "Este servicio sirve para negocios que necesitan ordenar su comunicación y para marcas que ya tienen una identidad pero les cuesta traducirla a publicaciones. Un hotel puede mostrar habitaciones, ubicación y experiencias; una inmobiliaria necesita presentar propiedades con información precisa; un comercio puede explicar productos y responder dudas frecuentes. No todos requieren publicar lo mismo ni con la misma frecuencia. El plan se construye alrededor de tu operación y de lo que tu audiencia necesita saber."
       },
