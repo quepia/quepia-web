@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { services } from '@/lib/seo/services';
 import { getPublicProjects, projectSlug } from '@/lib/seo/projects';
-import { projectMatchesCategory } from '@/lib/project-categories';
+import { getPrimaryProjectCategory, projectMatchesCategory } from '@/lib/project-categories';
 import { PublicShell, ContentSection, ContactCta, ProjectCards, Faq } from '@/components/seo/PublicContent';
 import JsonLd from '@/components/seo/JsonLd';
 import SocialProof from '@/components/seo/SocialProof';
@@ -41,7 +41,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const { slug } = await params;
   const service = services.find(item => item.slug === slug);
   if (!service) notFound();
-  const projects = (await getPublicProjects()).filter(project => projectMatchesCategory(project, service.category));
+  const matchingProjects = (await getPublicProjects()).filter(project => projectMatchesCategory(project, service.category));
+  // Primero los casos cuya categoría principal es la del servicio (orden estable dentro de cada grupo).
+  const projects = [...matchingProjects.filter(project => getPrimaryProjectCategory(project) === service.category), ...matchingProjects.filter(project => getPrimaryProjectCategory(project) !== service.category)];
   const featuredProjects = projects.slice(0, 3);
   const serviceUrl = `https://quepia.com/servicios/${slug}`;
   const sections = service.sections.map(section => ({ ...section, id: `detalle-${section.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}` }));

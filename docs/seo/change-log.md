@@ -428,4 +428,20 @@
 - Cambio: H2 «Contenido para redes: reels, fotos y publicaciones» con un párrafo sobre qué muestra cada formato, la planificación de una jornada de producción para comercios y alojamientos de Villa Carlos Paz y el Valle de Punilla, y la coordinación de foto y video como producción aparte. Sin clientes, cifras ni promesas de resultados; sin pauta ni atención de comentarios.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: un H1, la sección nueva y su enlace en el índice de apartados (`#detalle-contenido-para-redes-reels-fotos-y-publicaciones`).
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `922d208`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 27/10, 10:27 ART (con cache-buster): `/servicios/gestion-de-redes-sociales` HTTP 200, un H1, la sección «Contenido para redes: reels, fotos y publicaciones» y su enlace en el índice de apartados.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-29e del 27/10.
+
+## 2026-10-27 — Grokbot — casos con categoría principal del servicio primero (SEO-29e)
+
+- Autor: Grokbot. Fecha: 2026-10-27 (hora de Córdoba, ART).
+- Alcance: bloque de trabajos destacados (3 tarjetas) y `subjectOf` del JSON-LD `Service` en `/servicios/[slug]`. Textos, metadata, H1/H2, URLs y filtro de casos sin cambios.
+- Evidencia / motivo: ítem SEO-29e del backlog. En producción (27/10, 10:20 ART) `/servicios/gestion-de-redes-sociales` mostraba Inmobiliaria Noe García Roñoni, Logo e identidad CEL y Rohi Sommiers, cuya categoría principal es Branding, y dejaba afuera «Hotel Bahía Norte - Social Media», el único caso publicado cuya categoría principal es Redes Sociales (su página lista «Redes Sociales · Branding · …»). Los 3 destacados salían del orden general del portfolio, sin priorizar el servicio. Ningún commit reciente de Codex lo resolvió (main en `922d208`).
+- Cambio: entre los casos que ya coinciden con la categoría del servicio, primero los que la tienen como categoría principal y después el resto, con orden estable dentro de cada grupo. En redes, el caso del Hotel Bahía Norte pasa a la primera tarjeta y al `subjectOf`. En los demás servicios puede cambiar qué casos aparecen primero, siempre dentro de los que ya coincidían.
+- Archivo: `app/servicios/[slug]/page.tsx`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
