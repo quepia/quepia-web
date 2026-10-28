@@ -444,4 +444,20 @@
 - Cambio: entre los casos que ya coinciden con la categoría del servicio, primero los que la tienen como categoría principal y después el resto, con orden estable dentro de cada grupo. En redes, el caso del Hotel Bahía Norte pasa a la primera tarjeta y al `subjectOf`. En los demás servicios puede cambiar qué casos aparecen primero, siempre dentro de los que ya coincidían.
 - Archivo: `app/servicios/[slug]/page.tsx`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales).
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `4a420cd`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 28/10, 10:29 ART (con cache-buster): `/servicios/gestion-de-redes-sociales` HTTP 200; «Hotel Bahía Norte - Social Media» aparece en las tarjetas destacadas y como primer `subjectOf` del JSON-LD `Service`.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-30a del 28/10.
+
+## 2026-10-28 — Grokbot — Villa Carlos Paz en title y description de audiovisual y dron (SEO-30a)
+
+- Autor: Grokbot. Fecha: 2026-10-28 (hora de Córdoba, ART).
+- Alcance: `title` (también H1 visible) y `description` (también bajada visible, meta description, OG/Twitter y `description` del schema `Service`) de `/servicios/produccion-audiovisual` y `/servicios/filmacion-con-dron-cordoba`. URLs, secciones, FAQ y el resto de los servicios sin cambios.
+- Evidencia / motivo: ítem SEO-30a del backlog. Los titles eran «Producción audiovisual en Córdoba, Argentina» y «Filmación con dron en Córdoba, Argentina», sin Villa Carlos Paz, y las descriptions seguían la plantilla genérica («… para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia…»). Video/audiovisual es el segundo servicio en prioridad. Ningún commit reciente de Codex tocó estos campos (main en `4a420cd`).
+- Cambio: titles «Producción audiovisual en Carlos Paz y Córdoba» (55 caracteres con «| Quepia») y «Filmación con dron en Villa Carlos Paz y Córdoba» (57). Descriptions propias de 150 y 141 caracteres que resumen formatos (reels, spots, videos institucionales; tomas aéreas para turismo, propiedades y eventos) con lo que ya dice la página (de la idea a la edición; evaluación previa del lugar). Sin clientes, cifras, permisos ni promesas nuevas.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de ambas páginas: title, meta description y un H1 con los textos nuevos.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.

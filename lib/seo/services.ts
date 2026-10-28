@@ -98,8 +98,8 @@ export const services = [
     "slug": "produccion-audiovisual",
     "name": "Producción audiovisual",
     "category": "video",
-    "title": "Producción audiovisual en Córdoba, Argentina",
-    "description": "Producción audiovisual para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
+    "title": "Producción audiovisual en Carlos Paz y Córdoba",
+    "description": "Producción audiovisual en Villa Carlos Paz y Córdoba: reels, spots y videos institucionales para tu marca, de la idea a la edición. Pedí tu propuesta.",
     "sections": [
       {
         "title": "Videos que expliquen tu propuesta",
@@ -346,8 +346,8 @@ export const services = [
     "slug": "filmacion-con-dron-cordoba",
     "name": "Filmación con dron",
     "category": "video",
-    "title": "Filmación con dron en Córdoba, Argentina",
-    "description": "Filmación con dron para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
+    "title": "Filmación con dron en Villa Carlos Paz y Córdoba",
+    "description": "Filmación con dron en Villa Carlos Paz, Punilla y Córdoba: tomas aéreas para turismo, propiedades y eventos, con evaluación previa del lugar.",
     "sections": [
       {
         "title": "Una mirada aérea con propósito",
