@@ -460,4 +460,20 @@
 - Cambio: titles «Producción audiovisual en Carlos Paz y Córdoba» (55 caracteres con «| Quepia») y «Filmación con dron en Villa Carlos Paz y Córdoba» (57). Descriptions propias de 150 y 141 caracteres que resumen formatos (reels, spots, videos institucionales; tomas aéreas para turismo, propiedades y eventos) con lo que ya dice la página (de la idea a la edición; evaluación previa del lugar). Sin clientes, cifras, permisos ni promesas nuevas.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado de ambas páginas: title, meta description y un H1 con los textos nuevos.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `3ef2533`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 29/10, 10:25 ART (con cache-buster): `/servicios/produccion-audiovisual` y `/servicios/filmacion-con-dron-cordoba` HTTP 200, un H1 cada una, con los titles, H1 y meta descriptions nuevos.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-31 del 29/10.
+
+## 2026-10-29 — Grokbot — Villa Carlos Paz y Córdoba en title y description de diseño gráfico (SEO-31)
+
+- Autor: Grokbot. Fecha: 2026-10-29 (hora de Córdoba, ART).
+- Alcance: `title` (también H1 visible) y `description` (también bajada visible, meta description, OG/Twitter y `description` del schema `Service`) de `/servicios/diseno-grafico`. URL, secciones, FAQ y el resto de los servicios sin cambios.
+- Evidencia / motivo: ítem SEO-31 del backlog. El title era «Diseño gráfico en Villa Carlos Paz, Córdoba, Argentina» (63 caracteres con «| Quepia», con riesgo de corte) y la description seguía la plantilla genérica («Diseño gráfico para tu marca. Quepia, con base en Villa Carlos Paz…»). Diseño gráfico es el tercer servicio en prioridad. Ningún commit reciente de Codex tocó estos campos (main en `1091a50`, commit ajeno al SEO).
+- Cambio: title «Diseño gráfico en Villa Carlos Paz y Córdoba» (53 caracteres con «| Quepia»). Description propia de 148 caracteres que resume las piezas que la página ya ofrece (publicaciones para redes, folletos, catálogos, presentaciones y cartelería; digitales e impresas). Sin clientes, cifras, precios ni promesas nuevas.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: title, meta description y un H1 con los textos nuevos.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.

@@ -287,8 +287,8 @@ export const services = [
     "slug": "diseno-grafico",
     "name": "Diseño gráfico",
     "category": "diseno-grafico",
-    "title": "Diseño gráfico en Villa Carlos Paz, Córdoba, Argentina",
-    "description": "Diseño gráfico para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
+    "title": "Diseño gráfico en Villa Carlos Paz y Córdoba",
+    "description": "Diseño gráfico en Villa Carlos Paz y Córdoba: publicaciones para redes, folletos, catálogos, presentaciones y cartelería, digitales o para imprimir.",
     "sections": [
       {
         "title": "Diseño para comunicar con claridad",
