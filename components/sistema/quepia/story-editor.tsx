@@ -53,8 +53,8 @@ export function StoryFields({ settings, onChange }: { settings: StorySettings; o
   </div>
 }
 
-export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, onTaskClick }: {
-  task: Task; projectId: string; userId: string; brief: ClientBrief | null; onClose: () => void; onSaved: () => void; onTaskClick?: (task: Task) => void
+export function StoryEditor({ task, projectId, userId, brief, canGenerate = true, onClose, onSaved, onTaskClick }: {
+  task: Task; projectId: string; userId: string; brief: ClientBrief | null; canGenerate?: boolean; onClose: () => void; onSaved: () => void; onTaskClick?: (task: Task) => void
 }) {
   const [title,setTitle] = useState(task.titulo)
   const [settings,setSettings] = useState(() => readStorySettings(task.type_metadata, task))
@@ -62,9 +62,22 @@ export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, 
   const [busy,setBusy] = useState("")
   const [error,setError] = useState("")
   const fileInput = useRef<HTMLInputElement>(null)
-  async function save() {
-    setBusy("save"); setError("")
-    try { await storyRequest({ action: "save", projectId, taskId: task.id, title, settings }); onSaved(); onClose() }
+  const generationKey = useRef<string | null>(null)
+  async function save(apply = false) {
+    if (busy) return
+    setBusy(apply ? "apply" : "save"); setError("")
+    try {
+      await storyRequest({ action: "save", projectId, taskId: task.id, title, settings })
+      onSaved()
+      if (apply) {
+        const batchKey = generationKey.current || crypto.randomUUID()
+        generationKey.current = batchKey
+        await storyRequest({ action: "generate", projectId, taskIds: [task.id], batchKey })
+        generationKey.current = null
+        onSaved()
+      }
+      onClose()
+    }
     catch (err) { setError(err instanceof Error ? err.message : "No se pudo guardar") }
     finally { setBusy("") }
   }
@@ -89,7 +102,7 @@ export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, 
     } catch (err) { setError(err instanceof Error ? err.message : "No se pudo subir") }
     finally { setBusy(""); if(fileInput.current) fileInput.current.value = "" }
   }
-  return <div role="dialog" aria-modal="true" aria-label="Editar historia" className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-3" onClick={onClose}>
+  return <div role="dialog" aria-modal="true" aria-label="Editar historia" className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-3" onClick={()=>{if(!busy) onClose()}}>
     <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101318]" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between border-b border-white/10 px-5 py-4"><h2 className="font-medium text-white">Editar historia</h2><button aria-label="Cerrar editor" disabled={Boolean(busy)} onClick={onClose} className={STORY_BUTTON}><X size={16}/></button></div>
       <fieldset disabled={Boolean(busy)} className="space-y-5 overflow-y-auto p-5 disabled:opacity-60">
@@ -114,9 +127,13 @@ export function StoryEditor({ task, projectId, userId, brief, onClose, onSaved, 
           {!brief&&<p className="mt-2 text-xs text-amber-300">Completá el brief del cliente para usar IA.</p>}
         </div>}
       </fieldset>
-      <div className="flex items-center justify-between border-t border-white/10 p-4">
+      <div className="border-t border-white/10 p-4">
+        <p className="mb-3 text-xs text-white/45">Aplicar edición guarda los cambios y genera la imagen actualizada con IA. Consume saldo y la nueva versión aparecerá al terminar.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
         <button className={STORY_BUTTON} disabled={Boolean(busy)} onClick={()=>{onClose();onTaskClick?.(task)}}>Abrir tarea y assets</button>
-        <button className={cn(STORY_BUTTON,"border-quepia-cyan/40 text-quepia-cyan")} disabled={Boolean(busy)||!title.trim()} onClick={()=>void save()}>{busy?<Loader2 size={14} className="animate-spin"/>:<Save size={14}/>} {busy==="upload"?"Subiendo referencias…":busy==="prompt"?"Preparando…":"Guardar historia"}</button>
+        <button className={cn(STORY_BUTTON,"border-quepia-cyan/40 text-quepia-cyan")} disabled={Boolean(busy)||!title.trim()} onClick={()=>void save()}>{busy?<Loader2 size={14} className="animate-spin"/>:<Save size={14}/>} {busy==="upload"?"Subiendo referencias…":busy==="prompt"?"Preparando…":"Guardar sin generar"}</button>
+        <button className={cn(STORY_BUTTON,"border-quepia-cyan/40 text-quepia-cyan")} disabled={Boolean(busy)||!title.trim()||!brief||!canGenerate} onClick={()=>void save(true)}>{busy==="apply"?<Loader2 size={14} className="animate-spin"/>:<Sparkles size={14}/>}{busy==="apply"?"Aplicando edición…":"Aplicar edición"}</button>
+        </div>
       </div>
     </div>
   </div>
