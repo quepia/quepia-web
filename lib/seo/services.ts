@@ -216,8 +216,8 @@ export const services = [
     "slug": "branding-e-identidad",
     "name": "Branding e identidad visual",
     "category": "branding",
-    "title": "Branding e identidad visual en Córdoba",
-    "description": "Branding e identidad visual para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
+    "title": "Branding e identidad visual en Carlos Paz y Córdoba",
+    "description": "Branding e identidad visual en Villa Carlos Paz y Córdoba: logotipo, paleta, tipografías y guía de uso, para marcas nuevas o que necesitan ordenarse.",
     "sections": [
       {
         "title": "Una marca con dirección",

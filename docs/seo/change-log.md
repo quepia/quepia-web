@@ -476,4 +476,20 @@
 - Cambio: title «Diseño gráfico en Villa Carlos Paz y Córdoba» (53 caracteres con «| Quepia»). Description propia de 148 caracteres que resume las piezas que la página ya ofrece (publicaciones para redes, folletos, catálogos, presentaciones y cartelería; digitales e impresas). Sin clientes, cifras, precios ni promesas nuevas.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: title, meta description y un H1 con los textos nuevos.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `a3ca8ea`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 30/10, 10:25 ART (con cache-buster): `/servicios/diseno-grafico` HTTP 200, un H1, con el title «Diseño gráfico en Villa Carlos Paz y Córdoba | Quepia» y la meta description nueva.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-32a del 30/10.
+
+## 2026-10-30 — Grokbot — Villa Carlos Paz en title y description de branding (SEO-32a)
+
+- Autor: Grokbot. Fecha: 2026-10-30 (hora de Córdoba, ART).
+- Alcance: `title` (también H1 visible) y `description` (también bajada visible, meta description, OG/Twitter y `description` del schema `Service`) de `/servicios/branding-e-identidad`. URL, secciones, FAQ y el resto de los servicios sin cambios.
+- Evidencia / motivo: ítem SEO-32a del backlog. El title era «Branding e identidad visual en Córdoba», sin Villa Carlos Paz, y la description seguía la plantilla genérica («Branding e identidad visual para tu marca. Quepia, con base en Villa Carlos Paz…»). Branding es el cuarto servicio en prioridad. Ningún commit reciente de Codex tocó estos campos (main en `25a8665`, commit de videos ajeno al SEO).
+- Cambio: title «Branding e identidad visual en Carlos Paz y Córdoba» (60 caracteres con «| Quepia»). Description propia de 149 caracteres que resume lo que la página ya ofrece (logotipo, paleta, tipografías y guía de uso; marcas nuevas y existentes). Sin clientes, cifras, precios ni promesas nuevas.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: title, meta description y un H1 con los textos nuevos.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
