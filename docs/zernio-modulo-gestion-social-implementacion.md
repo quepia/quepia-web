@@ -43,7 +43,7 @@ No se usaron endpoints no documentados. Workflows avanzados, reviews, LinkedIn/T
 3. **Capa semántica común** (`public.social_query` → `private.social_query_dispatch`): scopes, definiciones, overview, series (publish/received), comparación de períodos con descomposición volumen/tasa, ranking a igual edad, formatos (mediana/cuartiles), detalle de post, cobertura, atención. Valida y rechaza parámetros desconocidos o cruzados; devuelve evidencia (hash de consulta, período, zona, versiones de definiciones, frescura).
 4. **Bandeja**: hilos DM/comentario, interacciones deduplicadas, origen (contacto / admin Quepia / automatización / humano en Zernio / desconocido), asignaciones solo a admins globales, notas internas, episodios de atención (SLA humano y automático separados, horario laboral configurable), versión optimista, claim, outbox idempotente, envío ambiguo con conciliación, revocación antes de acciones diferidas, historial importado sin carga de SLA.
 5. **Automatizaciones**: borradores versionados con hash, validación del contrato, conflictos (bloqueante por publicación, advertencia por palabras), activación/pausa vía outbox, inventario de reglas externas, logs deduplicados, reglas internas (asignación y recordatorio SLA con tope diario).
-6. **Inteligencia y MCP**: ejecuciones de análisis, evidencia por consulta, insights con seguimiento; capacidad MCP `social.analytics.read` **no otorgada por defecto** + 10 RPC `mcp_social_*` que además exigen admin global activo/autorizado.
+6. **Inteligencia y MCP**: ejecuciones de análisis, evidencia por consulta, insights con seguimiento; capacidad MCP `social.analytics.read` **otorgada por defecto** (migración `social_mcp_default_analytics`) + 10 RPC `mcp_social_*` que además exigen admin global activo/autorizado.
 
 Todas las tablas nuevas: RLS activo, sin grants a `anon`/`authenticated`/`mcp_authenticated`; RPC solo para `service_role` (las `mcp_social_*` solo para `mcp_authenticated`).
 
@@ -91,7 +91,7 @@ Errores encontrados y corregidos durante las pruebas: caída falsa en la serie d
 4. **Webhooks en Zernio**: `node --env-file=.env.local scripts/social/zernio-webhooks.mjs --base-url https://<dominio>` (simulación) y luego `--apply`. Después capturar un `analytics.synced` real para cerrar la discrepancia del cursor.
 5. **Identidad comercial**: en Conexiones, crear clientes y asignar proyectos/perfiles (nada se infiere por nombre). El perfil `Default` y la cuenta `@quepiastudio` quedarán como sin cliente/eliminada.
 6. **Carga inicial**: “Carga histórica” (bootstrap 180 días), luego “Evolución de posts” y “Bandeja”.
-7. **MCP**: habilitar `social.analytics.read` por grant desde Conexiones; desplegar `services/mcp`.
+7. **MCP**: aplicar `20261101221312_social_mcp_default_analytics.sql` para habilitar analítica automáticamente en conexiones existentes y nuevas. No requiere permisos manuales desde Conexiones. Cada consulta sigue exigiendo admin global activo/autorizado y una conexión MCP válida; las revocaciones de conexión se conservan.
 8. **Automatizaciones reales y envíos**: probar primero con una cuenta de prueba y autorización explícita.
 
 ## 6. Limitaciones reales

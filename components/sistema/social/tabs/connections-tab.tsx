@@ -23,7 +23,6 @@ type Inventory = {
   jobs: Array<{ kind: string; status: string; attempts: number; last_error: string | null; run_after: string }>
 }
 type Coverage = { result: { accounts: Array<{ account_id: string; posts_in_period: number; latest_post_metrics_at: string | null }>; streams: Array<{ stream: string; status: string; last_success_at: string | null; last_error: string | null; cursor_age_hours: number | null }>; webhooks: { last_received_at: string | null; quarantined: number; failed: number }; provider_freshness_note: string } }
-type Grant = { grant_id: string; user_name: string | null; client_id: string; created_at: string; user_is_global_admin: boolean; social_enabled: boolean }
 
 const SYNC_KINDS = [
   { kind: "inventory.reconcile", label: "Inventario" }, { kind: "health.check", label: "Salud" }, { kind: "analytics.delta", label: "Analítica (delta)" },
@@ -33,7 +32,6 @@ const SYNC_KINDS = [
 
 export function ConnectionsTab({ scope, onScopesChanged }: TabProps & { onScopesChanged: () => void }) {
   const inventory = useSocialData<{ inventory: Inventory; coverage: Coverage }>(`/api/admin/social/connections?${paramsQuery(scope)}`)
-  const grants = useSocialData<Grant[]>("/api/admin/social/mcp-access")
   const [syncing, setSyncing] = useState(false)
   const syncLock = useRef(false)
   const { reload } = inventory
@@ -193,21 +191,6 @@ export function ConnectionsTab({ scope, onScopesChanged }: TabProps & { onScopes
           </div>
         </div>
         </details>
-      </Panel>
-      <Panel title="Acceso de IA por MCP" description="Las herramientas sociales de solo lectura requieren la capacidad social.analytics.read, que no se otorga por defecto. Solo grants de administradores globales pueden recibirla y cada consulta revalida el rol.">
-        {grants.loading && !grants.data ? <Loading /> : <ErrorState error={grants.error} />}
-        {grants.data && grants.data.length === 0 && <p className="text-sm text-[#a3a3a3]">No hay conexiones MCP activas.</p>}
-        <ul className="space-y-1 text-sm">
-          {grants.data?.map((grant) => (
-            <li key={grant.grant_id} className="flex items-center justify-between gap-2">
-              <span className="text-white/70">{grant.user_name ?? "Usuario"} · conectado {formatDateTime(grant.created_at)}</span>
-              <Button disabled={!grant.user_is_global_admin && !grant.social_enabled}
-                onClick={() => act(async () => { await socialFetch("/api/admin/social/mcp-access", { method: "POST", json: { grant_id: grant.grant_id, enabled: !grant.social_enabled } }); grants.reload() })}>
-                {grant.social_enabled ? "Quitar analítica social" : grant.user_is_global_admin ? "Permitir analítica social" : "No es admin global"}
-              </Button>
-            </li>
-          ))}
-        </ul>
       </Panel>
     </div>
   )

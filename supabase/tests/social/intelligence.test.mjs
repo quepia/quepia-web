@@ -35,23 +35,34 @@ async function mcp(rpcName, request, claims) {
   return rows[0].r
 }
 
-test("la capacidad social no se otorga por defecto a grants existentes", async () => {
+test("analítica disponible por defecto para conexiones existentes y nuevas", async () => {
   const { rows } = await db.query("SELECT granted_by_default FROM private.mcp_capabilities WHERE capability = 'social.analytics.read'")
-  assert.equal(rows[0].granted_by_default, false)
-  const denied = await mcp("mcp_social_get_overview", {}, adminClaims)
-  assert.equal(denied.ok, false)
-  assert.equal(denied.error.code, "capability_denied")
+  assert.equal(rows[0].granted_by_default, true)
+  // Emula el aprovisionamiento OAuth, que copia las capacidades por defecto.
+  await db.exec(`INSERT INTO private.mcp_client_capabilities(client_id, capability)
+    SELECT client_id, capability FROM private.mcp_client_policies CROSS JOIN private.mcp_capabilities WHERE granted_by_default
+    ON CONFLICT DO NOTHING;
+    INSERT INTO private.mcp_access_grant_capabilities(grant_id, capability)
+    SELECT id, capability FROM private.mcp_access_grants CROSS JOIN private.mcp_capabilities WHERE granted_by_default
+    ON CONFLICT DO NOTHING;`)
+  // La migración también actualiza conexiones previas sin reconectarlas.
+  const { readFileSync } = await import("node:fs")
+  await db.query("DELETE FROM private.mcp_access_grant_capabilities WHERE grant_id = $1", [adminGrant])
+  await db.exec(readFileSync(new URL("../../migrations/20261101221312_social_mcp_default_analytics.sql", import.meta.url), "utf8"))
+  const result = await mcp("mcp_social_get_overview", {}, adminClaims)
+  assert.equal(result.ok, true, JSON.stringify(result))
 })
 
-test("solo grants de admins globales reciben la capacidad, y aun así se revalida el rol", async () => {
-  const refused = await rpc(db, "social_admin_set_mcp_social_access", [IDS.admin, memberGrant, true])
-  assert.equal(refused.error.code, "not_global_admin")
-  const granted = await rpc(db, "social_admin_set_mcp_social_access", [IDS.admin, adminGrant, true])
-  assert.equal(granted.ok, true, JSON.stringify(granted))
-  // Aunque alguien inserte la capacidad a mano para el integrante, la RPC exige admin global.
-  await db.query("INSERT INTO private.mcp_access_grant_capabilities(grant_id, capability) VALUES ($1, 'social.analytics.read')", [memberGrant])
+test("un integrante no accede aunque tenga la capacidad por defecto", async () => {
   const member = await mcp("mcp_social_get_overview", {}, memberClaims)
   assert.equal(member.error.code, "forbidden")
+})
+
+test("revocar la conexión sigue bloqueando la analítica automática", async () => {
+  await db.query("UPDATE private.mcp_access_grants SET revoked_at = now() WHERE id = $1", [adminGrant])
+  const denied = await mcp("mcp_social_get_overview", {}, adminClaims)
+  assert.equal(denied.ok, false)
+  await db.query("UPDATE private.mcp_access_grants SET revoked_at = NULL WHERE id = $1", [adminGrant])
 })
 
 test("UI (social_query) y MCP devuelven los mismos valores y definiciones", async () => {
@@ -147,3 +158,6 @@ test("las RPC MCP no son ejecutables por authenticated ni service_role", async (
   await assert.rejects(asRole(db, "service_role", "SELECT public.mcp_social_get_overview('{}'::jsonb)"), /permission denied/)
   await assert.rejects(asRole(db, "mcp_authenticated", "SELECT public.social_query($1, 'overview', '{}'::jsonb)", [IDS.admin], adminClaims), /permission denied/)
 })
+
+// Cierra la base efímera para que el runner termine sin workers pendientes.
+test.after(async () => { await db.close() })
