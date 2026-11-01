@@ -7,9 +7,15 @@ export const MCP_REQUESTED_CAPABILITIES = [
   },
   {
     id: "accounting.expense.write",
-    label: "Preparar gastos",
+    label: "Registrar gastos",
     description:
-      "Preparar gastos para revisión. El registro final sigue requiriendo una aprobación humana separada.",
+      "Registrar y anular gastos mediante las herramientas autorizadas de contabilidad.",
+  },
+  {
+    id: "social.analytics.read",
+    label: "Consultar métricas de redes sociales",
+    description:
+      "Analizar métricas, evolución, rankings y cobertura de redes sociales. Acceso de solo lectura para administradores globales, sin habilitaciones adicionales por conexión. No incluye mensajes privados ni notas internas.",
   },
 ] as const
 

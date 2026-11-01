@@ -87,9 +87,9 @@ export function OAuthConsentCard({
         </div>
 
         <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/[0.07] p-4 text-sm leading-6 text-amber-100/80">
-          Esta conexión no habilita acceso directo a tablas ni aprueba gastos
-          automáticamente. Las escrituras sensibles conservan su aprobación
-          humana de un solo uso.
+          La analítica social se habilita al autorizar la conexión y es de solo
+          lectura. Las herramientas de contabilidad pueden registrar cambios.
+          El servidor valida los permisos en cada operación.
         </div>
 
         <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -148,7 +148,7 @@ export function OAuthConsentCard({
         <InfoCard
           icon={LockKeyhole}
           title="Protección activa"
-          footer="La sesión web directa y el rol de administrador global se revalidan por RPC al confirmar. AAL2 queda reservado para aprobar gastos."
+          footer="La sesión web y el rol de administrador global se validan al confirmar. Cada consulta de analítica social vuelve a comprobar que el administrador esté activo y autorizado."
         />
       </aside>
     </div>
