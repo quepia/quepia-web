@@ -228,6 +228,10 @@ export const services = [
         "text": "Según el alcance, trabajamos logotipo, variantes, paleta cromática, tipografías y criterios de aplicación. Podemos incluir piezas iniciales y una guía que explique cómo utilizar los recursos. La propuesta distingue entre el desarrollo del sistema y las aplicaciones adicionales. Un envase, un cartel o un conjunto de publicaciones requieren decisiones propias. Definirlas antes de arrancar permite organizar el proyecto y evita que el manual prometa recursos que todavía no fueron diseñados."
       },
       {
+        "title": "Diseño de logo en Villa Carlos Paz y Córdoba",
+        "text": "Si buscás diseño de logo para tu negocio en Villa Carlos Paz, el Valle de Punilla o Córdoba, en Quepia lo trabajamos como parte de la identidad visual: el logotipo se piensa junto con sus variantes, la paleta y las tipografías que lo van a acompañar. Antes de bocetar revisamos dónde tiene que aparecer, porque un logo que se lee bien en un cartel puede perderse en la foto de perfil de Instagram, en un sello o en un envase chico. Por eso evaluamos cada propuesta en los tamaños y fondos en los que se va a usar. Si tu marca ya tiene logo, primero vemos si conviene ajustarlo antes de reemplazarlo. En la sección de trabajos podés ver casos de logo e identidad visual."
+      },
+      {
         "title": "Para marcas nuevas y existentes",
         "text": "Una marca nueva necesita herramientas para presentarse con claridad desde el inicio. Una marca existente puede necesitar ordenar variantes, mejorar legibilidad o acompañar un cambio de propuesta. Revisamos qué elementos conviene conservar y cuáles generan dificultades. No todo proceso exige reemplazar la identidad completa. El diagnóstico ayuda a decidir si corresponde ajustar el sistema, ampliarlo o desarrollar una nueva dirección visual según lo que el negocio necesita comunicar."
       },

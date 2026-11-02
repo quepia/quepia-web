@@ -492,4 +492,20 @@
 - Cambio: title «Branding e identidad visual en Carlos Paz y Córdoba» (60 caracteres con «| Quepia»). Description propia de 149 caracteres que resume lo que la página ya ofrece (logotipo, paleta, tipografías y guía de uso; marcas nuevas y existentes). Sin clientes, cifras, precios ni promesas nuevas.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: title, meta description y un H1 con los textos nuevos.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `328b56c`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 02/11, 10:30 ART (con cache-buster): `/servicios/branding-e-identidad` HTTP 200, con el title «Branding e identidad visual en Carlos Paz y Córdoba | Quepia» y la meta description nueva.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-32b del 02/11.
+
+## 2026-11-02 — Grokbot — sección «Diseño de logo en Villa Carlos Paz y Córdoba» en branding (SEO-32b)
+
+- Autor: Grokbot. Fecha: 2026-11-02 (hora de Córdoba, ART).
+- Alcance: nueva sección (H2 + párrafo, con su enlace en el índice de apartados) en `/servicios/branding-e-identidad`, después de «Qué incluye una identidad». Title, description, FAQ, URL y el resto de los servicios sin cambios.
+- Evidencia / motivo: ítem SEO-32b del backlog. Hay casos de logo publicados en el portfolio, pero ninguna página trabajaba la intención de búsqueda «diseño de logo» con foco local (Villa Carlos Paz, Punilla, Córdoba). Los commits nuevos de main (`32595f2`, `aea00e5`, de la usuaria sobre acceso MCP/analytics) son ajenos al SEO; ningún commit de Codex resolvió esto.
+- Cambio: texto propio que explica cómo se trabaja un logo dentro de la identidad (variantes, paleta, tipografías, prueba en los tamaños y fondos de uso, ajustar antes de reemplazar), coherente con lo que la página ya dice. Sin nombrar clientes, sin cifras, precios ni promesas nuevas.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: la sección nueva presente y un solo H1.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
