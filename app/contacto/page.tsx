@@ -4,20 +4,20 @@ import type { Metadata } from 'next';
 import ContactoClient from './ContactoClient';
 
 export const metadata: Metadata = {
-    title: 'Contacto',
-    description: 'Contactate con Quepia, consultora creativa de Villa Carlos Paz, Córdoba. Hablemos de tu proyecto de diseño, branding o marketing.',
+    title: 'Contacto en Villa Carlos Paz, Córdoba',
+    description: 'Contactá a Quepia en Villa Carlos Paz, Córdoba, para gestión de redes sociales, producción audiovisual, diseño gráfico o branding.',
     alternates: {
         canonical: 'https://quepia.com/contacto',
     },
     openGraph: {
-        title: 'Contacto | Quepia - Consultora Creativa',
+        title: 'Contacto en Villa Carlos Paz, Córdoba | Quepia',
         description: '¿Tenés un proyecto en mente? Contactanos y hagámoslo realidad. Coordinamos una primera conversación para definir el alcance.',
         url: 'https://quepia.com/contacto',
         images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Contacto Quepia' }],
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'Contacto | Quepia',
+        title: 'Contacto en Villa Carlos Paz, Córdoba | Quepia',
         description: 'Escribinos y coordinamos una propuesta para tu marca según las necesidades de tu proyecto.',
         images: ['/og-image.jpg'],
     },

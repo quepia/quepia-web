@@ -508,4 +508,20 @@
 - Cambio: texto propio que explica cómo se trabaja un logo dentro de la identidad (variantes, paleta, tipografías, prueba en los tamaños y fondos de uso, ajustar antes de reemplazar), coherente con lo que la página ya dice. Sin nombrar clientes, sin cifras, precios ni promesas nuevas.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1, contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales). HTML generado: la sección nueva presente y un solo H1.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `eccaf8a`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 03/11, 10:30 ART (con cache-buster): `/servicios/branding-e-identidad` HTTP 200, con el H2 «Diseño de logo en Villa Carlos Paz y Córdoba».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-08a del 03/11.
+
+## 2026-11-03 — Grokbot — title y description locales en /contacto (SEO-08a)
+
+- Autor: Grokbot. Fecha: 2026-11-03 (hora de Córdoba, ART).
+- Alcance: `title`, meta description, og:title y twitter:title de `/contacto`. Textos visibles, formulario, JSON-LD y URL sin cambios.
+- Evidencia / motivo: ítem SEO-08 del backlog. En vivo el title era «Contacto | Quepia» (17 caracteres, sin localidad) y la description hablaba de «marketing», sin mencionar redes sociales, el servicio principal. Antes se revisó SEO-05/SEO-09 de `/valle-de-punilla`: ya resuelto por Codex (`9517a13`), no se tocó.
+- Cambio: title «Contacto en Villa Carlos Paz, Córdoba» (+ «| Quepia» del template; también en og/twitter). Description de 130 caracteres con redes sociales, producción audiovisual, diseño gráfico y branding. Sin cifras, precios ni promesas nuevas.
+- Archivo: `app/contacto/page.tsx`.
+- Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado con el title nuevo.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
