@@ -6,8 +6,8 @@ import AboutClient from '@/components/about/AboutClient';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-    title: 'Sobre Nosotros',
-    description: 'Conocé al equipo de Quepia. Somos una consultora creativa de Villa Carlos Paz, Córdoba, apasionada por transformar marcas en experiencias visuales memorables.',
+    title: 'Quiénes somos: consultora creativa en Carlos Paz',
+    description: 'Conocé al equipo de Quepia, consultora creativa de Villa Carlos Paz, Córdoba: gestión de redes sociales, producción audiovisual, diseño gráfico y branding.',
     alternates: {
         canonical: 'https://quepia.com/sobre-nosotros',
     },
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'Sobre Nosotros | Quepia',
+        title: 'Quiénes somos: consultora creativa en Carlos Paz | Quepia',
         description: 'Conocé al equipo creativo detrás de Quepia y nuestra forma de trabajo.',
         images: ['/og-image.jpg'],
     },

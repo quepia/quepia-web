@@ -524,4 +524,20 @@
 - Cambio: title «Contacto en Villa Carlos Paz, Córdoba» (+ «| Quepia» del template; también en og/twitter). Description de 130 caracteres con redes sociales, producción audiovisual, diseño gráfico y branding. Sin cifras, precios ni promesas nuevas.
 - Archivo: `app/contacto/page.tsx`.
 - Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado con el title nuevo.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `4c8958a`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 04/11, 10:25 ART (con cache-buster): `/contacto` HTTP 200, con el title «Contacto en Villa Carlos Paz, Córdoba | Quepia».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-08b del 04/11.
+
+## 2026-11-04 — Grokbot — title y description locales en /sobre-nosotros (SEO-08b)
+
+- Autor: Grokbot. Fecha: 2026-11-04 (hora de Córdoba, ART).
+- Alcance: `title`, meta description y twitter:title de `/sobre-nosotros`. Textos visibles, equipo, OG, JSON-LD y URL sin cambios.
+- Evidencia / motivo: ítem SEO-08 del backlog. El title era «Sobre Nosotros | Quepia», genérico y sin localidad; la description no mencionaba ningún servicio. Ningún commit reciente de Codex tocó esta página.
+- Cambio: title «Quiénes somos: consultora creativa en Carlos Paz» (+ «| Quepia»; igual en twitter:title). Description de 153 caracteres con Villa Carlos Paz, Córdoba y los servicios principales (redes, audiovisual, diseño gráfico, branding). Sin cifras, clientes ni promesas nuevas.
+- Archivo: `app/sobre-nosotros/page.tsx`.
+- Validación: Node 22, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado con el title nuevo.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
