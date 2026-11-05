@@ -540,4 +540,20 @@
 - Cambio: title «Quiénes somos: consultora creativa en Carlos Paz» (+ «| Quepia»; igual en twitter:title). Description de 153 caracteres con Villa Carlos Paz, Córdoba y los servicios principales (redes, audiovisual, diseño gráfico, branding). Sin cifras, clientes ni promesas nuevas.
 - Archivo: `app/sobre-nosotros/page.tsx`.
 - Validación: Node 22, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado con el title nuevo.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `4c5fa35`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 05/11, 10:20 ART (con cache-buster): `/sobre-nosotros` HTTP 200, con el title «Quiénes somos: consultora creativa en Carlos Paz | Quepia».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-08c del 05/11.
+
+## 2026-11-05 — Grokbot — title y description locales en /trabajos (SEO-08c)
+
+- Autor: Grokbot. Fecha: 2026-11-05 (hora de Córdoba, ART).
+- Alcance: `title`, meta description y twitter:title de `/trabajos`. OG, JSON-LD, listado de casos y URL sin cambios.
+- Evidencia / motivo: último pendiente de SEO-08. El title era «Portfolio de Proyectos | Quepia», genérico, sin localidad ni el servicio principal; la description no mencionaba redes sociales. Ningún commit reciente de Codex tocó esta página.
+- Cambio: title «Portfolio de redes, video y diseño en Córdoba» (+ «| Quepia»; igual en twitter:title). Description de 135 caracteres con gestión de redes, video, diseño gráfico, branding, dron, Villa Carlos Paz y Córdoba. Sin cifras, clientes ni promesas nuevas.
+- Archivo: `app/trabajos/page.tsx`.
+- Validación: Node 22, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1.
 - Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.

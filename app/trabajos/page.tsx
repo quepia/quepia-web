@@ -10,8 +10,8 @@ import { CATEGORIES } from '@/types/database';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: 'Portfolio de Proyectos',
-  description: 'Mirá nuestros trabajos de branding, diseño, videos para redes, coberturas de turismo y filmación con dron en Córdoba y Argentina.',
+  title: 'Portfolio de redes, video y diseño en Córdoba',
+  description: 'Casos de gestión de redes sociales, video, diseño gráfico, branding y dron de Quepia, consultora creativa de Villa Carlos Paz, Córdoba.',
   alternates: {
     canonical: 'https://quepia.com/trabajos',
   },
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Portfolio de Proyectos | Quepia',
+    title: 'Portfolio de redes, video y diseño en Córdoba | Quepia',
     description: 'Trabajos de branding, diseño, producción audiovisual y turismo realizados por Quepia.',
     images: ['/og-image.jpg'],
   },
