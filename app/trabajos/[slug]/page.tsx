@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { getPublicProjects, projectSlug } from '@/lib/seo/projects';
 import { getProjectGalleryImages } from '@/lib/project-images';
 import { getProjectCategoryLabels, projectMatchesCategory } from '@/lib/project-categories';
+import { publicServiceTitle } from '@/lib/seo/public-services';
 import { services } from '@/lib/seo/services';
 import { industries, normalizedName } from '@/lib/seo/landing-pages';
 import { PublicShell, ContentSection, ContactCta } from '@/components/seo/PublicContent';
@@ -17,11 +18,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const project = await getProject(slug);
   if (!project) notFound();
-  const description = project.descripcion?.slice(0, 160) || `${project.titulo}: proyecto de ${getProjectCategoryLabels(project).join(', ')} realizado por Quepia, Villa Carlos Paz, Córdoba, Argentina.`;
+  const labels = getProjectCategoryLabels(project);
+  const primaryLabel = publicServiceTitle(labels[0] ?? 'diseño');
+  const caseTitle = `${project.titulo} | Caso de ${primaryLabel}`;
+  const pageTitle = caseTitle.length > 60 ? project.titulo : caseTitle;
+  const description = project.descripcion?.slice(0, 160) || `${project.titulo}: proyecto de ${labels.join(', ')} realizado por Quepia, Villa Carlos Paz, Córdoba, Argentina.`;
   const socialTitle = `${project.titulo} | Quepia`;
   const image = getProjectGalleryImages(project)[0] || '/og-image.jpg';
   return {
-    title: `${project.titulo} | Caso de ${getProjectCategoryLabels(project).join(', ')}`,
+    title: pageTitle,
     description,
     alternates: { canonical: `/trabajos/${slug}` },
     openGraph: {

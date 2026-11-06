@@ -556,4 +556,20 @@
 - Cambio: title «Portfolio de redes, video y diseño en Córdoba» (+ «| Quepia»; igual en twitter:title). Description de 135 caracteres con gestión de redes, video, diseño gráfico, branding, dron, Villa Carlos Paz y Córdoba. Sin cifras, clientes ni promesas nuevas.
 - Archivo: `app/trabajos/page.tsx`.
 - Validación: Node 22, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1.
-- Publicación: pendiente de verificar tras el push; se completa en el próximo commit de Grokbot.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `e6d127c`. Statuses GitHub "Vercel – quepia-web" / deploy de producción posteriores en main.
+- 06/11/2026, ~10:24 ART (con cache-buster): `/trabajos` HTTP 200; title «Portfolio de redes, video y diseño en Córdoba | Quepia» (54 caracteres); description «Casos de gestión de redes sociales, video, diseño gráfico, branding y dron de Quepia, consultora creativa de Villa Carlos Paz, Córdoba.»
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-04 del 06/11.
+
+## 2026-11-06 — Grokbot — titles de casos con una sola categoría (SEO-04)
+
+- Autor: Grokbot. Fecha: 2026-11-06 (hora de Córdoba, ART).
+- Alcance: `title` de `/trabajos/[slug]`. OG/Twitter de Codex sin cambios (`socialTitle` = «{titulo} | Quepia»). Description, cuerpo, JSON-LD y listado de categorías en "Servicios realizados" sin cambios.
+- Evidencia / motivo: 12 de 16 casos superaban ~60 caracteres porque el title listaba todas las categorías. En vivo (06/11): «Rohi Sommiers | Caso de Branding, Diseño Gráfico, Redes Sociales, Cartelería, Marketing | Quepia» (96); «Inmobiliaria Noe García Roñoni | Caso de Branding, Diseño Gráfico, Fotografía, Video, Redes Sociales, Cartelería | Quepia» (121); «Hotel Bahía Norte - Social Media | Caso de Redes Sociales, Branding, Diseño Gráfico, Marketing, Fotografía | Quepia» (115).
+- Cambio: usar solo la primera categoría vía `getProjectCategoryLabels` + `publicServiceTitle` (si el label público es «Marketing», se muestra «Estrategia de marca»; helper ya existente en `lib/seo/public-services.ts`). Formato `` `${titulo} | Caso de ${primera}` ``; si supera 60 caracteres (sin el «| Quepia» del template), queda solo `project.titulo`. Fallback de categoría: «diseño».
+- Archivo: `app/trabajos/[slug]/page.tsx`.
+- Validación: Node 22, eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales reales).
+- Publicación: pendiente de verificar tras el push; se completa en este mismo turno si el deploy llega a tiempo.
