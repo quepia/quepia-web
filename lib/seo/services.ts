@@ -114,6 +114,10 @@ export const services = [
         "text": "Los reels permiten presentar una idea breve, mostrar una novedad o responder una pregunta habitual. Los spots concentran un mensaje de campaña y necesitan una relación precisa entre imagen, texto y cierre. Las piezas institucionales pueden dedicar más tiempo a explicar quiénes son y cómo trabajan. También podemos organizar contenido a partir de una misma jornada, siempre que la planificación contemple los distintos encuadres y mensajes desde el inicio."
       },
       {
+        "title": "Videos y reels para negocios de Villa Carlos Paz y Punilla",
+        "text": "Si tenés un comercio, un restaurante, un hotel o un alojamiento en Villa Carlos Paz o en el Valle de Punilla, el video suele ser la forma más rápida de mostrar lo que ofrecés. Grabamos reels para Instagram y otras redes, recorridos por habitaciones y espacios comunes, platos y momentos del servicio, o una presentación del equipo y del local. Como estamos en Carlos Paz, podemos organizar la jornada según la luz, el movimiento de cada lugar y los días de mayor actividad de la temporada. Con una misma grabación planificada se pueden preparar varias piezas cortas para publicar durante semanas. Si además trabajamos tus redes, el video se piensa junto con el calendario de contenidos."
+      },
+      {
         "title": "Para quién trabajamos",
         "text": "La producción resulta útil para turismo, gastronomía, inmobiliarias y marcas que necesitan mostrar algo que una descripción escrita no alcanza a explicar. Un recorrido por un alojamiento, una preparación gastronómica o la presentación de un producto requieren decisiones diferentes. Revisamos qué detalles conviene registrar y cuáles aportan información al espectador. Cuando aparecen personas, coordinamos su participación y los permisos correspondientes antes de grabar, para cuidar tanto el proceso como el uso posterior del material."
       },

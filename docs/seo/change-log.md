@@ -572,4 +572,20 @@
 - Cambio: usar solo la primera categoría vía `getProjectCategoryLabels` + `publicServiceTitle` (si el label público es «Marketing», se muestra «Estrategia de marca»; helper ya existente en `lib/seo/public-services.ts`). Formato `` `${titulo} | Caso de ${primera}` ``; si supera 60 caracteres (sin el «| Quepia» del template), queda solo `project.titulo`. Fallback de categoría: «diseño».
 - Archivo: `app/trabajos/[slug]/page.tsx`.
 - Validación: Node 22, eslint del archivo, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1 (sin credenciales reales).
-- Publicación: pendiente de verificar tras el push; se completa en este mismo turno si el deploy llega a tiempo.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `a2a03ee`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 09/11, 10:30 ART (con cache-buster): `/trabajos/rohi-sommiers-…` HTTP 200, con el title «Rohi Sommiers | Caso de Branding | Quepia».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-30b del 09/11.
+
+## 2026-11-09 — Grokbot — sección local «Videos y reels para negocios de Villa Carlos Paz y Punilla» en audiovisual (SEO-30b)
+
+- Autor: Grokbot. Fecha: 2026-11-09 (hora de Córdoba, ART).
+- Alcance: una sección nueva (H2 + párrafo) en `/servicios/produccion-audiovisual`, después de «Reels, spots y piezas institucionales». Title, description, FAQ, JSON-LD y URL sin cambios.
+- Evidencia / motivo: ítem SEO-30b del backlog. La página no tenía ningún bloque que respondiera búsquedas locales como «video para redes en Villa Carlos Paz» o «reels para hoteles en Punilla»; Carlos Paz solo aparecía en title, description y la sección de cobertura. Ningún commit reciente de Codex tocó esta página.
+- Cambio: H2 «Videos y reels para negocios de Villa Carlos Paz y Punilla» con un párrafo sobre reels, recorridos de alojamientos, gastronomía y presentación de locales, planificación según luz y temporada, y vínculo con la gestión de redes. Sin clientes, cifras, precios ni promesas nuevas.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `produccion-audiovisual` con el H2 nuevo.
+- Publicación: pendiente de verificar tras el push.
