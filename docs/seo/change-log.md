@@ -588,4 +588,20 @@
 - Cambio: H2 «Videos y reels para negocios de Villa Carlos Paz y Punilla» con un párrafo sobre reels, recorridos de alojamientos, gastronomía y presentación de locales, planificación según luz y temporada, y vínculo con la gestión de redes. Sin clientes, cifras, precios ni promesas nuevas.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `produccion-audiovisual` con el H2 nuevo.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `87e1985`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 10/11, 10:19 ART (con cache-buster): `/servicios/produccion-audiovisual` HTTP 200, con el H2 «Videos y reels para negocios de Villa Carlos Paz y Punilla».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-07a del 10/11.
+
+## 2026-11-10 — Grokbot — title y description locales en fotografía de producto e inmobiliaria (SEO-07a)
+
+- Autor: Grokbot. Fecha: 2026-11-10 (hora de Córdoba, ART).
+- Alcance: `title` (también H1, og:title y twitter:title) y `description` (también bajada visible y descripción del schema `Service`) de `/servicios/fotografia-de-producto`. Secciones, FAQ, JSON-LD restante y URL sin cambios.
+- Evidencia / motivo: ítem SEO-07 del backlog. En vivo (10/11) la description era la plantilla genérica «Fotografía de producto e inmobiliaria para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.» (174 caracteres, se corta en Google) y el title «Fotografía de producto e inmobiliaria en Córdoba, Argentina | Quepia» (68) no nombraba Carlos Paz. Los demás servicios, salvo packaging, ya tienen la versión local.
+- Cambio: title «Fotografía de producto e inmobiliaria en Carlos Paz» (60 con «| Quepia»); description «Fotografía de producto e inmobiliaria en Villa Carlos Paz y Córdoba: imágenes para catálogo, redes y propiedades, planificadas según su uso.» (140). Sin clientes, cifras, precios ni promesas nuevas.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado con el title, la description y el H1 nuevos.
 - Publicación: pendiente de verificar tras el push.

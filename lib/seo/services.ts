@@ -161,8 +161,8 @@ export const services = [
     "slug": "fotografia-de-producto",
     "name": "Fotografía de producto e inmobiliaria",
     "category": "fotografia",
-    "title": "Fotografía de producto e inmobiliaria en Córdoba, Argentina",
-    "description": "Fotografía de producto e inmobiliaria para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
+    "title": "Fotografía de producto e inmobiliaria en Carlos Paz",
+    "description": "Fotografía de producto e inmobiliaria en Villa Carlos Paz y Córdoba: imágenes para catálogo, redes y propiedades, planificadas según su uso.",
     "sections": [
       {
         "title": "Imágenes para decidir",
