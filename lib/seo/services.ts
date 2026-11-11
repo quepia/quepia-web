@@ -413,8 +413,8 @@ export const services = [
     "slug": "packaging",
     "name": "Diseño de packaging",
     "category": "packaging",
-    "title": "Diseño de packaging en Córdoba, Argentina",
-    "description": "Diseño de packaging para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.",
+    "title": "Diseño de packaging y etiquetas en Carlos Paz",
+    "description": "Diseño de packaging y etiquetas en Villa Carlos Paz y Córdoba: envases y líneas de productos con identidad de marca y archivos listos para imprimir.",
     "sections": [
       {
         "title": "El envase como comunicación",

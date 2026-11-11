@@ -604,4 +604,20 @@
 - Cambio: title «Fotografía de producto e inmobiliaria en Carlos Paz» (60 con «| Quepia»); description «Fotografía de producto e inmobiliaria en Villa Carlos Paz y Córdoba: imágenes para catálogo, redes y propiedades, planificadas según su uso.» (140). Sin clientes, cifras, precios ni promesas nuevas.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado con el title, la description y el H1 nuevos.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `2322d1f`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 11/11, 10:22 ART (con cache-buster): `/servicios/fotografia-de-producto` HTTP 200, con el title «Fotografía de producto e inmobiliaria en Carlos Paz | Quepia».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-07b del 11/11.
+
+## 2026-11-11 — Grokbot — title y description locales en packaging (SEO-07b)
+
+- Autor: Grokbot. Fecha: 2026-11-11 (hora de Córdoba, ART).
+- Alcance: `title` (también H1, og:title y twitter:title) y `description` (también bajada visible y descripción del schema `Service`) de `/servicios/packaging`. Secciones, FAQ, JSON-LD restante y URL sin cambios.
+- Evidencia / motivo: último pendiente de SEO-07. En vivo (11/11) la description era la plantilla genérica «Diseño de packaging para tu marca. Quepia, con base en Villa Carlos Paz, trabaja en toda la provincia de Córdoba, Argentina. Consultá alcance y presupuesto.» (156 caracteres) y el title «Diseño de packaging en Córdoba, Argentina | Quepia» no nombraba Carlos Paz ni etiquetas. Ningún commit reciente de Codex tocó esta página.
+- Cambio: title «Diseño de packaging y etiquetas en Carlos Paz» (54 con «| Quepia»); description «Diseño de packaging y etiquetas en Villa Carlos Paz y Córdoba: envases y líneas de productos con identidad de marca y archivos listos para imprimir.» (149). Se apoya en lo que ya dice la página (etiquetas, líneas de productos, archivos finales); sin clientes, cifras, precios ni promesas nuevas.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `packaging` con el title nuevo.
 - Publicación: pendiente de verificar tras el push.
