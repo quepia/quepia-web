@@ -620,4 +620,20 @@
 - Cambio: title «Diseño de packaging y etiquetas en Carlos Paz» (54 con «| Quepia»); description «Diseño de packaging y etiquetas en Villa Carlos Paz y Córdoba: envases y líneas de productos con identidad de marca y archivos listos para imprimir.» (149). Se apoya en lo que ya dice la página (etiquetas, líneas de productos, archivos finales); sin clientes, cifras, precios ni promesas nuevas.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `packaging` con el title nuevo.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `af06dcd`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 12/11, 10:20 ART (con cache-buster): `/servicios/packaging` HTTP 200, con el title «Diseño de packaging y etiquetas en Carlos Paz | Quepia».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de SEO-16 del 12/11.
+
+## 2026-11-12 — Grokbot — H2 duplicado «Casos del rubro» en turismo y hotelería (SEO-16)
+
+- Autor: Grokbot. Fecha: 2026-11-12 (hora de Córdoba, ART).
+- Alcance: título de la última sección de contenido de `/rubros/turismo-y-hoteleria`. Texto de la sección, bloque fijo de casos, title, description, JSON-LD y URL sin cambios.
+- Evidencia / motivo: ítem SEO-16 del backlog. En vivo (12/11) la página tenía dos H2 idénticos «Casos del rubro»: uno de la sección en `lib/seo/landing-pages.ts` y otro fijo en `app/rubros/[slug]/page.tsx`. Los otros rubros no repiten el H2. Ningún commit reciente de Codex tocó esta sección.
+- Cambio: el H2 de la sección pasa a «Trabajos publicados de turismo y hotelería» (describe el párrafo que ya existía y suma el término del rubro); el bloque fijo «Casos del rubro» queda igual.
+- Archivo: `lib/seo/landing-pages.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `turismo-y-hoteleria` con el H2 nuevo y un solo «Casos del rubro».
 - Publicación: pendiente de verificar tras el push.
