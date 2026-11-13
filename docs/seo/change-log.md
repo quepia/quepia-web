@@ -636,4 +636,20 @@
 - Cambio: el H2 de la sección pasa a «Trabajos publicados de turismo y hotelería» (describe el párrafo que ya existía y suma el término del rubro); el bloque fijo «Casos del rubro» queda igual.
 - Archivo: `lib/seo/landing-pages.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `turismo-y-hoteleria` con el H2 nuevo y un solo «Casos del rubro».
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `1b80476`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 13/11, 10:20 ART (con cache-buster): `/rubros/turismo-y-hoteleria` HTTP 200, con el H2 «Trabajos publicados de turismo y hotelería» y un solo «Casos del rubro».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit del title de Valle de Punilla del 13/11 (SEO-05/09).
+
+## 2026-11-13 — Grokbot — title más corto en Valle de Punilla (cierre de SEO-05/SEO-09 en zonas)
+
+- Autor: Grokbot. Fecha: 2026-11-13 (hora de Córdoba, ART).
+- Alcance: `title` de la entrada `valle-de-punilla` en `lib/seo/landing-pages.ts` (también H1, og:title y twitter:title de `/valle-de-punilla`). Description, secciones, FAQ, JSON-LD y URL sin cambios.
+- Evidencia / motivo: revisión del resto de SEO-05/SEO-09 del backlog. En vivo (13/11) la description y og:locale de Punilla ya estaban resueltos (Codex, `9517a13`), pero el title era «Diseño y producción audiovisual en el Valle de Punilla, Córdoba, Argentina | Quepia» (83 caracteres): Google lo corta antes de nombrar la marca. Ningún commit reciente de Codex tocó este title.
+- Cambio: title «Diseño, fotografía y video en el Valle de Punilla» (58 con «| Quepia»). Nombra los servicios que la página ya desarrolla (fotografía, video, diseño); sin clientes, cifras, precios ni promesas nuevas.
+- Archivo: `lib/seo/landing-pages.ts`.
+- Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `valle-de-punilla` con el title y el H1 nuevos.
 - Publicación: pendiente de verificar tras el push.
