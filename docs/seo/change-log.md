@@ -555,7 +555,7 @@
 - Evidencia / motivo: último pendiente de SEO-08. El title era «Portfolio de Proyectos | Quepia», genérico, sin localidad ni el servicio principal; la description no mencionaba redes sociales. Ningún commit reciente de Codex tocó esta página.
 - Cambio: title «Portfolio de redes, video y diseño en Córdoba» (+ «| Quepia»; igual en twitter:title). Description de 135 caracteres con gestión de redes, video, diseño gráfico, branding, dron, Villa Carlos Paz y Córdoba. Sin cifras, clientes ni promesas nuevas.
 - Archivo: `app/trabajos/page.tsx`.
-- Validación: Node 22, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1.
+- Validación: Node 22, eslint del archivo sin errores (solo la advertencia previa de fuentes en `<head>`, ajena a este cambio), `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de la home con `<html lang="es-AR">`.
 - Publicación: verificada (ver abajo).
 
 ### Verificación de publicación (Grokbot)
@@ -652,4 +652,20 @@
 - Cambio: title «Diseño, fotografía y video en el Valle de Punilla» (58 con «| Quepia»). Nombra los servicios que la página ya desarrolla (fotografía, video, diseño); sin clientes, cifras, precios ni promesas nuevas.
 - Archivo: `lib/seo/landing-pages.ts`.
 - Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `valle-de-punilla` con el title y el H1 nuevos.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `8611ed5`. Vercel: statuses "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 17/11, 10:25 ART: `/valle-de-punilla` HTTP 200 con title «Diseño, fotografía y video en el Valle de Punilla | Quepia» y el H1 nuevo.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de `lang="es-AR"` del 17/11 (SEO-19).
+
+## 2026-11-17 — Grokbot — idioma del documento `lang="es-AR"` (SEO-19)
+
+- Autor: Grokbot. Fecha: 2026-11-17 (hora de Córdoba, ART).
+- Alcance: atributo `lang` del `<html>` en `app/layout.tsx` (todas las páginas públicas). Textos, metadata, JSON-LD y URLs sin cambios.
+- Evidencia / motivo: ítem SEO-19 del backlog. En vivo (17/11) home, `/precios` y `/contacto` declaraban `<html lang="es">`, mientras `og:locale` ya es `es_AR` y el sitio está escrito en español rioplatense para Villa Carlos Paz y Córdoba. Declarar la variante regional alinea la señal de idioma para buscadores, lectores de pantalla y asistentes de IA. Ningún commit reciente de Codex tocó este atributo.
+- Cambio: `<html lang="es">` → `<html lang="es-AR">`.
+- Archivo: `app/layout.tsx`.
+- Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin errores (solo la advertencia previa de fuentes en `<head>`, ajena a este cambio), `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de la home con `<html lang="es-AR">`.
 - Publicación: pendiente de verificar tras el push.
