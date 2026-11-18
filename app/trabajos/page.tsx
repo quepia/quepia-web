@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     canonical: 'https://quepia.com/trabajos',
   },
   openGraph: {
-    title: 'Portfolio | Quepia - Branding, Video y Dron',
+    title: 'Portfolio de redes, video y diseño en Córdoba | Quepia',
     description: 'Branding, diseño, producción audiovisual y coberturas con dron para empresas de Córdoba y Argentina.',
     url: 'https://quepia.com/trabajos',
     images: [{ url: '/og-image.jpg', width: 1024, height: 537, alt: 'Portfolio Quepia' }],

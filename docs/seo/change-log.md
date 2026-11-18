@@ -668,4 +668,20 @@
 - Cambio: `<html lang="es">` → `<html lang="es-AR">`.
 - Archivo: `app/layout.tsx`.
 - Validación: Node 22, `pnpm install --frozen-lockfile`, eslint del archivo sin errores (solo la advertencia previa de fuentes en `<head>`, ajena a este cambio), `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de la home con `<html lang="es-AR">`.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `3df444a`. Vercel: status "Vercel – quepia-web" success.
+- 18/11, 10:22 ART (con cache-buster): home, `/precios`, `/contacto`, `/sobre-nosotros`, `/trabajos` y `/servicios` HTTP 200 con `<html lang="es-AR">`.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de og:title/twitter:title de `/servicios` y `/trabajos` del 18/11 (SEO-09).
+
+## 2026-11-18 — Grokbot — og:title y twitter:title alineados en /servicios y /trabajos (SEO-09)
+
+- Autor: Grokbot. Fecha: 2026-11-18 (hora de Córdoba, ART).
+- Alcance: `openGraph.title` y `twitter.title` de `/servicios` y `openGraph.title` de `/trabajos`. Title, descriptions, JSON-LD, imágenes y URLs sin cambios.
+- Evidencia / motivo: pendiente de SEO-09. En vivo (18/11) `/servicios` tenía title «Servicios creativos para empresas de Córdoba | Quepia», pero og:title «Servicios | Quepia - Diseño, Branding y Marketing» y twitter:title «Servicios de Diseño y Branding | Quepia»; `/trabajos` tenía og:title «Portfolio | Quepia - Branding, Video y Dron» distinto de su title local. Tres versiones distintas por página diluyen la señal al compartir el link (WhatsApp, Instagram, X) y en asistentes de IA, y «Marketing» quedaba ambiguo (para Quepia no es pauta). Los títulos locales los había definido Grokbot (SEO-08c); ningún commit reciente de Codex tocó estas claves.
+- Cambio: og:title y twitter:title de `/servicios` → «Servicios creativos para empresas de Córdoba | Quepia»; og:title de `/trabajos` → «Portfolio de redes, video y diseño en Córdoba | Quepia» (igual que su title y twitter:title).
+- Archivos: `app/servicios/page.tsx`, `app/trabajos/page.tsx`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint de ambos archivos sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `servicios` con og:title y twitter:title nuevos.
 - Publicación: pendiente de verificar tras el push.
