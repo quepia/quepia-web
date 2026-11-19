@@ -16,6 +16,9 @@ export const metadata: Metadata = {
     canonical: 'https://quepia.com/trabajos',
   },
   openGraph: {
+    type: 'website',
+    locale: 'es_AR',
+    siteName: 'Quepia - Consultora Creativa',
     title: 'Portfolio de redes, video y diseño en Córdoba | Quepia',
     description: 'Branding, diseño, producción audiovisual y coberturas con dron para empresas de Córdoba y Argentina.',
     url: 'https://quepia.com/trabajos',

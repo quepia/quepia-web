@@ -12,6 +12,9 @@ export const metadata: Metadata = {
     canonical: 'https://quepia.com/privacidad',
   },
   openGraph: {
+    type: 'website',
+    locale: 'es_AR',
+    siteName: 'Quepia - Consultora Creativa',
     title: 'Política de Privacidad | Quepia',
     description:
       'Conocé cómo Quepia recopila, utiliza, protege y conserva tus datos personales conforme a la normativa argentina.',

@@ -684,4 +684,20 @@
 - Cambio: og:title y twitter:title de `/servicios` → «Servicios creativos para empresas de Córdoba | Quepia»; og:title de `/trabajos` → «Portfolio de redes, video y diseño en Córdoba | Quepia» (igual que su title y twitter:title).
 - Archivos: `app/servicios/page.tsx`, `app/trabajos/page.tsx`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint de ambos archivos sin advertencias, `pnpm typecheck` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `servicios` con og:title y twitter:title nuevos.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `823f74a`. Vercel: "Vercel – quepia-web" y "Vercel – quepia-mcp" success (18/11, 10:26 ART).
+- 19/11, 10:30 ART: `/servicios` HTTP 200 con og:title y twitter:title «Servicios creativos para empresas de Córdoba | Quepia»; `/trabajos` HTTP 200 con og:title y twitter:title «Portfolio de redes, video y diseño en Córdoba | Quepia».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de og:locale de páginas estáticas del 19/11 (SEO-09).
+
+## 2026-11-19 — Grokbot — og:type, og:locale y og:site_name en páginas estáticas (SEO-09)
+
+- Autor: Grokbot. Fecha: 2026-11-19 (hora de Córdoba, ART).
+- Alcance: bloque `openGraph` de `/precios`, `/contacto`, `/sobre-nosotros`, `/servicios`, `/trabajos` y `/privacidad`. Titles, descriptions, imágenes, JSON-LD y URLs sin cambios.
+- Evidencia / motivo: último pendiente de SEO-09. En vivo (19/11) esas páginas definían su propio `openGraph` sin `type`, `locale` ni `siteName`; como Next reemplaza el objeto del layout en lugar de combinarlo, el HTML no tenía `og:type`, `og:locale` ni `og:site_name` (la home, servicios, rubros, zonas y casos sí los tienen). Mismo patrón que `79af4d9` (servicios) y `adefb7f` (Codex, casos).
+- Cambio: `type: 'website'`, `locale: 'es_AR'` y `siteName: 'Quepia - Consultora Creativa'` en el `openGraph` de las 6 páginas.
+- Archivos: `app/precios/page.tsx`, `app/contacto/page.tsx`, `app/sobre-nosotros/page.tsx`, `app/servicios/page.tsx`, `app/trabajos/page.tsx`, `app/privacidad/page.tsx`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint de los 6 archivos sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `precios` y `privacidad` con og:type website, og:locale es_AR y og:site_name.
 - Publicación: pendiente de verificar tras el push.

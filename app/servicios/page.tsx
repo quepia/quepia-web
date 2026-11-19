@@ -12,6 +12,9 @@ export const metadata: Metadata = {
     canonical: 'https://quepia.com/servicios',
   },
   openGraph: {
+    type: 'website',
+    locale: 'es_AR',
+    siteName: 'Quepia - Consultora Creativa',
     title: 'Servicios creativos para empresas de Córdoba | Quepia',
     description: 'Diseño gráfico, branding, redes sociales, video, fotografía y cobertura con dron. Llevamos tu marca al siguiente nivel en Córdoba y toda Argentina.',
     url: 'https://quepia.com/servicios',

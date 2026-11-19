@@ -12,6 +12,9 @@ export const metadata: Metadata = {
         canonical: 'https://quepia.com/sobre-nosotros',
     },
     openGraph: {
+        type: 'website',
+        locale: 'es_AR',
+        siteName: 'Quepia - Consultora Creativa',
         title: 'El equipo detrás de Quepia | Villa Carlos Paz',
         description: 'Conocé a Lautaro y Camila, el equipo creativo de Quepia. Apasionados por transformar marcas en experiencias visuales memorables.',
         url: 'https://quepia.com/sobre-nosotros',

@@ -10,6 +10,9 @@ export const metadata: Metadata = {
         canonical: 'https://quepia.com/contacto',
     },
     openGraph: {
+        type: 'website',
+        locale: 'es_AR',
+        siteName: 'Quepia - Consultora Creativa',
         title: 'Contacto en Villa Carlos Paz, Córdoba | Quepia',
         description: '¿Tenés un proyecto en mente? Contactanos y hagámoslo realidad. Coordinamos una primera conversación para definir el alcance.',
         url: 'https://quepia.com/contacto',

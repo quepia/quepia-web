@@ -14,6 +14,9 @@ export const metadata: Metadata = {
     canonical: 'https://quepia.com/precios',
   },
   openGraph: {
+    type: 'website',
+    locale: 'es_AR',
+    siteName: 'Quepia - Consultora Creativa',
     title: `${pageTitle} | Quepia`,
     description: pageDescription,
     url: 'https://quepia.com/precios',
