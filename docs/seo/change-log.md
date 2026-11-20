@@ -700,4 +700,20 @@
 - Cambio: `type: 'website'`, `locale: 'es_AR'` y `siteName: 'Quepia - Consultora Creativa'` en el `openGraph` de las 6 páginas.
 - Archivos: `app/precios/page.tsx`, `app/contacto/page.tsx`, `app/sobre-nosotros/page.tsx`, `app/servicios/page.tsx`, `app/trabajos/page.tsx`, `app/privacidad/page.tsx`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint de los 6 archivos sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `precios` y `privacidad` con og:type website, og:locale es_AR y og:site_name.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `c49245b`. Vercel: "Vercel – quepia-web" y "Vercel – quepia-mcp" success (19/11, 10:30 ART).
+- 20/11, 10:30 ART (con cache-buster): `/precios`, `/contacto`, `/sobre-nosotros`, `/servicios`, `/trabajos` y `/privacidad` HTTP 200 con og:type `website`, og:locale `es_AR` y og:site_name «Quepia - Consultora Creativa».
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de FAQ de producción audiovisual del 20/11 (IA-06).
+
+## 2026-11-20 — Grokbot — FAQ con respuesta directa en producción audiovisual (IA-06)
+
+- Autor: Grokbot. Fecha: 2026-11-20 (hora de Córdoba, ART).
+- Alcance: array `faq` de la entrada `produccion-audiovisual` en `lib/seo/services.ts` (FAQ visibles y FAQPage JSON-LD de `/servicios/produccion-audiovisual`). Title, description, secciones, URL y el resto de los servicios sin cambios.
+- Evidencia / motivo: ítem IA-06 del backlog (respuestas directas en el resto de los servicios, empezando por audiovisual). La página solo tenía las 4 FAQ genéricas compartidas (presupuesto, contratar por separado, fuera de Carlos Paz, qué necesito), sin ninguna pregunta específica del servicio que un buscador o asistente de IA pueda citar. Ningún commit reciente de Codex tocó estas FAQ.
+- Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué tipos de video hacen?», «¿Hacen videos y reels para negocios de Villa Carlos Paz?» y «¿La producción incluye guion y edición?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `produccion-audiovisual` con las 3 preguntas visibles y FAQPage con 7 preguntas.
 - Publicación: pendiente de verificar tras el push.

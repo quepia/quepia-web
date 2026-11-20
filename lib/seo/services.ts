@@ -140,6 +140,18 @@ export const services = [
     ],
     "faq": [
       {
+        "q": "¿Qué tipos de video hacen?",
+        "a": "Reels y videos verticales para redes, spots de campaña y videos institucionales. También recorridos por espacios, presentaciones de producto o del equipo y cobertura de eventos, según el objetivo y el canal donde se va a publicar."
+      },
+      {
+        "q": "¿Hacen videos y reels para negocios de Villa Carlos Paz?",
+        "a": "Sí. Estamos en Villa Carlos Paz y grabamos para comercios, restaurantes, hoteles y alojamientos de la ciudad y del Valle de Punilla. Con una jornada bien planificada se pueden preparar varias piezas cortas para publicar en redes durante semanas."
+      },
+      {
+        "q": "¿La producción incluye guion y edición?",
+        "a": "Sí, cuando el proyecto lo necesita: puede incluir idea, guion, planificación de tomas, grabación y edición, con música, textos en pantalla y subtítulos según lo acordado. La propuesta detalla duración, cantidad de versiones y rondas de revisión."
+      },
+      {
         "q": "¿Cómo se define el presupuesto?",
         "a": "Según los entregables, las revisiones y la producción necesaria. Contanos el objetivo y los materiales disponibles para evaluar el alcance."
       },
