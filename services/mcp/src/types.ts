@@ -10,6 +10,7 @@ export const CAPABILITIES = {
   tasksNotify: "tasks.notify",
   intelligenceRead: "intelligence.read",
   socialAnalyticsRead: "social.analytics.read",
+  socialPublishWrite: "social.publish.write",
 } as const;
 
 export const ACCOUNTING_WRITE_CAPABILITIES = [
@@ -64,7 +65,20 @@ export interface DatabaseAccess {
   // reenvía el token del usuario y Postgres vuelve a autorizar todo.
   issueInvoice(request: unknown): Promise<RpcEnvelope>;
   issueCreditNote(request: unknown): Promise<RpcEnvelope>;
+  // Zernio y el almacenamiento de piezas también son de la web. `action` es
+  // el segmento de /api/social/mcp/<action>.
+  socialPublishing(action: SocialPublishingAction, request: unknown): Promise<RpcEnvelope>;
 }
+
+export type SocialPublishingAction =
+  | "targets"
+  | "publications"
+  | "upload-url"
+  | "attach-media"
+  | "remove-media"
+  | "publish"
+  | "cancel"
+  | "retry";
 
 export type DatabaseAccessFactory = (
   identity: AuthIdentity,

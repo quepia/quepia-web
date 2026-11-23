@@ -782,3 +782,175 @@ export const socialCompareFormatsInputSchema = z
 export const socialPostPerformanceInputSchema = z
   .object({ ...socialScopeShape, post_id: uuidSchema })
   .strict();
+
+// ---------------------------------------------------------------------------
+// Publicación social vía Zernio. La web vuelve a validar todo, resuelve el
+// perfil Zernio del cliente por proyecto y exige administrador global.
+// ---------------------------------------------------------------------------
+
+export const SOCIAL_PUBLICATION_STATUSES = [
+  "preparing",
+  "draft",
+  "scheduled",
+  "publishing",
+  "published",
+  "partial",
+  "failed",
+  "cancelled",
+] as const;
+
+const offsetDateTimeSchema = z.iso.datetime({ offset: true });
+
+export const socialPublishTargetsInputSchema = z
+  .object({
+    project_id: uuidSchema.describe("Project of the client, from tasks_list_projects."),
+    task_id: uuidSchema
+      .optional()
+      .describe("Card whose assets, copy and type should also be returned."),
+  })
+  .strict();
+
+export const socialListPublicationsInputSchema = z
+  .object({
+    project_id: uuidSchema,
+    task_id: uuidSchema.optional(),
+    publication_id: uuidSchema.optional(),
+    statuses: z.array(z.enum(SOCIAL_PUBLICATION_STATUSES)).max(8).optional(),
+    from: offsetDateTimeSchema
+      .optional()
+      .describe("Only publications scheduled at or after this instant."),
+    to: offsetDateTimeSchema.optional(),
+    limit: z.number().int().min(1).max(50).default(25),
+  })
+  .strict();
+
+export const socialCreateMediaUploadInputSchema = z
+  .object({
+    task_id: uuidSchema,
+    filename: z.string().min(1).max(200),
+    content_type: z.enum([
+      "video/mp4",
+      "video/quicktime",
+      "video/webm",
+      "video/x-m4v",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ]),
+    size_bytes: z
+      .number()
+      .int()
+      .positive()
+      .max(250 * 1024 * 1024),
+  })
+  .strict();
+
+const mediaItemSchema = z
+  .object({
+    source_url: z
+      .url({ protocol: /^https$/ })
+      .max(2048)
+      .optional()
+      .describe("Public https URL of a finished video or image (for example an AI generation result)."),
+    upload_path: z
+      .string()
+      .min(1)
+      .max(512)
+      .optional()
+      .describe("upload_path returned by social_create_media_upload after the PUT succeeded."),
+    name: z.string().min(1).max(120).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (Boolean(value.source_url) === Boolean(value.upload_path)) {
+      context.addIssue({
+        code: "custom",
+        message: "Send exactly one of source_url or upload_path",
+      });
+    }
+  });
+
+export const socialAttachMediaInputSchema = z
+  .object({
+    task_id: uuidSchema,
+    asset_type: z
+      .enum(["single", "reel", "carousel"])
+      .optional()
+      .describe("Defaults to reel for one video, single for one image and carousel for several files."),
+    name: z.string().min(1).max(120).optional(),
+    items: z.array(mediaItemSchema).min(1).max(10),
+  })
+  .strict();
+
+export const socialRemoveMediaInputSchema = z
+  .object({ task_id: uuidSchema, asset_id: uuidSchema })
+  .strict();
+
+const instagramPublishOptionsSchema = z
+  .object({
+    publication_type: z.enum(["feed", "story"]).optional(),
+    share_to_feed: z.boolean().optional(),
+    comments_enabled: z.boolean().optional(),
+    is_ai_generated: z
+      .boolean()
+      .optional()
+      .describe("Set true when the media was generated with AI."),
+    first_comment: z.string().max(2200).optional(),
+    collaborators: z.array(z.string().regex(/^@?[A-Za-z0-9._]{1,30}$/)).max(3).optional(),
+    location_id: z.string().regex(/^\d{1,40}$/).optional(),
+    audio_name: z.string().max(100).optional(),
+    trial_reel: z.boolean().optional(),
+  })
+  .strict();
+
+export const socialPublishTaskInputSchema = z
+  .object({
+    task_id: uuidSchema,
+    publication_id: uuidSchema
+      .optional()
+      .describe("Edit this existing draft or scheduled publication instead of creating one."),
+    idempotency_key: idempotencyKeySchema,
+    mode: z
+      .enum(["draft", "schedule", "now"])
+      .describe("draft leaves it in Zernio for review, schedule hands it to Zernio for the given time, now publishes immediately."),
+    scheduled_for: offsetDateTimeSchema
+      .optional()
+      .describe("Required for schedule. ISO 8601 with offset, e.g. 2026-11-25T19:30:00-03:00 (Buenos Aires)."),
+    content: z.string().max(10_000).describe("Final caption/copy exactly as it will be published."),
+    account_ids: z
+      .array(z.string().min(1).max(100))
+      .min(1)
+      .max(20)
+      .describe("account_id values from social_list_publish_targets for this project."),
+    asset_ids: z.array(uuidSchema).max(20).default([]),
+    save_copy_to_task: z.boolean().default(true),
+    instagram: instagramPublishOptionsSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.mode === "schedule" && !value.scheduled_for) {
+      context.addIssue({
+        code: "custom",
+        path: ["scheduled_for"],
+        message: "scheduled_for is required when mode is schedule",
+      });
+    }
+    if (value.mode !== "schedule" && value.scheduled_for) {
+      context.addIssue({
+        code: "custom",
+        path: ["scheduled_for"],
+        message: "scheduled_for is only accepted when mode is schedule",
+      });
+    }
+    if (!value.content.trim() && value.asset_ids.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["content"],
+        message: "A publication needs copy or at least one asset",
+      });
+    }
+  });
+
+export const socialPublicationActionInputSchema = z
+  .object({ publication_id: uuidSchema })
+  .strict();

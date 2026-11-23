@@ -8,6 +8,7 @@ import type {
   DatabaseAccessFactory,
   McpAccessContext,
   RpcEnvelope,
+  SocialPublishingAction,
 } from "./types.js";
 
 const rpcErrorSchema = z.object({
@@ -92,6 +93,35 @@ async function invokeRpc(
   return parsed.data;
 }
 
+interface WebErrorMessages {
+  service: string;
+  timeoutCode: string;
+  timeout: string;
+  unreachableCode: string;
+  unreachable: string;
+  invalidCode: string;
+}
+
+const INVOICE_ERRORS: WebErrorMessages = {
+  service: "The invoicing service",
+  timeoutCode: "invoice_timeout",
+  timeout:
+    "The voucher is still being processed. Repeat the same call to get its result; it never issues twice.",
+  unreachableCode: "invoice_service_unreachable",
+  unreachable: "The invoicing service could not be reached.",
+  invalidCode: "invalid_invoice_response",
+};
+
+const SOCIAL_PUBLISHING_ERRORS: WebErrorMessages = {
+  service: "The social publishing service",
+  timeoutCode: "publishing_timeout",
+  timeout:
+    "The request is still running on the server (media preparation can take minutes). Check social_list_publications, or repeat social_publish_task with the same idempotency_key: it never creates a second post.",
+  unreachableCode: "publishing_service_unreachable",
+  unreachable: "The social publishing service could not be reached.",
+  invalidCode: "invalid_publishing_response",
+};
+
 class SupabaseDatabaseAccess implements DatabaseAccess {
   private readonly client: SupabaseClient;
 
@@ -122,16 +152,32 @@ class SupabaseDatabaseAccess implements DatabaseAccess {
   }
 
   issueInvoice(request: unknown): Promise<RpcEnvelope> {
-    return this.postToInvoicing("/api/invoicing/mcp", request);
+    return this.postToWeb("/api/invoicing/mcp", request, INVOICE_ERRORS);
   }
 
   issueCreditNote(request: unknown): Promise<RpcEnvelope> {
-    return this.postToInvoicing("/api/invoicing/mcp/credit-note", request);
+    return this.postToWeb(
+      "/api/invoicing/mcp/credit-note",
+      request,
+      INVOICE_ERRORS,
+    );
   }
 
-  private async postToInvoicing(
+  socialPublishing(
+    action: SocialPublishingAction,
+    request: unknown,
+  ): Promise<RpcEnvelope> {
+    return this.postToWeb(
+      `/api/social/mcp/${action}`,
+      request,
+      SOCIAL_PUBLISHING_ERRORS,
+    );
+  }
+
+  private async postToWeb(
     path: string,
     request: unknown,
+    errors: WebErrorMessages,
   ): Promise<RpcEnvelope> {
     // Deja un segundo para responder antes del límite del pedido MCP. Si se
     // corta igual, la web termina la emisión y repetir el pedido devuelve ese
@@ -154,10 +200,8 @@ class SupabaseDatabaseAccess implements DatabaseAccess {
         error instanceof DOMException && error.name === "TimeoutError";
       throw new HttpError(
         504,
-        timedOut ? "invoice_timeout" : "invoice_service_unreachable",
-        timedOut
-          ? "The voucher is still being processed. Repeat the same call to get its result; it never issues twice."
-          : "The invoicing service could not be reached.",
+        timedOut ? errors.timeoutCode : errors.unreachableCode,
+        timedOut ? errors.timeout : errors.unreachable,
       );
     }
 
@@ -167,8 +211,8 @@ class SupabaseDatabaseAccess implements DatabaseAccess {
     if (!parsed.success) {
       throw new HttpError(
         502,
-        "invalid_invoice_response",
-        `The invoicing service answered ${response.status} without a valid envelope`,
+        errors.invalidCode,
+        `${errors.service} answered ${response.status} without a valid envelope`,
       );
     }
     return parsed.data;

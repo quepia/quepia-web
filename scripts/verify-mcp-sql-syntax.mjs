@@ -28,6 +28,7 @@ const expectedMigrationSuffixes = [
   "_invoice_description.sql",
   "_arca_credit_notes.sql",
   "_invoicing_settings.sql",
+  "_mcp_social_publishing.sql",
 ];
 // These migrations are already applied remotely and must remain byte-for-byte
 // immutable. Further fixes belong in a new forward-only migration.

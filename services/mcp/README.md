@@ -96,6 +96,24 @@ Tool-to-RPC mapping:
 | `tasks_void_operation` | any task write | `mcp_tasks_void_operation` |
 | `intelligence_get_project_context` | `intelligence.read` | `mcp_intelligence_get_project_context` |
 
+Social publishing tools need `social.publish.write` (granted by default, but
+the web re-checks a global administrator on every call). They do not call a
+database RPC directly: like invoicing, they POST to the web app with the
+user's OAuth token, because the Zernio API key and the asset storage live
+there. The web authorizes with `social_publish_authorize` and resolves the
+client's Zernio profile from the project.
+
+| MCP tool | Web endpoint |
+| --- | --- |
+| `social_list_publish_targets` | `/api/social/mcp/targets` |
+| `social_list_publications` | `/api/social/mcp/publications` |
+| `social_create_media_upload` | `/api/social/mcp/upload-url` |
+| `social_attach_media` | `/api/social/mcp/attach-media` |
+| `social_remove_media` | `/api/social/mcp/remove-media` |
+| `social_publish_task` | `/api/social/mcp/publish` |
+| `social_cancel_publication` | `/api/social/mcp/cancel` |
+| `social_retry_publication` | `/api/social/mcp/retry` |
+
 `intelligence_get_project_context` is read-only and returns the selected
 client's brief, active human-reviewed strategy documents, newer-version status,
 competitors, opportunities, research freshness, and bounded evidence sources.

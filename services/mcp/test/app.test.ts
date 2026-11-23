@@ -266,6 +266,9 @@ describe("HTTP security and discovery", () => {
         async issueCreditNote() {
           throw new Error("unreachable");
         },
+        async socialPublishing() {
+          throw new Error("unreachable");
+        },
       }),
     });
     await withHttpServer(deniedApp, async (baseUrl) => {

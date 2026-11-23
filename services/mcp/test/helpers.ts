@@ -57,6 +57,7 @@ export interface DatabaseMock extends DatabaseAccess {
   contextCalls: number;
   calls: Array<{ rpcName: string; request: unknown }>;
   invoiceCalls: unknown[];
+  socialCalls: Array<{ action: string; request: unknown }>;
 }
 
 export function databaseMock(
@@ -67,6 +68,7 @@ export function databaseMock(
     contextCalls: 0,
     calls: [],
     invoiceCalls: [],
+    socialCalls: [],
     async getContext() {
       this.contextCalls += 1;
       return context;
@@ -81,6 +83,10 @@ export function databaseMock(
     },
     async issueCreditNote(request) {
       this.invoiceCalls.push({ credit_note: request });
+      return response;
+    },
+    async socialPublishing(action, request) {
+      this.socialCalls.push({ action, request });
       return response;
     },
   };

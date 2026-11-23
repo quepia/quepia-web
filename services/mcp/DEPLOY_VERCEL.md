@@ -42,6 +42,11 @@ At minimum:
   login plus WSFE authorization can exceed the 15 s default. A timeout is safe
   (retrying the same `payment_id` never issues twice) but leaves the user
   without the voucher number in that turn.
+- `MCP_REQUEST_TIMEOUT_MS=240000` if `social.publish.write` is granted:
+  `social_attach_media` downloads videos of up to 250 MB and
+  `social_publish_task` prepares reels and uploads them to Zernio. A timeout
+  is safe (the web keeps working, and repeating `social_publish_task` with the
+  same `idempotency_key` never posts twice).
 
 Never configure a Supabase secret or privileged legacy key. Startup rejects
 those values.
