@@ -50,10 +50,19 @@ export async function mcpOAuthBearerClient(request: Request): Promise<McpBearerR
     },
   )
 
-  const { data, error } = await client.auth.getClaims(token)
-  const claims = data?.claims as Record<string, unknown> | undefined
+  // getClaims lanza (en vez de devolver error) si el token no tiene forma de
+  // JWT; eso también es un token inválido, no una falla del servidor.
+  let claims: Record<string, unknown> | undefined
+  let failed = false
+  try {
+    const { data, error } = await client.auth.getClaims(token)
+    claims = data?.claims as Record<string, unknown> | undefined
+    failed = Boolean(error)
+  } catch {
+    failed = true
+  }
   if (
-    error ||
+    failed ||
     !claims ||
     claims.role !== MCP_DATABASE_ROLE ||
     typeof claims.client_id !== "string" ||
