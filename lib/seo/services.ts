@@ -404,6 +404,18 @@ export const services = [
     ],
     "faq": [
       {
+        "q": "¿Para qué sirve filmar con dron?",
+        "a": "Para mostrar un lugar en relación con su entorno: dónde está un alojamiento respecto del paisaje, cómo es un terreno o una propiedad, o el espacio de un evento. Lo sumamos cuando la toma aérea aporta información al mensaje, no solo altura."
+      },
+      {
+        "q": "¿Hacen filmación con dron en Villa Carlos Paz y el Valle de Punilla?",
+        "a": "Sí. Estamos en Villa Carlos Paz y coordinamos tomas aéreas en la ciudad, el Valle de Punilla y el resto de la provincia de Córdoba, siempre con una evaluación previa de la ubicación, los accesos y las condiciones del lugar."
+      },
+      {
+        "q": "¿Entregan el video editado o solo las tomas aéreas?",
+        "a": "Las dos opciones son posibles: el material aéreo puede integrarse en reels, videos de presentación o piezas de campaña editadas, o entregarse seleccionado para que lo edite otro equipo. La propuesta aclara cuál de los dos servicios se contrata."
+      },
+      {
         "q": "¿Cómo se define el presupuesto?",
         "a": "Según los entregables, las revisiones y la producción necesaria. Contanos el objetivo y los materiales disponibles para evaluar el alcance."
       },

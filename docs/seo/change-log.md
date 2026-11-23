@@ -716,4 +716,20 @@
 - Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué tipos de video hacen?», «¿Hacen videos y reels para negocios de Villa Carlos Paz?» y «¿La producción incluye guion y edición?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `produccion-audiovisual` con las 3 preguntas visibles y FAQPage con 7 preguntas.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `0b3f251`. Vercel: "Vercel – quepia-web" y "Vercel – quepia-mcp" success.
+- 23/11, 10:22 ART (con cache-buster): `/servicios/produccion-audiovisual` HTTP 200 con «¿Qué tipos de video hacen?», «¿Hacen videos y reels para negocios de Villa Carlos Paz?» y «¿La producción incluye guion y edición?» en el HTML.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de FAQ de filmación con dron del 23/11 (IA-06).
+
+## 2026-11-23 — Grokbot — FAQ con respuesta directa en filmación con dron (IA-06)
+
+- Autor: Grokbot. Fecha: 2026-11-23 (hora de Córdoba, ART).
+- Alcance: array `faq` de la entrada `filmacion-con-dron-cordoba` en `lib/seo/services.ts` (FAQ visibles y FAQPage JSON-LD de `/servicios/filmacion-con-dron-cordoba`). Title, description, secciones, URL y el resto de los servicios sin cambios.
+- Evidencia / motivo: siguiente paso de IA-06 (orden: audiovisual ✔ → dron → diseño gráfico → fotografía → packaging). La página tenía solo 4 FAQ (presupuesto, clima, fuera de Carlos Paz, qué necesito), sin una respuesta directa sobre para qué sirve el dron, si cubren Carlos Paz/Punilla ni qué se entrega, que son las preguntas que un buscador o asistente de IA puede citar. Ningún commit reciente de Codex tocó estas FAQ.
+- Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Para qué sirve filmar con dron?», «¿Hacen filmación con dron en Villa Carlos Paz y el Valle de Punilla?» y «¿Entregan el video editado o solo las tomas aéreas?». Sin precios, plazos, permisos/certificaciones, clientes ni cifras. Se conservan las 4 FAQ existentes.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `filmacion-con-dron-cordoba` con las 3 preguntas visibles y FAQPage con 7 preguntas.
 - Publicación: pendiente de verificar tras el push.
