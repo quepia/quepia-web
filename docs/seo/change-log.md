@@ -732,4 +732,20 @@
 - Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Para qué sirve filmar con dron?», «¿Hacen filmación con dron en Villa Carlos Paz y el Valle de Punilla?» y «¿Entregan el video editado o solo las tomas aéreas?». Sin precios, plazos, permisos/certificaciones, clientes ni cifras. Se conservan las 4 FAQ existentes.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `filmacion-con-dron-cordoba` con las 3 preguntas visibles y FAQPage con 7 preguntas.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `af509bc`. Vercel: "Vercel – quepia-web" y "Vercel – quepia-mcp" success (23/11, 10:23 ART).
+- 24/11, 10:25 ART (con cache-buster): `/servicios/filmacion-con-dron-cordoba` HTTP 200 con «¿Para qué sirve filmar con dron?», «¿Hacen filmación con dron en Villa Carlos Paz y el Valle de Punilla?» y «¿Entregan el video editado o solo las tomas aéreas?» en el HTML.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de FAQ de diseño gráfico del 24/11 (IA-06).
+
+## 2026-11-24 — Grokbot — FAQ con respuesta directa en diseño gráfico (IA-06)
+
+- Autor: Grokbot. Fecha: 2026-11-24 (hora de Córdoba, ART).
+- Alcance: array `faq` de la entrada `diseno-grafico` en `lib/seo/services.ts` (FAQ visibles y FAQPage JSON-LD de `/servicios/diseno-grafico`). Title, description, secciones, URL y el resto de los servicios sin cambios.
+- Evidencia / motivo: siguiente paso de IA-06 (orden: audiovisual ✔ → dron ✔ → diseño gráfico → fotografía → packaging). La página tenía solo las 4 FAQ genéricas compartidas (presupuesto, contratar por separado, fuera de Carlos Paz, qué necesito), sin una respuesta directa sobre qué piezas se diseñan, si atienden a negocios de Carlos Paz ni si la impresión está incluida, que son las preguntas que un buscador o asistente de IA puede citar. Ningún commit reciente de Codex tocó estas FAQ (los últimos commits ajenos son del MCP).
+- Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué piezas de diseño gráfico hacen?», «¿Hacen diseño gráfico para negocios de Villa Carlos Paz?» y «¿La impresión está incluida en el diseño?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `diseno-grafico` con las 3 preguntas visibles y FAQPage con 7 preguntas.
 - Publicación: pendiente de verificar tras el push.

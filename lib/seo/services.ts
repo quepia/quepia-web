@@ -345,6 +345,18 @@ export const services = [
     ],
     "faq": [
       {
+        "q": "¿Qué piezas de diseño gráfico hacen?",
+        "a": "Publicaciones para redes, presentaciones, folletos, catálogos, piezas promocionales y cartelería, digitales o para imprimir. Las especificaciones de cada soporte se acuerdan al presupuestar."
+      },
+      {
+        "q": "¿Hacen diseño gráfico para negocios de Villa Carlos Paz?",
+        "a": "Sí. Trabajamos desde Villa Carlos Paz para negocios de la ciudad, el Valle de Punilla y toda la provincia de Córdoba; los proyectos de diseño suelen coordinarse con reuniones y revisiones a distancia."
+      },
+      {
+        "q": "¿La impresión está incluida en el diseño?",
+        "a": "No necesariamente: la impresión, la fabricación y la instalación se definen por separado cuando intervienen proveedores. La propuesta detalla qué archivos y versiones se entregan, y el arte final se prepara según las especificaciones del proveedor."
+      },
+      {
         "q": "¿Cómo se define el presupuesto?",
         "a": "Según los entregables, las revisiones y la producción necesaria. Contanos el objetivo y los materiales disponibles para evaluar el alcance."
       },
