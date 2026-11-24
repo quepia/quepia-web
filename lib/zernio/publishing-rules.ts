@@ -137,6 +137,22 @@ export function localDateTimeToUtcIso(value: string, timeZone = ZERNIO_TIME_ZONE
   return new Date(instant).toISOString()
 }
 
+/**
+ * Pasa un instante con zona explícita (ISO con Z u offset, como lo manda el
+ * MCP) a la hora de reloj de la zona de Zernio, que es el formato que usa el
+ * panel y el que esperan localDateTimeToUtcIso y la API de Zernio.
+ */
+export function instantToLocalDateTime(value: string, timeZone = ZERNIO_TIME_ZONE) {
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value.trim())
+  const instant = hasZone ? new Date(value.trim()) : null
+  if (!instant || Number.isNaN(instant.getTime())) {
+    throw new Error("La fecha programada no tiene un formato válido")
+  }
+  const parts = partsInTimeZone(instant, timeZone)
+  const pad = (number: number, length = 2) => String(number).padStart(length, "0")
+  return `${pad(parts.year, 4)}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}:${pad(parts.second)}`
+}
+
 export function scheduledForDatabaseValue(
   value: string | null,
   now = Date.now(),

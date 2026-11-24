@@ -19,6 +19,7 @@ import {
   type PublicationRow,
   type PublishTaskRow,
 } from "@/lib/zernio/publish-task"
+import { instantToLocalDateTime } from "@/lib/zernio/publishing-rules"
 import {
   apiErrorResponse,
   getProjectIntegration,
@@ -280,6 +281,16 @@ async function publish(
   if (input.mode === "schedule" && !input.scheduled_for) {
     throw new ZernioRouteError(400, "scheduled_for es obligatorio para programar")
   }
+  // El MCP manda un instante con offset; el resto del flujo (igual que el
+  // panel) trabaja con la hora de reloj de la zona de Zernio.
+  let scheduledFor: string | null = null
+  if (input.mode === "schedule" && input.scheduled_for) {
+    try {
+      scheduledFor = instantToLocalDateTime(input.scheduled_for)
+    } catch (error) {
+      throw new ZernioRouteError(400, error instanceof Error ? error.message : "La fecha programada no es válida")
+    }
+  }
   if (input.publication_id) {
     const existing = await loadPublicationRecord(input.publication_id, { requireZernioPost: false })
     if (existing.task_id !== task.id) throw new ZernioRouteError(400, "La publicación no pertenece a esa tarjeta")
@@ -298,7 +309,7 @@ async function publish(
       publicationId: input.publication_id || "",
       publishingMode: input.mode,
       content,
-      scheduledFor: input.mode === "schedule" ? input.scheduled_for || null : null,
+      scheduledFor,
       accountIds: Array.from(new Set(input.account_ids)),
       assetIds: Array.from(new Set(input.asset_ids)),
       rawMediaEdits: [],
