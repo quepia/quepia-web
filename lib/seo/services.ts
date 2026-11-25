@@ -211,6 +211,18 @@ export const services = [
     ],
     "faq": [
       {
+        "q": "¿Qué tipo de fotografía hacen?",
+        "a": "Fotografía de producto y fotografía inmobiliaria y arquitectónica. En producto hacemos imágenes de catálogo, detalles y composiciones para fichas, redes y piezas impresas; en espacios, series que muestran ambientes, recorridos y luz de propiedades y alojamientos."
+      },
+      {
+        "q": "¿Hacen fotografía de producto e inmobiliaria en Villa Carlos Paz?",
+        "a": "Sí. Tenemos base en Villa Carlos Paz y coordinamos sesiones en la ciudad, el Valle de Punilla y toda la provincia de Córdoba. Para fotografiar espacios vamos a la locación; en producto acordamos dónde se hace la sesión."
+      },
+      {
+        "q": "¿Las fotos se entregan editadas?",
+        "a": "Sí. Seleccionamos las imágenes que responden al brief y las entregamos con ajustes de exposición, color y encuadre según lo acordado. La cantidad de imágenes finales y el alcance de edición, como recortes o formatos especiales, se definen en la propuesta."
+      },
+      {
         "q": "¿Cómo se define el presupuesto?",
         "a": "Según los entregables, las revisiones y la producción necesaria. Contanos el objetivo y los materiales disponibles para evaluar el alcance."
       },

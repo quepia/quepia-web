@@ -748,4 +748,20 @@
 - Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué piezas de diseño gráfico hacen?», «¿Hacen diseño gráfico para negocios de Villa Carlos Paz?» y «¿La impresión está incluida en el diseño?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `diseno-grafico` con las 3 preguntas visibles y FAQPage con 7 preguntas.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `a8e9c88`. Vercel: "Vercel – quepia-web" y "Vercel – quepia-mcp" success (24/11, 10:26 ART).
+- 25/11, 10:28 ART (con cache-buster): `/servicios/diseno-grafico` HTTP 200 con «¿Qué piezas de diseño gráfico hacen?», «¿Hacen diseño gráfico para negocios de Villa Carlos Paz?» y «¿La impresión está incluida en el diseño?» en el HTML.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de FAQ de fotografía del 25/11 (IA-06).
+
+## 2026-11-25 — Grokbot — FAQ con respuesta directa en fotografía de producto e inmobiliaria (IA-06)
+
+- Autor: Grokbot. Fecha: 2026-11-25 (hora de Córdoba, ART).
+- Alcance: array `faq` de la entrada `fotografia-de-producto` en `lib/seo/services.ts` (FAQ visibles y FAQPage JSON-LD de `/servicios/fotografia-de-producto`). Title, description, secciones, URL y el resto de los servicios sin cambios.
+- Evidencia / motivo: siguiente paso de IA-06 (orden: audiovisual ✔ → dron ✔ → diseño gráfico ✔ → fotografía → packaging). La página tenía solo las 4 FAQ genéricas compartidas (presupuesto, contratar por separado, fuera de Carlos Paz, qué necesito), sin una respuesta directa sobre qué tipo de fotografía se hace, si cubren Carlos Paz ni si las fotos se entregan editadas, que son las preguntas que un buscador o asistente de IA puede citar. Ningún commit reciente de Codex tocó estas FAQ (los últimos commits ajenos son del MCP).
+- Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué tipo de fotografía hacen?», «¿Hacen fotografía de producto e inmobiliaria en Villa Carlos Paz?» y «¿Las fotos se entregan editadas?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `fotografia-de-producto` con las 3 preguntas visibles y FAQPage con 7 preguntas.
 - Publicación: pendiente de verificar tras el push.
