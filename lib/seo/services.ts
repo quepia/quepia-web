@@ -499,6 +499,18 @@ export const services = [
     ],
     "faq": [
       {
+        "q": "¿Qué incluye el diseño de packaging?",
+        "a": "La comunicación gráfica del producto: etiquetas, aplicaciones gráficas sobre envases y variantes para una línea de productos, según el alcance. Trabajamos jerarquía de información, identidad de marca y diferenciación entre versiones, y entregamos archivos listos para imprimir. El diseño estructural o industrial del envase no forma parte automática del servicio."
+      },
+      {
+        "q": "¿Hacen diseño de packaging y etiquetas en Villa Carlos Paz?",
+        "a": "Sí. Trabajamos desde Villa Carlos Paz con marcas de toda la provincia de Córdoba. El desarrollo gráfico se puede coordinar a distancia con archivos y reuniones digitales, y cuando hace falta revisar muestras o reunirnos con un proveedor acordamos la logística."
+      },
+      {
+        "q": "¿La impresión y la fabricación del envase están incluidas?",
+        "a": "No, salvo que se incluyan expresamente en la propuesta. Preparamos el archivo final según los requisitos del proveedor y recomendamos coordinar pruebas a escala real; la fabricación y la tirada se presupuestan por separado."
+      },
+      {
         "q": "¿Cómo se define el presupuesto?",
         "a": "Según los entregables, las revisiones y la producción necesaria. Contanos el objetivo y los materiales disponibles para evaluar el alcance."
       },

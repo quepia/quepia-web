@@ -764,4 +764,20 @@
 - Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué tipo de fotografía hacen?», «¿Hacen fotografía de producto e inmobiliaria en Villa Carlos Paz?» y «¿Las fotos se entregan editadas?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `fotografia-de-producto` con las 3 preguntas visibles y FAQPage con 7 preguntas.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `88cf486`. Vercel: "Vercel – quepia-web" y "Vercel – quepia-mcp" success (25/11, 10:31 ART).
+- 26/11, 10:23 ART (con cache-buster): `/servicios/fotografia-de-producto` HTTP 200 con «¿Qué tipo de fotografía hacen?», «¿Hacen fotografía de producto e inmobiliaria en Villa Carlos Paz?» y «¿Las fotos se entregan editadas?» en el HTML.
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de FAQ de packaging del 26/11 (IA-06).
+
+## 2026-11-26 — Grokbot — FAQ con respuesta directa en diseño de packaging (IA-06)
+
+- Autor: Grokbot. Fecha: 2026-11-26 (hora de Córdoba, ART).
+- Alcance: array `faq` de la entrada `packaging` en `lib/seo/services.ts` (FAQ visibles y FAQPage JSON-LD de `/servicios/packaging`). Title, description, secciones, URL y el resto de los servicios sin cambios.
+- Evidencia / motivo: último paso de IA-06 (orden: audiovisual ✔ → dron ✔ → diseño gráfico ✔ → fotografía ✔ → packaging). La página tenía solo las 4 FAQ genéricas compartidas (presupuesto, contratar por separado, fuera de Carlos Paz, qué necesito), sin una respuesta directa sobre qué incluye el diseño de packaging, si atienden en Carlos Paz ni si la impresión y fabricación del envase están incluidas, que son las preguntas que un buscador o asistente de IA puede citar. Ningún commit reciente de Codex tocó estas FAQ (los últimos commits ajenos son del MCP).
+- Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué incluye el diseño de packaging?», «¿Hacen diseño de packaging y etiquetas en Villa Carlos Paz?» y «¿La impresión y la fabricación del envase están incluidas?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
+- Archivo: `lib/seo/services.ts`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `packaging` con las 3 preguntas visibles y FAQPage con 7 preguntas.
 - Publicación: pendiente de verificar tras el push.
