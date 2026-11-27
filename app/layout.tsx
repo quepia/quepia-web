@@ -67,6 +67,19 @@ export const metadata: Metadata = {
   },
 };
 
+// Solo se publica streetAddress si config.direccion trae una calle real; si apenas repite
+// la localidad ("Villa Carlos Paz, Córdoba, Argentina"), ya está en addressLocality/Region/Country.
+function isRealStreetAddress(direccion?: string): direccion is string {
+  if (!direccion) return false;
+  const rest = direccion
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/villa carlos paz|carlos paz|provincia de cordoba|cordoba|argentina/g, '')
+    .replace(/[^a-z0-9]/g, '');
+  return rest.length > 0;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -110,7 +123,7 @@ export default async function RootLayout({
       addressLocality: 'Villa Carlos Paz',
       addressRegion: 'Córdoba',
       addressCountry: 'AR',
-      ...(config.direccion ? { streetAddress: config.direccion } : {}),
+      ...(isRealStreetAddress(config.direccion) ? { streetAddress: config.direccion } : {}),
     },
     sameAs: [OFFICIAL_INSTAGRAM_URL],
     knowsAbout: [

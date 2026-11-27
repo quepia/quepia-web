@@ -780,4 +780,20 @@
 - Cambio: 3 FAQ nuevas al inicio, con la respuesta en la primera oración y basadas solo en lo que la página ya dice: «¿Qué incluye el diseño de packaging?», «¿Hacen diseño de packaging y etiquetas en Villa Carlos Paz?» y «¿La impresión y la fabricación del envase están incluidas?». Sin precios, plazos, clientes ni cifras. Se conservan las 4 FAQ existentes.
 - Archivo: `lib/seo/services.ts`.
 - Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin advertencias, `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock vacío de Supabase en 127.0.0.1. HTML generado de `packaging` con las 3 preguntas visibles y FAQPage con 7 preguntas.
+- Publicación: verificada (ver abajo).
+
+### Verificación de publicación (Grokbot)
+
+- Commit: `5786996`. Vercel: "Vercel – quepia-web" y "Vercel – quepia-mcp" success (26/11, 10:27 ART).
+- 27/11, 10:24 ART (con cache-buster): `/servicios/packaging` HTTP 200 con «¿Qué incluye el diseño de packaging?», «¿Hacen diseño de packaging y etiquetas en Villa Carlos Paz?» y «¿La impresión y la fabricación del envase están incluidas?» en el HTML (un primer curl sin User-Agent dio 403 transitorio; los reintentos con User-Agent de navegador dieron 200).
+- Resultado: publicado y vigente; sin revert. Se registra en el commit de streetAddress del 27/11 (SEO-17).
+
+## 2026-11-27 — Grokbot — streetAddress solo si es una calle real en el schema de la organización (SEO-17, parte de código)
+
+- Autor: Grokbot. Fecha: 2026-11-27 (hora de Córdoba, ART).
+- Alcance: `address` del JSON-LD de la organización en `app/layout.tsx` (sale en todas las páginas públicas). Nombre, teléfono, horario, `sameAs`, textos visibles (footer y /contacto) y la configuración de Supabase sin cambios.
+- Evidencia / motivo: ítem SEO-17 del backlog (parte de código). En vivo (27/11, 10:22 ART) el schema publica `"streetAddress":"Villa Carlos Paz, Córdoba, Argentina"`, que no es una calle: sale de `config.direccion` y repite lo que ya dicen `addressLocality`, `addressRegion` y `addressCountry`. Un dato de calle falso o redundante resta confianza a buscadores y asistentes de IA que leen el schema. Ningún commit reciente de Codex tocó este bloque (los últimos commits ajenos son del MCP).
+- Cambio: helper `isRealStreetAddress` que normaliza `config.direccion` (sin tildes, minúsculas) y quita localidad, provincia y país; si no queda nada, no se publica `streetAddress`. Si en el panel se carga una dirección con calle (p. ej. «Av. … 123, Villa Carlos Paz»), se sigue publicando tal cual. No se inventa ninguna dirección.
+- Archivo: `app/layout.tsx`.
+- Validación: Node 22.23.3, `pnpm install --frozen-lockfile`, eslint del archivo sin errores (solo la advertencia previa `no-page-custom-font` del link de Typekit), `tsc --noEmit` y `pnpm build` correctos con NODE_USE_ENV_PROXY=1 contra un mock de Supabase en 127.0.0.1 que devuelve `direccion = "Villa Carlos Paz, Córdoba, Argentina"`. HTML generado (`contacto`, `index`, etc.) con `PostalAddress` sin `streetAddress`. Prueba del helper: «Villa Carlos Paz, Córdoba, Argentina» y «Villa Carlos Paz, Provincia de Córdoba» → se omite; «Av. San Martín 123, Villa Carlos Paz» → se publica.
 - Publicación: pendiente de verificar tras el push.
